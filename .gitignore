@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Environments
+.env
+.venv/
+venv/
+
+# Logs
+*.log
+
+# Test / coverage / runtime outputs
+coverage.xml
+htmlcov/
+.pytest_cache/
+core/verification_results/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

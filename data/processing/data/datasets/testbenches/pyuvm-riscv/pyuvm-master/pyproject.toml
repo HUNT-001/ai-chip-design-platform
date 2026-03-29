@@ -1,0 +1,147 @@
+[build-system]
+requires = ["setuptools>=61","wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyuvm"
+version = "4.0.1"
+description = "A Python implementation of the UVM using cocotb"
+readme = "README.md"
+requires-python = ">=3.7"
+authors = [
+    {name = "Ray Salemi", email = "ray@raysalemi.com"}
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Electronic Design Automation (EDA)",
+    "Framework :: cocotb",
+]
+dependencies = [
+    "cocotb>=1.6.0,<3.0",
+]
+dynamic = [
+    "license"
+]
+
+[project.urls]
+Homepage = "https://github.com/pyuvm/pyuvm"
+"Bug Tracker" = "https://github.com/pyuvm/pyuvm/issues"
+
+[tool.setuptools]
+packages = [
+    "pyuvm",
+]
+
+[dependency-groups]
+dev = [
+    "tox",
+    "pre-commit",
+    "pytest",
+    "ruff",
+]
+docs = [
+    "cocotb>=2.0.1",
+    "myst-parser>=4.0.1",
+    "sphinx>=8.2.3",
+    "sphinx-autodoc2>=0.5.0",
+    "sphinx-rtd-theme>=3.0.2",
+]
+
+[tool.uv.dependency-groups]
+docs = {requires-python = ">=3.11"}
+
+[tool.ruff]
+target-version = "py37"
+
+[tool.ruff.lint]
+extend-select = [
+    "I",        # isort
+    "UP",       # pyupgrade
+    "E",        # pycodestyle errors
+    "W",        # pycodestyle warnings
+    "F",        # pyflakes
+    "PL",       # pylint
+]
+ignore = [
+    "E741",    # ambiguous variable name (preference)
+    "E501",    # line too long (preference)
+    "F405",    # Undefined local with import star usage (preference)
+    "F403",    # Undefined local with import star (preference)
+    "PLR0912", # Too many branches (>12) (preference)
+    "PLR0913", # Too many arguments to function call (>5) (preference)
+    "PLR0915", # Too many statements (>50) (preference)
+    "PLR2004", # Magic value used in comparison (preference)
+    "PLR0911", # Too many return statements (preference)
+    "PLW0603", # Using the global statement (pedantic)
+    "PLW1641", # object does not implement `__hash__` method (pedantic)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = [
+    "pyuvm",
+]
+known-third-party = [
+    "pytest",
+    "cocotb",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"pyuvm/__init__.py" = [
+    "F401",
+]
+
+[tool.codespell]
+ignore-words-list = [
+    "synopsys",
+]
+
+[tool.pytest.ini_options]
+testpaths = [
+    "tests/pytests",
+]
+markers = [
+    "test_reg_get_name",
+    "test_reg_configure",
+    "test_reg_with_single_field",
+    "test_reg_with_multiple_fields",
+    "test_reg_with_multiple_felds_reset",
+    "test_reg_with_multiple_fields_get_mirrored_value",
+    "test_reg_with_multiple_fields_get_desired_value",
+    "reg_block_get_field_single_reg",
+    "reg_block_get_field_multiple_regs",
+    "reg_block_get_field_sub_reg_block",
+    "reg_block_get_reg_by_name",
+    "reg_block_get_field_by_name",
+    "test_reg_simple_predict",
+    "test_reg_predict_edge_cases",
+    "test_reg_predict_with_reserved_spaces",
+    "test_reg_field_get_name",
+    "test_reg_field_configure",
+    "test_reg_field_is_volatile",
+    "test_reg_field_all_access",
+    "test_reg_field_lsb_pos",
+    "test_reg_field_reset",
+    "test_reg_field_get",
+    "test_reg_field_get_value",
+    "test_reg_field_field_predict_read_set",
+    "test_reg_field_field_predict_read_clear",
+    "test_reg_field_field_predict_write_set",
+    "test_reg_field_field_predict_write_clear",
+    "test_reg_field_field_predict_TOGGLE",
+    "test_reg_field_field_predict_NO_ACCESS",
+    "test_reg_field_field_predict_status_error_on_write",
+    "test_reg_field_field_predict_status_error_on_read",
+    "test_reg_block_get_name",
+    "test_reg_block_with_single_reg",
+    "test_reg_block_with_multiple_regs",
+    "test_reg_map_get_name",
+    "test_reg_map_configure",
+    "test_reg_map_with_single_reg",
+    "test_reg_map_with_multiple_regs",
+    "reg_block_get_name",
+    "reg_block_with_single_reg",
+    "reg_block_with_multiple_regs",
+    "reg_block_with_sub_blocks",
+    "reg_block_get_field_empty_reg",
+]

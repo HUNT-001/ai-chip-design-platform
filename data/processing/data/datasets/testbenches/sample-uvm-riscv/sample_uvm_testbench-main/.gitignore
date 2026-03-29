@@ -1,0 +1,24 @@
+# cds
+xrun.*
+xcelium*
+*.vcd
+*.shm
+.simvision
+simvision*
+verilog.dump
+icc*
+imc*
+mdv*
+wave_image
+cov_work
+.uvmtclcomm.txt
+
+# questa
+_info
+*.qdb
+*.qpg
+*.qtl
+_vmake
+
+# other
+*.csv

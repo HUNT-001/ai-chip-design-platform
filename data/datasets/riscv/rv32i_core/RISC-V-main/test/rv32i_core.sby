@@ -1,0 +1,34 @@
+[options]
+mode prove 
+depth 3
+
+[engines]
+smtbmc
+
+[script]
+read -formal rv32i_forwarding.v
+read -formal rv32i_basereg.v
+read -formal rv32i_fetch.v
+read -formal rv32i_decoder.v
+read -formal rv32i_alu.v
+read -formal rv32i_memoryaccess.v
+read -formal rv32i_writeback.v
+read -formal rv32i_csr.v
+read -formal rv32i_core.v           
+read -formal fwb_master.v
+# verific -import -flatten rv32i_core
+prep -top rv32i_core
+
+[files]
+../rtl/rv32i_header.vh
+../rtl/rv32i_forwarding.v
+../rtl/rv32i_basereg.v
+../rtl/rv32i_fetch.v
+../rtl/rv32i_decoder.v
+../rtl/rv32i_alu.v
+../rtl/rv32i_memoryaccess.v
+../rtl/rv32i_writeback.v
+../rtl/rv32i_csr.v
+../rtl/rv32i_core.v    
+../rtl/fwb_master.v        
+

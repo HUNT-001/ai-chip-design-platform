@@ -1,0 +1,5 @@
+*.mk linguist-detectable=false
+*akefile linguist-detectable=false
+*.md linguist-detectable=false
+*.xise linguist-detectable=false
+*.py linguist-detectable=false

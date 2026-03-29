@@ -1,0 +1,27 @@
+"""Top level Bazel module, allows access to files by other modules."""
+
+exports_files(
+    glob([
+        "rtl/**/*.v",
+        "rtl/**/*.vh",
+    ]),
+    visibility = [":__subpackages__"],
+)
+
+filegroup(
+    name = "verilog",
+    srcs = glob(["rtl/**/*.v"]),
+    visibility = [":__subpackages__"],
+)
+
+filegroup(
+    name = "verilog_include",
+    srcs = glob(["rtl/**/*.vh"]),
+    visibility = [":__subpackages__"],
+)
+
+filegroup(
+    name = "verilog_data",
+    srcs = glob(["src/**/*.mem"]),
+    visibility = [":__subpackages__"],
+)
