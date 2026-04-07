@@ -136,6 +136,7 @@ The long-term direction of AI Chip Design Platform includes work in areas such a
 - Workflow orchestration for hardware projects
 - Natural-language-assisted engineering interfaces
 - Experimentation with intelligent automation for chip design pipelines
+
 ## Current Status
 This project is currently in an early foundational stage.
 That means:
@@ -144,3 +145,52 @@ That means:
 - modules may be added or refactored
 - documentation and test coverage will continue improving
 - future releases may introduce significant changes
+
+## Roadmap
+
+Planned improvements may include:
+
+- Better modular architecture
+- Expanded documentation
+- More robust test coverage
+- Example workflows and demos
+- Improved developer setup
+- AI-assisted chip design modules
+- Verification and automation integrations
+- Performance and usability improvements
+
+## Contributing
+
+Contributions are welcome
+
+If you would like to contribute:
+
+1. Fork the repository
+2. Create a new branch
+3. Make your changes
+4. Add or update tests where appropriate
+5. Submit a pull request
+
+Please try to keep contributions focused, documented, and aligned with the project direction.
+
+## Why This Project Matters
+
+Chip design is a complex engineering discipline that can benefit significantly from better automation, tooling, and intelligent assistance. This project is motivated by the belief that AI can become a useful collaborator in hardware workflows—not as a replacement for engineering rigor, but as a multiplier for productivity, experimentation, and insight.
+
+## Author
+
+Tanush Pavan V
+GitHub: HUNT-001
+
+## Acknowledgments
+
+This project is inspired by the growing intersection of:
+
+- AI systems
+- chip design workflows
+- verification engineering
+- open-source hardware tooling
+- engineering automation
+
+## Contact
+For suggestions, collaboration, or feedback, feel free to open an issue or connect through GitHub.
