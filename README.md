@@ -140,11 +140,50 @@ The long-term vision is not merely to call models from scripts, but to build a r
 
 ## Getting Started
 Prerequisites
-Python 3.10+
-Git
-pip
-Docker / Docker Compose (optional, for containerized workflows)
-Verilator or other external EDA tools as needed for tool integration
+- Python 3.10+
+- Git
+- pip
+- Docker / Docker Compose (optional, for containerized workflows)
+- Verilator or other external EDA tools as needed for tool integration
+
+## Clone the Repository
+```
+git clone https://github.com/HUNT-001/ai-chip-design-platform.git
+cd ai-chip-design-platform
+```
+## Create a Virtual Environment
+
+# Windows
+```
+python -m venv venv
+venv\Scripts\activate
+```
+# Linux / macOS
+```
+python -m venv venv
+source venv/bin/activate
+```
+
+## Install Dependencies
+```
+pip install -r requirements.txt
+```
+## Configure Environment
+
+Copy the example environment file and update values as needed:
+```
+cp .env.example .env
+```
+On Windows PowerShell, create .env manually or copy from the example file.
+
+
+
+
+
+
+
+
+
 
 ## Roadmap
 
