@@ -1,150 +1,150 @@
 # AI Chip Design Platform
 
-An extensible platform for exploring **AI-assisted chip design**, **hardware workflow automation**, and **verification-oriented engineering tooling**.
+A modular open-source platform for **AI-assisted chip design, verification automation, EDA workflow orchestration, and red-team evaluation**.
 
-This project is intended as a foundation for building practical tools at the intersection of:
+This project is designed as a foundation for building intelligent hardware-engineering infrastructure that combines:
 
-- Artificial Intelligence
-- Digital Design / RTL
-- Verification
-- Hardware-Software Co-design
-- Engineering Productivity Automation
+- **multi-agent orchestration**
+- **verification-aware execution**
+- **simulation workflow management**
+- **coverage-driven analysis**
+- **EDA tool integration**
+- **dataset-backed experimentation**
+- **dashboard and API extensibility**
+- **robust red-team testing of agentic verification systems**
 
 ---
 
 ## Overview
 
-**AI Chip Design Platform** is a foundational repository aimed at supporting the development of intelligent tooling for chip design workflows. The broader vision is to create a platform that can assist engineers, students, and researchers in tasks related to:
+AI Chip Design Platform is an experimental but structured platform for exploring how AI systems can support digital design and verification workflows.
 
-- hardware development support
-- design-space exploration
-- verification flow assistance
-- workflow automation
-- test generation and validation
-- productivity tooling for AI + EDA use cases
+The repository is organized around a central verification and execution core, supported by specialized agents, tooling integrations, datasets, red-team evaluation modules, and API/dashboard layers for future expansion.
 
-This repository currently serves as a structured starting point for experimentation, implementation, and future extension.
+The broader goal is to evolve toward a serious open-source infrastructure layer for intelligent chip-design tooling.
 
 ---
 
-## Objectives
+## Core Focus Areas
 
-The key goals of this project are:
+This platform currently targets the intersection of:
 
-- Build a clean and scalable project structure for AI-assisted chip design tools
-- Enable rapid experimentation with new hardware-oriented workflows
-- Support future integration of verification and validation capabilities
-- Provide a practical base for research, learning, and open-source contribution
-- Create a bridge between modern AI systems and chip design engineering tasks
-
----
-
-## Features
-
-Current or intended platform capabilities include:
-
-- Modular project structure for expansion
-- Support for hardware-design-oriented workflows
-- Early testing and validation setup
-- Foundations for AI-assisted engineering tasks
-- Extensible codebase for future automation modules
-- Research-friendly environment for prototyping new ideas
-
-> This is an evolving project, and the feature set will expand over time.
+- AI-assisted verification
+- simulation orchestration
+- coverage optimization
+- agent-based workflow automation
+- resilient execution for hardware tasks
+- telemetry and verification-state tracking
+- validation of LLM/agent behavior in chip-design settings
 
 ---
 
-## Project Structure
-
-A typical layout for this repository may look like:
+## Repository Structure
 
 ```text
 ai-chip-design-platform/
-├── src/                 # Core source code
-├── tests/               # Test suites and validation scripts
-├── docs/                # Documentation and design notes
-├── examples/            # Example workflows / usage demos
-├── scripts/             # Utility and automation scripts
+├── agents/              # Specialized AI/automation agents
+├── api/                 # API layer and service interfaces
+├── core/                # Main execution, orchestration, and verification logic
+├── dashboard/           # UI / dashboard components
+├── data/                # Datasets, benchmarks, processing, and model inputs
+├── eda_tools/           # Wrappers/integrations for external EDA tooling
+├── models/              # Model assets / future ML model components
+├── redteam/             # Red-team evaluation framework for robustness testing
+├── scripts/             # Utility and helper scripts
+├── tests/               # Project test suite
+├── docker-compose.yaml  # Containerized service setup
 ├── requirements.txt     # Python dependencies
 └── README.md            # Project documentation
 ```
-## Use Cases
+The current structure already reflects a layered platform architecture with separation between orchestration, tooling, datasets, interfaces, and evaluation.
 
-This platform is intended to be useful for:
+## Key Components
+1. Agent Layer
 
-- Students learning about AI applications in hardware design
-- Researchers exploring AI for EDA workflows
-- Engineers prototyping intelligent chip-design support tools
-- Developers building automation around RTL or verification flows
-- Open-source contributors interested in AI + hardware tooling
+The agents/ directory contains specialized task-oriented agents such as:
+
+- auto triage
+- bug triage
+- coverage optimization
+- simulation control
+- test writing
+- waveform analysis
+
+These form the basis for an agentic hardware workflow where different modules can own specific verification and debug responsibilities.
+
+2. Core Execution and Verification Layer
+
+The core/ directory is the central engine of the platform and includes components for:
+
+- AI verification agent logic
+- engine orchestration
+- coverage direction
+- multi-agent coordination
+- resilient execution
+- simulation execution
+- telemetry
+- verification state management
+
+This is the strongest architectural signal in the repo because it shows the platform is not just a model wrapper, but an execution-oriented system for real verification workflows.
+
+3. Data and Benchmarking Layer
+
+The data/ directory contains:
+
+- benchmarks
+- datasets
+- collection pipelines
+- processing modules
+- RISC-V datasets and testbench data
+
+4. EDA Tool Integration
+
+The ```eda_tools```/ directory currently includes Verilator-related validation tooling, indicating the beginning of integration with real hardware-development toolchains.
+That suggests the platform is intended not only for orchestration, but also for data-backed experimentation, evaluation, and future model training or fine-tuning workflows.
+
+5. Red-Team Evaluation
+
+The ```redteam```/ module is especially valuable because it distinguishes the project from many ordinary agent repos. It signals that the platform is also concerned with failure analysis, adversarial evaluation, coverage robustness, and trustworthiness of agentic verification behavior.
+
+6. Testing
+
+The ```tests```/ directory already includes red-team tests, which is a good sign that the repo is evolving with validation in mind rather than only demo code.
+
+## Features
+
+Current or emerging platform capabilities include:
+
+- Modular agent architecture for chip-design support workflows
+- Multi-agent verification management
+- Simulation orchestration and execution
+- Coverage-oriented analysis and optimization
+- Verification-state tracking and telemetry
+- Dataset-backed experimentation using RISC-V-oriented data
+- Early EDA integration through tool wrappers
+- Red-team evaluation for robustness and failure analysis
+- API/dashboard-ready architecture for future productization
+
+## Why This Project Matters
+
+Modern chip-design and verification flows are powerful but fragmented, tool-heavy, and often manually orchestrated. AI Chip Design Platform is motivated by the idea that intelligent systems can improve these workflows by acting as:
+
+- verification assistants
+- debugging copilots
+- workflow coordinators
+- coverage-aware reasoning engines
+-  experiment managers
+- robustness-tested automation layers
+
+The long-term vision is not merely to call models from scripts, but to build a reusable and extensible platform for AI-native hardware engineering.
 
 ## Getting Started
-# Prerequisites
-
-Make sure you have the following installed:
-
-- Python 3.10+
-- Git
-- pip
-
-Depending on future modules, additional tools may be needed.
-
-Clone the Repository
-```
-git clone https://github.com/HUNT-001/ai-chip-design-platform.git
-cd ai-chip-design-platform
-```
-Create a Virtual Environment
-```
-python -m venv venv
-```
-Activate it:
-# Windows
-```
-venv\Scripts\activate
-```
-# Linux / macOS
-```
-source venv/bin/activate
-```
-# Install Dependencies
-```
-pip install -r requirements.txt
-```
-# Running the Project
-If your project has a main script, use something like:
-```
-python src/main.py
-```
-If your entry point is different, replace this with the correct command.
-# Running Tests
-To run tests:
-```
-pytest
-```
-Or, if your tests are under a specific folder:
-```
-pytest tests/
-```
-## Development Vision
-The long-term direction of AI Chip Design Platform includes work in areas such as:
-
-- AI-assisted RTL development
-- Smart verification support
-- Automated test generation
-- Design analysis tooling
-- Workflow orchestration for hardware projects
-- Natural-language-assisted engineering interfaces
-- Experimentation with intelligent automation for chip design pipelines
-
-## Current Status
-This project is currently in an early foundational stage.
-That means:
-
-- the architecture may evolve
-- modules may be added or refactored
-- documentation and test coverage will continue improving
-- future releases may introduce significant changes
+Prerequisites
+Python 3.10+
+Git
+pip
+Docker / Docker Compose (optional, for containerized workflows)
+Verilator or other external EDA tools as needed for tool integration
 
 ## Roadmap
 
@@ -159,6 +159,7 @@ Planned improvements may include:
 - Verification and automation integrations
 - Performance and usability improvements
 
+
 ## Contributing
 
 Contributions are welcome
@@ -172,10 +173,6 @@ If you would like to contribute:
 5. Submit a pull request
 
 Please try to keep contributions focused, documented, and aligned with the project direction.
-
-## Why This Project Matters
-
-Chip design is a complex engineering discipline that can benefit significantly from better automation, tooling, and intelligent assistance. This project is motivated by the belief that AI can become a useful collaborator in hardware workflows—not as a replacement for engineering rigor, but as a multiplier for productivity, experimentation, and insight.
 
 ## Author
 
