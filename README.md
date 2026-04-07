@@ -67,3 +67,80 @@ ai-chip-design-platform/
 ├── scripts/             # Utility and automation scripts
 ├── requirements.txt     # Python dependencies
 └── README.md            # Project documentation
+```
+## Use Cases
+
+This platform is intended to be useful for:
+
+- Students learning about AI applications in hardware design
+- Researchers exploring AI for EDA workflows
+- Engineers prototyping intelligent chip-design support tools
+- Developers building automation around RTL or verification flows
+- Open-source contributors interested in AI + hardware tooling
+
+## Getting Started
+# Prerequisites
+
+Make sure you have the following installed:
+
+- Python 3.10+
+- Git
+- pip
+
+Depending on future modules, additional tools may be needed.
+
+Clone the Repository
+```
+git clone https://github.com/HUNT-001/ai-chip-design-platform.git
+cd ai-chip-design-platform
+```
+Create a Virtual Environment
+```
+python -m venv venv
+```
+Activate it:
+# Windows
+```
+venv\Scripts\activate
+```
+# Linux / macOS
+```
+source venv/bin/activate
+```
+# Install Dependencies
+```
+pip install -r requirements.txt
+```
+# Running the Project
+If your project has a main script, use something like:
+```
+python src/main.py
+```
+If your entry point is different, replace this with the correct command.
+# Running Tests
+To run tests:
+```
+pytest
+```
+Or, if your tests are under a specific folder:
+```
+pytest tests/
+```
+## Development Vision
+The long-term direction of AI Chip Design Platform includes work in areas such as:
+
+- AI-assisted RTL development
+- Smart verification support
+- Automated test generation
+- Design analysis tooling
+- Workflow orchestration for hardware projects
+- Natural-language-assisted engineering interfaces
+- Experimentation with intelligent automation for chip design pipelines
+## Current Status
+This project is currently in an early foundational stage.
+That means:
+
+- the architecture may evolve
+- modules may be added or refactored
+- documentation and test coverage will continue improving
+- future releases may introduce significant changes
