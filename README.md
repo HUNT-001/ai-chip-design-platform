@@ -176,27 +176,56 @@ cp .env.example .env
 ```
 On Windows PowerShell, create .env manually or copy from the example file.
 
+## Running the Platform
 
+Because the repo is modular, the entry point may depend on the workflow you want to exercise:
 
+- API-based execution through api/
+- dashboard-driven workflows through dashboard/
+- direct engine or agent execution from core/ or agents/
+- red-team testing through redteam/
+- test execution through tests/
 
+Example placeholder commands:
+```
+python -m pytest tests/
+```
+## Datasets and Experimental Assets
 
+The data/ directory includes structured RISC-V-related datasets and testbench-oriented assets, which makes the platform useful for:
 
+- training-data generation
+- experiment repeatability
+- verification scenario benchmarking
+- evaluation of agent behavior against known artifacts
 
+This is a strong foundation for future AI-assisted verification research.
 
+## Red-Team and Reliability Direction
 
+A notable aspect of this repository is the dedicated redteam/ module. Rather than treating agentic verification as purely a generation problem, this project explicitly leaves room for:
+
+- adversarial workflow evaluation
+- coverage stress testing
+- graph-based scenario analysis
+- agent failure discovery
+- robustness validation
+
+That makes the platform more credible as a serious systems project.
 
 ## Roadmap
 
 Planned improvements may include:
 
-- Better modular architecture
-- Expanded documentation
-- More robust test coverage
-- Example workflows and demos
-- Improved developer setup
-- AI-assisted chip design modules
-- Verification and automation integrations
-- Performance and usability improvements
+- Better API documentation
+- Dashboard usage documentation
+- Unified CLI entry point
+- More external EDA tool integrations
+- Expanded red-team scenario coverage
+- Stronger test coverage and CI
+- Benchmark reporting and experiment tracking
+- Plugin architecture for additional agents and tool adapters
+- Support for larger verification workflows and heterogeneous DUT environments
 
 
 ## Contributing
