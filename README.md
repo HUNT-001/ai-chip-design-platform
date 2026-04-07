@@ -227,6 +227,9 @@ Planned improvements may include:
 - Plugin architecture for additional agents and tool adapters
 - Support for larger verification workflows and heterogeneous DUT environments
 
+## Open-Source Direction
+
+This project is being developed as an open-source platform and is intended to grow over time into a more capable ecosystem for AI-driven hardware engineering support.
 
 ## Contributing
 
@@ -235,10 +238,10 @@ Contributions are welcome
 If you would like to contribute:
 
 1. Fork the repository
-2. Create a new branch
-3. Make your changes
-4. Add or update tests where appropriate
-5. Submit a pull request
+2. Create a feature branch
+3. Make focused changes
+4. Add tests where relevant
+5. Open a pull request with a clear description
 
 Please try to keep contributions focused, documented, and aligned with the project direction.
 
