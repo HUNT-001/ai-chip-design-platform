@@ -27,36 +27,50 @@ The broader goal is to evolve toward a serious open-source infrastructure layer 
 
 ## Core Focus Areas
 
-This platform currently targets the intersection of:
+# AI Chip Design Platform
 
-- AI-assisted verification
-- simulation orchestration
-- coverage optimization
-- agent-based workflow automation
-- resilient execution for hardware tasks
-- telemetry and verification-state tracking
-- validation of LLM/agent behavior in chip-design settings
+A modular **multi-agent RISC-V verification and test-generation platform** for AI-assisted hardware validation workflows.
+
+This project explores how agentic systems can support verification tasks such as RTL execution, ISS comparison, commitlog analysis, compliance testing, coverage-driven prioritization, and automated test generation.
 
 ---
 
-## Repository Structure
+## Overview
+
+AI Chip Design Platform is an experimental but structured framework for building intelligent verification workflows around digital hardware systems, with a current focus on **RISC-V-oriented verification automation**.
+
+The repository is organized into specialized agent modules that each handle a different part of the verification stack, including:
+
+- interface and schema definitions
+- RTL backend orchestration
+- instruction-set simulation flows
+- commitlog comparison and bug hypothesis generation
+- compliance execution
+- coverage patching and cold-path ranking
+- directed, random, and genetic test generation
+
+The broader goal is to evolve toward a serious open-source platform for **agentic hardware verification**.
+
+---
+
+## Architecture
+
+The current project structure is organized around specialized verification agents and AVA-related orchestration components:
 
 ```text
-ai-chip-design-platform/
-├── agents/              # Specialized AI/automation agents
-├── api/                 # API layer and service interfaces
-├── core/                # Main execution, orchestration, and verification logic
-├── dashboard/           # UI / dashboard components
-├── data/                # Datasets, benchmarks, processing, and model inputs
-├── eda_tools/           # Wrappers/integrations for external EDA tooling
-├── models/              # Model assets / future ML model components
-├── redteam/             # Red-team evaluation framework for robustness testing
-├── scripts/             # Utility and helper scripts
-├── tests/               # Project test suite
-├── docker-compose.yaml  # Containerized service setup
-├── requirements.txt     # Python dependencies
-└── README.md            # Project documentation
+AI Chip Design Platform
+├── AGENT_A   # Schemas and interface specifications
+├── AGENT_B   # AVA package, RTL backends, example CPU, docs, and tests
+├── AGENT_C   # ISS execution, Spike parsing, integration tests
+├── AGENT_D   # Commitlog comparison and bug hypothesis generation
+├── AGENT_E   # Compliance runner and RTL adapter
+├── AGENT_F   # Coverage pipeline, manifest locking, cold-path ranking
+├── AGENT_G   # Directed, random, and genetic test generation
+├── ava_v2    # Next-generation AVA-related work
+├── ava.py    # Main AVA entry or legacy driver
+└── supporting reports and documentation
 ```
+
 The current structure already reflects a layered platform architecture with separation between orchestration, tooling, datasets, interfaces, and evaluation.
 
 ## Key Components
