@@ -170,3 +170,90 @@ RISC-V toolchain components as needed
 - Verilator or other RTL simulation tools where applicable
 - Spike or another ISS tool if required by your local flow
 ## Clone the Repository
+```
+git clone https://github.com/HUNT-001/ai-chip-design-platform.git
+cd ai-chip-design-platform
+```
+## Create a Virtual Environment
+
+Windows
+```
+python -m venv venv
+venv\Scripts\activate
+```
+Linux / macOS
+```
+python -m venv venv
+source venv/bin/activate
+```
+Install Dependencies
+```
+pip install -r requirements.txt
+```
+
+## Suggested Workflow Areas
+
+Depending on the subsystem you want to work with, this repository currently appears suited for workflows such as:
+
+- running RTL-backed validation
+- launching ISS-backed execution
+- parsing and comparing traces or commit logs
+- running compliance checks
+- analyzing coverage gaps
+- generating new tests using directed, random, or genetic approaches
+
+As the project matures, this section should be expanded with exact commands and example pipelines for each agent module.
+
+## Development Status
+
+This project is currently in an active experimental stage.
+
+That means:
+
+- architecture may continue to evolve
+- module names and boundaries may still change
+- top-level usability and entry points may be refined
+- documentation and run flows will improve over time
+
+The current structure already provides a strong technical foundation, but it is still being actively shaped.
+
+## Roadmap
+
+Planned improvements include:
+
+- semantic renaming of ```AGENT_*``` folders into clearer subsystem names
+- unified top-level orchestration or CLI entry point
+- exact setup and execution examples
+- CI integration for unit and integration testing
+- architecture diagrams
+- benchmark examples and reference outputs
+- stronger contributor-facing documentation
+
+## Contributing
+
+Contributions are welcome.
+
+Recommended next project files for open-source maturity:
+
+- ```CONTRIBUTING.md```
+- ```CODE_OF_CONDUCT.md```
+- ```SECURITY.md```
+- issue templates
+- pull request template
+
+These will make the project easier for others to understand and contribute to.
+
+## License
+
+This project is licensed under the terms of the Apache License 2.0
+
+## Author
+
+Tanush Pavan V
+GitHub: HUNT-001
+
+## Vision
+
+AI Chip Design Platform aims to grow into a serious open-source foundation for:
+
+agentic verification + RISC-V validation + coverage-aware automation + intelligent test generation
