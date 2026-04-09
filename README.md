@@ -37,6 +37,9 @@ ai-chip-design-platform/
 ├── AGENT_G/      # Directed, random, and genetic test generation
 ├── ava_v2/       # Next-generation AVA-related work
 ├── ava.py        # Main AVA entry / legacy orchestration file
+├── ava_coverage_patch.py
+├── ava_patched.py
+└── project documentation and reports
 ```
 This structure reflects a more concrete verification-oriented system rather than a generic tooling skeleton.
 ## Architecture Summary
