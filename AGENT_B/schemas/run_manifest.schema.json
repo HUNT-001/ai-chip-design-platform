@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RunManifest",
+  "description": "Describes a single AVA verification run: inputs, config, and artifact locations.",
+  "type": "object",
+  "required": ["run_id", "timestamp", "config", "artifacts"],
+  "properties": {
+    "run_id":    { "type": "string", "description": "UUID v4 identifying this run." },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "config": {
+      "type": "object",
+      "required": ["xlen", "extensions", "priv_modes", "seed"],
+      "properties": {
+        "xlen":       { "type": "integer", "enum": [32, 64] },
+        "extensions": { "type": "array", "items": { "type": "string" }, "example": ["I", "M"] },
+        "priv_modes": { "type": "array", "items": { "type": "string", "enum": ["M", "S", "U"] } },
+        "seed":       { "type": "integer" },
+        "rtl_files":  { "type": "array", "items": { "type": "string" } },
+        "rtl_top":    { "type": "string" },
+        "elf":        { "type": "string" }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "properties": {
+        "rtl_commitlog":  { "type": "string", "description": "Path to rtl.commitlog.jsonl" },
+        "iss_commitlog":  { "type": "string", "description": "Path to iss.commitlog.jsonl" },
+        "rtl_coverage":   { "type": "string", "description": "Path to rtl.coverage.dat" },
+        "coverage_report":{ "type": "string" },
+        "bug_reports":    { "type": "array", "items": { "type": "string" } },
+        "waveform":       { "type": "string" }
+      }
+    },
+    "result": {
+      "type": "object",
+      "properties": {
+        "status":         { "type": "string", "enum": ["pass", "fail", "error", "timeout"] },
+        "instructions_retired": { "type": "integer" },
+        "first_divergence_seq": { "type": ["integer", "null"] },
+        "coverage_summary": {
+          "type": "object",
+          "properties": {
+            "line":       { "type": "number" },
+            "branch":     { "type": "number" },
+            "toggle":     { "type": "number" },
+            "functional": { "type": "number" }
+          }
+        }
+      }
+    }
+  }
+}

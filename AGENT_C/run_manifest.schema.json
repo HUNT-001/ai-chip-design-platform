@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "ava:run_manifest",
+  "title": "RunManifest",
+  "type": "object",
+  "required": ["run_id","timestamp","config","status"],
+  "properties": {
+    "run_id":    { "type": "string" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "config": {
+      "type": "object",
+      "required": ["xlen","isa","priv"],
+      "properties": {
+        "xlen": { "enum": [32, 64] },
+        "isa":  { "type": "string", "pattern": "^RV(32|64)[A-Z]+$" },
+        "priv": { "type": "array", "items": { "enum": ["M","S","U"] } },
+        "seed": { "type": "integer" },
+        "max_cycles":   { "type": "integer", "minimum": 1 },
+        "timeout_s":    { "type": "number",  "minimum": 0.1 },
+        "spike_path":   { "type": "string" },
+        "spike_extra_args": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "properties": {
+        "elf": { "type": "string" },
+        "asm": { "type": "string" }
+      }
+    },
+    "outputs": {
+      "type": "object",
+      "properties": {
+        "iss_commitlog":  { "type": "string" },
+        "rtl_commitlog":  { "type": "string" },
+        "coverage_report":{ "type": "string" },
+        "diff_report":    { "type": "string" }
+      }
+    },
+    "status": {
+      "enum": ["pending","running","pass","fail","error","timeout"]
+    },
+    "stats": {
+      "type": "object",
+      "properties": {
+        "commit_count":   { "type": "integer" },
+        "trap_count":     { "type": "integer" },
+        "elapsed_s":      { "type": "number" },
+        "spike_version":  { "type": "string" }
+      }
+    },
+    "bugs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id","type","severity","seq"],
+        "properties": {
+          "id":          { "type": "string" },
+          "type":        { "enum": ["pc_mismatch","reg_mismatch","csr_mismatch",
+                                    "mem_mismatch","trap_mismatch","missing_commit",
+                                    "extra_commit","compliance_fail"] },
+          "severity":    { "enum": ["critical","major","minor","info"] },
+          "seq":         { "type": "integer" },
+          "pc_rtl":      { "type": "string" },
+          "pc_iss":      { "type": "string" },
+          "description": { "type": "string" },
+          "repro_elf":   { "type": "string" }
+        }
+      }
+    }
+  }
+}

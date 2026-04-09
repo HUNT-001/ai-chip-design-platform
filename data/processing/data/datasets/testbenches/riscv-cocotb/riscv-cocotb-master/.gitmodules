@@ -1,3 +1,0 @@
-[submodule "examples/picorv32/sources"]
-	path = examples/picorv32/sources
-	url = https://github.com/cliffordwolf/picorv32.git

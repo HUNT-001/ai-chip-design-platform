@@ -1,0 +1,197 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id":     "https://ava.riscv/schemas/run_manifest.schema.json",
+  "title":   "AVA Run Manifest",
+  "version": "3.0.0",
+  "description": "Contract schema for manifest.json — the inter-agent communication backbone of the AVA platform. Every agent MUST validate this schema before reading or writing. Fields are dot-namespaced into phases, outputs, and metrics sections. Atomic writes (tmp→rename) are required for all updates.",
+
+  "type": "object",
+  "required": ["rundir", "run_id", "isa", "phases", "outputs", "metrics"],
+  "additionalProperties": true,
+
+  "properties": {
+
+    "rundir": {
+      "type":        "string",
+      "minLength":   1,
+      "description": "Absolute path to the per-run working directory. All relative paths in outputs.* are relative to this directory.",
+      "examples":    ["/tmp/ava_runs/seed_42_20260101_120000"]
+    },
+
+    "run_id": {
+      "type":        "string",
+      "minLength":   1,
+      "description": "Unique identifier for this run. Convention: seed_<N>_<YYYYMMDD_HHMMSS>.",
+      "examples":    ["seed_42_20260101_120000"]
+    },
+
+    "isa": {
+      "type":        "string",
+      "pattern":     "^rv(32|64)(i|e)(m?)(a?)(f?)(d?)(c?)$",
+      "description": "RISC-V ISA string. Must match Spike --isa argument.",
+      "examples":    ["rv32im", "rv64imafd"]
+    },
+
+    "seed": {
+      "type":        "integer",
+      "minimum":     0,
+      "description": "Random seed used for this run. Reproducibility requirement: re-running with same seed must produce identical outputs."
+    },
+
+    "phases": {
+      "type":        "object",
+      "description": "Per-phase lifecycle tracking. Each agent writes to its own phase key.",
+      "properties": {
+
+        "semantic": {
+          "$ref": "#/definitions/phase_status",
+          "description": "Agent A: RTL semantic analysis phase."
+        },
+        "testbench": {
+          "$ref": "#/definitions/phase_status",
+          "description": "Agent B+C: Testbench generation phase."
+        },
+        "simulation": {
+          "$ref": "#/definitions/phase_status",
+          "description": "Agent B+C+D: RTL + ISS tandem simulation phase."
+        },
+        "coverage": {
+          "$ref": "#/definitions/phase_status",
+          "description": "Agent F (coverage_pipeline.py): Coverage extraction and analysis phase.",
+          "properties": {
+            "status":   { "type": "string", "enum": ["pending","running","completed","failed"] },
+            "duration": { "type": "number", "minimum": 0, "description": "Wall-clock seconds." }
+          }
+        },
+        "red_team": {
+          "$ref": "#/definitions/phase_status",
+          "description": "Agent H: Adversarial red-team phase (Phase 2)."
+        }
+      }
+    },
+
+    "outputs": {
+      "type":        "object",
+      "description": "Paths to artifacts produced by each agent, relative to rundir.",
+      "properties": {
+
+        "coverageraw": {
+          "type":        "string",
+          "description": "Directory containing raw Verilator coverage.dat files.",
+          "examples":    ["outputs/coverageraw"]
+        },
+        "coveragesummary": {
+          "type":        "string",
+          "description": "AVA inter-agent coverage summary (coveragesummary.json). Written by Agent F.",
+          "examples":    ["coveragesummary.json"]
+        },
+        "commitlog_rtl": {
+          "type":        "string",
+          "description": "Newline-delimited JSON file of RTL commit log entries (commitlog.schema.json).",
+          "examples":    ["outputs/rtl_commit.ndjson"]
+        },
+        "commitlog_iss": {
+          "type":        "string",
+          "description": "Newline-delimited JSON file of ISS commit log entries (commitlog.schema.json).",
+          "examples":    ["outputs/iss_commit.ndjson"]
+        },
+        "bug_report": {
+          "type":        "string",
+          "description": "JSON list of BugReport objects from the differential comparator.",
+          "examples":    ["outputs/bugs.json"]
+        },
+        "cold_path_ranking": {
+          "type":        "string",
+          "description": "JSON list of ranked cold paths from ColdPathRanker.",
+          "examples":    ["outputs/cold_paths.json"]
+        },
+        "testbench_cocotb": {
+          "type":        "string",
+          "description": "Auto-generated Cocotb testbench .py file.",
+          "examples":    ["outputs/tb_riscv_core.py"]
+        },
+        "testbench_uvm": {
+          "type":        "string",
+          "description": "Auto-generated UVM testbench .sv file.",
+          "examples":    ["outputs/tb_riscv_core.sv"]
+        }
+      }
+    },
+
+    "metrics": {
+      "type":        "object",
+      "description": "Key scalar metrics written by agents; readable by all.",
+      "properties": {
+
+        "coveragepct": {
+          "type":        "number",
+          "minimum":     0.0,
+          "maximum":     100.0,
+          "description": "Weighted functional coverage % (written by Agent F)."
+        },
+        "coverage_plateau": {
+          "type":        "boolean",
+          "description": "True when Mann-Kendall trend test detects stalled coverage."
+        },
+        "bug_count": {
+          "type":        "integer",
+          "minimum":     0,
+          "description": "Number of RTL vs ISS mismatches found."
+        },
+        "ipc": {
+          "type":        "number",
+          "minimum":     0.0,
+          "description": "Instructions per cycle from RTL simulation."
+        },
+        "industrial_grade": {
+          "type":        "boolean",
+          "description": "True when line≥95%, branch≥90%, toggle≥85%."
+        }
+      }
+    },
+
+    "config": {
+      "type":        "object",
+      "description": "Per-run configuration passed to agents.",
+      "properties": {
+        "target_coverage":  { "type": "number", "minimum": 0, "maximum": 100 },
+        "microarch":        { "type": "string", "enum": ["in_order","out_of_order","superscalar"] },
+        "spike_binary":     { "type": "string" },
+        "verilator_binary": { "type": "string" },
+        "dut_module":       { "type": "string" }
+      }
+    }
+  },
+
+  "definitions": {
+    "phase_status": {
+      "type": "object",
+      "properties": {
+        "status":   { "type": "string", "enum": ["pending","running","completed","failed"] },
+        "duration": { "type": "number", "minimum": 0 },
+        "error":    { "type": "string" }
+      }
+    }
+  },
+
+  "examples": [
+    {
+      "rundir":  "/tmp/ava_runs/seed_42_20260101_120000",
+      "run_id":  "seed_42_20260101_120000",
+      "isa":     "rv32im",
+      "seed":    42,
+      "phases": {
+        "coverage": { "status": "completed", "duration": 5.2 }
+      },
+      "outputs": {
+        "coverageraw":    "outputs/coverageraw",
+        "coveragesummary":"coveragesummary.json"
+      },
+      "metrics": {
+        "coveragepct":      87.5,
+        "coverage_plateau": false,
+        "industrial_grade": false
+      }
+    }
+  ]
+}

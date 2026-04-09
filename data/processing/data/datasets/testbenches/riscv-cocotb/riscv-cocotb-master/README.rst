@@ -1,3 +1,0 @@
-RISC-V cocotb testbench
-=======================
-

@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ava-verification/schemas/commitlog.schema.json",
+  "title": "CommitLog",
+  "description": "AVA schema v2.0.0 — RISC-V architectural commit-log entry (JSONL, one object per retired instruction)",
+  "type": "object",
+  "required": ["schema_version", "seq", "pc", "instr", "src", "hart", "fpregs"],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "const": "2.0.0",
+      "description": "AVA commit-log schema version — must be '2.0.0'"
+    },
+    "hart": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Hardware thread (hart) ID"
+    },
+    "fpregs": {
+      "description": "Floating-point register file snapshot (null when F/D extension absent)",
+      "oneOf": [{"type": "null"}, {"type": "array"}]
+    },
+    "seq":   { "type": "integer", "minimum": 0,
+                "description": "0-based monotonically increasing commit index" },
+    "pc":    { "type": "string",  "pattern": "^0x[0-9a-fA-F]{1,16}$" },
+    "instr": { "type": "string",  "pattern": "^0x[0-9a-fA-F]{4,8}$",
+                "description": "Raw instruction encoding (32-bit or 16-bit compressed)" },
+    "src":   { "enum": ["rtl", "iss", "formal"],
+                "description": "Commit log origin (renamed from 'source' in v1.x)" },
+    "disasm":{ "type": "string" },
+    "priv":  { "enum": ["M", "S", "U"], "description": "Privilege mode at retirement" },
+    "cycle": { "type": "integer", "minimum": 0,
+                "description": "RTL simulation cycle at commit (absent for ISS)" },
+    "regs": {
+      "type": "array",
+      "description": "Integer register writes at commit (renamed from 'reg_writes' in v1.x; values preserved)",
+      "items": {
+        "type": "object",
+        "required": ["rd", "value"],
+        "properties": {
+          "rd":    { "type": "integer", "minimum": 0, "maximum": 31 },
+          "value": { "type": "string",  "pattern": "^0x[0-9a-fA-F]{1,16}$" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "csrs": {
+      "type": "array",
+      "description": "CSR writes at commit (renamed from 'csr_writes' in v1.x; values preserved)",
+      "items": {
+        "type": "object",
+        "required": ["addr", "value"],
+        "properties": {
+          "addr":  { "type": "string", "pattern": "^0x[0-9a-fA-F]{3}$" },
+          "name":  { "type": "string" },
+          "value": { "type": "string", "pattern": "^0x[0-9a-fA-F]{1,16}$" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "mem": {
+      "type": "object",
+      "description": "Memory access at commit (renamed from 'mem_access' in v1.x)",
+      "required": ["type", "addr", "size"],
+      "properties": {
+        "type":  { "enum": ["load", "store"] },
+        "addr":  { "type": "string", "pattern": "^0x[0-9a-fA-F]{1,16}$" },
+        "size":  { "enum": [1, 2, 4, 8] },
+        "value": { "type": "string", "pattern": "^0x[0-9a-fA-F]{1,16}$" }
+      },
+      "additionalProperties": false
+    },
+    "trap": {
+      "type": "object",
+      "required": ["cause", "tval"],
+      "properties": {
+        "cause":        { "type": "string", "pattern": "^0x[0-9a-fA-F]{1,8}$" },
+        "tval":         { "type": "string", "pattern": "^0x[0-9a-fA-F]{1,16}$" },
+        "is_interrupt": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "_changelog": {
+    "2.0.0": "Added schema_version, hart, fpregs. Renamed: source→src, reg_writes→regs, csr_writes→csrs, mem_access→mem",
+    "1.0.0": "Initial Agent C schema"
+  }
+}

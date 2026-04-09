@@ -1,0 +1,59 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id":     "https://ava.riscv/schemas/commitlog.schema.json",
+  "title":   "AVA Commit Log Entry",
+  "version": "1.0.0",
+  "description": "Schema for a single retired-instruction entry in the AVA commit log. Produced by both the Spike ISS golden model and the Verilator RTL DUT. All agents (Agent D comparator, Agent H red team) must conform to this schema when reading or writing commit logs.",
+
+  "type": "object",
+  "required": ["pc", "instr"],
+  "additionalProperties": false,
+
+  "properties": {
+    "pc": {
+      "type":        "string",
+      "pattern":     "^0x[0-9a-fA-F]{1,16}$",
+      "description": "Program counter at instruction retirement. Hex string with '0x' prefix. Width: 8 hex digits for RV32, 16 for RV64.",
+      "examples":    ["0x80000000", "0x000100f4"]
+    },
+    "instr": {
+      "type":        "string",
+      "pattern":     "^0x[0-9a-fA-F]{8}$",
+      "description": "Raw 32-bit instruction word as hex string. Compressed (16-bit) instructions are zero-extended to 32 bits.",
+      "examples":    ["0x00000013", "0x02208033"]
+    },
+    "rd": {
+      "type":        "string",
+      "pattern":     "^(x[0-9]|x[12][0-9]|x3[01]|f[0-9]|f[12][0-9]|f3[01]|pc|)$",
+      "description": "Destination register written by this instruction. Empty string if no register is written (e.g. stores, branches). ABI names are NOT used; use x0–x31 / f0–f31.",
+      "examples":    ["x10", "f0", "x0", ""]
+    },
+    "rd_val": {
+      "type":        "string",
+      "pattern":     "^(0x[0-9a-fA-F]{1,16})?$",
+      "description": "Value written to rd after retirement. Empty string when rd is empty. Hex string with '0x' prefix.",
+      "examples":    ["0x00000000", "0xdeadbeef", ""]
+    }
+  },
+
+  "examples": [
+    {
+      "pc":     "0x80000000",
+      "instr":  "0x00000013",
+      "rd":     "x0",
+      "rd_val": "0x00000000"
+    },
+    {
+      "pc":     "0x80000004",
+      "instr":  "0x02208033",
+      "rd":     "x0",
+      "rd_val": ""
+    },
+    {
+      "pc":     "0x80000008",
+      "instr":  "0x00a50513",
+      "rd":     "x10",
+      "rd_val": "0x0000000a"
+    }
+  ]
+}

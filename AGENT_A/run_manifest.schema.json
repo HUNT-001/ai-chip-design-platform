@@ -1,0 +1,764 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id":     "https://ava-rv/schemas/run_manifest/v2.0.0",
+
+  "title":       "AVA Run Manifest",
+  "description": "Complete descriptor for one simulation run (RTL, ISS, formal, or compliance). Written by the orchestrator before the run starts; updated in-place as each agent completes its phase. Serves as the single source of truth for run configuration, provenance, status, outputs, and diagnostics. Schema version 2.0.0.",
+
+  "$defs": {
+
+    "schema_version": {
+      "type": "string",
+      "const": "2.0.0"
+    },
+
+    "hex8": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{8}$"
+    },
+
+    "hex_size": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]+$",
+      "description": "Hex-encoded size or offset value. No minimum digit count — can represent any positive integer."
+    },
+
+    "run_id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]{6,64}$",
+      "description": "Globally unique run identifier. Recommended format: '{ISO8601_compact}_{seed}_{8hex}', e.g. '20240315T142300Z_42_ab3f9c01'."
+    },
+
+    "iso8601_utc": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?Z$",
+      "description": "ISO-8601 timestamp in UTC with Z suffix. Sub-second precision optional."
+    },
+
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "SHA-256 hex digest (lowercase, 64 chars). Used for binary and source integrity."
+    },
+
+    "lifecycle_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "building",
+        "running_iss",
+        "running_rtl",
+        "running_formal",
+        "comparing",
+        "analyzing_coverage",
+        "running_compliance",
+        "passed",
+        "failed",
+        "timeout",
+        "build_error",
+        "infra_error",
+        "cancelled"
+      ],
+      "description": "Granular lifecycle state. Orchestrator and agents update this field atomically (file-lock required). Terminal states: passed, failed, timeout, build_error, infra_error, cancelled."
+    },
+
+    "phase_result": {
+      "type": "object",
+      "description": "Per-agent phase completion record.",
+      "required": ["status", "started_at"],
+      "properties": {
+        "status":       { "$ref": "#/$defs/lifecycle_status" },
+        "started_at":   { "$ref": "#/$defs/iso8601_utc" },
+        "finished_at":  { "oneOf": [{ "$ref": "#/$defs/iso8601_utc" }, { "type": "null" }] },
+        "duration_s":   { "type": ["number", "null"], "minimum": 0, "description": "Wall-clock seconds for this phase." },
+        "exit_code":    { "type": ["integer", "null"], "description": "Process exit code (0=success)." },
+        "error_msg":    { "type": ["string", "null"], "maxLength": 2048, "description": "First 2 KB of error output if non-zero exit." },
+        "retry_count":  { "type": "integer", "minimum": 0, "default": 0 },
+        "log_path":     { "type": ["string", "null"], "description": "Path to full stdout/stderr log relative to run_dir." }
+      },
+      "unevaluatedProperties": false
+    },
+
+    "memory_region": {
+      "type": "object",
+      "required": ["name", "base", "size", "type"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "description": "Human-readable label, e.g. 'main_mem', 'bootrom', 'uart_rx'."
+        },
+        "base": {
+          "$ref": "#/$defs/hex8",
+          "description": "Base physical address."
+        },
+        "size": {
+          "$ref": "#/$defs/hex_size",
+          "description": "Size in bytes."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["ram", "rom", "mmio", "tcm", "iomem"],
+          "description": "ram=read/write DRAM; rom=read-only; mmio=memory-mapped I/O (no bus wait model); tcm=tightly-coupled memory; iomem=I/O with side-effects."
+        },
+        "writable": {
+          "type": "boolean",
+          "description": "Overrides type default. Explicit false on a ram region marks it write-protected (e.g. stack guard page). Default: true for ram/tcm, false for rom."
+        },
+        "executable": {
+          "type": "boolean",
+          "description": "Whether instructions may be fetched from this region. Default: true for ram/rom/tcm, false for mmio/iomem."
+        },
+        "cacheable": {
+          "type": "boolean",
+          "description": "Hint for pipeline/cache model. Default: true for ram/rom/tcm."
+        },
+        "init_file": {
+          "type": ["string", "null"],
+          "description": "Optional path to a $readmemh-compatible hex file to pre-load this region. Relative to run_dir."
+        },
+        "mmio_model": {
+          "type": ["string", "null"],
+          "enum": ["uart_simple", "clint", "plic", "custom", null],
+          "description": "Behavioral MMIO model to instantiate for this region (RTL harness only)."
+        }
+      },
+      "unevaluatedProperties": false
+    },
+
+    "tool_version": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name":       { "type": "string" },
+        "version":    { "type": "string" },
+        "commit":     { "type": ["string", "null"], "pattern": "^[0-9a-f]{7,40}$" },
+        "path":       { "type": ["string", "null"] }
+      },
+      "unevaluatedProperties": false
+    }
+
+  },
+
+  "type": "object",
+
+  "required": [
+    "schema_version",
+    "run_id",
+    "run_type",
+    "isa",
+    "seed",
+    "binary",
+    "dut",
+    "iss",
+    "memory_map",
+    "run_dir",
+    "status",
+    "created_at"
+  ],
+
+  "properties": {
+
+    "schema_version": { "$ref": "#/$defs/schema_version" },
+
+    "run_id": { "$ref": "#/$defs/run_id" },
+
+    "parent_run_id": {
+      "oneOf": [{ "$ref": "#/$defs/run_id" }, { "type": "null" }],
+      "description": "If this run was spawned by the coverage director or red-team agent as a targeted follow-up, this field links back to the parent run. Null for root runs."
+    },
+
+    "campaign_id": {
+      "type": ["string", "null"],
+      "pattern": "^[a-zA-Z0-9_-]{3,64}$",
+      "description": "Groups related runs into a named regression campaign for analytics aggregation, e.g. 'nightly_m_ext_2024Q1'. Null for ad-hoc runs."
+    },
+
+    "run_type": {
+      "type": "string",
+      "enum": ["differential", "compliance", "formal", "coverage_directed", "adversarial", "smoke"],
+      "description": "Primary purpose of this run. 'differential'=RTL vs ISS compare; 'compliance'=RISCOF sig compare; 'formal'=model-checking pass; 'coverage_directed'=driven by cold-path feedback; 'adversarial'=red-team generated; 'smoke'=quick sanity."
+    },
+
+    "isa": {
+      "type": "object",
+      "description": "Complete ISA configuration. Both DUT and ISS are configured from these fields by the orchestrator — never configure them independently.",
+      "required": ["xlen", "extensions", "priv"],
+      "properties": {
+        "xlen": {
+          "type": "integer",
+          "enum": [32, 64],
+          "description": "Register width. Schema v2 validates for 32; 64 is accepted but triggers a warning from the orchestrator."
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["I", "M", "A", "C", "F", "D", "Zicsr", "Zifencei", "Zmmul", "Sstc", "Smstateen"],
+            "description": "Each element MUST be one of the listed enum values. Any string not in this list (e.g. 'Q', 'X', 'rv32g') is a schema error. Add new extensions here AND bump schema version."
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "contains": { "const": "I" },
+          "description": "Enabled ISA extensions. 'I' is mandatory. Phase 1 support: I, M, Zicsr, Zifencei. Remaining extensions are reserved for Phase 2+. CRITICAL: items.enum is the whitelist — unlisted extensions are REJECTED."
+        },
+        "priv": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["M", "S", "U"] },
+          "minItems": 1,
+          "uniqueItems": true,
+          "contains": { "const": "M" },
+          "description": "Enabled privilege modes. M is mandatory. ['M'] for v2 M-only; ['M','S','U'] for future full privilege."
+        },
+        "isa_string": {
+          "type": "string",
+          "pattern": "^rv(32|64)[a-zA-Z_]+$",
+          "description": "Canonical ISA string passed verbatim to ISS and Verilator, e.g. 'rv32im_zicsr_zifencei'. Derived by orchestrator from `xlen` + `extensions`; do not set manually."
+        },
+        "endianness": {
+          "type": "string",
+          "enum": ["little", "big"],
+          "default": "little",
+          "description": "Byte order. RISC-V is little-endian by default; big-endian is legal but rare."
+        }
+      },
+      "unevaluatedProperties": false
+    },
+
+    "seed": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4294967295,
+      "description": "32-bit RNG seed passed to test generator, RTL simulator, and ISS. Must produce bit-identical output for any fixed (seed, binary) pair. The orchestrator rejects seeds outside [0, 2^32-1]."
+    },
+
+    "binary": {
+      "type": "object",
+      "required": ["path", "format", "entry"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Path to test binary relative to run_dir."
+        },
+        "format": {
+          "type": "string",
+          "enum": ["elf32", "elf64", "hex", "srec", "binary"],
+          "description": "'elf32' is the canonical format. 'hex' and 'binary' are accepted for bare-metal injection flows."
+        },
+        "entry": {
+          "$ref": "#/$defs/hex8",
+          "description": "Reset / entry PC. Typically 0x80000000 for RISC-V bare-metal. Must match the ELF entry point if format=elf32."
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256",
+          "description": "SHA-256 digest of the binary file. Agents verify this before use. Orchestrator computes it at manifest creation time. A mismatch aborts the run with infra_error."
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 4,
+          "description": "File size in bytes. Cross-checked against disk at run start."
+        },
+        "generator": {
+          "type": ["object", "null"],
+          "description": "Provenance of the binary if machine-generated.",
+          "properties": {
+            "tool":    { "type": "string", "enum": ["ava_gen", "riscv_dv", "spike_trace", "sail_trace", "manual", "riscof"] },
+            "version": { "type": "string" },
+            "args":    { "type": "array", "items": { "type": "string" } },
+            "seed":    { "type": "integer" }
+          },
+          "unevaluatedProperties": false
+        }
+      },
+      "unevaluatedProperties": false
+    },
+
+    "dut": {
+      "type": "object",
+      "description": "RTL DUT simulator configuration. All fields read by Agent B.",
+      "required": ["tool", "top", "timeout_cycles"],
+      "properties": {
+        "tool": {
+          "type": "string",
+          "enum": ["verilator", "iverilog", "vcs", "xsim", "questa", "nc"],
+          "description": "RTL simulation backend. 'verilator' is the primary supported backend with full coverage API."
+        },
+        "version": { "$ref": "#/$defs/tool_version" },
+        "top": {
+          "type": "string",
+          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+          "description": "Top-level Verilog/SystemVerilog module name."
+        },
+        "rtl_sources": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "uniqueItems": true,
+          "description": "Ordered list of RTL source files relative to repo root. Must include the top-level module first. Agent B derives the Verilator compile command from this list."
+        },
+        "rtl_source_hashes": {
+          "type": "object",
+          "description": "Map from RTL source path to SHA-256 hash. Populated by orchestrator. Enables cache invalidation on RTL change.",
+          "additionalProperties": { "$ref": "#/$defs/sha256" }
+        },
+        "defines": {
+          "type": "object",
+          "description": "Verilog compile-time `define macros, e.g. {\"SIMULATION\": \"1\", \"TIMEOUT_CYCLES\": \"1000000\"}.",
+          "additionalProperties": { "type": "string" }
+        },
+        "include_dirs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "uniqueItems": true,
+          "description": "`+incdir` paths relative to repo root."
+        },
+        "verilator_flags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Extra Verilator CLI flags appended after standard AVA flags. Example: ['--Wall', '--Wno-UNUSED', '--assert']. Do NOT include coverage flags here — they are controlled by coverage_config."
+        },
+        "timeout_cycles": {
+          "type": "integer",
+          "minimum": 100,
+          "maximum": 1000000000,
+          "description": "Maximum simulated clock cycles before the harness halts and reports 'timeout'. Must be large enough for the test binary to complete. Rule of thumb: set to 10x the expected instruction count."
+        },
+        "timeout_wall_s": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400,
+          "description": "Maximum wall-clock seconds before the OS process is killed. Provides a safety net if the simulator hangs in an infinite loop that somehow evades cycle counting."
+        },
+        "coverage_config": {
+          "type": "object",
+          "description": "Verilator coverage knobs. Absent or null disables coverage collection.",
+          "properties": {
+            "enabled":         { "type": "boolean" },
+            "line":            { "type": "boolean", "default": true },
+            "branch":          { "type": "boolean", "default": true },
+            "toggle":          { "type": "boolean", "default": true },
+            "expression":      { "type": "boolean", "default": false },
+            "output_file":     { "type": "string",  "default": "coverage.dat" },
+            "annotate_dir":    { "type": ["string","null"], "description": "Directory for annotated source files (verilator_coverage --annotate). Null to skip." }
+          },
+          "unevaluatedProperties": false
+        },
+        "waveform_config": {
+          "type": ["object", "null"],
+          "description": "Waveform dump settings. Null disables waveform collection (default for CI — saves disk).",
+          "properties": {
+            "format":   { "type": "string", "enum": ["vcd", "fst", "lxt2"], "default": "fst" },
+            "output":   { "type": "string", "default": "sim.fst" },
+            "depth":    { "type": ["integer", "null"], "minimum": 1, "description": "Scope dump depth. Null = unlimited." },
+            "start_cycle": { "type": ["integer","null"], "minimum": 0, "description": "Cycle to start dumping. Null = from start." }
+          },
+          "unevaluatedProperties": false
+        },
+        "commit_log_config": {
+          "type": "object",
+          "description": "RTL commit log output configuration.",
+          "properties": {
+            "output_file": { "type": "string", "default": "rtl_commit.jsonl" },
+            "log_loads":   { "type": "boolean", "default": false, "description": "Whether to emit mem_reads entries. Increases log size by ~30%." },
+            "flush_every": { "type": "integer", "minimum": 1, "default": 1000, "description": "Flush to disk every N records to bound data loss on crash." }
+          },
+          "unevaluatedProperties": false
+        },
+        "plusargs": {
+          "type": "object",
+          "description": "Verilog +arg=value pairs injected into simulation, e.g. {\"TIMEOUT\": \"100000\"}.",
+          "additionalProperties": { "type": "string" }
+        },
+        "build_cache_key": {
+          "type": ["string", "null"],
+          "description": "Hash of (rtl_sources, defines, verilator_flags) used for build caching. Computed by orchestrator."
+        }
+      },
+      "unevaluatedProperties": false
+    },
+
+    "iss": {
+      "type": "object",
+      "description": "ISS (Instruction Set Simulator) golden reference configuration. All fields read by Agent C.",
+      "required": ["tool"],
+      "properties": {
+        "tool": {
+          "type": "string",
+          "enum": ["spike", "sail-riscv", "qemu", "renode", "none"],
+          "description": "'spike' is the primary reference ISS. 'sail-riscv' for theorem-prover-level cross-check. 'none' for formal-only or compliance-only runs."
+        },
+        "version":    { "$ref": "#/$defs/tool_version" },
+        "isa_string": {
+          "type": "string",
+          "pattern": "^rv(32|64)[a-zA-Z_]+$",
+          "description": "ISA string passed to ISS CLI. Derived by orchestrator from isa.isa_string — do not set independently."
+        },
+        "extra_flags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Additional ISS CLI flags, e.g. ['--log-commits', '--misaligned']. Do NOT include the binary path or ISA string — orchestrator adds those."
+        },
+        "memory_flags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Memory region flags derived from memory_map and passed to ISS, e.g. ['-m0x80000000:0x10000']. Orchestrator auto-generates these from the memory_map field — set manually only to override."
+        },
+        "commit_log_config": {
+          "type": "object",
+          "properties": {
+            "output_file":    { "type": "string", "default": "iss_commit.jsonl" },
+            "spike_log_flag": { "type": "string", "default": "--log-commits", "description": "Flag to enable commit logging in Spike. '--log-commits' for recent Spike; '--enable-commitlog' for older builds." },
+            "log_loads":      { "type": "boolean", "default": false }
+          },
+          "unevaluatedProperties": false
+        },
+        "timeout_wall_s": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 86400,
+          "description": "ISS wall-clock timeout. Should be significantly lower than RTL timeout_cycles wall equivalent."
+        }
+      },
+      "unevaluatedProperties": false
+    },
+
+    "formal": {
+      "type": ["object", "null"],
+      "description": "Formal verification configuration. Non-null only when run_type='formal'. Null for all other run types.",
+      "properties": {
+        "tool": {
+          "type": "string",
+          "enum": ["yosys-smtbmc", "symbiyosys", "jasper", "sby", "cadence-jg"]
+        },
+        "properties": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "assertion"],
+            "properties": {
+              "name":      { "type": "string", "description": "Property ID, e.g. 'x0_never_written'." },
+              "assertion": { "type": "string", "description": "SVA or PSL assertion text." },
+              "result":    { "type": ["string","null"], "enum": ["proved", "cex", "unknown", "timeout", null] },
+              "cex_file":  { "type": ["string","null"], "description": "Counterexample witness file path relative to run_dir." }
+            },
+            "unevaluatedProperties": false
+          }
+        },
+        "depth":       { "type": "integer", "minimum": 1, "description": "BMC depth (cycles)." },
+        "engine":      { "type": "string",  "description": "SMT solver or engine, e.g. 'z3', 'bitwuzla', 'boolector'." },
+        "result":      { "type": ["string", "null"], "enum": ["all_proved", "cex_found", "unknown", "timeout", null] }
+      },
+      "unevaluatedProperties": false
+    },
+
+    "compliance": {
+      "type": ["object", "null"],
+      "description": "RISCOF / riscv-arch-test compliance configuration. Non-null when run_type='compliance'.",
+      "properties": {
+        "framework":  { "type": "string", "enum": ["riscof", "riscv-arch-test-v3", "manual"] },
+        "suite_path": { "type": "string",  "description": "Path to arch test suite root relative to repo root." },
+        "dut_plugin": { "type": "string",  "description": "Path to RISCOF DUT plugin Python file." },
+        "ref_plugin": { "type": "string",  "description": "Path to RISCOF reference (Spike) plugin Python file." },
+        "test_list":  {
+          "type": ["array", "null"],
+          "items": { "type": "string" },
+          "description": "Explicit list of test names to run. Null means run the full suite."
+        },
+        "signature_dir": { "type": "string", "default": "signatures/", "description": "Directory for DUT signature outputs relative to run_dir." },
+        "ref_sig_dir":   { "type": "string", "description": "Directory for golden (reference ISS) signature files." },
+        "result": {
+          "type": ["object", "null"],
+          "properties": {
+            "total_tests":  { "type": "integer", "minimum": 0 },
+            "passed_tests": { "type": "integer", "minimum": 0 },
+            "failed_tests": { "type": "integer", "minimum": 0 },
+            "failed_list":  { "type": "array", "items": { "type": "string" } }
+          },
+          "unevaluatedProperties": false
+        }
+      },
+      "unevaluatedProperties": false
+    },
+
+    "memory_map": {
+      "type": "array",
+      "description": "Physical memory map. Both DUT and ISS are configured from this field by the orchestrator. At least one RAM region must be present and must contain the binary entry point.",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": { "$ref": "#/$defs/memory_region" },
+      "contains": {
+        "properties": { "type": { "const": "ram" } },
+        "required": ["type"]
+      }
+    },
+
+    "run_dir": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Absolute path of the run working directory. All relative paths in `outputs`, `binary.path`, `dut.*_output`, and `iss.*_output` resolve from this directory. Must be writable before run start."
+    },
+
+    "status": {
+      "$ref": "#/$defs/lifecycle_status",
+      "description": "Current lifecycle state. See $defs.lifecycle_status for valid transitions."
+    },
+
+    "phases": {
+      "type": "object",
+      "description": "Per-agent phase tracking. Each key is updated by the owning agent upon phase start/end.",
+      "properties": {
+        "build":      { "$ref": "#/$defs/phase_result" },
+        "iss":        { "$ref": "#/$defs/phase_result" },
+        "rtl":        { "$ref": "#/$defs/phase_result" },
+        "compare":    { "$ref": "#/$defs/phase_result" },
+        "coverage":   { "$ref": "#/$defs/phase_result" },
+        "compliance": { "$ref": "#/$defs/phase_result" },
+        "formal":     { "$ref": "#/$defs/phase_result" }
+      },
+      "unevaluatedProperties": false
+    },
+
+    "outputs": {
+      "type": "object",
+      "description": "Populated by agents as they complete. All paths are relative to run_dir. Null means the output was not produced (phase skipped or not yet run).",
+      "properties": {
+        "rtl_commitlog":    { "type": ["string","null"], "description": "RTL JSONL commit log (Agent B)." },
+        "iss_commitlog":    { "type": ["string","null"], "description": "ISS JSONL commit log (Agent C)." },
+        "bug_report":       { "type": ["string","null"], "description": "JSON bug report if mismatch (Agent D). Null on pass." },
+        "coverage_raw":     { "type": ["string","null"], "description": "Verilator raw .dat file (Agent B)." },
+        "coverage_summary": { "type": ["string","null"], "description": "Parsed coverage JSON (Agent F)." },
+        "signature_dir":    { "type": ["string","null"], "description": "Directory of DUT signature files (Agent E)." },
+        "waveform":         { "type": ["string","null"], "description": "Waveform dump (Agent B, optional)." },
+        "formal_results":   { "type": ["string","null"], "description": "Formal tool output directory (formal run only)." },
+        "total_cycles":     { "type": ["integer","null"], "minimum": 0, "description": "Total simulated RTL cycles." },
+        "total_instrs":     { "type": ["integer","null"], "minimum": 0, "description": "Total instructions retired (from ISS commit log record count)." },
+        "first_divergence": { "type": ["integer","null"], "minimum": 0, "description": "seq index of first mismatch. Null on pass." }
+      },
+      "unevaluatedProperties": false
+    },
+
+    "error": {
+      "type": ["object","null"],
+      "description": "Populated when status is one of: failed, timeout, build_error, infra_error. Null otherwise.",
+      "properties": {
+        "code":       { "type": "string", "enum": [
+          "PC_MISMATCH", "REG_MISMATCH", "CSR_MISMATCH", "MEM_MISMATCH",
+          "TRAP_MISMATCH", "LENGTH_MISMATCH", "SEQ_GAP", "X0_WRITTEN",
+          "ALIGNMENT_ERROR", "SCHEMA_INVALID", "BINARY_HASH_MISMATCH",
+          "BUILD_FAILED", "ISS_CRASH", "RTL_CRASH", "ISS_TIMEOUT",
+          "RTL_TIMEOUT", "DISK_FULL", "OOM", "INFRA_UNKNOWN"
+        ]},
+        "message":    { "type": "string", "maxLength": 4096 },
+        "phase":      { "type": "string", "description": "Phase in which the error occurred." },
+        "recoverable":{ "type": "boolean", "description": "Whether the orchestrator should auto-retry this run." },
+        "repro_cmd":  { "type": "string",  "description": "CLI command to reproduce the failure from scratch." }
+      },
+      "unevaluatedProperties": false
+    },
+
+    "retry_policy": {
+      "type": "object",
+      "description": "Orchestrator retry configuration for infra-level failures (OOM, DISK_FULL, ISS_CRASH).",
+      "properties": {
+        "max_retries":      { "type": "integer", "minimum": 0, "maximum": 10, "default": 2 },
+        "retry_count":      { "type": "integer", "minimum": 0, "default": 0, "description": "Number of retries attempted so far." },
+        "retry_on_timeout": { "type": "boolean", "default": false, "description": "Whether to retry when DUT or ISS times out. Usually false — timeouts often indicate bugs." },
+        "backoff_s":        { "type": "integer", "minimum": 0, "default": 5, "description": "Seconds to wait before each retry." }
+      },
+      "unevaluatedProperties": false
+    },
+
+    "environment": {
+      "type": "object",
+      "description": "Host environment snapshot captured at run creation time for full reproducibility.",
+      "properties": {
+        "hostname":    { "type": "string" },
+        "os":          { "type": "string", "description": "OS name and version, e.g. 'Ubuntu 22.04.3 LTS'." },
+        "cpu":         { "type": "string", "description": "CPU model string." },
+        "ram_gb":      { "type": "number", "minimum": 0 },
+        "python":      { "$ref": "#/$defs/tool_version" },
+        "verilator":   { "$ref": "#/$defs/tool_version" },
+        "spike":       { "$ref": "#/$defs/tool_version" },
+        "sail":        { "$ref": "#/$defs/tool_version" },
+        "riscof":      { "$ref": "#/$defs/tool_version" },
+        "gcc_rv32":    { "$ref": "#/$defs/tool_version" },
+        "git_commit":  { "type": "string", "pattern": "^[0-9a-f]{7,40}$", "description": "AVA repo git commit hash at time of run." },
+        "git_dirty":   { "type": "boolean", "description": "True if repo had uncommitted changes." }
+      },
+      "unevaluatedProperties": false
+    },
+
+    "metrics": {
+      "type": ["object","null"],
+      "description": "Run performance and quality metrics. Populated by the orchestrator after all phases complete.",
+      "properties": {
+        "wall_time_s":          { "type": "number", "minimum": 0 },
+        "rtl_sim_time_s":       { "type": "number", "minimum": 0 },
+        "iss_sim_time_s":       { "type": "number", "minimum": 0 },
+        "compare_time_s":       { "type": "number", "minimum": 0 },
+        "instrs_per_sec_rtl":   { "type": "number", "minimum": 0 },
+        "instrs_per_sec_iss":   { "type": "number", "minimum": 0 },
+        "log_size_bytes":       { "type": "integer", "minimum": 0 },
+        "coverage_line_pct":    { "type": ["number","null"], "minimum": 0, "maximum": 100 },
+        "coverage_branch_pct":  { "type": ["number","null"], "minimum": 0, "maximum": 100 },
+        "coverage_toggle_pct":  { "type": ["number","null"], "minimum": 0, "maximum": 100 }
+      },
+      "unevaluatedProperties": false
+    },
+
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "maxLength": 64, "pattern": "^[a-zA-Z0-9_:.-]+$" },
+      "uniqueItems": true,
+      "maxItems": 32,
+      "description": "Free-form labels for regression bucketing and dashboard filtering. Convention: 'ext:M', 'bug:div_by_zero', 'type:random', 'suite:compliance', 'priority:p0'."
+    },
+
+    "notifications": {
+      "type": ["object","null"],
+      "description": "Optional post-run callback configuration for CI/CD integration.",
+      "properties": {
+        "webhook_url":  { "type": ["string","null"], "format": "uri" },
+        "slack_channel":{ "type": ["string","null"] },
+        "on_events":    {
+          "type": "array",
+          "items": { "type": "string", "enum": ["passed", "failed", "timeout", "build_error", "infra_error"] },
+          "description": "Which terminal states trigger a notification."
+        }
+      },
+      "unevaluatedProperties": false
+    },
+
+    "created_at":   { "$ref": "#/$defs/iso8601_utc" },
+    "completed_at": {
+      "oneOf": [{ "$ref": "#/$defs/iso8601_utc" }, { "type": "null" }],
+      "description": "Set by orchestrator when status reaches a terminal state."
+    }
+
+  },
+
+  "unevaluatedProperties": false,
+
+  "if": {
+    "properties": { "run_type": { "const": "formal" } },
+    "required": ["run_type"]
+  },
+  "then": {
+    "required": ["formal"],
+    "properties": {
+      "formal": { "not": { "type": "null" } }
+    }
+  },
+
+  "examples": [
+    {
+      "schema_version": "2.0.0",
+      "run_id":          "20240315T142300Z_42_ab3f9c01",
+      "parent_run_id":   null,
+      "campaign_id":     "nightly_rv32im_2024q1",
+      "run_type":        "differential",
+      "isa": {
+        "xlen": 32,
+        "extensions": ["I", "M", "Zicsr", "Zifencei"],
+        "priv": ["M"],
+        "isa_string": "rv32im_zicsr_zifencei",
+        "endianness": "little"
+      },
+      "seed":   42,
+      "binary": {
+        "path":       "test.elf",
+        "format":     "elf32",
+        "entry":      "0x80000000",
+        "sha256":     "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "size_bytes": 8192,
+        "generator": {
+          "tool":    "ava_gen",
+          "version": "1.0.0",
+          "args":    ["--isa", "rv32im", "--seed", "42", "--count", "2000"],
+          "seed":    42
+        }
+      },
+      "dut": {
+        "tool": "verilator",
+        "top":  "core_tb",
+        "rtl_sources": ["rtl/core.sv", "rtl/alu.sv", "rtl/decode.sv", "tb/core_tb.sv"],
+        "defines": { "SIMULATION": "1" },
+        "timeout_cycles": 1000000,
+        "timeout_wall_s": 300,
+        "coverage_config": {
+          "enabled": true, "line": true, "branch": true, "toggle": true,
+          "expression": false, "output_file": "coverage.dat", "annotate_dir": null
+        },
+        "waveform_config": { "format": "fst", "output": "sim.fst", "depth": null, "start_cycle": null },
+        "commit_log_config": { "output_file": "rtl_commit.jsonl", "log_loads": false, "flush_every": 1000 },
+        "plusargs": {},
+        "build_cache_key": null
+      },
+      "iss": {
+        "tool":       "spike",
+        "isa_string": "rv32im_zicsr_zifencei",
+        "extra_flags": ["--misaligned"],
+        "commit_log_config": { "output_file": "iss_commit.jsonl", "spike_log_flag": "--log-commits", "log_loads": false },
+        "timeout_wall_s": 60
+      },
+      "formal":     null,
+      "compliance": null,
+      "memory_map": [
+        {
+          "name": "main_mem", "base": "0x80000000", "size": "0x10000",
+          "type": "ram", "writable": true, "executable": true, "cacheable": true,
+          "init_file": null, "mmio_model": null
+        },
+        {
+          "name": "uart", "base": "0x10000000", "size": "0x1000",
+          "type": "mmio", "writable": true, "executable": false, "cacheable": false,
+          "init_file": null, "mmio_model": "uart_simple"
+        }
+      ],
+      "run_dir": "/tmp/ava_runs/20240315T142300Z_42_ab3f9c01",
+      "status":  "passed",
+      "phases": {
+        "build":   { "status": "passed", "started_at": "2024-03-15T14:23:00Z", "finished_at": "2024-03-15T14:23:18Z", "duration_s": 18, "exit_code": 0, "error_msg": null, "retry_count": 0, "log_path": "logs/build.log" },
+        "iss":     { "status": "passed", "started_at": "2024-03-15T14:23:18Z", "finished_at": "2024-03-15T14:23:21Z", "duration_s": 3,  "exit_code": 0, "error_msg": null, "retry_count": 0, "log_path": "logs/iss.log" },
+        "rtl":     { "status": "passed", "started_at": "2024-03-15T14:23:21Z", "finished_at": "2024-03-15T14:23:44Z", "duration_s": 23, "exit_code": 0, "error_msg": null, "retry_count": 0, "log_path": "logs/rtl.log" },
+        "compare": { "status": "passed", "started_at": "2024-03-15T14:23:44Z", "finished_at": "2024-03-15T14:23:46Z", "duration_s": 2,  "exit_code": 0, "error_msg": null, "retry_count": 0, "log_path": "logs/compare.log" },
+        "coverage":{ "status": "passed", "started_at": "2024-03-15T14:23:46Z", "finished_at": "2024-03-15T14:23:47Z", "duration_s": 1,  "exit_code": 0, "error_msg": null, "retry_count": 0, "log_path": "logs/coverage.log" }
+      },
+      "outputs": {
+        "rtl_commitlog":    "rtl_commit.jsonl",
+        "iss_commitlog":    "iss_commit.jsonl",
+        "bug_report":       null,
+        "coverage_raw":     "coverage.dat",
+        "coverage_summary": "coverage_summary.json",
+        "signature_dir":    null,
+        "waveform":         "sim.fst",
+        "formal_results":   null,
+        "total_cycles":     18432,
+        "total_instrs":     4096,
+        "first_divergence": null
+      },
+      "error": null,
+      "retry_policy": { "max_retries": 2, "retry_count": 0, "retry_on_timeout": false, "backoff_s": 5 },
+      "environment": {
+        "hostname":   "ci-worker-07",
+        "os":         "Ubuntu 22.04.3 LTS",
+        "python":     { "name": "python",    "version": "3.11.4",  "commit": null, "path": "/usr/bin/python3" },
+        "verilator":  { "name": "verilator", "version": "5.014",   "commit": null, "path": "/usr/bin/verilator" },
+        "spike":      { "name": "spike",     "version": "1.1.1-dev","commit": "a3b9f22", "path": "/usr/local/bin/spike" },
+        "git_commit": "f1a2b3c4",
+        "git_dirty":  false
+      },
+      "metrics": {
+        "wall_time_s": 47, "rtl_sim_time_s": 23, "iss_sim_time_s": 3,
+        "compare_time_s": 2, "instrs_per_sec_rtl": 178, "instrs_per_sec_iss": 1365,
+        "log_size_bytes": 2097152, "coverage_line_pct": 88.75, "coverage_branch_pct": 77.5, "coverage_toggle_pct": 75.0
+      },
+      "tags": ["ext:M", "type:random", "priority:p1"],
+      "notifications": null,
+      "created_at":   "2024-03-15T14:23:00Z",
+      "completed_at": "2024-03-15T14:23:47Z"
+    }
+  ]
+}

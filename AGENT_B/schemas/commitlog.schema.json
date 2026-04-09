@@ -1,0 +1,167 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://ava.riscv/schemas/commitlog/2.0.0",
+  "title": "AVA CommitLogEntry v2.0.0",
+  "description": "Single retired-instruction commit record. Emitted by RTL (src=rtl) and ISS (src=iss) backends. All agents MUST use this schema; do not keep local copies.",
+  "type": "object",
+  "required": ["schemaversion", "runid", "hart", "seq", "pc", "instr", "instrwidth", "priv", "src"],
+  "properties": {
+    "schemaversion": {
+      "type": "string",
+      "const": "2.0.0",
+      "description": "Schema version — must be exactly '2.0.0'."
+    },
+    "runid": {
+      "type": "string",
+      "description": "Run UUID from orchestrator manifest (same for RTL and ISS logs of the same run)."
+    },
+    "hart": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Hardware thread index (0 for single-hart designs)."
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Monotonically increasing retire sequence number (0-based, per hart)."
+    },
+    "pc": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]+$",
+      "description": "PC of the retiring instruction (hex string, no zero-padding required)."
+    },
+    "instr": {
+      "type": "string",
+      "pattern": "^0x[0-9a-fA-F]+$",
+      "description": "Full 32-bit instruction word (or 16-bit for RVC, lower 16 valid)."
+    },
+    "instrwidth": {
+      "type": "integer",
+      "enum": [2, 4],
+      "description": "Instruction width in bytes: 4 for RV32/64, 2 for RVC."
+    },
+    "priv": {
+      "type": "string",
+      "enum": ["M", "S", "U", "H"],
+      "description": "Privilege mode at retire. Replaces old 'mode' field."
+    },
+    "src": {
+      "type": "string",
+      "enum": ["rtl", "iss"],
+      "description": "Source backend: 'rtl' = Verilator, 'iss' = Spike/Sail."
+    },
+    "regs": {
+      "type": "object",
+      "description": "Integer register writes: {xN: hex_value}. Only written registers included. Replaces old 'rd' field.",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^0x[0-9a-fA-F]+$"
+      }
+    },
+    "csrs": {
+      "type": "object",
+      "description": "CSR writes at retire: {csr_name_or_addr: hex_value}. Replaces old 'csr' field.",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^0x[0-9a-fA-F]+$"
+      }
+    },
+    "fpregs": {
+      "type": ["object", "null"],
+      "description": "Floating-point register writes. null when F/D extension absent.",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^0x[0-9a-fA-F]+$"
+      }
+    },
+    "memwrites": {
+      "type": "array",
+      "description": "Memory write transactions at retire. Replaces old 'mem' field.",
+      "items": {
+        "type": "object",
+        "required": ["addr", "data", "size"],
+        "properties": {
+          "addr": { "type": "string", "pattern": "^0x[0-9a-fA-F]+$" },
+          "data": { "type": "string", "pattern": "^0x[0-9a-fA-F]+$" },
+          "size": { "type": "integer", "enum": [1, 2, 4, 8] },
+          "strb": { "type": "string", "pattern": "^0x[0-9a-fA-F]+$",
+                    "description": "Byte-enable mask (hex). e.g. '0xf' = all bytes." }
+        }
+      }
+    },
+    "memreads": {
+      "type": "array",
+      "description": "Memory read transactions at retire. Used by Agent D comparator when both backends enable it.",
+      "items": {
+        "type": "object",
+        "required": ["addr", "data", "size"],
+        "properties": {
+          "addr": { "type": "string", "pattern": "^0x[0-9a-fA-F]+$" },
+          "data": { "type": "string", "pattern": "^0x[0-9a-fA-F]+$" },
+          "size": { "type": "integer", "enum": [1, 2, 4, 8] }
+        }
+      }
+    },
+    "trap": {
+      "type": "object",
+      "description": "Present only when this instruction caused or returned from a trap/interrupt.",
+      "required": ["cause", "epc", "tvec", "tval", "isinterrupt", "is_ret"],
+      "properties": {
+        "cause":       { "type": "string", "pattern": "^0x[0-9a-fA-F]+$",
+                         "description": "mcause value (bit 31 set = interrupt)." },
+        "epc":         { "type": "string", "pattern": "^0x[0-9a-fA-F]+$",
+                         "description": "mepc: PC saved when trap was taken." },
+        "tvec":        { "type": "string", "pattern": "^0x[0-9a-fA-F]+$",
+                         "description": "mtvec: handler base address jumped to." },
+        "tval":        { "type": "string", "pattern": "^0x[0-9a-fA-F]+$",
+                         "description": "mtval: trap-specific value." },
+        "isinterrupt": { "type": "boolean",
+                         "description": "True when cause[31]=1 (interrupt), false for exceptions." },
+        "is_ret":      { "type": "boolean",
+                         "description": "True for mret/sret/uret (trap return, not trap entry)." }
+      }
+    }
+  },
+  "examples": [
+    {
+      "schemaversion": "2.0.0",
+      "runid": "a1b2c3d4",
+      "hart": 0,
+      "seq": 0,
+      "pc": "0x80000000",
+      "instr": "0x00000013",
+      "instrwidth": 4,
+      "priv": "M",
+      "src": "rtl",
+      "regs": {},
+      "csrs": {},
+      "fpregs": null,
+      "memwrites": [],
+      "memreads": []
+    },
+    {
+      "schemaversion": "2.0.0",
+      "runid": "a1b2c3d4",
+      "hart": 0,
+      "seq": 7,
+      "pc": "0x80000034",
+      "instr": "0x00000073",
+      "instrwidth": 4,
+      "priv": "M",
+      "src": "rtl",
+      "regs": {},
+      "csrs": { "mepc": "0x80000034", "mcause": "0x0000000b", "mtvec": "0x80000004" },
+      "fpregs": null,
+      "memwrites": [],
+      "memreads": [],
+      "trap": {
+        "cause": "0x0000000b",
+        "epc":   "0x80000034",
+        "tvec":  "0x80000004",
+        "tval":  "0x00000000",
+        "isinterrupt": false,
+        "is_ret": false
+      }
+    }
+  ]
+}

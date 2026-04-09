@@ -1,0 +1,436 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id":     "https://ava-rv/schemas/commitlog/v2.0.0",
+
+  "title":       "AVA Commit Log Entry",
+  "description": "One JSONL record per retired instruction, emitted in strict program order by both RTL harness (Agent B) and ISS golden backend (Agent C). Consumer: Agent D (comparator), Agent F (coverage director), red-team agents. Schema version 2.0.0.",
+
+  "$defs": {
+
+    "schema_version": {
+      "type": "string",
+      "const": "2.0.0",
+      "description": "Commit-log schema version. Must match the $id minor.patch. Producers MUST emit this; consumers MUST reject records whose version does not match the version they were compiled against."
+    },
+
+    "hex8": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{8}$",
+      "description": "Exactly 8 lowercase hex digits with 0x prefix — represents a 32-bit value."
+    },
+
+    "hex4": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{4}$",
+      "description": "Exactly 4 lowercase hex digits with 0x prefix — represents a 16-bit value."
+    },
+
+    "hex2": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{2}$",
+      "description": "Exactly 2 lowercase hex digits with 0x prefix — represents an 8-bit value."
+    },
+
+    "hex_word_or_half_or_byte": {
+      "oneOf": [
+        { "$ref": "#/$defs/hex8" },
+        { "$ref": "#/$defs/hex4" },
+        { "$ref": "#/$defs/hex2" }
+      ],
+      "description": "A hex value of exactly 2, 4, or 8 hex digits (byte, half, word). Width must match the `size` field of its parent mem entry."
+    },
+
+    "reg_name": {
+      "type": "string",
+      "pattern": "^x([1-9]|[12][0-9]|3[01])$",
+      "description": "Integer register name x1..x31. x0 is FORBIDDEN in any delta — its value is always 0 by the RISC-V specification and must never be written."
+    },
+
+    "csr_name": {
+      "type": "string",
+      "enum": [
+        "mstatus",    "mstatush",
+        "misa",
+        "medeleg",    "mideleg",
+        "mie",        "mip",
+        "mtvec",      "mtvt",
+        "mscratch",
+        "mepc",       "mcause",   "mtval",
+        "mcounteren", "mcountinhibit",
+        "mcycle",     "mcycleh",
+        "minstret",   "minstreth",
+        "mhpmcounter3", "mhpmcounter3h",
+        "mhpmevent3",
+        "pmpcfg0",    "pmpcfg1",  "pmpcfg2",  "pmpcfg3",
+        "pmpaddr0",   "pmpaddr1", "pmpaddr2",  "pmpaddr3",
+        "pmpaddr4",   "pmpaddr5", "pmpaddr6",  "pmpaddr7",
+        "tselect",    "tdata1",   "tdata2",    "tdata3",
+        "dcsr",       "dpc",
+        "dscratch0",  "dscratch1"
+      ],
+      "description": "Canonical lowercase CSR name. The permitted set is the complete M-mode + debug CSR space for RV32IM. Extend this enum (and bump schema version) when adding S/U/H/V modes."
+    },
+
+    "trap_object": {
+      "type": "object",
+      "description": "Synchronous exception or asynchronous interrupt taken at this commit boundary.",
+      "required": ["cause", "tval", "tvec", "epc"],
+      "properties": {
+        "cause": {
+          "$ref": "#/$defs/hex8",
+          "description": "mcause written by hardware: bit[31]=interrupt, bits[30:0]=exception code."
+        },
+        "tval": {
+          "$ref": "#/$defs/hex8",
+          "description": "mtval written by hardware. 0x00000000 for exceptions where tval is not defined."
+        },
+        "tvec": {
+          "$ref": "#/$defs/hex8",
+          "description": "mtvec at the moment the trap is taken (BASE field, mode stripped). The actual handler PC may differ for vectored mode."
+        },
+        "epc": {
+          "$ref": "#/$defs/hex8",
+          "description": "mepc written by hardware — the PC of the trapping instruction or the next instruction for interrupts."
+        },
+        "is_interrupt": {
+          "type": "boolean",
+          "description": "Convenience flag: true iff cause[31]=1. Producers MUST set this consistently with `cause`; comparator checks both."
+        },
+        "exception_code": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647,
+          "description": "Numeric value of cause[30:0]. Provided as an integer for human readability. Must equal parseInt(cause,16) & 0x7FFFFFFF."
+        }
+      },
+      "unevaluatedProperties": false
+    },
+
+    "mem_write_entry": {
+      "type": "object",
+      "description": "One naturally-aligned store or AMO write event. For unaligned stores that become two bus transactions, emit two entries in address order.",
+      "required": ["addr", "size", "data"],
+      "properties": {
+        "addr": {
+          "$ref": "#/$defs/hex8",
+          "description": "Physical (= M-mode virtual for bare-metal) byte address of the start of the write."
+        },
+        "size": {
+          "type": "integer",
+          "enum": [1, 2, 4],
+          "description": "Width of write in bytes. SB=1, SH=2, SW=4."
+        },
+        "data": {
+          "$ref": "#/$defs/hex_word_or_half_or_byte",
+          "description": "Data written. Width (in hex chars) MUST match size: size=1 → 2 hex chars (0xNN), size=2 → 4 hex chars (0xNNNN), size=4 → 8 hex chars (0xNNNNNNNN)."
+        },
+        "amo_op": {
+          "type": "string",
+          "enum": [
+            "amoswap.w", "amoadd.w", "amoxor.w", "amoand.w", "amoor.w",
+            "amomin.w",  "amomax.w", "amominu.w","amomaxu.w"
+          ],
+          "description": "Optional: AMO operation type. Absent for plain stores. If present, `data` is the *result value written back* to memory (post-operation)."
+        }
+      },
+      "unevaluatedProperties": false,
+
+      "if":   { "properties": { "size": { "const": 1 } }, "required": ["size"] },
+      "then": { "properties": { "data": { "$ref": "#/$defs/hex2" } } },
+      "else": {
+        "if":   { "properties": { "size": { "const": 2 } }, "required": ["size"] },
+        "then": { "properties": { "data": { "$ref": "#/$defs/hex4" } } },
+        "else": { "properties": { "data": { "$ref": "#/$defs/hex8" } } }
+      }
+    },
+
+    "mem_read_entry": {
+      "type": "object",
+      "description": "One load / AMO read event. Optional — emit only when the coverage director or comparator is configured with `--log-loads`. Default is stores-only.",
+      "required": ["addr", "size", "data"],
+      "properties": {
+        "addr": { "$ref": "#/$defs/hex8" },
+        "size": { "type": "integer", "enum": [1, 2, 4] },
+        "data": { "$ref": "#/$defs/hex_word_or_half_or_byte" }
+      },
+      "unevaluatedProperties": false
+    }
+
+  },
+
+  "type": "object",
+
+  "required": [
+    "schema_version",
+    "hart",
+    "seq",
+    "pc",
+    "instr",
+    "instr_width",
+    "priv",
+    "regs",
+    "csrs",
+    "_src"
+  ],
+
+  "properties": {
+
+    "schema_version": { "$ref": "#/$defs/schema_version" },
+
+    "hart": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 255,
+      "description": "Hart ID (0-based). Single-core runs always emit 0. Multi-hart runs (Phase 2) interleave records; Agent D must sort by (hart, seq) before per-hart comparison."
+    },
+
+    "seq": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Monotonically increasing retirement sequence number for this hart, starting at 0. Provides a total order for comparison and detects log truncation. Must increment by exactly 1 per record; Agent D raises SEQ_GAP if a gap is found."
+    },
+
+    "cycle": {
+      "oneOf": [
+        { "type": "integer", "minimum": 0 },
+        { "type": "null" }
+      ],
+      "description": "Wall-clock simulation cycle at commit (RTL only). ISS backends MUST emit null. Comparator IGNORES this field during diff — it is present for timing analysis only."
+    },
+
+    "pc": {
+      "$ref": "#/$defs/hex8",
+      "description": "Program counter of the committed instruction. For compressed (RVC) instructions this is the address of the 16-bit parcel. Must be 2-byte aligned; Agent D raises ALIGNMENT_ERROR for odd PCs."
+    },
+
+    "instr": {
+      "type": "string",
+      "pattern": "^0x[0-9a-f]{4}([0-9a-f]{4})?$",
+      "description": "Raw instruction encoding. Full 32-bit instructions: 8 hex digits (0xNNNNNNNN). Compressed 16-bit: 4 hex digits (0xNNNN). Width must match instr_width."
+    },
+
+    "instr_width": {
+      "type": "integer",
+      "enum": [2, 4],
+      "description": "Instruction width in bytes: 4 for standard 32-bit instructions (RV32IM baseline), 2 for future RVC. Must be consistent with the `instr` hex digit count."
+    },
+
+    "disasm": {
+      "type": "string",
+      "maxLength": 128,
+      "description": "Optional human-readable disassembly string, e.g. 'mul a0,a0,a1'. Ignored by the comparator. Useful for waveform annotation and bug reports."
+    },
+
+    "priv": {
+      "type": "string",
+      "enum": ["M", "S", "U", "D"],
+      "description": "Privilege mode at commit. 'M'=Machine, 'S'=Supervisor, 'U'=User, 'D'=Debug. RV32IM M-mode only for schema v2; emit 'M' always. Enum kept open for forward compatibility."
+    },
+
+    "trap": {
+      "oneOf": [
+        { "$ref": "#/$defs/trap_object" },
+        { "type": "null" }
+      ],
+      "description": "Non-null when a trap is taken at this retirement boundary. Null (or omitted) otherwise. NOTE: If trap is non-null, the instruction's architectural side-effects may still be committed (e.g. `ecall` retires before trap). Producers must document their behaviour; see interfaces.md §6."
+    },
+
+    "regs": {
+      "type": "object",
+      "description": "Register file delta: only registers whose value changed as a direct result of this instruction's execution. x0 is FORBIDDEN — its value is architecturally fixed at 0x00000000. An empty object {} is valid and expected for stores, branches (not taken), fences, NOPs, and ecalls.",
+      "propertyNames": { "$ref": "#/$defs/reg_name" },
+      "additionalProperties": { "$ref": "#/$defs/hex8" },
+      "maxProperties": 1,
+      "description_note": "RV32IM instructions write at most 1 register. maxProperties=1 catches multi-write bugs in harness code."
+    },
+
+    "csrs": {
+      "type": "object",
+      "description": "CSR delta: only CSRs whose value changed at this commit. Empty object {} is valid. Keys must be canonical lowercase names from the approved enum. Values are 32-bit hex.",
+      "propertyNames": { "$ref": "#/$defs/csr_name" },
+      "additionalProperties": { "$ref": "#/$defs/hex8" }
+    },
+
+    "mem_writes": {
+      "oneOf": [
+        {
+          "type": "array",
+          "items": { "$ref": "#/$defs/mem_write_entry" },
+          "minItems": 1,
+          "maxItems": 2,
+          "description": "One entry for aligned stores; two entries for unaligned stores that cross a word boundary. AMO operations emit one write entry (the store half)."
+        },
+        { "type": "null" }
+      ],
+      "description": "Present and non-null for store / AMO instructions. Null or absent for all other instruction classes."
+    },
+
+    "mem_reads": {
+      "oneOf": [
+        {
+          "type": "array",
+          "items": { "$ref": "#/$defs/mem_read_entry" },
+          "minItems": 1,
+          "maxItems": 2
+        },
+        { "type": "null" }
+      ],
+      "description": "Optional load-side logging. Disabled by default. Enable with run_manifest.dut.log_loads=true. When enabled, absent is equivalent to null."
+    },
+
+    "fp_regs": {
+      "type": ["object", "null"],
+      "description": "Floating-point register delta. Reserved for RV32F/D extension (not in scope for v2). Producers targeting RV32IM MUST omit or set to null. Schema will be extended in v3.",
+      "const": null
+    },
+
+    "_src": {
+      "type": "string",
+      "enum": ["rtl", "iss", "sail", "manual"],
+      "description": "Producer tag. 'rtl' = Verilator/VCS harness; 'iss' = Spike; 'sail' = Sail-RISC-V; 'manual' = hand-crafted test fixture. Comparator strips this field before hashing for equality. Never use this field for routing logic."
+    },
+
+    "_run_id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]{6,64}$",
+      "description": "Run ID from the run manifest. Injected by the producer to allow log records to be self-identifying when concatenated across runs. Must match manifest.run_id."
+    }
+
+  },
+
+  "unevaluatedProperties": false,
+
+  "if": {
+    "properties": { "instr_width": { "const": 4 } },
+    "required": ["instr_width"]
+  },
+  "then": {
+    "properties": {
+      "instr": { "pattern": "^0x[0-9a-f]{8}$" }
+    }
+  },
+  "else": {
+    "properties": {
+      "instr": { "pattern": "^0x[0-9a-f]{4}$" }
+    }
+  },
+
+  "examples": [
+    {
+      "_comment": "Example 1: MUL a0, a0, a1  (RV32M multiply)",
+      "schema_version": "2.0.0",
+      "hart": 0,
+      "seq": 8,
+      "cycle": 142,
+      "pc": "0x80000010",
+      "instr": "0x02a50533",
+      "instr_width": 4,
+      "disasm": "mul a0, a0, a1",
+      "priv": "M",
+      "trap": null,
+      "regs": { "x10": "0x0000002a" },
+      "csrs": {},
+      "mem_writes": null,
+      "mem_reads": null,
+      "fp_regs": null,
+      "_src": "rtl",
+      "_run_id": "20240315T142300_42_ab3f9c01"
+    },
+    {
+      "_comment": "Example 2: SW a0, 0(sp)  (32-bit store)",
+      "schema_version": "2.0.0",
+      "hart": 0,
+      "seq": 9,
+      "cycle": 146,
+      "pc": "0x80000014",
+      "instr": "0x00a12023",
+      "instr_width": 4,
+      "disasm": "sw a0, 0(sp)",
+      "priv": "M",
+      "trap": null,
+      "regs": {},
+      "csrs": {},
+      "mem_writes": [
+        { "addr": "0x80001000", "size": 4, "data": "0x0000002a" }
+      ],
+      "mem_reads": null,
+      "fp_regs": null,
+      "_src": "iss",
+      "_run_id": "20240315T142300_42_ab3f9c01"
+    },
+    {
+      "_comment": "Example 3: DIV a0, a0, zero  (divide-by-zero → result = -1 = 0xFFFFFFFF, no trap per spec)",
+      "schema_version": "2.0.0",
+      "hart": 0,
+      "seq": 10,
+      "cycle": 162,
+      "pc": "0x80000018",
+      "instr": "0x02054533",
+      "instr_width": 4,
+      "disasm": "div a0, a0, zero",
+      "priv": "M",
+      "trap": null,
+      "regs": { "x10": "0xffffffff" },
+      "csrs": {},
+      "mem_writes": null,
+      "mem_reads": null,
+      "fp_regs": null,
+      "_src": "rtl",
+      "_run_id": "20240315T142300_42_ab3f9c01"
+    },
+    {
+      "_comment": "Example 4: ECALL  (M-mode environment call → trap cause=11)",
+      "schema_version": "2.0.0",
+      "hart": 0,
+      "seq": 55,
+      "cycle": 820,
+      "pc": "0x80000040",
+      "instr": "0x00000073",
+      "instr_width": 4,
+      "disasm": "ecall",
+      "priv": "M",
+      "trap": {
+        "cause":        "0x0000000b",
+        "tval":         "0x00000000",
+        "tvec":         "0x80000080",
+        "epc":          "0x80000040",
+        "is_interrupt": false,
+        "exception_code": 11
+      },
+      "regs": {},
+      "csrs": {
+        "mepc":   "0x80000040",
+        "mcause": "0x0000000b",
+        "mtval":  "0x00000000",
+        "mstatus":"0x00001800"
+      },
+      "mem_writes": null,
+      "mem_reads": null,
+      "fp_regs": null,
+      "_src": "rtl",
+      "_run_id": "20240315T142300_42_ab3f9c01"
+    },
+    {
+      "_comment": "Example 5: SH a0, 0(sp)  (16-bit store — validates hex4 data)",
+      "schema_version": "2.0.0",
+      "hart": 0,
+      "seq": 56,
+      "cycle": 824,
+      "pc": "0x80000044",
+      "instr": "0x00a11023",
+      "instr_width": 4,
+      "disasm": "sh a0, 0(sp)",
+      "priv": "M",
+      "trap": null,
+      "regs": {},
+      "csrs": {},
+      "mem_writes": [
+        { "addr": "0x80001004", "size": 2, "data": "0x002a" }
+      ],
+      "mem_reads": null,
+      "fp_regs": null,
+      "_src": "rtl",
+      "_run_id": "20240315T142300_42_ab3f9c01"
+    }
+  ]
+}
