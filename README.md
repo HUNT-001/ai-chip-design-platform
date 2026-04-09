@@ -50,9 +50,9 @@ The project is currently organized around multiple specialized subsystems:
 
 Defines foundational formats and interface specifications, including:
 
-- commitlog.schema.json
-- run_manifest.schema.json
-- interfaces.md
+- ```commitlog.schema.json```
+- ```run_manifest.schema.json```
+- ```interfaces.md```
 
 This layer acts as the structural contract for the rest of the framework.
 
