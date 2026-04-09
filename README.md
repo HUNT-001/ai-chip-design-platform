@@ -123,6 +123,50 @@ Implements several stimulus-generation approaches, including:
 - manifest-backed generation
 
 This gives the project a strong automated-test-generation dimension.
-├── ava_coverage_patch.py
-├── ava_patched.py
-└── project documentation and reports
+
+## Current Capabilities
+
+Based on the present repository structure, the framework supports or is being actively developed toward:
+
+- Multi-agent verification workflows
+- Schema-defined manifests and interfaces
+- RTL backend execution
+- ISS-backed validation flows
+- Spike trace parsing
+- Commitlog comparison
+- Bug hypothesis generation
+- Compliance testing
+- Coverage-driven prioritization
+- Directed test generation
+- Randomized stimulus generation
+- Genetic test generation
+
+## Why This Project Matters
+
+Verification workflows in hardware engineering are often fragmented, manually orchestrated, and difficult to scale. This project explores a different direction: using modular agents and structured execution layers to coordinate multiple verification activities in a more automated and extensible way.
+
+Instead of treating verification as a collection of disconnected scripts, this project moves toward a unified framework spanning:
+
+- execution
+- comparison
+- diagnosis
+- compliance
+- coverage
+- test generation
+
+That makes it much closer to a reusable verification framework than a one-off prototype.
+
+## Getting Started
+
+Prerequisites
+
+Make sure you have the following installed:
+
+- Python 3.10+
+- Git
+- pip
+
+RISC-V toolchain components as needed
+- Verilator or other RTL simulation tools where applicable
+- Spike or another ISS tool if required by your local flow
+## Clone the Repository
