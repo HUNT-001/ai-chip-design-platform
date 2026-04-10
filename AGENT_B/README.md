@@ -19,7 +19,7 @@
 6. [Technology Stack](#6-technology-stack)
 7. [Project Layout](#7-project-layout)
 8. [Prerequisites](#8-prerequisites)
-9. [Quick-Start — End-to-End Example](#9-quick-start--end-to-end-example)
+9. [Quick-Start — End-to-End Example](#9-quick-start--end-to-end-example) 
 10. [CLI Reference](#10-cli-reference)
 11. [The Manifest System](#11-the-manifest-system)
 12. [Coverage Pipeline](#12-coverage-pipeline)
