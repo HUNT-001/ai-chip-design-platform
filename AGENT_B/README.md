@@ -19,7 +19,7 @@
 6. [Technology Stack](#6-technology-stack)
 7. [Project Layout](#7-project-layout)
 8. [Prerequisites](#8-prerequisites)
-9. [Quick-Start — End-to-End Example](#9-quick-start--end-to-end-example) 
+9. [Quick-Start — End-to-End Example](#9-quick-start--end-to-end-example)
 10. [CLI Reference](#10-cli-reference)
 11. [The Manifest System](#11-the-manifest-system)
 12. [Coverage Pipeline](#12-coverage-pipeline)
@@ -918,4 +918,3 @@ Rather than having agents call each other through RPC or message queues, AVA use
 - **Red-team adversarial agents**: agents that consume real traces and generate worst-case sequences for coherence protocols, speculative execution paths, and CSR side-effect chains.
 - **Out-of-order DUT support**: the commit interface already supports out-of-order retirement (the DUT can retire instructions in any order as long as each `commit_valid` pulse is correct). The comparator needs an extension to handle in-flight instruction windows.
 - **S-mode and U-mode**: privilege transition sequences, trap delegation, and PMP verification.
-
