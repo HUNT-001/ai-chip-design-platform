@@ -39,6 +39,11 @@ ai-chip-design-platform/
 ├── ava.py        # Main AVA entry / legacy orchestration file
 ├── ava_coverage_patch.py
 ├── ava_patched.py
+├── .Github
+├── CODE_OF_CONDUCT.md
+├── CONTRIBUTING.md
+├── SECURITY.md
+├── LICENSE
 └── project documentation and reports
 ```
 This structure reflects a more concrete verification-oriented system rather than a generic tooling skeleton.
