@@ -30,7 +30,7 @@ The long-term goal is to evolve this repository into a serious open-source platf
 ai-chip-design-platform/
 ├── Schemas/      # Schemas and interface specifications
 ├── Backend/      # AVA package, RTL backends, docs, example CPU, tests
-├── AGENT_C/      # ISS execution, Spike parsing, smoke tests, integration tests
+├── ISS_Spike_Checker/      # ISS execution, Spike parsing, smoke tests, integration tests
 ├── Comparator/      # Commitlog comparison and bug hypothesis generation
 ├── Rtl_runner/      # Compliance runner and RTL adapter
 ├── Coverage/      # Coverage pipeline, cold-path ranking, manifest locking
