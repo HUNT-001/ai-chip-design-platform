@@ -42,6 +42,7 @@ ai-chip-design-platform/
 ├── .Github
 ├── CODE_OF_CONDUCT.md
 ├── CONTRIBUTING.md
+├── README.md
 ├── SECURITY.md
 ├── LICENSE
 └── project documentation and reports
