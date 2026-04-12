@@ -31,8 +31,8 @@ ai-chip-design-platform/
 ├── Schemas/      # Schemas and interface specifications
 ├── Backend/      # AVA package, RTL backends, docs, example CPU, tests
 ├── AGENT_C/      # ISS execution, Spike parsing, smoke tests, integration tests
-├── AGENT_D/      # Commitlog comparison and bug hypothesis generation
-├── AGENT_E/      # Compliance runner and RTL adapter
+├── Comparator/      # Commitlog comparison and bug hypothesis generation
+├── Rtl_runner/      # Compliance runner and RTL adapter
 ├── AGENT_F/      # Coverage pipeline, cold-path ranking, manifest locking
 ├── AGENT_G/      # Directed, random, and genetic test generation
 ├── ava_v2/       # Next-generation AVA-related work
