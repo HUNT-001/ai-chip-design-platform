@@ -28,8 +28,8 @@ The long-term goal is to evolve this repository into a serious open-source platf
 
 ```text
 ai-chip-design-platform/
-├── AGENT_A/      # Schemas and interface specifications
-├── AGENT_B/      # AVA package, RTL backends, docs, example CPU, tests
+├── Schemas/      # Schemas and interface specifications
+├── Backend/      # AVA package, RTL backends, docs, example CPU, tests
 ├── AGENT_C/      # ISS execution, Spike parsing, smoke tests, integration tests
 ├── AGENT_D/      # Commitlog comparison and bug hypothesis generation
 ├── AGENT_E/      # Compliance runner and RTL adapter
