@@ -37,7 +37,6 @@ httpx==0.28.1
 tenacity==9.0.0
 loguru==0.7.3
 python-multipart==0.0.19
-sentence-transformers==3.1.1
 faiss-cpu==1.8.0
 asyncio-throttle
 streamlit==1.38.0
