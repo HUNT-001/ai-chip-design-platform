@@ -165,6 +165,8 @@ Instead of treating verification as a collection of disconnected scripts, this p
 
 That makes it much closer to a reusable verification framework than a one-off prototype.
 
+---
+
 ## Getting Started
 
 Prerequisites
