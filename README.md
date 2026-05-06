@@ -48,6 +48,9 @@ ai-chip-design-platform/
 └── project documentation and reports
 ```
 This structure reflects a more concrete verification-oriented system rather than a generic tooling skeleton.
+
+---
+
 ## Architecture Summary
 
 The project is currently organized around multiple specialized subsystems:
