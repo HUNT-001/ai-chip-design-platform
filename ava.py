@@ -1111,7 +1111,7 @@ class AVA:
         try:
             logger.info("Parsing RTL specification...")
             rtl_content = rtl_spec
-            if Path(rtl_spec).exists():
+            if len(rtl_spec) < 255 and '\n' not in rtl_spec and Path(rtl_spec).exists():
                 rtl_content = Path(rtl_spec).read_text()
                 logger.info("Loaded RTL from file: %s", rtl_spec)
 
