@@ -40,8 +40,6 @@ python-multipart==0.0.19
 faiss-cpu==1.8.0
 asyncio-throttle
 streamlit==1.38.0
-torch==2.4.0 
-cocotb==1.8.0
 cocotb-coverage==1.2.0
 
 # Auth & Security
