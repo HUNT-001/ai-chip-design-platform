@@ -1,4 +1,4 @@
-# AI Chip Design Platform
+# AI Chip Verification Platform
 
 A modular **multi-agent RISC-V verification and test-generation framework** for AI-assisted hardware validation workflows.
 
