@@ -8,7 +8,7 @@ This project explores how agentic systems can support verification tasks such as
 
 ## Overview
 
-**AI Chip Design Platform** is an open-source experimental framework for building intelligent verification workflows around digital hardware systems, with a current focus on **RISC-V-oriented verification automation**.
+**AI Chip Verification Platform** is an open-source experimental framework for building intelligent verification workflows around digital hardware systems, with a current focus on **RISC-V-oriented verification automation**.
 
 The repository is organized into specialized agent modules that address different parts of the verification stack, including:
 
