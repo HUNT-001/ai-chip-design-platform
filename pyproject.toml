@@ -54,6 +54,7 @@ pythonpath = [
     "AGENT_G",
 ]
 testpaths = [
+    "tests",
     "AGENT_C",
     "AGENT_D",
     "AGENT_E",
@@ -61,7 +62,8 @@ testpaths = [
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short"
+addopts = "-v --tb=short --import-mode=importlib"
+asyncio_mode = "auto"
 
 [tool.mypy]
 python_version = "3.9"

@@ -1,270 +1,228 @@
-# AI Chip Verification Platform
+# AVA — Autonomic Verification Agent v3.0
 
-A modular **multi-agent RISC-V verification and test-generation framework** for AI-assisted hardware validation workflows.
+[![CI](https://github.com/HUNT-001/ai-chip-design-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/HUNT-001/ai-chip-design-platform/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 
-This project explores how agentic systems can support verification tasks such as RTL execution, ISS comparison, commitlog analysis, compliance testing, coverage-driven prioritization, and automated test generation.
-
----
-
-## Overview
-
-**AI Chip Verification Platform** is an open-source experimental framework for building intelligent verification workflows around digital hardware systems, with a current focus on **RISC-V-oriented verification automation**.
-
-The repository is organized into specialized agent modules that address different parts of the verification stack, including:
-
-- interface and schema definitions
-- RTL backend orchestration
-- ISS execution and trace parsing
-- commitlog comparison and bug hypothesis generation
-- compliance execution
-- coverage analysis and cold-path ranking
-- directed, random, and genetic test generation
-
-The long-term goal is to evolve this repository into a serious open-source platform for **agentic hardware verification and validation automation**.
+A **multi-agent RISC-V RTL verification platform** powered by causal AI, formal methods, and a 14-agent extended pipeline. AVA takes a raw RTL spec and drives it through semantic analysis, tandem simulation, coverage-guided test generation, and a full extended verification suite — all without requiring a complete EDA toolchain for basic operation.
 
 ---
 
-## Repository Structure
+## Architecture
 
-```text
-ai-chip-design-platform/
-├── Schemas/      # Schemas and interface specifications
-├── Backend/      # AVA package, RTL backends, docs, example CPU, tests
-├── ISS_Spike_Checker/      # ISS execution, Spike parsing, smoke tests, integration tests
-├── Comparator/      # Commitlog comparison and bug hypothesis generation
-├── Rtl_runner/      # Compliance runner and RTL adapter
-├── Coverage/      # Coverage pipeline, cold-path ranking, manifest locking
-├── Test_generator/      # Directed, random, and genetic test generation
-├── ava_v2/       # Next-generation AVA-related work
-├── ava.py        # Main AVA entry / legacy orchestration file
-├── ava_coverage_patch.py
-├── ava_patched.py
-├── .Github
-├── CODE_OF_CONDUCT.md
-├── CONTRIBUTING.md
-├── README.md
-├── SECURITY.md
-├── LICENSE
-└── project documentation and reports
+AVA runs a 6-phase pipeline. Phases 1–5 form the core loop (always active); Phase 6 is the extended verification suite that runs when optional agents are available.
+
 ```
-This structure reflects a more concrete verification-oriented system rather than a generic tooling skeleton.
-
----
-
-## Architecture Summary
-
-The project is currently organized around multiple specialized subsystems:
-
-## AGENT_A — Schemas and Interfaces
-
-Defines foundational formats and interface specifications, including:
-
-- ```commitlog.schema.json```
-- ```run_manifest.schema.json```
-- ```interfaces.md```
-
-This layer acts as the structural contract for the rest of the framework.
-
-## AGENT_B — AVA + RTL Backend Layer
-
-Contains the AVA package, backend execution logic, documentation, example RTL, and test assets. It includes:
-
-- configuration and model definitions
-- RTL backend support
-- example CPU RTL
-- interface docs
-- linker/test files
-
-This module forms the main execution-facing backend layer for RTL-oriented workflows.
-
-## AGENT_C — ISS and Trace Analysis
-
-Focused on ISS-backed validation and parser-assisted analysis. Includes:
-
-- ISS execution flow
-- Spike parser
-- smoke assembly
-- integration tests
-- manifest/schema support
-
-This layer strengthens the framework’s ability to compare expected and observed behavior at the instruction level.
-
-## AGENT_D — Commitlog Comparison and Bug Hypothesis Generation
-
-Includes:
-
-- commitlog comparison
-- comparator tests
-- bug hypothesis logic
-
-This module pushes the project toward diagnosis and debugging assistance, not just execution orchestration.
-
-## AGENT_E — Compliance and RTL Adaptation
-
-Supports:
-
-- compliance execution
-- RTL adaptation
-- compliance test infrastructure
-
-This helps position the framework closer to standards-oriented validation workflows.
-
-## AGENT_F — Coverage Intelligence
-
-Contains components for:
-
-- coverage patching
-- coverage database handling
-- coverage pipeline execution
-- manifest locking
-- cold-path ranking
-
-This suggests a coverage-aware verification workflow where under-exercised regions can drive prioritization or new stimulus generation.
-
-## AGENT_G — Test Generation
-
-Implements several stimulus-generation approaches, including:
-
-- assembly building
-- directed test generation
-- random generation
-- genetic engine support
-- manifest-backed generation
-
-This gives the project a strong automated-test-generation dimension.
-
-## Current Capabilities
-
-Based on the present repository structure, the framework supports or is being actively developed toward:
-
-- Multi-agent verification workflows
-- Schema-defined manifests and interfaces
-- RTL backend execution
-- ISS-backed validation flows
-- Spike trace parsing
-- Commitlog comparison
-- Bug hypothesis generation
-- Compliance testing
-- Coverage-driven prioritization
-- Directed test generation
-- Randomized stimulus generation
-- Genetic test generation
-
-## Why This Project Matters
-
-Verification workflows in hardware engineering are often fragmented, manually orchestrated, and difficult to scale. This project explores a different direction: using modular agents and structured execution layers to coordinate multiple verification activities in a more automated and extensible way.
-
-Instead of treating verification as a collection of disconnected scripts, this project moves toward a unified framework spanning:
-
-- execution
-- comparison
-- diagnosis
-- compliance
-- coverage
-- test generation
-
-That makes it much closer to a reusable verification framework than a one-off prototype.
-
----
-
-## Getting Started
-
-Prerequisites
-
-Make sure you have the following installed:
-
-- Python 3.10+
-- Git
-- pip
-
-RISC-V toolchain components as needed
-- Verilator or other RTL simulation tools where applicable
-- Spike or another ISS tool if required by your local flow
-## Clone the Repository
+RTL Spec
+   │
+   ▼
+[Phase 1] Semantic Analysis      — AGENT_A: schema, DUT extraction
+   │
+   ▼
+[Phase 2] Testbench Generation   — AGENT_B: ISS/RTL backend wiring
+   │
+   ▼
+[Phase 3] Tandem Simulation      — AGENT_C: Spike ISS + Verilator RTL
+   │                               AGENT_D: commit-log comparison
+   ▼
+[Phase 4] Bug Analysis           — AGENT_E: compliance checks
+   │                               AGENT_F: coverage analysis
+   ▼
+[Phase 5] Coverage Adaptation    — AGENT_G: genetic + causal test gen
+   │
+   ▼
+[Phase 6] Extended Verification  — 14 specialised AGENT_H modules (below)
+   │
+   ▼
+Verification Report  (JSON / CSV / HTML)
 ```
+
+### Agent Map
+
+| Agent | Module | Task | EDA needed? |
+|---|---|---|---|
+| A | `AGENT_A/` | Schema validation, DUT semantic parsing | No |
+| B | `AGENT_B/` | RTL/ISS backend wiring, Verilator build | Verilator |
+| C | `AGENT_C/` | Spike ISS execution & commit-log capture | Spike |
+| D | `AGENT_D/` | Commit-log comparison, bug hypothesis | No |
+| E | `AGENT_E/` | RISC-V compliance test runner | GCC + Spike |
+| F | `AGENT_F/` | Coverage analysis, cold-path ranking | No |
+| G | `AGENT_G/` | Genetic + causal AI test generation | GCC (optional) |
+| I | `AGENT_I/` | RVWMO memory-model validator (litmus) | No |
+| J | `AGENT_J/` | CDC / reset / power checker | Yosys (optional) |
+| K | `AGENT_K/` | Microarch performance collector | No |
+| L | `AGENT_L/` | RTL→netlist equivalence checker | Yosys + sby |
+| H-intent | `AGENT_H/agent_h_intent.py` | Architectural intent verification | No |
+| H-contract | `AGENT_H/contract_dsl.py` | Design contract DSL (`@contract`) | No |
+| H-temporal | `AGENT_H/temporal_checker.py` | LTL-style temporal property monitors | No |
+| H-security | `AGENT_H/security_intel.py` | Spectre/privilege/cache covert-channel detection | No |
+| H-causal | `AGENT_G/causal_engine.py` | Causal AI-guided test generation | GCC (optional) |
+| H-minimize | `AGENT_H/minimizer.py` | Delta-debug counterexample minimizer | No |
+| H-formal | `AGENT_H/formal_fuzzer.py` | SymbiYosys witness → assembly seeds | sby (optional) |
+| H-twin | `AGENT_H/digital_twin.py` | Python micro-ISS for fast pre-screening | No |
+| H-explain | `AGENT_H/explainer.py` | Human-readable bug explanations | No |
+| H-rc | `AGENT_H/root_cause_localizer.py` | RTL root-cause localisation | No |
+| H-kg | `AGENT_H/knowledge_graph.py` | Cross-campaign verification knowledge graph | No |
+| H-econ | `AGENT_H/economics_engine.py` | Verification ROI / bugs-per-hour ledger | No |
+| H-conf | `AGENT_H/confidence_scorer.py` | Weighted verification confidence score [0,1] | No |
+| H-cross | `AGENT_H/cross_domain.py` | CRYPTO / DMA / UART DUT adapters | No |
+
+### Verification Confidence Score
+
+The confidence scorer aggregates evidence from all agents into a single score:
+
+| Band | Score | Meaning |
+|---|---|---|
+| VERIFIED | ≥ 0.90 | Ready for sign-off |
+| HIGH | ≥ 0.70 | Strong evidence, minor gaps |
+| MEDIUM | ≥ 0.50 | Partial coverage, more testing advised |
+| LOW | ≥ 0.30 | Significant gaps |
+| CRITICAL | < 0.30 | Do not tape out |
+
+---
+
+## Quick Start
+
+### Minimal (no EDA tools)
+
+```bash
+python ava_patched.py --rtl path/to/your_core.sv --microarch in_order
+```
+
+### Disable extended pipeline
+
+```bash
+python ava_patched.py --rtl core.sv --no-extended
+```
+
+### With RTL sources for root-cause analysis
+
+```bash
+python ava_patched.py \
+  --rtl core.sv \
+  --rtl-sources rtl/alu.sv rtl/decode.sv rtl/execute.sv \
+  --microarch out_of_order
+```
+
+### Full run with custom coverage target
+
+```bash
+python ava_patched.py \
+  --rtl core.sv \
+  --target-cov 90.0 \
+  --timeout 7200 \
+  --formats json html
+```
+
+### Cross-domain DUT (e.g. crypto accelerator)
+
+```python
+from AGENT_H.cross_domain import get_adapter, DUTClass
+
+adapter = get_adapter(DUTClass.CRYPTO)
+canonical_log = adapter.translate(raw_dut_output)
+# canonical_log is in AVA commit-log schema v2.1.0
+```
+
+---
+
+## Installation
+
+```bash
 git clone https://github.com/HUNT-001/ai-chip-design-platform.git
 cd ai-chip-design-platform
-```
-## Create a Virtual Environment
-
-Windows
-```bash
-python -m venv venv
-venv\Scripts\activate
-```
-Linux / macOS
-```bash
-python -m venv venv
-source venv/bin/activate
-```
-Install Dependencies
-```bash
 pip install -r requirements.txt
 ```
 
-## Suggested Workflow Areas
+**Optional (for full pipeline):**
 
-Depending on the subsystem you want to work with, this repository currently appears suited for workflows such as:
+```bash
+# RISC-V GCC toolchain
+sudo apt install gcc-riscv64-unknown-elf
 
-- running RTL-backed validation
-- launching ISS-backed execution
-- parsing and comparing traces or commit logs
-- running compliance checks
-- analyzing coverage gaps
-- generating new tests using directed, random, or genetic approaches
+# Spike ISS
+# https://github.com/riscv-software-src/riscv-isa-sim
 
-As the project matures, this section should be expanded with exact commands and example pipelines for each agent module.
+# Verilator
+sudo apt install verilator
 
-## Development Status
+# Yosys + SymbiYosys (for formal agents)
+sudo apt install yosys
+pip install yowasp-yosys
+```
 
-This project is currently in an active experimental stage.
+---
 
-That means:
+## Running Tests
 
-- architecture may continue to evolve
-- module names and boundaries may still change
-- top-level usability and entry points may be refined
-- documentation and run flows will improve over time
+```bash
+# All pure-Python agent tests (no EDA tools needed)
+pytest tests/test_agents.py -v
 
-The current structure already provides a strong technical foundation, but it is still being actively shaped.
+# Full suite including integration tests
+pytest -v
 
-## Roadmap
+# Skip the async orchestrator smoke test
+pytest tests/test_agents.py -k "not test_ava_generate_suite_smoke" -v
+```
 
-Planned improvements include:
+---
 
-- semantic renaming of ```AGENT_*``` folders into clearer subsystem names
-- unified top-level orchestration or CLI entry point
-- exact setup and execution examples
-- CI integration for unit and integration testing
-- architecture diagrams
-- benchmark examples and reference outputs
-- stronger contributor-facing documentation
+## Schema
 
-## Contributing
+All agent communication uses **commit-log schema v2.1.0**. Key files:
 
-Contributions are welcome.
+- `AGENT_A/commitlog.schema.json` — per-instruction commit record
+- `AGENT_A/run_manifest.schema.json` — per-campaign run manifest
+- `AGENT_A/interfaces.md` — inter-agent contract documentation
 
-Recommended next project files for open-source maturity:
+---
 
-- ```CONTRIBUTING.md```
-- ```CODE_OF_CONDUCT.md```
-- ```SECURITY.md```
-- issue templates
-- pull request template
+## Repository Layout
 
-These will make the project easier for others to understand and contribute to.
+```
+ai-chip-design-platform/
+├── ava_patched.py          # Main AVA v3.0 orchestrator
+├── AGENT_A/                # Schema + semantic analysis
+├── AGENT_B/                # RTL/ISS backends
+├── AGENT_C/                # Spike ISS execution
+├── AGENT_D/                # Commit-log comparator
+├── AGENT_E/                # Compliance runner
+├── AGENT_F/                # Coverage analysis
+├── AGENT_G/                # Test generation (genetic + causal)
+├── AGENT_H/                # Extended verification suite (14 modules)
+├── AGENT_I/                # RVWMO memory-model validator
+├── AGENT_J/                # CDC / reset checker
+├── AGENT_K/                # Performance collector
+├── AGENT_L/                # Equivalence checker
+├── tests/                  # Pytest test suite (46 tests, pure-Python)
+├── .github/workflows/      # GitHub Actions CI
+├── requirements.txt        # Core dependencies
+├── requirements-ml.txt     # Optional LLM/ML dependencies
+├── pyproject.toml          # Build + pytest config
+└── _legacy/                # Archived earlier versions (read-only)
+```
+
+---
+
+## Capabilities Matrix
+
+| Capability | Pure Python | + GCC | + Spike | + Verilator | + Yosys/sby |
+|---|:---:|:---:|:---:|:---:|:---:|
+| Schema validation | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Intent / contract / temporal | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Security intelligence | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Digital twin simulation | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Confidence scoring | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Causal test generation (no ELF) | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Causal test generation (ELF) | | ✓ | ✓ | ✓ | ✓ |
+| ISS tandem simulation | | | ✓ | ✓ | ✓ |
+| RTL tandem simulation | | | | ✓ | ✓ |
+| Equivalence checking | | | | | ✓ |
+| Formal-guided fuzzing | | | | | ✓ |
+
+---
 
 ## License
 
-This project is licensed under the terms of the Apache License 2.0
-
-## Author
-
-Tanush Pavan V
-GitHub: HUNT-001
-
-## Vision
-
-AI Chip Design Platform aims to grow into a serious open-source foundation for:
-
-agentic verification + RISC-V validation + coverage-aware automation + intelligent test generation
+Apache 2.0 — see [LICENSE](LICENSE).
