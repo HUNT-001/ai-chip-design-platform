@@ -51,6 +51,41 @@ except ImportError:
         "Ollama not available — LLM features disabled"
     )
 
+# ── Extended pipeline agents (T1-T22) ─────────────────────────────────────────
+# Each imported with a graceful fallback so the base pipeline always works even
+# if a module is missing or has an import error.
+
+def _try_import(module_path: str, name: str):
+    try:
+        import importlib
+        return importlib.import_module(module_path)
+    except Exception as exc:
+        logging.getLogger(__name__).debug("Optional module %s not loaded: %s", name, exc)
+        return None
+
+_agent_i   = _try_import("AGENT_I.agent_i_litmus",       "Agent I")
+_agent_j   = _try_import("AGENT_J.agent_j_cdc",          "Agent J")
+_agent_k   = _try_import("AGENT_K.agent_k_perf",         "Agent K")
+_agent_l   = _try_import("AGENT_L.agent_l_equiv",        "Agent L")
+_kg        = _try_import("AGENT_H.knowledge_graph",       "KnowledgeGraph")
+_rc        = _try_import("AGENT_H.root_cause_localizer",  "RootCauseLocalizer")
+_causal    = _try_import("AGENT_G.causal_engine",         "CausalEngine")
+_minimizer = _try_import("AGENT_H.minimizer",             "Minimizer")
+_intent    = _try_import("AGENT_H.agent_h_intent",        "IntentChecker")
+_confidence= _try_import("AGENT_H.confidence_scorer",     "ConfidenceScorer")
+_explainer = _try_import("AGENT_H.explainer",             "Explainer")
+_contract  = _try_import("AGENT_H.contract_dsl",          "ContractRunner")
+_temporal  = _try_import("AGENT_H.temporal_checker",      "TemporalChecker")
+_security  = _try_import("AGENT_H.security_intel",        "SecurityIntel")
+_economics = _try_import("AGENT_H.economics_engine",      "EconomicsEngine")
+_ffuzz     = _try_import("AGENT_H.formal_fuzzer",         "FormalFuzzer")
+_twin      = _try_import("AGENT_H.digital_twin",          "DigitalTwin")
+
+EXTENDED_AGENTS_AVAILABLE = any([
+    _agent_i, _agent_j, _agent_k, _agent_l,
+    _intent, _confidence, _contract, _temporal, _security,
+])
+
 # ── Agent F: real Verilator coverage backend ──────────────────────────────────
 try:
     from coverage_pipeline import (
@@ -1310,13 +1345,17 @@ class AVA:
         isa:              str   = "rv32im",
         report_formats:   Optional[List[str]] = None,
         enable_database:  bool  = True,
+        enable_extended:  bool  = True,
+        rtl_sources:      Optional[List[str]] = None,
     ) -> None:
-        self.model_name      = model_name
-        self.timeout         = timeout
-        self.enable_llm      = enable_llm and OLLAMA_AVAILABLE
-        self._run_base       = Path(run_base_dir)
+        self.model_name       = model_name
+        self.timeout          = timeout
+        self.enable_llm       = enable_llm and OLLAMA_AVAILABLE
+        self.enable_extended  = enable_extended and EXTENDED_AGENTS_AVAILABLE
+        self.rtl_sources      = rtl_sources or []
+        self._run_base        = Path(run_base_dir)
         self._run_base.mkdir(parents=True, exist_ok=True)
-        self._report_formats = report_formats or ["json"]
+        self._report_formats  = report_formats or ["json"]
 
         # Coverage trend database
         self._db: Optional[CoverageDatabase] = None
@@ -1428,6 +1467,15 @@ class AVA:
                 cold_path_detail=cold_detail,
             )
 
+            # ── Phase 6: Extended verification pipeline ───────────────────
+            extended_reports: Dict[str, Any] = {}
+            if self.enable_extended:
+                logger.info("[6/6] Extended Verification (Agents I-L + AGENT_H)")
+                extended_reports = await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda: self._run_extended_pipeline(run_dir, results, semantic_map),
+                )
+
             # ── Compile final results ─────────────────────────────────────
             exec_time = time.monotonic() - start_time
             final: Dict[str, Any] = {
@@ -1441,17 +1489,19 @@ class AVA:
                 "perf_analysis":    perf_analysis,
                 "security_report":  security_report,
                 "adaptive_stimulus":adaptive_stimulus,
+                "extended_reports": extended_reports,
                 "industrial_grade": results.industrial_grade,
                 "execution_time":   round(exec_time, 3),
                 "status":           "completed",
                 "metadata": {
-                    "microarch":    microarch,
-                    "model_used":   self.model_name if self.enable_llm else "rule_based",
-                    "timestamp":    datetime.now(timezone.utc).isoformat(),
-                    "version":      "AVA-v3.0",
-                    "seed":         seed,
-                    "run_dir":      str(run_dir),
-                    "isa":          self.spike_iss.isa,
+                    "microarch":      microarch,
+                    "model_used":     self.model_name if self.enable_llm else "rule_based",
+                    "timestamp":      datetime.now(timezone.utc).isoformat(),
+                    "version":        "AVA-v3.0",
+                    "seed":           seed,
+                    "run_dir":        str(run_dir),
+                    "isa":            self.spike_iss.isa,
+                    "extended_agents":self.enable_extended,
                 },
             }
 
@@ -1791,7 +1841,377 @@ class {mod}_test extends uvm_test;
 endclass
 '''
 
-    # ── Performance analysis ───────────────────────────────────────────────
+    # ── Extended pipeline (Phase 6) ────────────────────────────────────────
+
+    def _save_commit_logs(
+        self,
+        run_dir:  Path,
+        results:  VerificationResult,
+    ) -> Tuple[Optional[Path], Optional[Path]]:
+        """Write RTL and ISS commit logs as JSONL files for the new agents."""
+        rtl_log = results.metadata.get("rtl_commit_log") or []
+        iss_log = results.metadata.get("iss_commit_log") or []
+
+        # Retrieve from spike_iss last run if available
+        if not rtl_log and hasattr(self.spike_iss, "_last_rtl_log"):
+            rtl_log = self.spike_iss._last_rtl_log or []
+        if not iss_log and hasattr(self.spike_iss, "_last_iss_log"):
+            iss_log = self.spike_iss._last_iss_log or []
+
+        rtl_path = iss_path = None
+        if rtl_log:
+            rtl_path = run_dir / "rtl_commit.jsonl"
+            with open(rtl_path, "w") as f:
+                for rec in rtl_log:
+                    f.write(json.dumps(rec) + "\n")
+        if iss_log:
+            iss_path = run_dir / "iss_commit.jsonl"
+            with open(iss_path, "w") as f:
+                for rec in iss_log:
+                    f.write(json.dumps(rec) + "\n")
+
+        return rtl_path, iss_path
+
+    def _write_run_manifest(
+        self,
+        run_dir:      Path,
+        run_id:       str,
+        results:      VerificationResult,
+        semantic_map: SemanticMap,
+        rtl_path:     Optional[Path],
+        iss_path:     Optional[Path],
+    ) -> Path:
+        """Write run_manifest.json for the new agents to consume."""
+        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        manifest = {
+            "schema_version": "2.1.0",
+            "run_id":    run_id,
+            "run_dir":   str(run_dir),
+            "status":    "running_extended",
+            "started_at": now,
+            "isa":       self.spike_iss.isa,
+            "dut_module": semantic_map.dut_module,
+            "rtl_sources": self.rtl_sources,
+            "metrics": {
+                "total_commits":    results.metadata.get("rtl_instructions", 0),
+                "total_mismatches": len(results.bugs),
+                "tests_run":        1,
+            },
+            "outputs": {
+                "rtl_commit_log": "rtl_commit.jsonl"  if rtl_path else None,
+                "iss_commit_log": "iss_commit.jsonl"  if iss_path else None,
+            },
+            "agent_config": {
+                "dut_class": "cpu",
+                "agent_i": {"patterns": ["store_load", "fence", "amo"]},
+                "agent_j": {"run_formal": False, "reset_stress": False},
+                "agent_k": {"regression_pct": 20.0},
+                "agent_l": {"check_mode": "combinational", "bmc_depth": 10},
+            },
+        }
+        mpath = run_dir / "run_manifest.json"
+        with open(mpath, "w") as f:
+            json.dump(manifest, f, indent=2)
+            f.write("\n")
+        return mpath
+
+    def _run_extended_pipeline(
+        self,
+        run_dir:      Path,
+        results:      VerificationResult,
+        semantic_map: SemanticMap,
+    ) -> Dict[str, Any]:
+        """
+        Run the extended verification pipeline (Agents I-L + AGENT_H modules).
+
+        Each agent is called with graceful fallback — if a tool is missing or
+        the agent raises, we log a warning and continue to the next one.
+        The results dict collects per-agent reports for the final summary.
+        """
+        run_id = run_dir.name
+        reports: Dict[str, Any] = {}
+
+        # Save commit logs
+        rtl_path, iss_path = self._save_commit_logs(run_dir, results)
+
+        # Write manifest
+        mpath = self._write_run_manifest(
+            run_dir, run_id, results, semantic_map, rtl_path, iss_path
+        )
+
+        def _call(label: str, module, fn_name: str, *args, **kwargs) -> Optional[Dict]:
+            if module is None:
+                return None
+            try:
+                fn = getattr(module, fn_name, None)
+                if fn is None:
+                    return None
+                t0 = time.monotonic()
+                result = fn(*args, **kwargs)
+                elapsed = round(time.monotonic() - t0, 3)
+                logger.info("  ✓ %s completed in %.2fs", label, elapsed)
+                return result if isinstance(result, dict) else {"status": "ok", "duration_s": elapsed}
+            except Exception as exc:
+                logger.warning("  ✗ %s failed (non-fatal): %s", label, exc)
+                return {"status": "error", "error": str(exc)}
+
+        # Load commit logs for in-process agents
+        rtl_log: List[Dict] = []
+        iss_log: List[Dict] = []
+        if rtl_path and rtl_path.exists():
+            with open(rtl_path) as f:
+                rtl_log = [json.loads(l) for l in f if l.strip()]
+        if iss_path and iss_path.exists():
+            with open(iss_path) as f:
+                iss_log = [json.loads(l) for l in f if l.strip()]
+
+        # ── Agent I: RVWMO memory-model validator ─────────────────────────
+        if _agent_i and rtl_path and iss_path:
+            r = _call("Agent I (RVWMO)", _agent_i, "run_from_manifest", mpath)
+            if r:
+                reports["agent_i"] = r
+
+        # ── Agent J: CDC / reset checker ──────────────────────────────────
+        if _agent_j:
+            r = _call("Agent J (CDC)", _agent_j, "run_from_manifest",
+                      mpath, False, False, False)
+            if r:
+                reports["agent_j"] = r
+
+        # ── Agent K: Performance collector ────────────────────────────────
+        if _agent_k and rtl_path:
+            r = _call("Agent K (Perf)", _agent_k, "run_from_manifest", mpath)
+            if r:
+                reports["agent_k"] = r
+
+        # ── Agent L: Equivalence checker ──────────────────────────────────
+        if _agent_l:
+            r = _call("Agent L (Equiv)", _agent_l, "run_from_manifest",
+                      mpath, "combinational", 10)
+            if r:
+                reports["agent_l"] = r
+
+        # -- Intent checker
+        if _intent and rtl_log and iss_log:
+            try:
+                import tempfile as _tmpmod, os as _os
+                _rtf = _tmpmod.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False)
+                for rec in rtl_log:
+                    _rtf.write(json.dumps(rec) + "\n")
+                _rtf.close()
+                rtl_tmp = _rtf.name
+                _itf = _tmpmod.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False)
+                for rec in iss_log:
+                    _itf.write(json.dumps(rec) + "\n")
+                _itf.close()
+                iss_tmp = _itf.name
+                checker = _intent.IntentChecker(rtl_tmp, iss_tmp)
+                r = checker.run()
+                rp = run_dir / "intent_report.json"
+                with open(rp, "w") as f:
+                    json.dump(r, f, indent=2)
+                reports["intent"] = {
+                    "violations": r.get("total_violations", 0),
+                    "pass": r.get("pass", True),
+                }
+                _os.unlink(rtl_tmp)
+                _os.unlink(iss_tmp)
+                logger.info("  Intent checker: %d violations", r.get("total_violations", 0))
+            except Exception as exc:
+                logger.warning("  Intent checker failed: %s", exc)
+
+        # -- Contract DSL
+        if _contract and rtl_log and iss_log:
+            try:
+                runner = _contract.ContractRunner()
+                r = runner.check(rtl_log, iss_log)
+                rp = run_dir / "contract_report.json"
+                with open(rp, "w") as f:
+                    json.dump(r, f, indent=2)
+                reports["contracts"] = {
+                    "violations": r.get("total_violations", 0),
+                    "pass": r.get("pass", True),
+                }
+                logger.info("  Contracts: %d violations", r.get("total_violations", 0))
+            except Exception as exc:
+                logger.warning("  Contract runner failed: %s", exc)
+
+        # -- Temporal checker
+        if _temporal and rtl_log and iss_log:
+            try:
+                tc = _temporal.TemporalChecker(rtl_log, iss_log)
+                r = tc.run()
+                rp = run_dir / "temporal_report.json"
+                with open(rp, "w") as f:
+                    json.dump(r, f, indent=2)
+                reports["temporal"] = {
+                    "violations": r.get("total_violations", 0),
+                    "pass": r.get("pass", True),
+                }
+                logger.info("  Temporal: %d violations", r.get("total_violations", 0))
+            except Exception as exc:
+                logger.warning("  Temporal checker failed: %s", exc)
+
+        # -- Security intelligence
+        if _security and rtl_log and iss_log:
+            try:
+                si = _security.SecurityIntelligence(rtl_log, iss_log)
+                r = si.run()
+                rp = run_dir / "security_report.json"
+                with open(rp, "w") as f:
+                    json.dump(r, f, indent=2)
+                reports["security_intel"] = {
+                    "findings": r.get("total_findings", 0),
+                    "leak_score": r.get("leak_score", 0.0),
+                    "band": r.get("band", "CLEAN"),
+                }
+                logger.info("  Security: %d findings, band=%s",
+                            r.get("total_findings", 0), r.get("band"))
+            except Exception as exc:
+                logger.warning("  Security intel failed: %s", exc)
+
+        # -- Root-cause localizer
+        if _rc and results.bugs and self.rtl_sources:
+            try:
+                bug_dict = results.bugs[0] if results.bugs else {}
+                localizer = _rc.RootCauseLocalizer(bug_dict, self.rtl_sources)
+                r = localizer.to_report()
+                rp = run_dir / "root_cause.json"
+                with open(rp, "w") as f:
+                    json.dump(r, f, indent=2)
+                reports["root_cause"] = {
+                    "top_candidate": r.get("top_candidate"),
+                    "candidates": len(r.get("candidates", [])),
+                }
+                logger.info("  Root cause: top=%s", r.get("top_candidate"))
+            except Exception as exc:
+                logger.warning("  Root-cause localizer failed: %s", exc)
+
+        # -- Causal test generation
+        if _causal and results.bugs:
+            try:
+                bug_dict = results.bugs[0] if results.bugs else {}
+                engine = _causal.CausalGeneticEngine(
+                    seed=42, population_size=40, generations=4, output_count=10
+                )
+                rc_report = None
+                rc_path = run_dir / "root_cause.json"
+                if rc_path.exists():
+                    with open(rc_path) as f:
+                        rc_report = json.load(f)
+                r = engine.evolve_causal(
+                    bug_dict, rc_report, outdir=run_dir / "causal_tests",
+                )
+                rp = run_dir / "causal_evolution_report.json"
+                with open(rp, "w") as f:
+                    json.dump(r, f, indent=2)
+                reports["causal_tests"] = {
+                    "improvement_factor": r.get("improvement_factor"),
+                    "tests_written": r.get("files_written", 0),
+                }
+                logger.info("  Causal tests: %sx improvement",
+                            r.get("improvement_factor", 1))
+            except Exception as exc:
+                logger.warning("  Causal engine failed: %s", exc)
+
+        # -- Knowledge graph
+        if _kg and results.bugs:
+            try:
+                kg = _kg.KnowledgeGraph(run_dir / "knowledge.db")
+                with open(mpath) as f:
+                    manifest_dict = json.load(f)
+                for bug_dict in results.bugs[:5]:
+                    kg.record_bug(bug_dict, manifest_dict, [], None)
+                stats = kg.stats()
+                reports["knowledge_graph"] = stats
+                logger.info("  Knowledge graph: %d bugs recorded", stats.get("total_bugs", 0))
+            except Exception as exc:
+                logger.warning("  Knowledge graph failed: %s", exc)
+
+        # -- Explainer
+        if _explainer and results.bugs:
+            try:
+                bug_dict = results.bugs[0] if results.bugs else {}
+                rc_report = None
+                rc_path = run_dir / "root_cause.json"
+                if rc_path.exists():
+                    with open(rc_path) as f:
+                        rc_report = json.load(f)
+                exp = _explainer.BugExplainer(bug_dict, rc_report)
+                r = exp.explain()
+                rp = run_dir / "explanation.json"
+                with open(rp, "w") as f:
+                    json.dump(r, f, indent=2)
+                reports["explanation"] = {"summary": r.get("summary", "")}
+                logger.info("  Explainer done")
+            except Exception as exc:
+                logger.warning("  Explainer failed: %s", exc)
+
+        # -- Economics engine
+        if _economics:
+            try:
+                with open(mpath) as f:
+                    manifest_dict = json.load(f)
+                manifest_dict["finished_at"] = datetime.now(timezone.utc).strftime(
+                    "%Y-%m-%dT%H:%M:%SZ"
+                )
+                eng = _economics.EconomicsEngine(run_dir, manifest_dict)
+                r = eng.compute()
+                rp = run_dir / "economics_report.json"
+                with open(rp, "w") as f:
+                    json.dump(r, f, indent=2)
+                reports["economics"] = {
+                    "roi_score": r.get("roi_score"),
+                    "roi_band": r.get("roi_band"),
+                    "bugs_per_hour": r.get("bugs_per_hour"),
+                }
+                logger.info("  Economics: ROI=%s (%s)",
+                            r.get("roi_score"), r.get("roi_band"))
+            except Exception as exc:
+                logger.warning("  Economics engine failed: %s", exc)
+
+        # -- Confidence scorer (last -- reads all other reports)
+        if _confidence:
+            try:
+                with open(mpath) as f:
+                    manifest_dict = json.load(f)
+                scorer = _confidence.ConfidenceScorer(run_dir, manifest_dict)
+                r = scorer.compute()
+                rp = run_dir / "confidence_report.json"
+                with open(rp, "w") as f:
+                    json.dump(r, f, indent=2)
+                reports["confidence"] = {
+                    "score": r.get("score"),
+                    "band": r.get("band"),
+                }
+                logger.info("  Confidence score: %.3f (%s)",
+                            r.get("score", 0), r.get("band"))
+            except Exception as exc:
+                logger.warning("  Confidence scorer failed: %s", exc)
+
+        # Update manifest status
+        try:
+            with open(mpath) as f:
+                manifest_dict = json.load(f)
+            manifest_dict["status"] = "completed"
+            manifest_dict["finished_at"] = datetime.now(timezone.utc).strftime(
+                "%Y-%m-%dT%H:%M:%SZ"
+            )
+            manifest_dict.setdefault("metrics", {}).update({
+                "total_mismatches": len(results.bugs),
+                "extended_reports": list(reports.keys()),
+            })
+            with open(mpath, "w") as f:
+                json.dump(manifest_dict, f, indent=2)
+                f.write("\n")
+        except Exception as exc:
+            logger.warning("Failed to update manifest: %s", exc)
+
+        logger.info(
+            "Extended pipeline complete: %d agent modules ran",
+            len(reports),
+        )
+        return reports
 
     def _performance_cop(self, results: VerificationResult) -> Dict[str, Any]:
         perf = results.perf_metrics
@@ -1907,7 +2327,48 @@ endclass
             print(f"    ... and {len(bugs)-5} more")
 
         print(f"\n  Adaptive Stimulus: {len(results['adaptive_stimulus'])} tests")
-        print(f"  Run Dir         : {results['metadata']['run_dir']}")
+
+        ext = results.get("extended_reports", {})
+        if ext:
+            print("\n  Extended Verification:")
+            conf = ext.get("confidence", {})
+            if conf:
+                print(f"    Confidence Score : {conf.get('score', 'N/A')} "
+                      f"({conf.get('band', 'N/A')})")
+            intent = ext.get("intent", {})
+            if intent:
+                status = "PASS" if intent.get("pass") else "FAIL"
+                print(f"    Intent Checks    : {status} "
+                      f"({intent.get('violations', 0)} violations)")
+            contracts = ext.get("contracts", {})
+            if contracts:
+                status = "PASS" if contracts.get("pass") else "FAIL"
+                print(f"    Contracts        : {status} "
+                      f"({contracts.get('violations', 0)} violations)")
+            temporal = ext.get("temporal", {})
+            if temporal:
+                status = "PASS" if temporal.get("pass") else "FAIL"
+                print(f"    Temporal Props   : {status} "
+                      f"({temporal.get('violations', 0)} violations)")
+            sec = ext.get("security_intel", {})
+            if sec:
+                print(f"    Security Intel   : {sec.get('band', 'N/A')} "
+                      f"(leak={sec.get('leak_score', 0):.3f}, "
+                      f"findings={sec.get('findings', 0)})")
+            econ = ext.get("economics", {})
+            if econ:
+                print(f"    ROI              : {econ.get('roi_score', 'N/A')} "
+                      f"({econ.get('roi_band', 'N/A')}) -- "
+                      f"{econ.get('bugs_per_hour', 0):.2f} bugs/hr")
+            causal = ext.get("causal_tests", {})
+            if causal:
+                print(f"    Causal Tests     : {causal.get('tests_written', 0)} tests, "
+                      f"{causal.get('improvement_factor', 1)}x improvement")
+            expl = ext.get("explanation", {})
+            if expl and expl.get("summary"):
+                print(f"    Explanation      : {expl['summary'][:70]}...")
+
+        print(f"\n  Run Dir         : {results['metadata']['run_dir']}")
         print(f"{sep}\n")
 
 
@@ -1930,8 +2391,12 @@ async def _main_async() -> int:
     p.add_argument("--isa",       default="rv32im")
     p.add_argument("--run-dir",   default="sim_runs")
     p.add_argument("--no-llm",    action="store_true")
-    p.add_argument("--formats",   nargs="+", choices=["json","csv","html"],
+    p.add_argument("--formats",     nargs="+", choices=["json","csv","html"],
                    default=["json"])
+    p.add_argument("--no-extended", action="store_true",
+                   help="Disable extended verification pipeline (Agents I-L + AGENT_H)")
+    p.add_argument("--rtl-sources", nargs="+", default=[],
+                   help="RTL source files for Agent J/L and root-cause analysis")
     args = p.parse_args()
 
     ava = AVA(
@@ -1943,6 +2408,8 @@ async def _main_async() -> int:
         spike_binary=args.spike,
         isa=args.isa,
         report_formats=args.formats,
+        enable_extended=not args.no_extended,
+        rtl_sources=args.rtl_sources,
     )
 
     rtl_input = args.rtl
