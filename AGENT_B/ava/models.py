@@ -71,10 +71,11 @@ class CommitEntry:
             "instr": hex(self.instr),
             "mode":  self.mode,
         }
+        # Use canonical AGENT_A schema field names: "regs" and "csrs"
         if self.rd:
-            d["rd"]  = {k: hex(v) for k, v in self.rd.items()}
+            d["regs"] = {k: hex(v) for k, v in self.rd.items()}
         if self.csr:
-            d["csr"] = {k: hex(v) for k, v in self.csr.items()}
+            d["csrs"] = {k: hex(v) for k, v in self.csr.items()}
         if self.mem:
             d["mem"] = [m.to_dict() for m in self.mem]
         if self.trap:
@@ -88,8 +89,9 @@ class CommitEntry:
             pc=int(d["pc"], 16),
             instr=int(d["instr"], 16),
             mode=d.get("mode", "M"),
-            rd={k: int(v, 16) for k, v in d.get("rd", {}).items()},
-            csr={k: int(v, 16) for k, v in d.get("csr", {}).items()},
+            # Accept canonical ("regs"/"csrs") and legacy ("rd"/"csr") key names
+            rd={k: int(v, 16) for k, v in (d.get("regs") or d.get("rd") or {}).items()},
+            csr={k: int(v, 16) for k, v in (d.get("csrs") or d.get("csr") or {}).items()},
             mem=[MemOp.from_dict(m) for m in d.get("mem", [])],
             trap=TrapInfo.from_dict(d["trap"]) if "trap" in d else None,
         )

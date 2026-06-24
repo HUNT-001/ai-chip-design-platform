@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "ava-verification-platform"
+version = "1.1.0"
+description = "Multi-agent RISC-V verification and test-generation framework"
+authors = [{ name = "Tanush Pavan V", email = "tanushpavan2007@gmail.com" }]
+requires-python = ">=3.9"
+license = { text = "Apache-2.0" }
+readme = "README.md"
+dependencies = [
+    "pydantic>=2.9.2",
+    "pydantic-settings>=2.6.0",
+    "python-dotenv>=1.0.1",
+    "pyyaml>=6.0.2",
+    "httpx>=0.28.1",
+    "tenacity>=9.0.0",
+    "asyncio-throttle>=1.0.1",
+    "loguru>=0.7.3",
+    "cocotb>=1.9.2",
+    "pytest>=8.3.4",
+]
+
+[project.optional-dependencies]
+ml = [
+    "openai>=1.58.1",
+    "anthropic>=0.39.0",
+    "torch>=2.5.1",
+    "transformers>=4.46.3",
+    "sentence-transformers>=3.3.1",
+    "accelerate>=1.1.1",
+    "faiss-cpu>=1.8.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["AGENT_*", "ava_v2"]
+
+# ── pytest configuration ───────────────────────────────────────────────────────
+[tool.pytest.ini_options]
+# Add every agent directory to PYTHONPATH so tests can import siblings directly
+# without each test file needing its own sys.path hack.
+pythonpath = [
+    ".",
+    "AGENT_B",
+    "AGENT_B/ava",
+    "AGENT_B/backends",
+    "AGENT_C",
+    "AGENT_D",
+    "AGENT_E",
+    "AGENT_F",
+    "AGENT_G",
+]
+testpaths = [
+    "AGENT_C",
+    "AGENT_D",
+    "AGENT_E",
+]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short"
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true

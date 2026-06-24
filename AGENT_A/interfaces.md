@@ -782,3 +782,241 @@ The binary was modified between when the orchestrator computed the hash and when
 ---
 
 *End of AVA Interface Contracts v2.0.0. All changes require a schema version bump, a CHANGELOG entry, and simultaneous update of all agent implementations and this document.*
+
+---
+
+## 18. Schema v2.1.0 Extensions (T0)
+
+**Effective date:** 2026-06-24  
+**Schema bump:** `2.0.0` → `2.1.0` (new optional fields; all additions are backward-compatible PATCH-level for producers, MINOR for manifest enum extensions)
+
+### 18.1 New commit-log fields
+
+All new commit-log fields are **optional** — existing producers continue to work without changes. New producers (Agents I, J, K) populate the fields they own.
+
+| Field | Type | Owner | Comparator | Description |
+|-------|------|-------|------------|-------------|
+| `mem_seq` | `integer \| null` | B, C | Ignored | Global memory-op sequence number. Increments for every LOAD, STORE, FENCE, or AMO instruction. Null for non-memory instructions. Consumed by Agent I to verify RVWMO ordering. |
+| `mem_order_tag` | `enum \| null` | B, C | Ignored | Memory ordering classification: `LOAD`, `STORE`, `FENCE`, `RELEASE`, `ACQUIRE`, `AMO`. Null for non-memory instructions. Consumed by Agent I. |
+| `perf_counters` | `object \| null` | B only | Ignored | RTL performance counter snapshot at this commit (cycles, instret, cache misses, branch stats, stall cycles). ISS always emits `null`. Consumed by Agent K. |
+| `clk_domain` | `string \| null` | B, J | Ignored | Clock domain identifier for this hart (`"core_clk"`, `"io_clk"`, etc.). Null for single-clock designs. Populated by Agent J harness extension. |
+| `reset_event` | `boolean \| null` | B, J | Ignored | `true` if this is the first instruction after a hard or soft reset. Null/false otherwise. Populated by Agent J. |
+| `power_state` | `enum \| null` | J | Ignored | Power state at commit: `ACTIVE`, `SLEEP`, `DEEP_SLEEP`, `RETENTION`, `OFF`. Null if not tracked. Populated by Agent J. |
+
+### 18.2 New `perf_counter_snapshot` fields (within `perf_counters`)
+
+| Counter key | Description |
+|-------------|-------------|
+| `cycles` | Total clock cycles since reset |
+| `instret` | Instructions retired since reset |
+| `icache_miss` | I-cache miss count |
+| `dcache_miss` | D-cache miss count |
+| `branch_taken` | Branches taken |
+| `branch_mispred` | Branch mispredictions |
+| `stall_cycles` | Total pipeline stall cycles |
+| `load_use_stalls` | Load-use hazard stall cycles |
+| `mul_stalls` | Multiply latency stall cycles |
+| `div_stalls` | Divide latency stall cycles |
+
+Any additional snake_case counter keys are accepted (extension counters).
+
+### 18.3 New run-manifest fields
+
+#### 18.3.1 New lifecycle states
+
+| State | Meaning |
+|-------|---------|
+| `running_memory_check` | Agent I (RVWMO litmus checker) is running |
+| `running_cdc` | Agent J (CDC/reset/power checker) is running |
+| `running_perf` | Agent K (microarch perf collector) is running |
+| `running_equiv` | Agent L (RTL-netlist equivalence checker) is running |
+
+#### 18.3.2 New `phases` entries
+
+| Phase key | Owner agent | Description |
+|-----------|-------------|-------------|
+| `memory_check` | Agent I | RVWMO litmus test phase |
+| `cdc_check` | Agent J | CDC/reset/power analysis phase |
+| `perf_collect` | Agent K | Performance data collection and analysis phase |
+| `equiv_check` | Agent L | RTL-netlist equivalence checking phase |
+
+#### 18.3.3 New `outputs` entries
+
+| Output key | Owner | Description |
+|------------|-------|-------------|
+| `perf_report` | Agent K | Per-run JSON perf report (`perf.json`) |
+| `cdc_report` | Agent J | CDC/reset/power analysis report (`cdc_report.json`) |
+| `equiv_report` | Agent L | RTL-netlist equivalence report (`equiv_report.json`) |
+| `litmus_report` | Agent I | RVWMO litmus test results (`litmus_report.json`) |
+
+#### 18.3.4 New error codes
+
+| Code | Agent | Trigger |
+|------|-------|---------|
+| `ORDERMISMATCH` | D, I | RVWMO memory-ordering violation detected |
+| `CDC_VIOLATION` | J | Clock-domain crossing metastability or protocol violation |
+| `EQUIV_FAIL` | L | RTL-netlist combinational or sequential equivalence failure |
+| `PERF_REGRESSION` | K | A performance KPI exceeded its configured threshold |
+
+#### 18.3.5 New `agent_config` block
+
+Top-level optional object in the manifest. Keys `agent_i`, `agent_j`, `agent_k`, `agent_l` carry per-run configuration for each new agent. All sub-fields are optional and fall back to documented defaults when absent.
+
+---
+
+## 19. Agent I — RVWMO Memory-Model Validator
+
+**Status:** Phase 1 / T1  
+**File:** `AGENT_I/agent_i_litmus.py`
+
+### 19.1 Purpose
+
+Agent I generates and runs litmus tests that expose RISC-V Weak Memory Order (RVWMO) violations. For each campaign with memory-heavy modules identified by Agent F's cold-path analysis, Agent I:
+
+1. Generates micro-litmus sequences (store-load, release-acquire pairs, fence effectiveness).
+2. Tags each memory instruction with `mem_seq` and `mem_order_tag` in the commit log.
+3. Compares RTL and ISS `mem_seq` orderings — if the RTL reorders a store-load pair that the ISS serialises, this is an `ORDERMISMATCH`.
+
+### 19.2 Output: `litmus_report.json`
+
+```json
+{
+  "schema_version": "2.1.0",
+  "run_id": "<string>",
+  "agent": "agent_i",
+  "patterns_tested": ["store_load", "fence", "release_acquire"],
+  "violations": [
+    {
+      "pattern": "store_load",
+      "mem_seq_rtl": 42,
+      "mem_seq_iss": 42,
+      "rtl_order": ["STORE@0x80001000", "LOAD@0x80001000"],
+      "iss_order": ["STORE@0x80001000", "LOAD@0x80001000"],
+      "violation": "RTL retired LOAD before preceding STORE became globally visible",
+      "seq_at_divergence": 318
+    }
+  ],
+  "total_tests": 64,
+  "violations_found": 1,
+  "generated_at": "<iso8601>"
+}
+```
+
+---
+
+## 20. Agent J — CDC / Reset / Power Checker
+
+**Status:** Phase 1 / T2  
+**File:** `AGENT_J/agent_j_cdc.py`
+
+### 20.1 Purpose
+
+Agent J performs static and bounded-formal clock-domain crossing (CDC) analysis and generates reset/power stress tests.
+
+1. **Static CDC** — runs Yosys `cdc` pass over the RTL to identify handshake signals crossing clock domains without synchronizers.
+2. **Formal CDC** — uses SymbiYosys to bound-check metastability properties for identified CDC paths.
+3. **Reset stress** — generates short test sequences that toggle the reset signal mid-simulation and verifies the DUT recovers to a known-good state.
+4. **Power stress** — generates SLEEP/WAKE sequences if `agent_j.power_stress=true`.
+
+### 20.2 Output: `cdc_report.json`
+
+```json
+{
+  "schema_version": "2.1.0",
+  "run_id": "<string>",
+  "agent": "agent_j",
+  "cdc_paths": [
+    {
+      "signal": "io_req_valid",
+      "from_domain": "io_clk",
+      "to_domain": "core_clk",
+      "synchronizer_present": false,
+      "severity": "HIGH"
+    }
+  ],
+  "reset_tests": { "run": 8, "passed": 8, "failed": 0 },
+  "power_tests":  { "run": 0, "passed": 0, "failed": 0 },
+  "formal_result": "all_proved",
+  "generated_at": "<iso8601>"
+}
+```
+
+---
+
+## 21. Agent K — Microarch Performance Collector
+
+**Status:** Phase 1 / T3  
+**File:** `AGENT_K/agent_k_perf.py`
+
+### 21.1 Purpose
+
+Agent K aggregates `perf_counters` from RTL commit logs and produces a per-campaign performance report with CPI trend analysis and regression threshold alerts.
+
+### 21.2 Output: `perf.json`
+
+```json
+{
+  "schema_version": "2.1.0",
+  "run_id": "<string>",
+  "agent": "agent_k",
+  "summary": {
+    "total_cycles": 18432,
+    "total_instrs": 4096,
+    "cpi": 4.5,
+    "ipc": 0.222
+  },
+  "stall_breakdown": {
+    "load_use_pct": 12.4,
+    "mul_pct": 8.1,
+    "div_pct": 6.3,
+    "other_pct": 73.2
+  },
+  "branch_stats": {
+    "taken_pct": 35.0,
+    "mispred_pct": 4.2
+  },
+  "cache_stats": {
+    "icache_miss_rate_pct": 0.8,
+    "dcache_miss_rate_pct": 3.1
+  },
+  "threshold_alerts": [],
+  "generated_at": "<iso8601>"
+}
+```
+
+---
+
+## 22. Agent L — RTL→Netlist Equivalence Checker
+
+**Status:** Phase 1 / T4  
+**File:** `AGENT_L/agent_l_equiv.py`
+
+### 22.1 Purpose
+
+Agent L synthesises the RTL design to a gate-level netlist using Yosys and verifies combinational and bounded sequential equivalence between the RTL and netlist.
+
+1. **Synthesis** — Yosys `synth` → generic gate library.
+2. **Combinational EQ** — Yosys `equiv` pass.
+3. **Bounded sequential EQ** — SymbiYosys BMC up to `agent_l.bmc_depth` cycles.
+4. **Gate-level simulation** — runs the same test binary through the netlist simulation and checks commit-log equivalence with RTL.
+
+### 22.2 Output: `equiv_report.json`
+
+```json
+{
+  "schema_version": "2.1.0",
+  "run_id": "<string>",
+  "agent": "agent_l",
+  "synth_tool": "yosys",
+  "comb_equiv": "proved",
+  "seq_equiv":  "proved",
+  "bmc_depth":  10,
+  "counterexample": null,
+  "gate_level_sim": { "status": "passed", "instrs_matched": 4096 },
+  "generated_at": "<iso8601>"
+}
+```
+
+---
+
+*End of AVA Interface Contracts v2.1.0 extensions. All changes require a schema version bump, a CHANGELOG entry, and simultaneous update of all agent implementations and this document.*

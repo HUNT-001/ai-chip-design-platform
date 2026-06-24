@@ -1,0 +1,59 @@
+# ── Core verification pipeline (required) ────────────────────────────────────
+# Schema / data validation
+pydantic==2.9.2
+pydantic-settings==2.6.0
+python-dotenv==1.0.1
+pyyaml==6.0.2
+
+# EDA / simulation
+cocotb==1.9.2          # de-duplicated: was listed twice (1.9.2 and 1.8.0); kept higher
+pytest==8.3.4
+
+# Async / HTTP utilities
+httpx==0.28.1
+tenacity==9.0.0
+asyncio-throttle==1.0.1  # pinned; was unpinned
+
+# Logging
+loguru==0.7.3
+
+# ── Optional: LLM & ML layer ─────────────────────────────────────────────────
+# Install with: pip install -r requirements-ml.txt
+# Listed here for reference; commented out to keep baseline install lightweight.
+# openai==1.58.1
+# anthropic==0.39.0
+# torch==2.5.1           # de-duplicated: was listed twice (2.5.1 and 2.4.0); kept higher
+# transformers==4.46.3
+# sentence-transformers==3.3.1  # de-duplicated: was 3.3.1 and 3.1.1; kept higher
+# accelerate==1.1.1
+# ollama==0.3.3
+# faiss-cpu==1.8.0
+
+# ── Optional: Web / API layer (future AVA dashboard) ─────────────────────────
+# Not yet implemented — declare here for future use.
+# fastapi==0.115.0
+# uvicorn[standard]==0.32.0
+# python-multipart==0.0.19
+# streamlit==1.38.0
+
+# ── Optional: Database / task queue (future distributed mode) ─────────────────
+# sqlalchemy==2.0.36
+# psycopg2-binary==2.9.10
+# alembic==1.14.0
+# pymongo==4.10.1
+# motor==3.6.0
+# redis==5.2.0
+# pgvector==0.3.6
+# celery[redis]==5.4.0
+# flower==2.0.1
+
+# ── Optional: Auth & security (future multi-tenant mode) ─────────────────────
+# python-jose[cryptography]==3.3.0
+# passlib[bcrypt]==1.7.4
+# python-keycloak==4.7.2
+
+# ── Optional: Monitoring ──────────────────────────────────────────────────────
+# prometheus-client==0.21.0
+
+# ── Removed (dead / superseded) ───────────────────────────────────────────────
+# cocotb-coverage==1.2.0  — not imported anywhere in the codebase

@@ -50,7 +50,7 @@ import tempfile
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 SCRIPT_DIR  = Path(__file__).resolve().parent
 SIM_SRC_DIR = SCRIPT_DIR / "sim"
@@ -142,7 +142,8 @@ def resolve_params(args: argparse.Namespace) -> Dict[str, Any]:
         run_dir = Path(m["rundir"]).resolve()
         run_dir.mkdir(parents=True, exist_ok=True)
         return {
-            "runid":         m["runid"],
+            # Accept both canonical "run_id" and legacy "runid" from manifests
+            "runid":         m.get("run_id") or m.get("runid", str(uuid.uuid4())),
             "seed":          m["seed"],
             "elf":           m["binary"],
             "top":           m["dut"],
@@ -176,14 +177,14 @@ def verilator_build(
     args:      argparse.Namespace,
     params:    Dict[str, Any],
     build_dir: Path,
-) -> Path:
+) -> Tuple[Path, float]:
     top      = params["top"]
     rtl_list = params["rtl_files"]
     exe      = build_dir / f"V{top}"
 
     if exe.exists() and not args.rebuild:
         print(f"[build] Reusing: {exe}")
-        return exe
+        return exe, 0.0   # cache-hit: elapsed time is zero
 
     build_dir.mkdir(parents=True, exist_ok=True)
 
@@ -445,7 +446,7 @@ def main() -> int:
         # Standalone mode: write a full manifest for downstream consumers
         manifest = {
             "schemaversion": "2.0.0",
-            "runid":   params["runid"],
+            "run_id":  params["runid"],   # canonical schema field name
             "seed":    params["seed"],
             "binary":  params["elf"],
             "dut":     params["top"],
@@ -479,11 +480,11 @@ def main() -> int:
     print(f"{'='*60}")
     print(f"[ava] commit log  → {sim['commitlog_path']}")
     print(f"[ava] coverage    → {sim['coverage_path']}")
-    print(f"[ava] cov report  → {cov_rpt}")
+    print("[ava] cov report  " + str(cov_rpt))
     if sim["trace_path"]:
-        print(f"[ava] trace (fst) → {sim['trace_path']}")
+        print("[ava] trace (fst) " + str(sim["trace_path"]))
     if sim["sig_path"]:
-        print(f"[ava] signature   → {sim['sig_path']}")
+        print("[ava] signature   " + str(sim["sig_path"]))
 
     return 0 if sim["sim_exit_code"] == 0 else 1
 

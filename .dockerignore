@@ -1,0 +1,9 @@
+.git
+_legacy/
+*.pyc
+__pycache__/
+*.egg-info/
+.env
+runs/
+*.log
+*.docx

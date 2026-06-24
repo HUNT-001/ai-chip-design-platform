@@ -370,6 +370,56 @@ class CompareConfig:
 
 _HEX_RE = re.compile(r"^(0[xX])?[0-9A-Fa-f]+$")
 
+# ── Schema compatibility helpers ──────────────────────────────────────────────
+# Canonical AGENT-A schema uses "xN" register names and CSR mnemonics.
+# These lookups let from_dict() accept both canonical and legacy formats.
+
+_REG_NAME_TO_IDX: Dict[str, int] = {f"x{i}": i for i in range(32)}
+_REG_NAME_TO_IDX.update({
+    "zero": 0, "ra": 1,  "sp": 2,  "gp": 3,  "tp": 4,
+    "t0":   5, "t1": 6,  "t2": 7,  "s0": 8,  "fp": 8, "s1": 9,
+    "a0":  10, "a1": 11, "a2": 12, "a3": 13, "a4": 14,
+    "a5":  15, "a6": 16, "a7": 17, "s2": 18, "s3": 19,
+    "s4":  20, "s5": 21, "s6": 22, "s7": 23, "s8": 24,
+    "s9":  25, "s10": 26,"s11": 27,"t3": 28, "t4": 29,
+    "t5":  30, "t6": 31,
+})
+
+_CSR_NAME_TO_ADDR: Dict[str, int] = {
+    "mstatus": 0x300, "misa": 0x301, "mie": 0x304, "mtvec": 0x305,
+    "mepc": 0x341,    "mcause": 0x342, "mtval": 0x343, "mip": 0x344,
+    "mhartid": 0xF14, "satp": 0x180, "sstatus": 0x100, "sie": 0x104,
+    "stvec": 0x105,   "sepc": 0x141, "scause": 0x142, "stval": 0x143,
+    "sip": 0x144,     "cycle": 0xC00, "instret": 0xC02,
+}
+
+
+def _regs_dict_to_rd(regs: Dict[str, Any], mask: int):
+    """Convert canonical regs object to (rd_idx, rd_val) or (None, None)."""
+    for reg_name, hex_val in regs.items():
+        idx = _REG_NAME_TO_IDX.get(reg_name.lower())
+        if idx is not None:
+            return idx, _parse_hex(hex_val, "regs." + reg_name) & mask
+    return None, None
+
+
+def _csrs_dict_to_list(csrs: Dict[str, Any], xlen: int):
+    """Convert canonical csrs object to a list of CsrWrite."""
+    mask = (1 << xlen) - 1
+    result = []
+    for name_or_addr, hex_val in csrs.items():
+        addr = _CSR_NAME_TO_ADDR.get(name_or_addr.lower())
+        if addr is None:
+            try:
+                addr = int(name_or_addr, 16)
+            except ValueError:
+                addr = 0
+        result.append(CsrWrite(
+            csr=addr,
+            val=_parse_hex(hex_val, "csrs." + name_or_addr) & mask,
+        ))
+    return result
+
 
 def _parse_hex(value: Any, field_name: str = "?") -> int:
     """Parse a hex string or integer.  Raises ValueError on failure."""
@@ -581,26 +631,41 @@ class CommitEntry:
             v = d.get(k)
             return None if v is None else _parse_hex(v, k) & mask
 
-        # Validate required fields
-        for req in ("step", "pc", "instr"):
+        # ── Field compatibility: canonical schema uses "seq"; legacy used "step"
+        if "seq" not in d and "step" not in d:
+            raise KeyError(
+                "Required field 'seq' (or legacy 'step') missing at line " + str(lineno)
+                + (" in " + repr(source) if source else "")
+            )
+        for req in ("pc", "instr"):
             if req not in d:
                 raise KeyError(
-                    f"Required field {req!r} missing at line {lineno}"
-                    + (f" in {source!r}" if source else "")
+                    "Required field " + repr(req) + " missing at line " + str(lineno)
+                    + (" in " + repr(source) if source else "")
                 )
 
-        raw_csrs = d.get("csr_writes") or []
-        if not isinstance(raw_csrs, list):
-            raise ValueError(f"'csr_writes' must be a list at line {lineno}")
-        csr_list = [CsrWrite.from_dict(c, xlen) for c in raw_csrs]
+        # CSR list: canonical "csrs" dict OR legacy "csr_writes" list
+        if "csrs" in d and isinstance(d["csrs"], dict):
+            csr_list = _csrs_dict_to_list(d["csrs"], xlen)
+        else:
+            raw_csrs = d.get("csr_writes") or []
+            if not isinstance(raw_csrs, list):
+                raise ValueError("'csr_writes' must be a list at line " + str(lineno))
+            csr_list = [CsrWrite.from_dict(c, xlen) for c in raw_csrs]
 
-        raw_pc  = str(d["pc"])
-        pc_int  = _parse_hex(raw_pc, "pc") & mask
-        rd      = d.get("rd")
-        rd_val  = _h("rd_val")
+        raw_pc = str(d["pc"])
+        pc_int = _parse_hex(raw_pc, "pc") & mask
+
+        # Register writeback: canonical "regs" dict OR legacy "rd"/"rd_val"
+        if "regs" in d and isinstance(d["regs"], dict):
+            rd, rd_val = _regs_dict_to_rd(d["regs"], mask)
+        else:
+            _rd_raw = d.get("rd")
+            rd      = int(_rd_raw) if _rd_raw is not None else None
+            rd_val  = _h("rd_val")
 
         e = CommitEntry(
-            step        = int(d["step"]),
+            step        = int(d.get("seq", d.get("step", 0))),
             pc          = pc_int,
             instr       = _parse_hex(d["instr"], "instr") & mask,
             trap        = bool(d.get("trap", False)),
@@ -618,7 +683,7 @@ class CommitEntry:
             trap_cause  = _h("trap_cause"),
             trap_tval   = _h("trap_tval"),
             trap_pc     = _h("trap_pc"),
-            privilege   = d.get("privilege"),
+            privilege   = d.get("privilege") or d.get("priv"),
             disasm      = d.get("disasm"),
             lineno      = lineno,
             raw_pc      = raw_pc,

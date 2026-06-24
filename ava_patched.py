@@ -277,10 +277,17 @@ class CommitLogComparator:
                 )
                 continue
 
-            # Register write check (only for non-x0 destinations)
-            rd     = rtl_e.get("rd", "")
-            rd_rtl = rtl_e.get("rd_val", "")
-            rd_iss = iss_e.get("rd_val", "")
+            # Register write check -- canonical schema uses "regs" dict;
+            # legacy format uses "rd" (name) + "rd_val" (hex str).
+            def _first_reg(entry):
+                regs = entry.get("regs")
+                if isinstance(regs, dict) and regs:
+                    name, val = next(iter(regs.items()))
+                    return name, val
+                return entry.get("rd", ""), entry.get("rd_val", "")
+
+            rd,    rd_rtl = _first_reg(rtl_e)
+            _rd_n, rd_iss = _first_reg(iss_e)
 
             if rd and rd != "x0" and rd_rtl and rd_iss and rd_rtl != rd_iss:
                 ctx = rtl_log[max(0, rtl_idx - context_before): rtl_idx + 1]
@@ -371,8 +378,13 @@ class SecurityAnalyzer:
 
         prev_pcs: List[str] = []
         for i, entry in enumerate(rtl_log):
-            rd     = entry.get("rd", "")
-            rd_val = entry.get("rd_val", "")
+            # Support both canonical "regs" dict and legacy "rd"/"rd_val"
+            _regs = entry.get("regs")
+            if isinstance(_regs, dict) and _regs:
+                rd, rd_val = next(iter(_regs.items()))
+            else:
+                rd     = entry.get("rd", "")
+                rd_val = entry.get("rd_val", "")
             pc     = entry.get("pc", "")
             instr  = entry.get("instr", "")
 
@@ -1241,12 +1253,12 @@ class SpikeISS:
         for line in stdout.splitlines():
             m = pattern.search(line)
             if m:
-                entries.append({
-                    "pc":     m.group("pc"),
-                    "instr":  m.group("instr"),
-                    "rd":     m.group("rd")     or "",
-                    "rd_val": m.group("rd_val") or "",
-                })
+                entry = {"pc": m.group("pc"), "instr": m.group("instr")}
+                _rd_n = m.group("rd") or ""
+                _rd_v = m.group("rd_val") or ""
+                if _rd_n and _rd_v:
+                    entry["regs"] = {_rd_n: _rd_v}
+                entries.append(entry)
         return entries
 
     @staticmethod

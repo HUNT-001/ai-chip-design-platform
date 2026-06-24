@@ -37,7 +37,7 @@ except ImportError:
 
 # ── Agent C backends (Spike ISS runner + parser) ─────────────────────────────
 import sys as _sys
-_SIM_DIR = Path(__file__).resolve().parent / "sim"
+_SIM_DIR = Path(__file__).resolve().parent  # co-located with run_iss.py and spike_parser.py
 if str(_SIM_DIR) not in _sys.path:
     _sys.path.insert(0, str(_SIM_DIR))
 
@@ -53,7 +53,7 @@ try:
         save_manifest,
         COMMITLOG_FILENAME,
     )
-    from spike_parser import parse_spike_log   # Agent C: log parser
+    from spike_parser import parse_spike_log_streaming as parse_spike_log  # Agent C: log parser
     ISS_BACKEND_AVAILABLE = True
 except ImportError as _e:
     ISS_BACKEND_AVAILABLE = False

@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────────────────
 # AVA Schema v2.0.0 constants
 # ─────────────────────────────────────────────────────────
-SCHEMA_VERSION = "2.0.0"
+SCHEMA_VERSION = "2.1.0"
 
 # Field name map: internal name → wire name emitted in JSONL.
 # Parser logic uses internal names throughout; only serialisation changes.
@@ -68,6 +68,9 @@ _ABI_TO_IDX: dict[str, int] = {
     "t6":   31,
 }
 
+# Reverse: integer index -> canonical "xN" name for schema serialisation
+_IDX_TO_REG: dict = {i: f"x{i}" for i in range(32)}
+
 # Known CSR addresses → mnemonic (partial; extend as needed)
 _CSR_NAMES: dict[int, str] = {
     0x300: "mstatus",  0x301: "misa",     0x304: "mie",
@@ -80,6 +83,59 @@ _CSR_NAMES: dict[int, str] = {
 }
 
 _PRIV_MAP = {"0": "U", "1": "S", "3": "M"}
+
+# ─────────────────────────────────────────────────────────
+# Memory ordering tag classifier  (v2.1.0 — Agent I feed)
+# ─────────────────────────────────────────────────────────
+
+_FENCE_MNEMONICS = frozenset(["fence", "fence.i", "fence.tso"])
+
+_RELEASE_SUFFIXES = frozenset([".rl", ".aqrl"])
+_ACQUIRE_SUFFIXES = frozenset([".aq", ".aqrl"])
+
+_AMO_PREFIXES = frozenset([
+    "amoswap", "amoadd", "amoxor", "amoand", "amoor",
+    "amomin", "amomax", "amominu", "amomaxu",
+    "lr", "sc",
+])
+
+def _classify_mem_order_tag(commit: "RawCommit") -> Optional[str]:
+    """
+    Return the mem_order_tag for this commit, or None if it is not a memory op.
+
+    Priority:
+      1. FENCE if the disasm mnemonic is fence/fence.i/fence.tso.
+      2. RELEASE / ACQUIRE for lr/sc/AMO with ordering suffixes.
+      3. AMO for remaining atomic ops.
+      4. LOAD if mem_access is present with no write side-effect beyond rd.
+      5. STORE if mem_access present AND there are no reg_writes (store instructions
+         write to memory, not to a destination register in the usual sense).
+      6. None for all other instructions.
+    """
+    disasm = (commit.disasm or "").strip().lower()
+    mnemonic = disasm.split()[0] if disasm else ""
+
+    if mnemonic in _FENCE_MNEMONICS:
+        return "FENCE"
+
+    base_mnem = mnemonic.split(".")[0] if "." in mnemonic else mnemonic
+    if base_mnem in _AMO_PREFIXES:
+        if any(mnemonic.endswith(s) for s in _ACQUIRE_SUFFIXES):
+            return "ACQUIRE"
+        if any(mnemonic.endswith(s) for s in _RELEASE_SUFFIXES):
+            return "RELEASE"
+        return "AMO"
+
+    if commit.mem_access is not None:
+        # Plain load: has reg writeback to rd
+        if commit.reg_writes:
+            return "LOAD"
+        # Plain store: no reg writeback
+        return "STORE"
+
+    return None  # not a memory instruction
+
+
 
 def _priv_str(raw: str) -> str:
     return _PRIV_MAP.get(raw.strip(), "M")
@@ -172,6 +228,13 @@ class RawCommit:
     csr_writes: List[dict] = field(default_factory=list)
     mem_access: Optional[dict] = None
     trap: Optional[dict] = None
+    # v2.1.0 extension fields
+    mem_seq: Optional[int] = None       # global memory-op sequence counter (Agent I)
+    mem_order_tag: Optional[str] = None # LOAD/STORE/FENCE/RELEASE/ACQUIRE/AMO (Agent I)
+    clk_domain: Optional[str] = None    # clock domain name (Agent J)
+    reset_event: Optional[bool] = None  # first instruction after reset (Agent J)
+    power_state: Optional[str] = None   # ACTIVE/SLEEP/etc. (Agent J)
+    perf_counters: Optional[dict] = None # perf counter snapshot (Agent K)
 
     def to_jsonl_dict(self, source: str = "iss") -> dict:
         """
@@ -199,13 +262,34 @@ class RawCommit:
         if self.disasm:
             d["disasm"] = self.disasm
         if self.reg_writes:
-            d["regs"] = self.reg_writes     # renamed from "reg_writes"; {rd, value} preserved
+            # Canonical AGENT-A: "regs" is an object keyed by "xN" register name
+            d["regs"] = {
+                _IDX_TO_REG.get(w["rd"], "x" + str(w["rd"])): w["value"]
+                for w in self.reg_writes
+            }
         if self.csr_writes:
-            d["csrs"] = self.csr_writes     # renamed from "csr_writes"
+            # Canonical AGENT-A: "csrs" is an object keyed by CSR name or addr
+            d["csrs"] = {
+                (w.get("name") or w["addr"]): w["value"]
+                for w in self.csr_writes
+            }
         if self.mem_access:
             d["mem"] = self.mem_access      # renamed from "mem_access"
         if self.trap:
             d["trap"] = self.trap
+        # v2.1.0 optional fields — omit when None to keep records compact
+        if self.mem_seq is not None:
+            d["mem_seq"] = self.mem_seq
+        if self.mem_order_tag is not None:
+            d["mem_order_tag"] = self.mem_order_tag
+        if self.clk_domain is not None:
+            d["clk_domain"] = self.clk_domain
+        if self.reset_event is not None:
+            d["reset_event"] = self.reset_event
+        if self.power_state is not None:
+            d["power_state"] = self.power_state
+        if self.perf_counters is not None:
+            d["perf_counters"] = self.perf_counters
         return d
 
 
@@ -497,7 +581,16 @@ def parse_spike_log(
             logger.warning("Could not detect Spike log format; falling back to FORMAT A")
         commits_iter = _parse_format_a(lines)
 
-    return [c.to_jsonl_dict(source=source) for c in commits_iter]
+    mem_seq = 0
+    result = []
+    for c in commits_iter:
+        tag = _classify_mem_order_tag(c)
+        if tag is not None:
+            c.mem_order_tag = tag
+            c.mem_seq = mem_seq
+            mem_seq += 1
+        result.append(c.to_jsonl_dict(source=source))
+    return result
 
 
 def parse_spike_log_streaming(
@@ -510,5 +603,11 @@ def parse_spike_log_streaming(
     if fmt is None:
         fmt = detect_format(lines)
     parser = _parse_format_b(lines) if fmt == "B" else _parse_format_a(lines)
+    mem_seq = 0
     for commit in parser:
+        tag = _classify_mem_order_tag(commit)
+        if tag is not None:
+            commit.mem_order_tag = tag
+            commit.mem_seq = mem_seq
+            mem_seq += 1
         yield commit.to_jsonl_dict(source=source)

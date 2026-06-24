@@ -51,8 +51,22 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-# ── Allow running as script or as package module ───────────────────────────────
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+# -- Allow running as script or as package module ---------------------------------
+_HERE = Path(__file__).resolve().parent   # AGENT_G/
+_ROOT = _HERE.parent                       # project root
+import sys as _sys_setup
+_sys_setup.path.insert(0, str(_ROOT))
+
+# Register AGENT_G as importable under its package name 'rv32im_testgen'
+if "rv32im_testgen" not in _sys_setup.modules:
+    import importlib.util as _ilu
+    _spec = _ilu.spec_from_file_location(
+        "rv32im_testgen", str(_HERE / "__init__.py"),
+        submodule_search_locations=[str(_HERE)],
+    )
+    _pkg = _ilu.module_from_spec(_spec)
+    _sys_setup.modules["rv32im_testgen"] = _pkg
+    _spec.loader.exec_module(_pkg)
 
 from rv32im_testgen.directed_tests import (
     ALL_DIRECTED_TESTS,

@@ -1,0 +1,11 @@
+# ── LLM & ML optional dependencies ───────────────────────────────────────────
+# Install with: pip install -r requirements-ml.txt
+# Required only for LLM-assisted reasoning in ava_patched.py and future agents.
+openai==1.58.1
+anthropic==0.39.0
+torch==2.5.1
+transformers==4.46.3
+sentence-transformers==3.3.1
+accelerate==1.1.1
+ollama==0.3.3
+faiss-cpu==1.8.0
