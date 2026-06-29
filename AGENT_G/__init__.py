@@ -60,7 +60,7 @@ from .asm_builder import (
 )
 from .genetic_engine import GeneticEngine, Individual
 
-__version__ = "3.0.0"
+__version__ = "2.0.0"
 __author__  = "Agent G — AVA Verification Pipeline"
 
 __all__ = [

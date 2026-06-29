@@ -76,6 +76,15 @@ _confidence= _try_import("AGENT_H.confidence_scorer",     "ConfidenceScorer")
 _explainer = _try_import("AGENT_H.explainer",             "Explainer")
 _contract  = _try_import("AGENT_H.contract_dsl",          "ContractRunner")
 _temporal  = _try_import("AGENT_H.temporal_checker",      "TemporalChecker")
+_atomics   = _try_import("AGENT_H.atomics_verifier",      "AtomicsVerifier")
+_csr       = _try_import("AGENT_H.csr_verifier",          "CSRVerifier")
+_rvc       = _try_import("AGENT_H.rvc_verifier",          "RVCVerifier")
+_fp        = _try_import("AGENT_H.fp_verifier",           "FPVerifier")
+_bitmanip  = _try_import("AGENT_H.bitmanip_verifier",     "BitmanipVerifier")
+_privilege = _try_import("AGENT_H.privilege_verifier",    "PrivilegeVerifier")
+_vm        = _try_import("AGENT_H.vm_verifier",           "VMVerifier")
+_tlb       = _try_import("AGENT_H.tlb_verifier",          "TLBVerifier")
+_peripheral= _try_import("AGENT_H.peripheral_verifier",   "PeripheralVerifier")
 _security  = _try_import("AGENT_H.security_intel",        "SecurityIntel")
 _economics = _try_import("AGENT_H.economics_engine",      "EconomicsEngine")
 _ffuzz     = _try_import("AGENT_H.formal_fuzzer",         "FormalFuzzer")
@@ -83,7 +92,8 @@ _twin      = _try_import("AGENT_H.digital_twin",          "DigitalTwin")
 
 EXTENDED_AGENTS_AVAILABLE = any([
     _agent_i, _agent_j, _agent_k, _agent_l,
-    _intent, _confidence, _contract, _temporal, _security,
+    _intent, _confidence, _contract, _temporal, _atomics, _csr, _rvc, _fp,
+    _bitmanip, _privilege, _vm, _tlb, _peripheral, _security,
 ])
 
 # ── Agent F: real Verilator coverage backend ──────────────────────────────────
@@ -2051,6 +2061,177 @@ endclass
                 logger.info("  Temporal: %d violations", r.get("total_violations", 0))
             except Exception as exc:
                 logger.warning("  Temporal checker failed: %s", exc)
+
+        # -- RV32A atomics verifier
+        if _atomics and rtl_log:
+            try:
+                av = _atomics.AtomicsVerifier(rtl_log, iss_log)
+                r = av.run()
+                rp = run_dir / "atomics_report.json"
+                with open(rp, "w") as f:
+                    json.dump(r, f, indent=2)
+                reports["atomics"] = {
+                    "atomics_examined": r.get("atomics_examined", 0),
+                    "violations": r.get("total_violations", 0),
+                    "band": r.get("band", "CLEAN"),
+                    "pass": r.get("pass", True),
+                }
+                logger.info("  Atomics: %d examined, %d violations, band=%s",
+                            r.get("atomics_examined", 0),
+                            r.get("total_violations", 0), r.get("band"))
+            except Exception as exc:
+                logger.warning("  Atomics verifier failed: %s", exc)
+
+        # -- Zicsr / Zifencei CSR semantics verifier
+        if _csr and rtl_log:
+            try:
+                cv = _csr.CSRVerifier(rtl_log, iss_log)
+                r = cv.run()
+                rp = run_dir / "csr_report.json"
+                with open(rp, "w") as f:
+                    json.dump(r, f, indent=2)
+                reports["csr"] = {
+                    "csr_ops": r.get("csr_ops", 0),
+                    "violations": r.get("total_violations", 0),
+                    "band": r.get("band", "CLEAN"),
+                    "pass": r.get("pass", True),
+                }
+                logger.info("  CSR: %d ops, %d violations, band=%s",
+                            r.get("csr_ops", 0),
+                            r.get("total_violations", 0), r.get("band"))
+            except Exception as exc:
+                logger.warning("  CSR verifier failed: %s", exc)
+
+        # -- RV32C compressed-instruction verifier
+        if _rvc and rtl_log:
+            try:
+                rv = _rvc.RVCVerifier(rtl_log, iss_log)
+                r = rv.run()
+                rp = run_dir / "rvc_report.json"
+                with open(rp, "w") as f:
+                    json.dump(r, f, indent=2)
+                reports["rvc"] = {
+                    "compressed_seen": r.get("compressed_seen", 0),
+                    "violations": r.get("total_violations", 0),
+                    "band": r.get("band", "CLEAN"),
+                    "pass": r.get("pass", True),
+                }
+                logger.info("  RVC: %d compressed, %d violations, band=%s",
+                            r.get("compressed_seen", 0),
+                            r.get("total_violations", 0), r.get("band"))
+            except Exception as exc:
+                logger.warning("  RVC verifier failed: %s", exc)
+
+        # -- RV32F/D floating-point verifier
+        if _fp and rtl_log:
+            try:
+                fv = _fp.FPVerifier(rtl_log, iss_log)
+                r = fv.run()
+                rp = run_dir / "fp_report.json"
+                with open(rp, "w") as f:
+                    json.dump(r, f, indent=2)
+                reports["fp"] = {
+                    "flen": r.get("flen"),
+                    "fp_ops": r.get("fp_ops", 0),
+                    "violations": r.get("total_violations", 0),
+                    "band": r.get("band", "CLEAN"),
+                    "pass": r.get("pass", True),
+                }
+                logger.info("  FP: FLEN=%s, %d ops, %d violations, band=%s",
+                            r.get("flen"), r.get("fp_ops", 0),
+                            r.get("total_violations", 0), r.get("band"))
+            except Exception as exc:
+                logger.warning("  FP verifier failed: %s", exc)
+
+        # -- RV32B bit-manipulation verifier
+        if _bitmanip and rtl_log:
+            try:
+                bv = _bitmanip.BitmanipVerifier(rtl_log, iss_log)
+                r = bv.run()
+                rp = run_dir / "bitmanip_report.json"
+                with open(rp, "w") as f:
+                    json.dump(r, f, indent=2)
+                reports["bitmanip"] = {
+                    "bitmanip_ops": r.get("bitmanip_ops", 0),
+                    "violations": r.get("total_violations", 0),
+                    "band": r.get("band", "CLEAN"),
+                    "pass": r.get("pass", True),
+                }
+                logger.info("  Bitmanip: %d ops, %d violations, band=%s",
+                            r.get("bitmanip_ops", 0),
+                            r.get("total_violations", 0), r.get("band"))
+            except Exception as exc:
+                logger.warning("  Bitmanip verifier failed: %s", exc)
+
+        # -- Privilege & PMP verifier
+        if _privilege and rtl_log:
+            try:
+                pv = _privilege.PrivilegeVerifier(rtl_log, iss_log)
+                r = pv.run()
+                rp = run_dir / "privilege_report.json"
+                with open(rp, "w") as f:
+                    json.dump(r, f, indent=2)
+                reports["privilege"] = {
+                    "pmp_configured": r.get("pmp_configured", False),
+                    "violations": r.get("total_violations", 0),
+                    "band": r.get("band", "CLEAN"),
+                    "pass": r.get("pass", True),
+                }
+                logger.info("  Privilege/PMP: %d violations, band=%s",
+                            r.get("total_violations", 0), r.get("band"))
+            except Exception as exc:
+                logger.warning("  Privilege verifier failed: %s", exc)
+
+        # -- Sv32 virtual-memory verifier (gated on satp + page-table image)
+        if _vm and rtl_log:
+            try:
+                phys_mem = (semantic_map.raw.get("phys_mem")
+                            if hasattr(semantic_map, "raw") else None)
+                vmv = _vm.VMVerifier(rtl_log, iss_log, phys_mem=phys_mem)
+                r = vmv.run()
+                rp = run_dir / "vm_report.json"
+                with open(rp, "w") as f:
+                    json.dump(r, f, indent=2)
+                reports["vm"] = {
+                    "sv32_enabled": r.get("sv32_enabled", False),
+                    "translations": r.get("translations", 0),
+                    "violations": r.get("total_violations", 0),
+                    "band": r.get("band", "CLEAN"),
+                    "pass": r.get("pass", True),
+                }
+                logger.info("  VM (Sv32): %d translations, %d violations, band=%s",
+                            r.get("translations", 0),
+                            r.get("total_violations", 0), r.get("band"))
+            except Exception as exc:
+                logger.warning("  VM verifier failed: %s", exc)
+
+        # -- TLB coherence / sfence.vma verifier (gated on satp + page-table image)
+        if _tlb and rtl_log:
+            try:
+                phys_mem = (semantic_map.raw.get("phys_mem")
+                            if hasattr(semantic_map, "raw") else None)
+                tv = _tlb.TLBVerifier(rtl_log, iss_log, phys_mem=phys_mem)
+                r = tv.run()
+                rp = run_dir / "tlb_report.json"
+                with open(rp, "w") as f:
+                    json.dump(r, f, indent=2)
+                reports["tlb"] = {
+                    "translations": r.get("translations", 0),
+                    "violations": r.get("total_violations", 0),
+                    "band": r.get("band", "CLEAN"),
+                    "pass": r.get("pass", True),
+                }
+                logger.info("  TLB: %d translations, %d violations, band=%s",
+                            r.get("translations", 0),
+                            r.get("total_violations", 0), r.get("band"))
+            except Exception as exc:
+                logger.warning("  TLB verifier failed: %s", exc)
+
+        # -- SoC peripheral protocol verifier (self-gates on dut_class)
+        if _peripheral:
+            r = _call("Peripheral verifier", _peripheral, "run_from_manifest", mpath)
+            if isinstance(r, dict):
+                reports["peripheral"] = r
 
         # -- Security intelligence
         if _security and rtl_log and iss_log:

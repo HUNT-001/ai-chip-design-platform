@@ -32,9 +32,18 @@ The main entry point is `ava_patched.py` — specifically the `AVA` class and
 | `AGENT_H/confidence_scorer.py` | `ConfidenceScorer` — weighted confidence score [0,1] |
 | `AGENT_H/contract_dsl.py` | `ContractRunner` + `@contract` / `@for_instruction` decorators |
 | `AGENT_H/temporal_checker.py` | `TemporalChecker` — LTL-style monitors over commit stream |
+| `AGENT_H/atomics_verifier.py` | `AtomicsVerifier` — RV32A golden-reference checker (LR/SC + 9 AMO ops) |
+| `AGENT_H/csr_verifier.py` | `CSRVerifier` — Zicsr/Zifencei semantics (CSR RMW, read-only enforcement, FENCE.I sync) |
+| `AGENT_H/rvc_verifier.py` | `RVCVerifier` — RV32C checks (PC+2 stride, reserved encodings, x8-x15 prime fields) |
+| `AGENT_H/fp_verifier.py` | `FPVerifier` — RV32F/D golden IEEE-754 checker (NaN-boxing, RNE arithmetic, sgnj/min-max/compare/fclass/fmv, fflags) |
+| `AGENT_H/bitmanip_verifier.py` | `BitmanipVerifier` — RV32B golden checker (Zba/Zbb/Zbc/Zbs: shadd, clz/ctz/cpop, rol/ror, clmul, b{set,clr,ext,inv}) |
+| `AGENT_H/privilege_verifier.py` | `PrivilegeVerifier` — privilege transitions + PMP (xRET/CSR legality, ECALL cause, MRET target, PMP region permission/access-fault model) |
+| `AGENT_H/vm_verifier.py` | `Sv32MMU` + `VMVerifier` — golden Sv32 page-table walker (4KB/4MB, permissions, faults) and translation/page-fault checker |
+| `AGENT_H/tlb_verifier.py` | `TLBVerifier` — TLB coherence + sfence.vma (golden TLB over Sv32MMU: stale-after-sfence, incoherent/fabricated translation, scoped invalidation) |
 | `AGENT_H/security_intel.py` | `SecurityIntelligence` — Spectre/privilege/cache detection |
 | `AGENT_H/economics_engine.py` | `EconomicsEngine` — bugs/hour, ROI, persistent ledger |
 | `AGENT_H/cross_domain.py` | `get_adapter(DUTClass.CRYPTO/DMA/UART)` — non-CPU adapters |
+| `AGENT_H/peripheral_verifier.py` | `PeripheralVerifier` — DMA/UART/CRYPTO protocol checkers (reference model + scoreboard) |
 | `AGENT_H/digital_twin.py` | `DigitalTwin` — Python micro-ISS for fast pre-screening |
 | `AGENT_H/formal_fuzzer.py` | `FormalFuzzBridge` — SymbiYosys witness → assembly seeds |
 | `AGENT_H/explainer.py` | `BugExplainer` — human-readable bug explanations |

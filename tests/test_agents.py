@@ -13,6 +13,7 @@ Run with:
 from __future__ import annotations
 
 import json
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -537,6 +538,15 @@ class TestSchemaFiles:
             "AGENT_H.explainer",
             "AGENT_H.contract_dsl",
             "AGENT_H.temporal_checker",
+            "AGENT_H.atomics_verifier",
+            "AGENT_H.bitmanip_verifier",
+            "AGENT_H.csr_verifier",
+            "AGENT_H.rvc_verifier",
+            "AGENT_H.fp_verifier",
+            "AGENT_H.privilege_verifier",
+            "AGENT_H.vm_verifier",
+            "AGENT_H.tlb_verifier",
+            "AGENT_H.peripheral_verifier",
             "AGENT_H.security_intel",
             "AGENT_H.economics_engine",
             "AGENT_H.cross_domain",
@@ -553,6 +563,183 @@ class TestSchemaFiles:
             except Exception as e:
                 failed.append(f"{mod}: {e}")
         assert not failed, "Failed imports:\n" + "\n".join(failed)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T23 — RV32A Atomics Verifier
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _atomic_rec(seq, disasm, regs=None, reads=None, writes=None, trap=None):
+    """Build one commit-log record for atomics tests."""
+    rec = {
+        "schema_version": "2.1.0",
+        "seq": seq,
+        "pc": f"0x{(0x80000000 + seq * 4):08x}",
+        "disasm": disasm,
+        "regs": regs or {},
+        "csrs": {},
+    }
+    if reads is not None:
+        rec["mem_reads"] = reads
+    if writes is not None:
+        rec["mem_writes"] = writes
+    if trap is not None:
+        rec["trap"] = trap
+    return rec
+
+
+class TestAtomicsVerifier:
+    def test_import(self):
+        from AGENT_H import atomics_verifier
+        assert hasattr(atomics_verifier, "AtomicsVerifier")
+
+    def test_amo_compute_golden_math(self):
+        from AGENT_H.atomics_verifier import amo_compute
+        assert amo_compute("swap", 0x10, 0x99) == 0x99
+        assert amo_compute("add", 0xFFFFFFFF, 0x1) == 0x0          # 32-bit wrap
+        assert amo_compute("and", 0xF0F0F0F0, 0x0FF00FF0) == 0x00F000F0
+        assert amo_compute("or",  0x0F0F0F0F, 0xF0F0F0F0) == 0xFFFFFFFF
+        assert amo_compute("xor", 0xFFFFFFFF, 0x0F0F0F0F) == 0xF0F0F0F0
+        # signed min/max: 0xFFFFFFFF == -1 < 1
+        assert amo_compute("min",  0xFFFFFFFF, 0x1) == 0xFFFFFFFF
+        assert amo_compute("max",  0xFFFFFFFF, 0x1) == 0x1
+        # unsigned min/max: 0xFFFFFFFF is the largest
+        assert amo_compute("minu", 0xFFFFFFFF, 0x1) == 0x1
+        assert amo_compute("maxu", 0xFFFFFFFF, 0x1) == 0xFFFFFFFF
+
+    def test_decode_atomic(self):
+        from AGENT_H.atomics_verifier import decode_atomic
+        d = decode_atomic("amoadd.w.aq.rl x5, x6, (x10)")
+        assert d.kind == "amo" and d.mnem == "add"
+        assert d.aq and d.rl and d.rd == "x5" and d.rs2 == "x6" and d.rs1 == "x10"
+        assert decode_atomic("lr.w x1, (x2)").kind == "lr"
+        assert decode_atomic("sc.w x1, x2, (x3)").kind == "sc"
+        assert decode_atomic("addi x1,x0,1") is None
+
+    def test_clean_amo_passes(self):
+        from AGENT_H.atomics_verifier import AtomicsVerifier
+        log = [
+            _atomic_rec(0, "addi x6,x0,5", regs={"x6": "0x00000005"}),
+            # amoadd.w x5,x6,(x10): mem[0x100]=0x10 → rd=0x10, new=0x15
+            _atomic_rec(1, "amoadd.w x5, x6, (x10)",
+                        regs={"x5": "0x00000010"},
+                        reads=[{"addr": "0x00000100", "size": 4, "value": "0x00000010"}],
+                        writes=[{"addr": "0x00000100", "size": 4, "value": "0x00000015"}]),
+        ]
+        rep = AtomicsVerifier(log).run()
+        assert rep["pass"] is True
+        assert rep["total_violations"] == 0
+        assert rep["stats"]["amo"] == 1
+
+    def test_amo_writeback_bug_caught(self):
+        from AGENT_H.atomics_verifier import AtomicsVerifier
+        log = [
+            _atomic_rec(0, "addi x6,x0,5", regs={"x6": "0x00000005"}),
+            # BUG: writes 0x14 instead of 0x10+0x5=0x15
+            _atomic_rec(1, "amoadd.w x5, x6, (x10)",
+                        regs={"x5": "0x00000010"},
+                        reads=[{"addr": "0x00000100", "size": 4, "value": "0x00000010"}],
+                        writes=[{"addr": "0x00000100", "size": 4, "value": "0x00000014"}]),
+        ]
+        rep = AtomicsVerifier(log).run()
+        assert rep["pass"] is False
+        checks = {v["check"] for v in rep["violations"]}
+        assert "amo_writeback" in checks
+        assert rep["band"] == "CRITICAL"
+
+    def test_lr_sc_success_passes(self):
+        from AGENT_H.atomics_verifier import AtomicsVerifier
+        log = [
+            _atomic_rec(0, "addi x6,x0,7", regs={"x6": "0x00000007"}),
+            _atomic_rec(1, "lr.w x5, (x10)",
+                        regs={"x5": "0x00000010"},
+                        reads=[{"addr": "0x00000100", "size": 4, "value": "0x00000010"}]),
+            # valid reservation → store rs2 (x6=7), rd=0 success
+            _atomic_rec(2, "sc.w x4, x6, (x10)",
+                        regs={"x4": "0x00000000"},
+                        writes=[{"addr": "0x00000100", "size": 4, "value": "0x00000007"}]),
+        ]
+        rep = AtomicsVerifier(log).run()
+        assert rep["pass"] is True
+        assert rep["stats"]["sc_success"] == 1
+
+    def test_sc_spurious_store_caught(self):
+        from AGENT_H.atomics_verifier import AtomicsVerifier
+        # SC.W with no preceding LR.W must fail (no write, rd!=0).
+        # Here the RTL wrongly writes memory and reports success → atomicity bug.
+        log = [
+            _atomic_rec(0, "addi x6,x0,7", regs={"x6": "0x00000007"}),
+            _atomic_rec(1, "sc.w x4, x6, (x10)",
+                        regs={"x4": "0x00000000"},
+                        writes=[{"addr": "0x00000100", "size": 4, "value": "0x00000007"}]),
+        ]
+        rep = AtomicsVerifier(log).run()
+        assert rep["pass"] is False
+        checks = {v["check"] for v in rep["violations"]}
+        assert "sc_fail_wrote" in checks or "sc_fail_rd" in checks
+
+    def test_reservation_broken_by_intervening_store(self):
+        from AGENT_H.atomics_verifier import AtomicsVerifier
+        # LR sets reservation; a plain store to the same word breaks it;
+        # the later SC must therefore FAIL. RTL reporting success is a bug.
+        log = [
+            _atomic_rec(0, "lr.w x5, (x10)",
+                        regs={"x5": "0x00000010"},
+                        reads=[{"addr": "0x00000100", "size": 4, "value": "0x00000010"}]),
+            _atomic_rec(1, "sw x6, 0(x10)",
+                        regs={},
+                        writes=[{"addr": "0x00000100", "size": 4, "value": "0x000000AA"}]),
+            _atomic_rec(2, "sc.w x4, x6, (x10)",
+                        regs={"x4": "0x00000000"},   # claims success — wrong
+                        writes=[{"addr": "0x00000100", "size": 4, "value": "0x00000007"}]),
+        ]
+        rep = AtomicsVerifier(log).run()
+        assert rep["pass"] is False
+
+    def test_misaligned_atomic_without_trap_caught(self):
+        from AGENT_H.atomics_verifier import AtomicsVerifier
+        log = [
+            _atomic_rec(0, "amoadd.w x5, x6, (x10)",
+                        regs={"x5": "0x00000010"},
+                        reads=[{"addr": "0x00000102", "size": 4, "value": "0x00000010"}],
+                        writes=[{"addr": "0x00000102", "size": 4, "value": "0x00000015"}]),
+        ]
+        rep = AtomicsVerifier(log).run()
+        assert rep["pass"] is False
+        assert any(v["check"] == "alignment" for v in rep["violations"])
+
+    def test_report_schema(self):
+        from AGENT_H.atomics_verifier import AtomicsVerifier
+        rep = AtomicsVerifier([]).run()
+        for key in ("schema_version", "agent", "records_checked",
+                    "total_violations", "pass", "violations", "band", "stats"):
+            assert key in rep, f"Missing key: {key}"
+        assert rep["agent"] == "atomics_verifier"
+        assert rep["schema_version"] == "2.1.0"
+
+    def test_run_from_manifest(self, tmp_path):
+        from AGENT_H.atomics_verifier import run_from_manifest
+        rtl = [
+            _atomic_rec(0, "addi x6,x0,5", regs={"x6": "0x00000005"}),
+            _atomic_rec(1, "amoadd.w x5, x6, (x10)",
+                        regs={"x5": "0x00000010"},
+                        reads=[{"addr": "0x00000100", "size": 4, "value": "0x00000010"}],
+                        writes=[{"addr": "0x00000100", "size": 4, "value": "0x00000015"}]),
+        ]
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        manifest = {
+            "schema_version": "2.1.0",
+            "run_id": "atomics-test",
+            "run_dir": str(tmp_path),
+            "outputs": {"rtl_commit_log": "rtl_commit.jsonl"},
+        }
+        mpath = tmp_path / "run_manifest.json"
+        mpath.write_text(json.dumps(manifest, indent=2))
+        rc = run_from_manifest(mpath)
+        assert rc == 0
+        assert (tmp_path / "atomics_report.json").exists()
+        updated = json.loads(mpath.read_text())
+        assert "atomics_report" in updated["outputs"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -589,4 +776,1238 @@ module riscv_core (
     reg [31:0] pc;
 endmodule
 """
-        ava = ava_patc
+        ava = ava_patched.AVA(
+            enable_llm=False,
+            enable_database=False,
+            enable_extended=True,
+            rtl_sources=[],
+            timeout=20,
+            target_coverage=50.0,
+        )
+        result = await ava.generate_suite(
+            rtl_spec=SAMPLE_RTL,
+            microarch="in_order",
+            seed=7,
+            save_results=False,
+        )
+        assert isinstance(result, dict)
+        assert result.get("status") == "completed"
+        assert result["semantic_map"]["dut_module"] == "riscv_core"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T24 — SoC Peripheral Protocol Verifier
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestPeripheralVerifier:
+    def test_import(self):
+        from AGENT_H import peripheral_verifier
+        assert hasattr(peripheral_verifier, "PeripheralVerifier")
+
+    def test_factory(self):
+        from AGENT_H.peripheral_verifier import get_checker
+        assert get_checker("dma").domain == "dma"
+        assert get_checker("uart").domain == "uart"
+        assert get_checker("crypto").domain == "crypto"
+        assert get_checker("cpu") is None
+
+    # -- DMA -----------------------------------------------------------------
+    def test_dma_clean_transfer_passes(self):
+        from AGENT_H.peripheral_verifier import PeripheralVerifier
+        recs = [
+            {"channel": 0, "op": "READ",  "src_addr": "0x1000", "length": 64},
+            {"channel": 0, "op": "WRITE", "dst_addr": "0x2000", "length": 64},
+            {"channel": 0, "op": "DONE"},
+        ]
+        rep = PeripheralVerifier(recs, "dma").run()
+        assert rep["pass"] is True
+        assert rep["band"] == "CLEAN"
+
+    def test_dma_byte_mismatch_caught(self):
+        from AGENT_H.peripheral_verifier import PeripheralVerifier
+        recs = [
+            {"channel": 0, "op": "READ",  "src_addr": "0x1000", "length": 64},
+            {"channel": 0, "op": "WRITE", "dst_addr": "0x2000", "length": 32},
+            {"channel": 0, "op": "DONE"},
+        ]
+        rep = PeripheralVerifier(recs, "dma").run()
+        assert rep["pass"] is False
+        assert any(v["check"] == "dma_byte_mismatch" for v in rep["violations"])
+
+    def test_dma_null_pointer_and_dangling(self):
+        from AGENT_H.peripheral_verifier import PeripheralVerifier
+        recs = [
+            {"channel": 1, "op": "TRANSFER", "src_addr": "0x0", "dst_addr": "0x2000", "length": 16},
+        ]
+        rep = PeripheralVerifier(recs, "dma").run()
+        checks = {v["check"] for v in rep["violations"]}
+        assert "dma_null_src" in checks
+        assert "dma_dangling_channel" in checks   # never DONE
+
+    # -- UART ----------------------------------------------------------------
+    def test_uart_clean_passes(self):
+        from AGENT_H.peripheral_verifier import PeripheralVerifier
+        recs = [
+            {"op": "CONFIG", "baud_rate": 115200, "parity": "EVEN"},
+            {"op": "TX", "data": "0x41"},
+            {"op": "RX", "data": "0x42"},
+        ]
+        rep = PeripheralVerifier(recs, "uart").run()
+        assert rep["pass"] is True
+
+    def test_uart_unconfigured_and_overflow(self):
+        from AGENT_H.peripheral_verifier import PeripheralVerifier
+        recs = [
+            {"op": "TX", "data": "0x1FF"},   # before config + >8-bit
+        ]
+        rep = PeripheralVerifier(recs, "uart").run()
+        checks = {v["check"] for v in rep["violations"]}
+        assert "uart_unconfigured_use" in checks
+        assert "uart_data_overflow" in checks
+
+    def test_uart_inconsistent_parity_error(self):
+        from AGENT_H.peripheral_verifier import PeripheralVerifier
+        recs = [
+            {"op": "CONFIG", "baud_rate": 9600, "parity": "NONE"},
+            {"op": "RX", "data": "0x55", "parity_error": True},
+        ]
+        rep = PeripheralVerifier(recs, "uart").run()
+        assert any(v["check"] == "uart_inconsistent_parity_error" for v in rep["violations"])
+
+    # -- CRYPTO --------------------------------------------------------------
+    def test_crypto_sha256_kat_passes(self):
+        from AGENT_H.peripheral_verifier import PeripheralVerifier
+        # sha256("abc") known answer
+        recs = [
+            {"op": "SHA256", "status": "DONE", "data_in": "0x616263",
+             "data_out": "0xba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"},
+        ]
+        rep = PeripheralVerifier(recs, "crypto").run()
+        assert rep["pass"] is True
+
+    def test_crypto_sha256_kat_mismatch_caught(self):
+        from AGENT_H.peripheral_verifier import PeripheralVerifier
+        recs = [
+            {"op": "SHA256", "status": "DONE", "data_in": "0x616263",
+             "data_out": "0xdeadbeef8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"},
+        ]
+        rep = PeripheralVerifier(recs, "crypto").run()
+        assert rep["pass"] is False
+        assert any(v["check"] == "sha256_kat" for v in rep["violations"])
+
+    def test_crypto_error_leak_and_no_key(self):
+        from AGENT_H.peripheral_verifier import PeripheralVerifier
+        recs = [
+            {"op": "AES_ENC", "status": "ERROR", "key_addr": "0x0",
+             "data_in": "0x1234", "data_out": "0xcafe", "error_code": 3},
+        ]
+        rep = PeripheralVerifier(recs, "crypto").run()
+        checks = {v["check"] for v in rep["violations"]}
+        assert "crypto_no_key" in checks
+        assert "crypto_error_with_output" in checks
+
+    def test_crypto_aes_roundtrip_caught(self):
+        from AGENT_H.peripheral_verifier import PeripheralVerifier
+        recs = [
+            {"op": "AES_ENC", "status": "DONE", "key_addr": "0xK", "data_in": "0xAA", "data_out": "0xBB"},
+            # decrypt of BB with same key should recover AA, not CC
+            {"op": "AES_DEC", "status": "DONE", "key_addr": "0xK", "data_in": "0xBB", "data_out": "0xCC"},
+        ]
+        rep = PeripheralVerifier(recs, "crypto").run()
+        assert any(v["check"] == "aes_roundtrip" for v in rep["violations"])
+
+    # -- report / manifest ---------------------------------------------------
+    def test_report_schema(self):
+        from AGENT_H.peripheral_verifier import PeripheralVerifier
+        rep = PeripheralVerifier([], "dma").run()
+        for key in ("schema_version", "agent", "dut_class", "records_checked",
+                    "total_violations", "pass", "violations", "band"):
+            assert key in rep, f"Missing key: {key}"
+        assert rep["agent"] == "peripheral_verifier"
+
+    def test_cpu_class_skips(self):
+        from AGENT_H.peripheral_verifier import PeripheralVerifier
+        rep = PeripheralVerifier([{"op": "x"}], "cpu").run()
+        assert rep["status"] == "skipped"
+        assert rep["pass"] is True
+
+    def test_run_from_manifest(self, tmp_path):
+        from AGENT_H.peripheral_verifier import run_from_manifest
+        raw = [
+            {"channel": 0, "op": "READ",  "src_addr": "0x1000", "length": 64},
+            {"channel": 0, "op": "WRITE", "dst_addr": "0x2000", "length": 64},
+            {"channel": 0, "op": "DONE"},
+        ]
+        (tmp_path / "raw_rtl.jsonl").write_text("\n".join(json.dumps(r) for r in raw))
+        manifest = {
+            "schema_version": "2.1.0",
+            "run_id": "periph-test",
+            "run_dir": str(tmp_path),
+            "agent_config": {"dut_class": "dma"},
+            "outputs": {"raw_rtl_log": "raw_rtl.jsonl"},
+        }
+        mpath = tmp_path / "run_manifest.json"
+        mpath.write_text(json.dumps(manifest, indent=2))
+        rc = run_from_manifest(mpath)
+        assert rc == 0
+        assert (tmp_path / "peripheral_report.json").exists()
+        updated = json.loads(mpath.read_text())
+        assert "peripheral_report" in updated["outputs"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T25 — Zicsr / Zifencei CSR Semantics Verifier
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _csr_rec(seq, disasm, regs=None, csrs=None, trap=None, pc=None, writes=None):
+    rec = {
+        "schema_version": "2.1.0",
+        "seq": seq,
+        "pc": pc or f"0x{(0x80000000 + seq * 4):08x}",
+        "disasm": disasm,
+        "regs": regs or {},
+        "csrs": csrs or {},
+    }
+    if trap is not None:
+        rec["trap"] = trap
+    if writes is not None:
+        rec["mem_writes"] = writes
+    return rec
+
+
+class TestCSRVerifier:
+    def test_import(self):
+        from AGENT_H import csr_verifier
+        assert hasattr(csr_verifier, "CSRVerifier")
+
+    def test_decode_csr(self):
+        from AGENT_H.csr_verifier import decode_csr
+        d = decode_csr("csrrw x5, mstatus, x6")
+        assert d.op == "RW" and d.rd == "x5" and d.csr == "mstatus" and d.src == "x6"
+        assert decode_csr("csrr x1, mstatus").op == "RS"          # pseudo read
+        assert decode_csr("csrrsi x5, mstatus, 4").src_kind == "imm"
+        d2 = decode_csr("csrw mstatus, x1")                       # pseudo write
+        assert d2.op == "RW" and d2.rd == "x0"
+        assert decode_csr("addi x1,x0,1") is None
+
+    def test_readonly_table(self):
+        from AGENT_H.csr_verifier import csr_is_readonly
+        assert csr_is_readonly("mvendorid") is True
+        assert csr_is_readonly("mstatus") is False
+        assert csr_is_readonly("0x300") is False
+        assert csr_is_readonly("0xF11") is True       # read-only by encoding
+        assert csr_is_readonly("cycle") is True
+
+    def test_clean_csrrw_passes(self):
+        from AGENT_H.csr_verifier import CSRVerifier
+        log = [
+            _csr_rec(0, "addi x6,x0,0x1888", regs={"x6": "0x00001888"}),
+            _csr_rec(1, "csrrw x5, mstatus, x6",
+                     regs={"x5": "0x00001800"},          # rd = old mstatus
+                     csrs={"mstatus": "0x00001888"}),     # post = x6
+        ]
+        rep = CSRVerifier(log).run()
+        assert rep["pass"] is True
+        assert rep["csr_ops"] == 1
+
+    def test_csrrs_setbits_passes(self):
+        from AGENT_H.csr_verifier import CSRVerifier
+        log = [
+            _csr_rec(0, "addi x6,x0,0x80", regs={"x6": "0x00000080"}),
+            _csr_rec(1, "csrrs x5, mstatus, x6",
+                     regs={"x5": "0x00001800"},
+                     csrs={"mstatus": "0x00001880"}),     # 0x1800 | 0x80
+        ]
+        assert CSRVerifier(log).run()["pass"] is True
+
+    def test_writeback_bug_caught(self):
+        from AGENT_H.csr_verifier import CSRVerifier
+        log = [
+            _csr_rec(0, "addi x6,x0,0x80", regs={"x6": "0x00000080"}),
+            _csr_rec(1, "csrrs x5, mstatus, x6",
+                     regs={"x5": "0x00001800"},
+                     csrs={"mstatus": "0x00001881"}),     # BUG: extra bit set
+        ]
+        rep = CSRVerifier(log).run()
+        assert rep["pass"] is False
+        assert any(v["check"] == "csr_writeback" for v in rep["violations"])
+        assert rep["band"] == "CRITICAL"
+
+    def test_readonly_write_caught(self):
+        from AGENT_H.csr_verifier import CSRVerifier
+        log = [
+            _csr_rec(0, "addi x6,x0,1", regs={"x6": "0x00000001"}),
+            # write to a read-only CSR with no illegal-instruction trap
+            _csr_rec(1, "csrrw x0, mvendorid, x6", csrs={"mvendorid": "0x00000001"}),
+        ]
+        rep = CSRVerifier(log).run()
+        assert any(v["check"] == "csr_readonly_write" for v in rep["violations"])
+
+    def test_spurious_write_on_x0(self):
+        from AGENT_H.csr_verifier import CSRVerifier
+        log = [
+            # csrrs with x0 source must not modify the CSR
+            _csr_rec(0, "csrrs x5, mstatus, x0",
+                     regs={"x5": "0x00001800"},
+                     csrs={"mstatus": "0x00001801"}),     # BUG: changed
+        ]
+        rep = CSRVerifier(log).run()
+        assert any(v["check"] == "csr_spurious_write" for v in rep["violations"])
+
+    def test_rd_old_value_mismatch(self):
+        from AGENT_H.csr_verifier import CSRVerifier
+        log = [
+            _csr_rec(0, "addi x6,x0,0x1888", regs={"x6": "0x00001888"}),
+            _csr_rec(1, "csrrw x5, mstatus, x6",
+                     regs={"x5": "0x00001800"}, csrs={"mstatus": "0x00001888"}),
+            # subsequent read-back of old value disagrees with the model
+            _csr_rec(2, "csrr x7, mstatus",
+                     regs={"x7": "0x00009999"}),           # should be 0x1888
+        ]
+        rep = CSRVerifier(log).run()
+        assert any(v["check"] == "csr_read_value" for v in rep["violations"])
+
+    def test_fencei_missing_caught(self):
+        from AGENT_H.csr_verifier import CSRVerifier
+        log = [
+            _csr_rec(0, "sw x6, 0(x10)", writes=[{"addr": "0x80000010", "size": 4, "value": "0x1"}]),
+            _csr_rec(1, "addi x1,x0,1", pc="0x80000010"),  # execute modified word, no fence.i
+        ]
+        rep = CSRVerifier(log).run()
+        assert any(v["check"] == "fencei_missing" for v in rep["violations"])
+
+    def test_report_schema(self):
+        from AGENT_H.csr_verifier import CSRVerifier
+        rep = CSRVerifier([]).run()
+        for key in ("schema_version", "agent", "records_checked",
+                    "csr_ops", "total_violations", "pass", "violations", "band"):
+            assert key in rep, f"Missing key: {key}"
+        assert rep["agent"] == "csr_verifier"
+
+    def test_run_from_manifest(self, tmp_path):
+        from AGENT_H.csr_verifier import run_from_manifest
+        rtl = [
+            _csr_rec(0, "addi x6,x0,0x1888", regs={"x6": "0x00001888"}),
+            _csr_rec(1, "csrrw x5, mstatus, x6",
+                     regs={"x5": "0x00001800"}, csrs={"mstatus": "0x00001888"}),
+        ]
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        manifest = {
+            "schema_version": "2.1.0", "run_id": "csr-test",
+            "run_dir": str(tmp_path),
+            "outputs": {"rtl_commit_log": "rtl_commit.jsonl"},
+        }
+        mpath = tmp_path / "run_manifest.json"
+        mpath.write_text(json.dumps(manifest, indent=2))
+        rc = run_from_manifest(mpath)
+        assert rc == 0
+        assert (tmp_path / "csr_report.json").exists()
+        assert "csr_report" in json.loads(mpath.read_text())["outputs"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T26 — RV32C Compressed Instruction Verifier
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _rvc_rec(seq, disasm, pc, regs=None, trap=None, extra=None):
+    rec = {
+        "schema_version": "2.1.0",
+        "seq": seq,
+        "pc": pc,
+        "disasm": disasm,
+        "regs": regs or {},
+        "csrs": {},
+    }
+    if trap is not None:
+        rec["trap"] = trap
+    if extra:
+        rec.update(extra)
+    return rec
+
+
+class TestRVCVerifier:
+    def test_import(self):
+        from AGENT_H import rvc_verifier
+        assert hasattr(rvc_verifier, "RVCVerifier")
+
+    def test_is_compressed(self):
+        from AGENT_H.rvc_verifier import is_compressed
+        assert is_compressed({"disasm": "c.addi x1,1"}) is True
+        assert is_compressed({"disasm": "addi x1,x0,1"}) is False
+        assert is_compressed({"disasm": "addi x1,x0,1", "insn_len": 2}) is True
+        assert is_compressed({"disasm": "x", "insn": "0x4521"}) is True
+        assert is_compressed({"disasm": "x", "insn": "0x00150513"}) is False
+
+    def test_clean_compressed_stride_passes(self):
+        from AGENT_H.rvc_verifier import RVCVerifier
+        log = [
+            _rvc_rec(0, "c.addi x1,1", "0x80000000"),
+            _rvc_rec(1, "c.addi x2,1", "0x80000002"),   # +2 correct
+            _rvc_rec(2, "c.mv x3,x1",  "0x80000004"),
+        ]
+        rep = RVCVerifier(log).run()
+        assert rep["pass"] is True
+        assert rep["compressed_seen"] == 3
+
+    def test_pc_stride_bug_caught(self):
+        from AGENT_H.rvc_verifier import RVCVerifier
+        log = [
+            _rvc_rec(0, "c.addi x1,1", "0x80000000"),
+            _rvc_rec(1, "c.addi x2,1", "0x80000004"),   # BUG: advanced by 4
+        ]
+        rep = RVCVerifier(log).run()
+        assert rep["pass"] is False
+        assert any(v["check"] == "rvc_pc_stride" for v in rep["violations"])
+        assert rep["band"] == "CRITICAL"
+
+    def test_branch_form_skips_stride(self):
+        from AGENT_H.rvc_verifier import RVCVerifier
+        # a taken compressed branch legitimately changes PC by more than 2
+        log = [
+            _rvc_rec(0, "c.j 0x80000040", "0x80000000"),
+            _rvc_rec(1, "c.addi x1,1",    "0x80000040"),
+        ]
+        rep = RVCVerifier(log).run()
+        assert rep["pass"] is True
+
+    def test_reg_constraint_caught(self):
+        from AGENT_H.rvc_verifier import RVCVerifier
+        # c.lw uses prime fields (x8-x15); x3 is illegal here
+        log = [
+            _rvc_rec(0, "c.lw x3,0(x8)", "0x80000000"),
+            _rvc_rec(1, "c.nop",         "0x80000002"),
+        ]
+        rep = RVCVerifier(log).run()
+        assert any(v["check"] == "rvc_reg_constraint" for v in rep["violations"])
+
+    def test_reg_constraint_ok(self):
+        from AGENT_H.rvc_verifier import RVCVerifier
+        log = [
+            _rvc_rec(0, "c.lw x9,0(x8)", "0x80000000"),
+            _rvc_rec(1, "c.nop",         "0x80000002"),
+        ]
+        assert RVCVerifier(log).run()["pass"] is True
+
+    def test_reserved_encoding_caught(self):
+        from AGENT_H.rvc_verifier import RVCVerifier
+        # c.addi4spn with zero immediate is reserved and must trap
+        log = [
+            _rvc_rec(0, "c.addi4spn x8,0", "0x80000000"),
+            _rvc_rec(1, "c.nop",           "0x80000002"),
+        ]
+        rep = RVCVerifier(log).run()
+        assert any(v["check"] == "rvc_reserved" for v in rep["violations"])
+
+    def test_reserved_encoding_trapped_ok(self):
+        from AGENT_H.rvc_verifier import RVCVerifier
+        # same reserved encoding, but correctly trapped → no violation
+        log = [
+            _rvc_rec(0, "c.jr x0", "0x80000000", trap={"cause": 2, "tval": "0x0"}),
+        ]
+        assert RVCVerifier(log).run()["pass"] is True
+
+    def test_report_schema(self):
+        from AGENT_H.rvc_verifier import RVCVerifier
+        rep = RVCVerifier([]).run()
+        for key in ("schema_version", "agent", "records_checked",
+                    "compressed_seen", "total_violations", "pass", "violations", "band"):
+            assert key in rep, f"Missing key: {key}"
+        assert rep["agent"] == "rvc_verifier"
+
+    def test_run_from_manifest(self, tmp_path):
+        from AGENT_H.rvc_verifier import run_from_manifest
+        rtl = [
+            _rvc_rec(0, "c.addi x1,1", "0x80000000"),
+            _rvc_rec(1, "c.addi x2,1", "0x80000002"),
+        ]
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        manifest = {
+            "schema_version": "2.1.0", "run_id": "rvc-test",
+            "run_dir": str(tmp_path),
+            "outputs": {"rtl_commit_log": "rtl_commit.jsonl"},
+        }
+        mpath = tmp_path / "run_manifest.json"
+        mpath.write_text(json.dumps(manifest, indent=2))
+        rc = run_from_manifest(mpath)
+        assert rc == 0
+        assert (tmp_path / "rvc_report.json").exists()
+        assert "rvc_report" in json.loads(mpath.read_text())["outputs"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T27 — RV32F / RV32D Floating-Point Verifier
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _fp_rec(seq, disasm, fregs=None, regs=None, csrs=None, pc=None):
+    rec = {
+        "schema_version": "2.1.0",
+        "seq": seq,
+        "pc": pc or f"0x{(0x80000000 + seq * 4):08x}",
+        "disasm": disasm,
+        "regs": regs or {},
+        "csrs": csrs or {},
+    }
+    if fregs is not None:
+        rec["fregs"] = fregs
+    return rec
+
+
+# single-precision bit patterns
+_F1 = "0x3f800000"   # 1.0
+_F2 = "0x40000000"   # 2.0
+_F3 = "0x40400000"   # 3.0
+_FN1 = "0xbf800000"  # -1.0
+_FINF = "0x7f800000" # +inf
+_FNAN = "0x7fc00000" # canonical qNaN
+
+
+class TestFPVerifier:
+    def test_import(self):
+        from AGENT_H import fp_verifier
+        assert hasattr(fp_verifier, "FPVerifier")
+
+    def test_decode_fp(self):
+        from AGENT_H.fp_verifier import decode_fp
+        d = decode_fp("fadd.s f3,f1,f2")
+        assert d.mnem == "fadd" and d.width == "s" and d.fregs == ["f3", "f1", "f2"]
+        m = decode_fp("fmv.x.w x5,f1")
+        assert m.mnem == "fmv" and m.xregs == ["x5"] and m.fregs == ["f1"]
+        assert decode_fp("addi x1,x0,1") is None
+
+    def test_fclass_mask(self):
+        from AGENT_H.fp_verifier import fclass_mask
+        assert fclass_mask(0x7F800000, "s") == (1 << 7)   # +inf
+        assert fclass_mask(0xFF800000, "s") == (1 << 0)   # -inf
+        assert fclass_mask(0x00000000, "s") == (1 << 4)   # +0
+        assert fclass_mask(0x80000000, "s") == (1 << 3)   # -0
+        assert fclass_mask(0x7FC00000, "s") == (1 << 9)   # qNaN
+        assert fclass_mask(0x7F800001, "s") == (1 << 8)   # sNaN
+
+    def test_fadd_clean_passes(self):
+        from AGENT_H.fp_verifier import FPVerifier
+        log = [
+            _fp_rec(0, "nop", fregs={"f1": _F1, "f2": _F2}),
+            _fp_rec(1, "fadd.s f3,f1,f2", fregs={"f3": _F3}),
+        ]
+        rep = FPVerifier(log).run()
+        assert rep["pass"] is True
+        assert rep["flen"] == 32 and rep["fp_ops"] == 1
+
+    def test_fadd_result_bug_caught(self):
+        from AGENT_H.fp_verifier import FPVerifier
+        log = [
+            _fp_rec(0, "nop", fregs={"f1": _F1, "f2": _F2}),
+            _fp_rec(1, "fadd.s f3,f1,f2,rne", fregs={"f3": "0x40400001"}),
+        ]
+        rep = FPVerifier(log).run()
+        assert rep["pass"] is False
+        assert any(v["check"] == "fp_result" for v in rep["violations"])
+        assert rep["band"] == "CRITICAL"
+
+    def test_nan_boxing_caught(self):
+        from AGENT_H.fp_verifier import FPVerifier
+        log = [
+            _fp_rec(0, "nop", fregs={"f1": "0xffffffff3f800000", "f2": "0xffffffff40000000"}),
+            _fp_rec(1, "fadd.s f3,f1,f2", fregs={"f3": "0x0000000040400000"}),
+        ]
+        rep = FPVerifier(log, flen=64).run()
+        assert any(v["check"] == "fp_nan_boxing" for v in rep["violations"])
+
+    def test_fdiv_by_zero_flag(self):
+        from AGENT_H.fp_verifier import FPVerifier
+        # result correct (+inf) but DZ flag not raised
+        log = [
+            _fp_rec(0, "nop", fregs={"f1": _F1, "f2": "0x00000000"}),
+            _fp_rec(1, "fdiv.s f3,f1,f2,rne", fregs={"f3": _FINF}, csrs={"fflags": "0x0"}),
+        ]
+        rep = FPVerifier(log).run()
+        assert any(v["check"] == "fp_flag_missing" for v in rep["violations"])
+
+    def test_fsgnj_bug_caught(self):
+        from AGENT_H.fp_verifier import FPVerifier
+        # fsgnj.s f3,f1,f2 -> magnitude of f1 (1.0), sign of f2 (-1.0) = -1.0
+        log = [
+            _fp_rec(0, "nop", fregs={"f1": _F1, "f2": _FN1}),
+            _fp_rec(1, "fsgnj.s f3,f1,f2", fregs={"f3": _F1}),   # BUG: should be -1.0
+        ]
+        rep = FPVerifier(log).run()
+        assert any(v["check"] == "fp_sgnj" for v in rep["violations"])
+
+    def test_fmax_passes(self):
+        from AGENT_H.fp_verifier import FPVerifier
+        log = [
+            _fp_rec(0, "nop", fregs={"f1": _F1, "f2": _F2}),
+            _fp_rec(1, "fmax.s f3,f1,f2", fregs={"f3": _F2}),
+        ]
+        assert FPVerifier(log).run()["pass"] is True
+
+    def test_feq_nan_bug_caught(self):
+        from AGENT_H.fp_verifier import FPVerifier
+        log = [
+            _fp_rec(0, "nop", fregs={"f1": _F1, "f2": _FNAN}),
+            _fp_rec(1, "feq.s x5,f1,f2", regs={"x5": "0x1"}),    # BUG: NaN compare must be 0
+        ]
+        rep = FPVerifier(log).run()
+        assert any(v["check"] == "fp_compare" for v in rep["violations"])
+
+    def test_fclass_bug_caught(self):
+        from AGENT_H.fp_verifier import FPVerifier
+        log = [
+            _fp_rec(0, "nop", fregs={"f1": _FINF}),
+            _fp_rec(1, "fclass.s x5,f1", regs={"x5": "0x40"}),   # BUG: +inf is 0x80
+        ]
+        rep = FPVerifier(log).run()
+        assert any(v["check"] == "fp_class" for v in rep["violations"])
+
+    def test_fmv_x_w_bug_caught(self):
+        from AGENT_H.fp_verifier import FPVerifier
+        log = [
+            _fp_rec(0, "nop", fregs={"f1": _F1}),
+            _fp_rec(1, "fmv.x.w x5,f1", regs={"x5": "0x3f800001"}),  # BUG: != f1 bits
+        ]
+        rep = FPVerifier(log).run()
+        assert any(v["check"] == "fp_move" for v in rep["violations"])
+
+    def test_report_schema(self):
+        from AGENT_H.fp_verifier import FPVerifier
+        rep = FPVerifier([]).run()
+        for key in ("schema_version", "agent", "records_checked", "flen",
+                    "fp_ops", "total_violations", "pass", "violations", "band"):
+            assert key in rep, f"Missing key: {key}"
+        assert rep["agent"] == "fp_verifier"
+
+    def test_run_from_manifest(self, tmp_path):
+        from AGENT_H.fp_verifier import run_from_manifest
+        rtl = [
+            _fp_rec(0, "nop", fregs={"f1": _F1, "f2": _F2}),
+            _fp_rec(1, "fadd.s f3,f1,f2", fregs={"f3": _F3}),
+        ]
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        manifest = {
+            "schema_version": "2.1.0", "run_id": "fp-test",
+            "run_dir": str(tmp_path),
+            "outputs": {"rtl_commit_log": "rtl_commit.jsonl"},
+        }
+        mpath = tmp_path / "run_manifest.json"
+        mpath.write_text(json.dumps(manifest, indent=2))
+        rc = run_from_manifest(mpath)
+        assert rc == 0
+        assert (tmp_path / "fp_report.json").exists()
+        assert "fp_report" in json.loads(mpath.read_text())["outputs"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T28 — RV32B Bit-Manipulation Verifier (Zba/Zbb/Zbc/Zbs)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _bm_run(disasm, seed, committed):
+    """Build a 2-record log (seed regs, then the op) and run the verifier."""
+    from AGENT_H.bitmanip_verifier import BitmanipVerifier
+    rd = re.findall(r"x\d+", disasm)[0]
+    log = [
+        {"schema_version": "2.1.0", "seq": 0, "pc": "0x80000000",
+         "disasm": "nop", "regs": seed, "csrs": {}},
+        {"schema_version": "2.1.0", "seq": 1, "pc": "0x80000004",
+         "disasm": disasm, "regs": {rd: committed}, "csrs": {}},
+    ]
+    return BitmanipVerifier(log).run()
+
+
+# (disasm, seed registers, golden result)
+_BM_GOLDEN = [
+    ("sh1add x3,x1,x2", {"x1": "0x3", "x2": "0xa"}, "0x00000010"),
+    ("sh2add x3,x1,x2", {"x1": "0x3", "x2": "0xa"}, "0x00000016"),
+    ("sh3add x3,x1,x2", {"x1": "0x3", "x2": "0xa"}, "0x00000022"),
+    ("andn x3,x1,x2",   {"x1": "0xff", "x2": "0x0f"}, "0x000000f0"),
+    ("orn x3,x1,x2",    {"x1": "0xf0", "x2": "0x0f"}, "0xfffffff0"),
+    ("xnor x3,x1,x2",   {"x1": "0xff", "x2": "0x0f"}, "0xffffff0f"),
+    ("clz x3,x1",       {"x1": "0x00010000"}, "0x0000000f"),
+    ("ctz x3,x1",       {"x1": "0x00010000"}, "0x00000010"),
+    ("cpop x3,x1",      {"x1": "0xff"}, "0x00000008"),
+    ("min x3,x1,x2",    {"x1": "0xffffffff", "x2": "0x1"}, "0xffffffff"),
+    ("minu x3,x1,x2",   {"x1": "0xffffffff", "x2": "0x1"}, "0x00000001"),
+    ("max x3,x1,x2",    {"x1": "0xffffffff", "x2": "0x1"}, "0x00000001"),
+    ("maxu x3,x1,x2",   {"x1": "0xffffffff", "x2": "0x1"}, "0xffffffff"),
+    ("rol x3,x1,x2",    {"x1": "0x80000001", "x2": "0x1"}, "0x00000003"),
+    ("ror x3,x1,x2",    {"x1": "0x3", "x2": "0x1"}, "0x80000001"),
+    ("rori x3,x1,4",    {"x1": "0xf"}, "0xf0000000"),
+    ("orc.b x3,x1",     {"x1": "0x00ff0001"}, "0x00ff00ff"),
+    ("rev8 x3,x1",      {"x1": "0x01020304"}, "0x04030201"),
+    ("sext.b x3,x1",    {"x1": "0xff"}, "0xffffffff"),
+    ("sext.h x3,x1",    {"x1": "0x8000"}, "0xffff8000"),
+    ("zext.h x3,x1",    {"x1": "0xffffffff"}, "0x0000ffff"),
+    ("clmul x3,x1,x2",  {"x1": "0x3", "x2": "0x3"}, "0x00000005"),
+    ("clmulh x3,x1,x2", {"x1": "0x80000000", "x2": "0x2"}, "0x00000001"),
+    ("bset x3,x1,x2",   {"x1": "0x0", "x2": "0x5"}, "0x00000020"),
+    ("bclr x3,x1,x2",   {"x1": "0xff", "x2": "0x0"}, "0x000000fe"),
+    ("bext x3,x1,x2",   {"x1": "0x80", "x2": "0x7"}, "0x00000001"),
+    ("binv x3,x1,x2",   {"x1": "0xf", "x2": "0x0"}, "0x0000000e"),
+    ("bclri x3,x1,3",   {"x1": "0xff"}, "0x000000f7"),
+]
+
+
+class TestBitmanipVerifier:
+    def test_import(self):
+        from AGENT_H import bitmanip_verifier
+        assert hasattr(bitmanip_verifier, "BitmanipVerifier")
+
+    def test_decode(self):
+        from AGENT_H.bitmanip_verifier import decode_bitmanip
+        d = decode_bitmanip("andn x3,x1,x2")
+        assert d.mnem == "andn" and d.kind == "bin" and d.rd == "x3"
+        u = decode_bitmanip("clz x3,x1")
+        assert u.kind == "un" and u.rs1 == "x1"
+        i = decode_bitmanip("rori x3,x1,4")
+        assert i.kind == "imm" and i.imm == 4
+        assert decode_bitmanip("addi x1,x0,1") is None
+
+    @pytest.mark.parametrize("disasm,seed,golden", _BM_GOLDEN)
+    def test_golden_vectors_pass(self, disasm, seed, golden):
+        rep = _bm_run(disasm, seed, golden)
+        assert rep["pass"] is True, f"{disasm} flagged a correct result"
+        assert rep["bitmanip_ops"] == 1
+
+    def test_andn_bug_caught(self):
+        rep = _bm_run("andn x3,x1,x2", {"x1": "0xff", "x2": "0x0f"}, "0x000000f1")
+        assert rep["pass"] is False
+        assert any(v["check"] == "bitmanip_result" for v in rep["violations"])
+        assert rep["band"] == "CRITICAL"
+
+    def test_clz_bug_caught(self):
+        rep = _bm_run("clz x3,x1", {"x1": "0x00010000"}, "0x00000010")  # should be 15
+        assert rep["pass"] is False
+        assert any(v["check"] == "bitmanip_result" for v in rep["violations"])
+
+    def test_report_schema(self):
+        from AGENT_H.bitmanip_verifier import BitmanipVerifier
+        rep = BitmanipVerifier([]).run()
+        for key in ("schema_version", "agent", "records_checked",
+                    "bitmanip_ops", "total_violations", "pass", "violations", "band"):
+            assert key in rep, f"Missing key: {key}"
+        assert rep["agent"] == "bitmanip_verifier"
+
+    def test_run_from_manifest(self, tmp_path):
+        from AGENT_H.bitmanip_verifier import run_from_manifest
+        rtl = [
+            {"schema_version": "2.1.0", "seq": 0, "pc": "0x80000000",
+             "disasm": "nop", "regs": {"x1": "0x3", "x2": "0xa"}, "csrs": {}},
+            {"schema_version": "2.1.0", "seq": 1, "pc": "0x80000004",
+             "disasm": "sh1add x3,x1,x2", "regs": {"x3": "0x00000010"}, "csrs": {}},
+        ]
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        manifest = {
+            "schema_version": "2.1.0", "run_id": "bm-test",
+            "run_dir": str(tmp_path),
+            "outputs": {"rtl_commit_log": "rtl_commit.jsonl"},
+        }
+        mpath = tmp_path / "run_manifest.json"
+        mpath.write_text(json.dumps(manifest, indent=2))
+        rc = run_from_manifest(mpath)
+        assert rc == 0
+        assert (tmp_path / "bitmanip_report.json").exists()
+        assert "bitmanip_report" in json.loads(mpath.read_text())["outputs"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T29 — Privilege & PMP Verifier
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _pv_rec(seq, disasm, priv=None, csrs=None, trap=None, reads=None, writes=None):
+    rec = {
+        "schema_version": "2.1.0",
+        "seq": seq,
+        "pc": f"0x{(0x80000000 + seq * 4):08x}",
+        "disasm": disasm,
+        "regs": {},
+        "csrs": csrs or {},
+    }
+    if priv is not None:
+        rec["priv"] = priv
+    if trap is not None:
+        rec["trap"] = trap
+    if reads is not None:
+        rec["mem_reads"] = reads
+    if writes is not None:
+        rec["mem_writes"] = writes
+    return rec
+
+
+class TestPrivilegeVerifier:
+    def test_import(self):
+        from AGENT_H import privilege_verifier
+        assert hasattr(privilege_verifier, "PrivilegeVerifier")
+
+    def test_parse_priv(self):
+        from AGENT_H.privilege_verifier import parse_priv
+        assert parse_priv({"priv": "M"}) == 3
+        assert parse_priv({"mode": "S"}) == 1
+        assert parse_priv({"privilege": 0}) == 0
+        assert parse_priv({}) is None
+
+    def test_pmp_napot_model(self):
+        from AGENT_H.privilege_verifier import PMPModel
+        m = PMPModel()
+        m.update_from_csrs({"pmpcfg0": "0x18", "pmpaddr0": "0x5ff"})  # NAPOT [0x1000,0x2000)
+        assert m.configured() is True
+        assert m.match(0x1000) is not None
+        assert m.match(0x2000) is None
+        assert m.permitted(0x1000, "r", 0) is False   # no R perm, U-mode
+        assert m.permitted(0x1000, "r", 3) is True     # M-mode bypass (unlocked)
+
+    def test_mret_in_user_illegal(self):
+        from AGENT_H.privilege_verifier import PrivilegeVerifier
+        log = [_pv_rec(0, "mret", priv=0)]   # MRET from U with no trap
+        rep = PrivilegeVerifier(log).run()
+        assert any(v["check"] == "priv_xret_illegal" for v in rep["violations"])
+        assert rep["band"] == "CRITICAL"
+
+    def test_mret_legal_passes(self):
+        from AGENT_H.privilege_verifier import PrivilegeVerifier
+        log = [
+            _pv_rec(0, "nop", priv=3, csrs={"mstatus": "0x00000000"}),  # MPP=U
+            _pv_rec(1, "mret", priv=3),
+            _pv_rec(2, "addi x1,x0,1", priv=0),   # returned to U as MPP said
+        ]
+        assert PrivilegeVerifier(log).run()["pass"] is True
+
+    def test_ecall_cause_bug(self):
+        from AGENT_H.privilege_verifier import PrivilegeVerifier
+        # ECALL from U must raise cause 8; here it raises 11
+        log = [_pv_rec(0, "ecall", priv=0, trap={"cause": 11, "tval": "0x0"})]
+        rep = PrivilegeVerifier(log).run()
+        assert any(v["check"] == "priv_ecall_cause" for v in rep["violations"])
+
+    def test_csr_access_from_user_caught(self):
+        from AGENT_H.privilege_verifier import PrivilegeVerifier
+        # writing mstatus (M-CSR) from U with no illegal trap
+        log = [_pv_rec(0, "csrrw x0,mstatus,x1", priv=0)]
+        rep = PrivilegeVerifier(log).run()
+        assert any(v["check"] == "priv_csr_access" for v in rep["violations"])
+
+    def test_mret_target_mismatch(self):
+        from AGENT_H.privilege_verifier import PrivilegeVerifier
+        log = [
+            _pv_rec(0, "nop", priv=3, csrs={"mstatus": "0x00000000"}),  # MPP=U(0)
+            _pv_rec(1, "mret", priv=3),
+            _pv_rec(2, "addi x1,x0,1", priv=1),   # BUG: returned to S, not U
+        ]
+        rep = PrivilegeVerifier(log).run()
+        assert any(v["check"] == "priv_mret_target" for v in rep["violations"])
+
+    def test_pmp_missing_fault(self):
+        from AGENT_H.privilege_verifier import PrivilegeVerifier
+        log = [
+            _pv_rec(0, "nop", priv=3, csrs={"pmpcfg0": "0x18", "pmpaddr0": "0x5ff"}),
+            # U-mode read of a no-permission region must fault; here it doesn't
+            _pv_rec(1, "lw x1,0(x2)", priv=0, reads=[{"addr": "0x1000", "size": 4}]),
+        ]
+        rep = PrivilegeVerifier(log).run()
+        assert any(v["check"] == "pmp_missing_fault" for v in rep["violations"])
+
+    def test_pmp_permitted_passes(self):
+        from AGENT_H.privilege_verifier import PrivilegeVerifier
+        log = [
+            _pv_rec(0, "nop", priv=3, csrs={"pmpcfg0": "0x19", "pmpaddr0": "0x5ff"}),  # R=1
+            _pv_rec(1, "lw x1,0(x2)", priv=0, reads=[{"addr": "0x1000", "size": 4}]),
+        ]
+        assert PrivilegeVerifier(log).run()["pass"] is True
+
+    def test_report_schema(self):
+        from AGENT_H.privilege_verifier import PrivilegeVerifier
+        rep = PrivilegeVerifier([]).run()
+        for key in ("schema_version", "agent", "records_checked",
+                    "pmp_configured", "total_violations", "pass", "violations", "band"):
+            assert key in rep, f"Missing key: {key}"
+        assert rep["agent"] == "privilege_verifier"
+
+    def test_run_from_manifest(self, tmp_path):
+        from AGENT_H.privilege_verifier import run_from_manifest
+        rtl = [_pv_rec(0, "mret", priv=3, csrs={"mstatus": "0x00001800"})]
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        manifest = {
+            "schema_version": "2.1.0", "run_id": "priv-test",
+            "run_dir": str(tmp_path),
+            "outputs": {"rtl_commit_log": "rtl_commit.jsonl"},
+        }
+        mpath = tmp_path / "run_manifest.json"
+        mpath.write_text(json.dumps(manifest, indent=2))
+        rc = run_from_manifest(mpath)
+        assert (tmp_path / "privilege_report.json").exists()
+        assert "privilege_report" in json.loads(mpath.read_text())["outputs"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T30 — Sv32 Virtual-Memory Verifier
+# ─────────────────────────────────────────────────────────────────────────────
+
+# satp: MODE=Sv32, root page table at physical 0x80000000 (PPN 0x80000)
+_SATP = "0x80080000"
+# 4 KB mapping: VA 0x00001000 -> PA 0x90000000
+#   L1 PTE @ 0x80000000 = pointer to L0 table @ 0x80001000
+#   L0 PTE @ 0x80001004 = leaf -> PPN 0x90000, flags V R W X U A D (0xDF)
+_PT_4K = {"0x80000000": "0x20000401", "0x80001004": "0x240000df"}
+
+
+def _vm_rec(seq, disasm, satp=_SATP, priv=0, reads=None, writes=None, trap=None,
+            mstatus=None, phys_mem=None):
+    csrs = {"satp": satp}
+    if mstatus is not None:
+        csrs["mstatus"] = mstatus
+    rec = {"schema_version": "2.1.0", "seq": seq, "pc": f"0x{0x80000000 + seq*4:08x}",
+           "disasm": disasm, "regs": {}, "csrs": csrs, "priv": priv}
+    if reads is not None:
+        rec["mem_reads"] = reads
+    if writes is not None:
+        rec["mem_writes"] = writes
+    if trap is not None:
+        rec["trap"] = trap
+    if phys_mem is not None:
+        rec["phys_mem"] = phys_mem
+    return rec
+
+
+class TestVMVerifier:
+    # -- golden Sv32 MMU (validated against hand-computed page tables) --------
+    def test_mmu_4kb_translation(self):
+        from AGENT_H.vm_verifier import Sv32MMU
+        pm = {0x80000000: 0x20000401, 0x80001004: 0x240000DF}
+        mmu = Sv32MMU(pm, 0x80080000)
+        assert mmu.enabled is True
+        t = mmu.translate(0x00001000, "load", priv=0)
+        assert t.ok and t.pa == 0x90000000 and t.level == 0
+
+    def test_mmu_superpage(self):
+        from AGENT_H.vm_verifier import Sv32MMU
+        # L1 leaf @ 0x80000004: PPN1=0x100, aligned -> VA 0x00400000 -> PA 0x40000000
+        pm = {0x80000004: 0x100000DF}
+        mmu = Sv32MMU(pm, 0x80080000)
+        t = mmu.translate(0x00400000, "load", priv=0)
+        assert t.ok and t.pa == 0x40000000 and t.level == 1
+
+    def test_mmu_misaligned_superpage(self):
+        from AGENT_H.vm_verifier import Sv32MMU
+        pm = {0x80000004: 0x100004DF}  # PPN[0]!=0 -> misaligned superpage
+        t = Sv32MMU(pm, 0x80080000).translate(0x00400000, "load", priv=0)
+        assert not t.ok and t.cause == 13
+
+    def test_mmu_invalid_pte_faults(self):
+        from AGENT_H.vm_verifier import Sv32MMU
+        pm = {0x80000000: 0x20000401, 0x80001004: 0x240000DE}  # V=0 on leaf
+        t = Sv32MMU(pm, 0x80080000).translate(0x00001000, "load", priv=0)
+        assert not t.ok and t.cause == 13
+
+    def test_mmu_write_without_w_faults(self):
+        from AGENT_H.vm_verifier import Sv32MMU
+        pm = {0x80000000: 0x20000401, 0x80001004: 0x240000DB}  # R X U A D, no W
+        mmu = Sv32MMU(pm, 0x80080000)
+        assert mmu.translate(0x00001000, "load", priv=0).ok is True
+        st = mmu.translate(0x00001000, "store", priv=0)
+        assert not st.ok and st.cause == 15
+
+    def test_mmu_user_page_supervisor_sum(self):
+        from AGENT_H.vm_verifier import Sv32MMU
+        pm = {0x80000000: 0x20000401, 0x80001004: 0x240000DF}  # U=1
+        mmu = Sv32MMU(pm, 0x80080000)
+        assert not mmu.translate(0x1000, "load", priv=1, sum_=False).ok   # S, no SUM
+        assert mmu.translate(0x1000, "load", priv=1, sum_=True).ok        # S, SUM set
+
+    def test_mmu_bare_mode_identity(self):
+        from AGENT_H.vm_verifier import Sv32MMU
+        mmu = Sv32MMU({}, 0x00000000)   # MODE=0 -> Bare
+        assert mmu.enabled is False
+
+    # -- VMVerifier (commit-log checker) -------------------------------------
+    def test_clean_translation_passes(self):
+        from AGENT_H.vm_verifier import VMVerifier
+        log = [_vm_rec(0, "lw x1,0(x2)",
+                       reads=[{"vaddr": "0x1000", "paddr": "0x90000000", "size": 4}])]
+        rep = VMVerifier(log, phys_mem=_PT_4K).run()
+        assert rep["pass"] is True
+        assert rep["sv32_enabled"] is True and rep["translations"] == 1
+
+    def test_translation_bug_caught(self):
+        from AGENT_H.vm_verifier import VMVerifier
+        log = [_vm_rec(0, "lw x1,0(x2)",
+                       reads=[{"vaddr": "0x1000", "paddr": "0x90000004", "size": 4}])]
+        rep = VMVerifier(log, phys_mem=_PT_4K).run()
+        assert rep["pass"] is False
+        assert any(v["check"] == "vm_translation" for v in rep["violations"])
+        assert rep["band"] == "CRITICAL"
+
+    def test_missing_fault_caught(self):
+        from AGENT_H.vm_verifier import VMVerifier
+        pt = {"0x80000000": "0x20000401", "0x80001004": "0x240000de"}  # invalid leaf
+        log = [_vm_rec(0, "lw x1,0(x2)",
+                       reads=[{"vaddr": "0x1000", "size": 4}])]  # no trap
+        rep = VMVerifier(log, phys_mem=pt).run()
+        assert any(v["check"] == "vm_missing_fault" for v in rep["violations"])
+
+    def test_missing_fault_correctly_trapped_passes(self):
+        from AGENT_H.vm_verifier import VMVerifier
+        pt = {"0x80000000": "0x20000401", "0x80001004": "0x240000de"}
+        log = [_vm_rec(0, "lw x1,0(x2)",
+                       reads=[{"vaddr": "0x1000", "size": 4}],
+                       trap={"cause": 13, "tval": "0x1000"})]
+        assert VMVerifier(log, phys_mem=pt).run()["pass"] is True
+
+    def test_spurious_fault_caught(self):
+        from AGENT_H.vm_verifier import VMVerifier
+        log = [_vm_rec(0, "lw x1,0(x2)",
+                       reads=[{"vaddr": "0x1000", "paddr": "0x90000000", "size": 4}],
+                       trap={"cause": 13, "tval": "0x1000"})]   # valid but faulted
+        rep = VMVerifier(log, phys_mem=_PT_4K).run()
+        assert any(v["check"] == "vm_spurious_fault" for v in rep["violations"])
+
+    def test_per_record_phys_mem(self):
+        from AGENT_H.vm_verifier import VMVerifier
+        log = [_vm_rec(0, "lw x1,0(x2)",
+                       reads=[{"vaddr": "0x1000", "paddr": "0x90000000", "size": 4}],
+                       phys_mem=_PT_4K)]
+        assert VMVerifier(log).run()["pass"] is True
+
+    def test_gated_when_not_sv32(self):
+        from AGENT_H.vm_verifier import VMVerifier
+        # MODE=0 satp -> no translation; even a bogus paddr must not flag
+        log = [_vm_rec(0, "lw x1,0(x2)", satp="0x00000000",
+                       reads=[{"vaddr": "0x1000", "paddr": "0xdeadbeef", "size": 4}])]
+        assert VMVerifier(log, phys_mem=_PT_4K).run()["pass"] is True
+
+    def test_gated_in_m_mode(self):
+        from AGENT_H.vm_verifier import VMVerifier
+        log = [_vm_rec(0, "lw x1,0(x2)", priv=3,
+                       reads=[{"vaddr": "0x1000", "paddr": "0xdeadbeef", "size": 4}])]
+        assert VMVerifier(log, phys_mem=_PT_4K).run()["pass"] is True
+
+    def test_robustness_malformed(self):
+        from AGENT_H.vm_verifier import VMVerifier
+        for log in ([], [None, 5, "x"], [{}], [{"csrs": None}]):
+            import copy
+            rep = VMVerifier(copy.deepcopy(log)).run()
+            assert rep["pass"] is True and "band" in rep
+
+    def test_report_schema(self):
+        from AGENT_H.vm_verifier import VMVerifier
+        rep = VMVerifier([]).run()
+        for key in ("schema_version", "agent", "records_checked", "sv32_enabled",
+                    "translations", "total_violations", "pass", "violations", "band"):
+            assert key in rep, f"Missing key: {key}"
+        assert rep["agent"] == "vm_verifier"
+
+    def test_run_from_manifest(self, tmp_path):
+        from AGENT_H.vm_verifier import run_from_manifest
+        rtl = [_vm_rec(0, "lw x1,0(x2)",
+                       reads=[{"vaddr": "0x1000", "paddr": "0x90000000", "size": 4}],
+                       phys_mem=_PT_4K)]
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        manifest = {"schema_version": "2.1.0", "run_id": "vm-test",
+                    "run_dir": str(tmp_path),
+                    "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
+        mpath = tmp_path / "run_manifest.json"
+        mpath.write_text(json.dumps(manifest, indent=2))
+        rc = run_from_manifest(mpath)
+        assert rc == 0
+        assert (tmp_path / "vm_report.json").exists()
+        assert "vm_report" in json.loads(mpath.read_text())["outputs"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T31 — TLB Coherence / sfence.vma Verifier
+# ─────────────────────────────────────────────────────────────────────────────
+
+# base page table: VA 0x1000 -> PA 0x90000000
+_TLB_PT_BASE = {"0x80000000": "0x20000401", "0x80001004": "0x240000df"}
+# remap leaf so the walk now gives VA 0x1000 -> PA 0x91000000
+_TLB_PTE_NEW = {"0x80001004": "0x244000df"}
+
+
+def _tlb_rec(seq, disasm, reads=None, phys_mem=None, satp="0x80080000", priv=0):
+    rec = {"schema_version": "2.1.0", "seq": seq, "pc": f"0x{0x80000000 + seq*4:08x}",
+           "disasm": disasm, "regs": {}, "csrs": {"satp": satp}, "priv": priv}
+    if reads is not None:
+        rec["mem_reads"] = reads
+    if phys_mem is not None:
+        rec["phys_mem"] = phys_mem
+    return rec
+
+
+def _rd(va, pa):
+    return [{"vaddr": va, "paddr": pa, "size": 4}]
+
+
+class TestTLBVerifier:
+    def test_fill_then_permitted_stale_passes(self):
+        from AGENT_H.tlb_verifier import TLBVerifier
+        log = [
+            _tlb_rec(0, "lw x1,0(x2)", reads=_rd("0x1000", "0x90000000"), phys_mem=_TLB_PT_BASE),
+            # PTE changed but no sfence yet -> serving the old PA is legal
+            _tlb_rec(1, "lw x1,0(x2)", reads=_rd("0x1000", "0x90000000"), phys_mem=_TLB_PTE_NEW),
+        ]
+        rep = TLBVerifier(log).run()
+        assert rep["pass"] is True
+        assert rep["stats"]["permitted_stale"] == 1
+
+    def test_stale_after_sfence_caught(self):
+        from AGENT_H.tlb_verifier import TLBVerifier
+        log = [
+            _tlb_rec(0, "lw x1,0(x2)", reads=_rd("0x1000", "0x90000000"), phys_mem=_TLB_PT_BASE),
+            _tlb_rec(1, "sfence.vma", phys_mem=_TLB_PTE_NEW),       # flush-all + remap
+            _tlb_rec(2, "lw x1,0(x2)", reads=_rd("0x1000", "0x90000000")),  # stale!
+        ]
+        rep = TLBVerifier(log).run()
+        assert rep["pass"] is False
+        assert any(v["check"] == "tlb_stale_after_sfence" for v in rep["violations"])
+        assert rep["band"] == "CRITICAL"
+
+    def test_correct_refill_after_sfence_passes(self):
+        from AGENT_H.tlb_verifier import TLBVerifier
+        log = [
+            _tlb_rec(0, "lw x1,0(x2)", reads=_rd("0x1000", "0x90000000"), phys_mem=_TLB_PT_BASE),
+            _tlb_rec(1, "sfence.vma", phys_mem=_TLB_PTE_NEW),
+            _tlb_rec(2, "lw x1,0(x2)", reads=_rd("0x1000", "0x91000000")),  # current
+        ]
+        assert TLBVerifier(log).run()["pass"] is True
+
+    def test_incoherent_translation_caught(self):
+        from AGENT_H.tlb_verifier import TLBVerifier
+        # cold access served a PA that is neither the walk nor any cached entry
+        log = [_tlb_rec(0, "lw x1,0(x2)", reads=_rd("0x1000", "0x80000000"),
+                        phys_mem=_TLB_PT_BASE)]
+        rep = TLBVerifier(log).run()
+        assert rep["pass"] is False
+        assert any(v["check"] == "tlb_incoherent" for v in rep["violations"])
+
+    def test_gated_when_not_sv32(self):
+        from AGENT_H.tlb_verifier import TLBVerifier
+        log = [_tlb_rec(0, "lw x1,0(x2)", reads=_rd("0x1000", "0xdeadbeef"),
+                        phys_mem=_TLB_PT_BASE, satp="0x00000000")]
+        assert TLBVerifier(log).run()["pass"] is True
+
+    def test_robustness_malformed(self):
+        from AGENT_H.tlb_verifier import TLBVerifier
+        import copy
+        for log in ([], [None, 1, "x"], [{}], [{"csrs": None}]):
+            rep = TLBVerifier(copy.deepcopy(log)).run()
+            assert rep["pass"] is True and "band" in rep
+
+    def test_report_schema(self):
+        from AGENT_H.tlb_verifier import TLBVerifier
+        rep = TLBVerifier([]).run()
+        for key in ("schema_version", "agent", "records_checked",
+                    "translations", "total_violations", "pass", "violations", "band"):
+            assert key in rep, f"Missing key: {key}"
+        assert rep["agent"] == "tlb_verifier"
+
+    def test_run_from_manifest(self, tmp_path):
+        from AGENT_H.tlb_verifier import run_from_manifest
+        rtl = [_tlb_rec(0, "lw x1,0(x2)", reads=_rd("0x1000", "0x90000000"),
+                        phys_mem=_TLB_PT_BASE)]
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        manifest = {"schema_version": "2.1.0", "run_id": "tlb-test",
+                    "run_dir": str(tmp_path),
+                    "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
+        mpath = tmp_path / "run_manifest.json"
+        mpath.write_text(json.dumps(manifest, indent=2))
+        rc = run_from_manifest(mpath)
+        assert rc == 0
+        assert (tmp_path / "tlb_report.json").exists()
+        assert "tlb_report" in json.loads(mpath.read_text())["outputs"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Cross-agent robustness & report-schema consistency
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _new_agent_builders():
+    """(name, builder(log) -> verifier) for every T23-T29 commit-log agent."""
+    from AGENT_H.atomics_verifier    import AtomicsVerifier
+    from AGENT_H.csr_verifier        import CSRVerifier
+    from AGENT_H.rvc_verifier        import RVCVerifier
+    from AGENT_H.fp_verifier         import FPVerifier
+    from AGENT_H.bitmanip_verifier   import BitmanipVerifier
+    from AGENT_H.privilege_verifier  import PrivilegeVerifier
+    from AGENT_H.peripheral_verifier import PeripheralVerifier
+    return [
+        ("atomics",    lambda log: AtomicsVerifier(log)),
+        ("csr",        lambda log: CSRVerifier(log)),
+        ("rvc",        lambda log: RVCVerifier(log)),
+        ("fp",         lambda log: FPVerifier(log)),
+        ("bitmanip",   lambda log: BitmanipVerifier(log)),
+        ("privilege",  lambda log: PrivilegeVerifier(log)),
+        ("peripheral", lambda log: PeripheralVerifier(log, "dma")),
+    ]
+
+
+_MALFORMED_LOGS = [
+    [],                                                   # empty
+    [None, 5, "junk", [], 3.14, True],                    # non-dict records
+    [{}],                                                 # empty dict
+    [{"disasm": None, "regs": None, "csrs": None, "pc": None}],  # None fields
+    [{"seq": 0, "disasm": "amoadd.w x1,x2,(x3)"}],        # missing mem fields
+    [{"seq": i} for i in range(300)],                     # bulk, no content
+]
+
+_COMMON_REPORT_KEYS = {
+    "schema_version", "agent", "total_violations",
+    "high_violations", "pass", "violations", "band",
+}
+
+
+class TestRobustness:
+    @pytest.mark.parametrize("name,builder", _new_agent_builders())
+    @pytest.mark.parametrize("log_idx", range(len(_MALFORMED_LOGS)))
+    def test_no_crash_on_malformed_input(self, name, builder, log_idx):
+        import copy
+        rep = builder(copy.deepcopy(_MALFORMED_LOGS[log_idx])).run()
+        assert isinstance(rep, dict)
+        assert _COMMON_REPORT_KEYS <= set(rep), \
+            f"{name} report missing {_COMMON_REPORT_KEYS - set(rep)}"
+        assert isinstance(rep["violations"], list)
+
+    @pytest.mark.parametrize("name,builder", _new_agent_builders())
+    def test_empty_log_passes_cleanly(self, name, builder):
+        rep = builder([]).run()
+        assert rep["pass"] is True
+        assert rep["total_violations"] == 0
+        assert rep["band"] == "CLEAN"
+
+
+class TestReportSchemaConsistency:
+    @pytest.mark.parametrize("name,builder", _new_agent_builders())
+    def test_common_schema(self, name, builder):
+        rep = builder([]).run()
+        assert _COMMON_REPORT_KEYS <= set(rep), \
+            f"{name} missing {_COMMON_REPORT_KEYS - set(rep)}"
+        assert rep["schema_version"] == "2.1.0"
+        assert rep["band"] in ("CLEAN", "MINOR", "DEGRADED", "CRITICAL")
+        assert isinstance(rep["total_violations"], int)
+        assert isinstance(rep["pass"], bool)
+
+
+class TestCrossAgentCleanLog:
+    """A single clean, mixed commit log must pass every commit-log verifier."""
+
+    def _mixed_log(self):
+        return [
+            {"schema_version": "2.1.0", "seq": 0, "pc": "0x80000000",
+             "disasm": "addi x6,x0,5", "regs": {"x6": "0x00000005"}, "csrs": {}, "priv": 3},
+            {"schema_version": "2.1.0", "seq": 1, "pc": "0x80000004",
+             "disasm": "amoadd.w x5,x6,(x10)", "regs": {"x5": "0x00000010"},
+             "csrs": {}, "priv": 3,
+             "mem_reads": [{"addr": "0x00000100", "size": 4, "value": "0x00000010"}],
+             "mem_writes": [{"addr": "0x00000100", "size": 4, "value": "0x00000015"}]},
+            {"schema_version": "2.1.0", "seq": 2, "pc": "0x80000008",
+             "disasm": "csrrw x5,mstatus,x6", "regs": {"x5": "0x00001800"},
+             "csrs": {"mstatus": "0x00000005"}, "priv": 3},
+            {"schema_version": "2.1.0", "seq": 3, "pc": "0x8000000a",
+             "disasm": "c.addi x1,1", "regs": {"x1": "0x1"}, "csrs": {}, "priv": 3},
+            {"schema_version": "2.1.0", "seq": 4, "pc": "0x8000000c",
+             "disasm": "andn x3,x1,x6", "regs": {"x3": "0x00000000"}, "csrs": {}, "priv": 3},
+        ]
+
+    @pytest.mark.parametrize("name,builder", _new_agent_builders())
+    def test_clean_mixed_log_passes(self, name, builder):
+        if name == "peripheral":
+            pytest.skip("peripheral consumes a DUT-specific raw log, not a CPU log")
+        rep = builder(self._mixed_log()).run()
+        assert rep["pass"] is True, \
+            f"{name} flagged a clean mixed log: {rep.get('violations')}"
