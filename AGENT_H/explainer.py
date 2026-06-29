@@ -10,9 +10,9 @@ AVA bug report.  The explanation covers:
   2. Where it went wrong (module + PC)
   3. Why it likely went wrong (causal hypothesis from Agent D / root cause)
   4. How to reproduce it (minimal test from the minimizer)
-  5. What to check next (recommended follow-up actions)
+  5. what we Check next (recomennded follow up actions)
 
-The output is designed for two audiences:
+The output is designed for two audiences:-
   - Hardware designers: technical detail on the failing path
   - Verification managers: plain-English summary for sign-off dashboards
 
