@@ -84,6 +84,12 @@ _bitmanip  = _try_import("AGENT_H.bitmanip_verifier",     "BitmanipVerifier")
 _privilege = _try_import("AGENT_H.privilege_verifier",    "PrivilegeVerifier")
 _vm        = _try_import("AGENT_H.vm_verifier",           "VMVerifier")
 _tlb       = _try_import("AGENT_H.tlb_verifier",          "TLBVerifier")
+_pipeline  = _try_import("AGENT_H.pipeline_verifier",     "PipelineVerifier")
+_cache     = _try_import("AGENT_H.cache_verifier",        "CacheVerifier")
+_bus       = _try_import("AGENT_H.bus_verifier",          "BusVerifier")
+_faultinj  = _try_import("AGENT_H.fault_injector",        "FaultCampaign")
+_rv64      = _try_import("AGENT_H.rv64_verifier",         "RV64Verifier")
+_svmmu     = _try_import("AGENT_H.sv_mmu_verifier",       "SvMMUVerifier")
 _peripheral= _try_import("AGENT_H.peripheral_verifier",   "PeripheralVerifier")
 _security  = _try_import("AGENT_H.security_intel",        "SecurityIntel")
 _economics = _try_import("AGENT_H.economics_engine",      "EconomicsEngine")
@@ -93,7 +99,8 @@ _twin      = _try_import("AGENT_H.digital_twin",          "DigitalTwin")
 EXTENDED_AGENTS_AVAILABLE = any([
     _agent_i, _agent_j, _agent_k, _agent_l,
     _intent, _confidence, _contract, _temporal, _atomics, _csr, _rvc, _fp,
-    _bitmanip, _privilege, _vm, _tlb, _peripheral, _security,
+    _bitmanip, _privilege, _vm, _tlb, _pipeline, _cache, _bus,
+    _faultinj, _rv64, _svmmu, _peripheral, _security,
 ])
 
 # ── Agent F: real Verilator coverage backend ──────────────────────────────────
@@ -2226,6 +2233,136 @@ endclass
                             r.get("total_violations", 0), r.get("band"))
             except Exception as exc:
                 logger.warning("  TLB verifier failed: %s", exc)
+
+        # -- Pipeline & hazard verifier
+        if _pipeline and rtl_log:
+            try:
+                ph = _pipeline.PipelineVerifier(rtl_log, iss_log)
+                r = ph.run()
+                rp = run_dir / "pipeline_report.json"
+                with open(rp, "w") as f:
+                    json.dump(r, f, indent=2)
+                reports["pipeline"] = {
+                    "alu_checked": r.get("alu_checked", 0),
+                    "hazards": r.get("hazards", {}),
+                    "violations": r.get("total_violations", 0),
+                    "band": r.get("band", "CLEAN"),
+                    "pass": r.get("pass", True),
+                }
+                logger.info("  Pipeline: %d ALU checked, hazards=%s, %d violations, band=%s",
+                            r.get("alu_checked", 0), r.get("hazards", {}),
+                            r.get("total_violations", 0), r.get("band"))
+            except Exception as exc:
+                logger.warning("  Pipeline verifier failed: %s", exc)
+
+        # -- Cache subsystem verifier (gated on cache_config + events)
+        if _cache and rtl_log:
+            try:
+                cfg = getattr(semantic_map, "raw", {}).get("cache_config") \
+                    if hasattr(semantic_map, "raw") else None
+                cv = _cache.CacheVerifier(rtl_log, iss_log, config=cfg)
+                r = cv.run()
+                rp = run_dir / "cache_report.json"
+                with open(rp, "w") as f:
+                    json.dump(r, f, indent=2)
+                reports["cache"] = {
+                    "cache_enabled": r.get("cache_enabled", False),
+                    "metrics": r.get("metrics", {}),
+                    "violations": r.get("total_violations", 0),
+                    "band": r.get("band", "CLEAN"),
+                    "pass": r.get("pass", True),
+                }
+                logger.info("  Cache: enabled=%s, %d violations, band=%s",
+                            r.get("cache_enabled", False),
+                            r.get("total_violations", 0), r.get("band"))
+            except Exception as exc:
+                logger.warning("  Cache verifier failed: %s", exc)
+
+        # -- Bus protocol verifier (AXI/AHB/APB; gated on bus transaction events)
+        if _bus and rtl_log:
+            try:
+                bus_txns = _bus._extract_bus(rtl_log)
+                if bus_txns:
+                    bv = _bus.BusVerifier(bus_txns)
+                    r = bv.run()
+                    rp = run_dir / "bus_report.json"
+                    with open(rp, "w") as f:
+                        json.dump(r, f, indent=2)
+                    reports["bus"] = {
+                        "transactions": r.get("transactions", 0),
+                        "violations": r.get("total_violations", 0),
+                        "band": r.get("band", "CLEAN"),
+                        "pass": r.get("pass", True),
+                    }
+                    logger.info("  Bus: %d transactions, %d violations, band=%s",
+                                r.get("transactions", 0),
+                                r.get("total_violations", 0), r.get("band"))
+            except Exception as exc:
+                logger.warning("  Bus verifier failed: %s", exc)
+
+        # -- Fault-injection campaign (measures detection coverage of the panel)
+        if _faultinj and rtl_log:
+            try:
+                fc = _faultinj.FaultCampaign(rtl_log, seed=1)
+                r = fc.run(n=30)
+                rp = run_dir / "fault_report.json"
+                with open(rp, "w") as f:
+                    json.dump(r, f, indent=2)
+                reports["fault_injection"] = {
+                    "faults_injected": r.get("faults_injected", 0),
+                    "detection_rate": r.get("detection_rate"),
+                    "band": r.get("band", "CLEAN"),
+                }
+                logger.info("  Fault injection: %d faults, detection_rate=%s, band=%s",
+                            r.get("faults_injected", 0),
+                            r.get("detection_rate"), r.get("band"))
+            except Exception as exc:
+                logger.warning("  Fault injector failed: %s", exc)
+
+        # -- RV64 datapath verifier (auto-detects RV64; no-op on RV32)
+        if _rv64 and rtl_log:
+            try:
+                rv = _rv64.RV64Verifier(rtl_log, iss_log)
+                r = rv.run()
+                if r.get("rv64_detected"):
+                    rp = run_dir / "rv64_report.json"
+                    with open(rp, "w") as f:
+                        json.dump(r, f, indent=2)
+                    reports["rv64"] = {
+                        "ops_checked": r.get("ops_checked", 0),
+                        "violations": r.get("total_violations", 0),
+                        "band": r.get("band", "CLEAN"),
+                        "pass": r.get("pass", True),
+                    }
+                    logger.info("  RV64: %d ops, %d violations, band=%s",
+                                r.get("ops_checked", 0),
+                                r.get("total_violations", 0), r.get("band"))
+            except Exception as exc:
+                logger.warning("  RV64 verifier failed: %s", exc)
+
+        # -- Sv39/Sv48 virtual-memory verifier (RV64; gated on satp mode)
+        if _svmmu and rtl_log:
+            try:
+                phys_mem = (semantic_map.raw.get("phys_mem")
+                            if hasattr(semantic_map, "raw") else None)
+                sv = _svmmu.SvMMUVerifier(rtl_log, iss_log, phys_mem=phys_mem)
+                r = sv.run()
+                if r.get("sv_enabled"):
+                    rp = run_dir / "sv_mmu_report.json"
+                    with open(rp, "w") as f:
+                        json.dump(r, f, indent=2)
+                    reports["sv_mmu"] = {
+                        "mode": r.get("mode"),
+                        "translations": r.get("translations", 0),
+                        "violations": r.get("total_violations", 0),
+                        "band": r.get("band", "CLEAN"),
+                        "pass": r.get("pass", True),
+                    }
+                    logger.info("  Sv-MMU: mode=%s, %d translations, %d violations, band=%s",
+                                r.get("mode"), r.get("translations", 0),
+                                r.get("total_violations", 0), r.get("band"))
+            except Exception as exc:
+                logger.warning("  Sv-MMU verifier failed: %s", exc)
 
         # -- SoC peripheral protocol verifier (self-gates on dut_class)
         if _peripheral:

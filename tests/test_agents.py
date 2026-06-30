@@ -546,6 +546,12 @@ class TestSchemaFiles:
             "AGENT_H.privilege_verifier",
             "AGENT_H.vm_verifier",
             "AGENT_H.tlb_verifier",
+            "AGENT_H.pipeline_verifier",
+            "AGENT_H.cache_verifier",
+            "AGENT_H.bus_verifier",
+            "AGENT_H.fault_injector",
+            "AGENT_H.rv64_verifier",
+            "AGENT_H.sv_mmu_verifier",
             "AGENT_H.peripheral_verifier",
             "AGENT_H.security_intel",
             "AGENT_H.economics_engine",
@@ -1911,6 +1917,769 @@ class TestTLBVerifier:
         assert rc == 0
         assert (tmp_path / "tlb_report.json").exists()
         assert "tlb_report" in json.loads(mpath.read_text())["outputs"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T32 — Pipeline & Hazard Verifier
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _pv_rec2(seq, disasm, regs=None, pc=None, perf=None):
+    rec = {"schema_version": "2.1.0", "seq": seq,
+           "pc": pc or f"0x{0x80000000 + seq*4:08x}",
+           "disasm": disasm, "regs": regs or {}, "csrs": {}}
+    if perf is not None:
+        rec["perf_counters"] = perf
+    return rec
+
+
+class TestPipelineVerifier:
+    def test_import(self):
+        from AGENT_H import pipeline_verifier
+        assert hasattr(pipeline_verifier, "PipelineVerifier")
+
+    def test_alu_eval_golden(self):
+        from AGENT_H.pipeline_verifier import alu_eval
+        assert alu_eval("add", 5, 3) == 8
+        assert alu_eval("sub", 5, 3) == 2
+        assert alu_eval("and", 0xFF, 0x0F) == 0x0F
+        assert alu_eval("or", 0xF0, 0x0F) == 0xFF
+        assert alu_eval("xor", 0xFF, 0x0F) == 0xF0
+        assert alu_eval("sll", 1, 4) == 16
+        assert alu_eval("srl", 0x80000000, 4) == 0x08000000
+        assert alu_eval("sra", 0x80000000, 4) == 0xF8000000
+        assert alu_eval("slt", 0xFFFFFFFF, 1) == 1     # -1 < 1 signed
+        assert alu_eval("sltu", 0xFFFFFFFF, 1) == 0    # huge > 1 unsigned
+
+    def test_clean_alu_passes(self):
+        from AGENT_H.pipeline_verifier import PipelineVerifier
+        log = [
+            _pv_rec2(0, "addi x5,x0,5", regs={"x5": "0x00000005"}),
+            _pv_rec2(1, "add x6,x5,x0", regs={"x6": "0x00000005"}),
+            _pv_rec2(2, "xori x7,x5,0xff", regs={"x7": "0x000000fa"}),  # 5 ^ 0xff
+        ]
+        rep = PipelineVerifier(log).run()
+        assert rep["pass"] is True
+        assert rep["alu_checked"] == 3
+
+    def test_forwarding_hazard_diagnosed(self):
+        from AGENT_H.pipeline_verifier import PipelineVerifier
+        log = [
+            _pv_rec2(0, "addi x5,x0,5",  regs={"x5": "0x00000005"}),
+            _pv_rec2(1, "addi x5,x0,10", regs={"x5": "0x0000000a"}),   # producer
+            # consumer used the STALE x5 (5) instead of the forwarded 10
+            _pv_rec2(2, "add x6,x5,x0",  regs={"x6": "0x00000005"}),
+        ]
+        rep = PipelineVerifier(log).run()
+        assert rep["pass"] is False
+        v = [x for x in rep["violations"] if x["check"] == "hazard_forwarding"]
+        assert v, "forwarding hazard not diagnosed"
+        assert v[0]["expected"] == "0x0000000a" and v[0]["actual"] == "0x00000005"
+        assert rep["band"] == "CRITICAL"
+
+    def test_generic_alu_mismatch(self):
+        from AGENT_H.pipeline_verifier import PipelineVerifier
+        log = [
+            _pv_rec2(0, "addi x5,x0,5", regs={"x5": "0x00000005"}),
+            _pv_rec2(1, "add x6,x5,x0", regs={"x6": "0x00000063"}),  # 99, unexplained
+        ]
+        rep = PipelineVerifier(log).run()
+        assert any(v["check"] == "alu_result" for v in rep["violations"])
+
+    def test_control_hazard_caught(self):
+        from AGENT_H.pipeline_verifier import PipelineVerifier
+        log = [
+            _pv_rec2(0, "addi x1,x0,0x40", regs={"x1": "0x00000040"}),  # ra
+            _pv_rec2(1, "ret", pc="0x80000004"),
+            _pv_rec2(2, "addi x2,x0,1", pc="0x80000008"),  # should be at 0x40
+        ]
+        rep = PipelineVerifier(log).run()
+        assert any(v["check"] == "control_hazard" for v in rep["violations"])
+
+    def test_control_hazard_clean(self):
+        from AGENT_H.pipeline_verifier import PipelineVerifier
+        log = [
+            _pv_rec2(0, "addi x1,x0,0x40", regs={"x1": "0x00000040"}),
+            _pv_rec2(1, "ret", pc="0x80000004"),
+            _pv_rec2(2, "addi x2,x0,1", pc="0x00000040"),  # correctly redirected
+        ]
+        assert PipelineVerifier(log).run()["pass"] is True
+
+    def test_hazard_inventory(self):
+        from AGENT_H.pipeline_verifier import PipelineVerifier
+        log = [
+            _pv_rec2(0, "addi x5,x0,1", regs={"x5": "0x1"}),
+            _pv_rec2(1, "add x6,x5,x0", regs={"x6": "0x1"}),  # RAW on x5
+        ]
+        rep = PipelineVerifier(log).run()
+        assert rep["hazards"]["raw"] >= 1
+
+    def test_perf_metrics(self):
+        from AGENT_H.pipeline_verifier import PipelineVerifier
+        log = [
+            _pv_rec2(0, "addi x5,x0,1", regs={"x5": "0x1"}, perf={"cycles": 2, "instret": 1}),
+            _pv_rec2(1, "addi x6,x0,2", regs={"x6": "0x2"}, perf={"cycles": 4, "instret": 2}),
+            _pv_rec2(2, "addi x7,x0,3", regs={"x7": "0x3"}, perf={"cycles": 6, "instret": 3}),
+        ]
+        rep = PipelineVerifier(log).run()
+        assert rep["perf"]["cpi"] == 2.0
+        assert rep["perf"]["stall_cycles"] == 3
+
+    def test_robustness_malformed(self):
+        from AGENT_H.pipeline_verifier import PipelineVerifier
+        import copy
+        for log in ([], [None, 1, "x"], [{}], [{"regs": None, "disasm": None}]):
+            rep = PipelineVerifier(copy.deepcopy(log)).run()
+            assert rep["pass"] is True and "band" in rep
+
+    def test_report_schema(self):
+        from AGENT_H.pipeline_verifier import PipelineVerifier
+        rep = PipelineVerifier([]).run()
+        for key in ("schema_version", "agent", "records_checked", "alu_checked",
+                    "hazards", "perf", "total_violations", "pass", "violations", "band"):
+            assert key in rep, f"Missing key: {key}"
+        assert rep["agent"] == "pipeline_verifier"
+
+    def test_run_from_manifest(self, tmp_path):
+        from AGENT_H.pipeline_verifier import run_from_manifest
+        rtl = [
+            _pv_rec2(0, "addi x5,x0,5", regs={"x5": "0x00000005"}),
+            _pv_rec2(1, "add x6,x5,x0", regs={"x6": "0x00000005"}),
+        ]
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        manifest = {"schema_version": "2.1.0", "run_id": "pipe-test",
+                    "run_dir": str(tmp_path),
+                    "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
+        mpath = tmp_path / "run_manifest.json"
+        mpath.write_text(json.dumps(manifest, indent=2))
+        rc = run_from_manifest(mpath)
+        assert rc == 0
+        assert (tmp_path / "pipeline_report.json").exists()
+        assert "pipeline_report" in json.loads(mpath.read_text())["outputs"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T33 — Cache Subsystem Verifier
+# ─────────────────────────────────────────────────────────────────────────────
+
+_CFG2 = {"sets": 1, "ways": 2, "line_size": 16, "policy": "lru", "write_policy": "wb"}
+_CFG1 = {"sets": 1, "ways": 1, "line_size": 16, "policy": "lru", "write_policy": "wb"}
+
+
+def _cache_entry(addr, hit=None, evict=None, wb=None, value=None):
+    e = {"addr": addr}
+    if value is not None:
+        e["value"] = value
+    c = {}
+    if hit is not None:
+        c["hit"] = hit
+    if evict is not None:
+        c["evict_addr"] = evict
+    if wb is not None:
+        c["writeback"] = wb
+    if c:
+        e["cache"] = c
+    return e
+
+
+def _cache_rec(seq, reads=None, writes=None):
+    rec = {"schema_version": "2.1.0", "seq": seq, "pc": f"0x{seq:08x}",
+           "disasm": "lw", "regs": {}, "csrs": {}}
+    if reads is not None:
+        rec["mem_reads"] = reads
+    if writes is not None:
+        rec["mem_writes"] = writes
+    return rec
+
+
+class TestCacheVerifier:
+    def test_import(self):
+        from AGENT_H import cache_verifier
+        assert hasattr(cache_verifier, "CacheVerifier")
+
+    # -- golden cache model --------------------------------------------------
+    def test_model_hit_miss(self):
+        from AGENT_H.cache_verifier import CacheModel
+        m = CacheModel(1, 2, 16, "lru", "wb")
+        assert m.access(0x00, False).hit is False
+        assert m.access(0x10, False).hit is False
+        assert m.access(0x00, False).hit is True   # still resident
+
+    def test_model_lru_eviction(self):
+        from AGENT_H.cache_verifier import CacheModel
+        m = CacheModel(1, 2, 16, "lru", "wb")
+        m.access(0x00, False)
+        m.access(0x10, False)
+        m.access(0x00, False)             # A becomes most-recent
+        r = m.access(0x20, False)         # evict LRU = B (0x10)
+        assert r.hit is False and r.victim_addr == 0x10 and r.writeback is False
+
+    def test_model_dirty_eviction_writeback(self):
+        from AGENT_H.cache_verifier import CacheModel
+        m = CacheModel(1, 1, 16, "lru", "wb")
+        m.access(0x00, True)              # write -> dirty
+        r = m.access(0x10, False)         # evict dirty A
+        assert r.writeback is True and r.victim_addr == 0x00
+
+    # -- checker -------------------------------------------------------------
+    def test_clean_trace_passes(self):
+        from AGENT_H.cache_verifier import CacheVerifier
+        log = [
+            _cache_rec(0, reads=[_cache_entry("0x00", hit=False)]),
+            _cache_rec(1, reads=[_cache_entry("0x10", hit=False)]),
+            _cache_rec(2, reads=[_cache_entry("0x00", hit=True)]),
+            _cache_rec(3, reads=[_cache_entry("0x20", hit=False, evict="0x10", wb=False)]),
+        ]
+        rep = CacheVerifier(log, config=_CFG2).run()
+        assert rep["pass"] is True
+        assert rep["metrics"]["hit_rate"] == 0.25
+
+    def test_hitmiss_bug_caught(self):
+        from AGENT_H.cache_verifier import CacheVerifier
+        log = [
+            _cache_rec(0, reads=[_cache_entry("0x00", hit=False)]),
+            _cache_rec(1, reads=[_cache_entry("0x10", hit=False)]),
+            _cache_rec(2, reads=[_cache_entry("0x00", hit=False)]),  # claims miss; golden hit
+        ]
+        rep = CacheVerifier(log, config=_CFG2).run()
+        assert rep["pass"] is False
+        assert any(v["check"] == "cache_hitmiss" for v in rep["violations"])
+        assert rep["band"] == "CRITICAL"
+
+    def test_eviction_bug_caught(self):
+        from AGENT_H.cache_verifier import CacheVerifier
+        log = [
+            _cache_rec(0, reads=[_cache_entry("0x00", hit=False)]),
+            _cache_rec(1, reads=[_cache_entry("0x10", hit=False)]),
+            _cache_rec(2, reads=[_cache_entry("0x00", hit=True)]),
+            _cache_rec(3, reads=[_cache_entry("0x20", hit=False, evict="0x00")]),  # wrong victim
+        ]
+        rep = CacheVerifier(log, config=_CFG2).run()
+        assert any(v["check"] == "cache_eviction" for v in rep["violations"])
+
+    def test_missing_writeback_caught(self):
+        from AGENT_H.cache_verifier import CacheVerifier
+        log = [
+            _cache_rec(0, writes=[_cache_entry("0x00", hit=False)]),
+            _cache_rec(1, reads=[_cache_entry("0x10", hit=False, evict="0x00", wb=False)]),
+        ]
+        rep = CacheVerifier(log, config=_CFG1).run()
+        assert any(v["check"] == "cache_writeback" for v in rep["violations"])
+
+    def test_line_corruption_caught(self):
+        from AGENT_H.cache_verifier import CacheVerifier
+        log = [
+            _cache_rec(0, writes=[_cache_entry("0x00", hit=False, value="0xaa")]),
+            _cache_rec(1, reads=[_cache_entry("0x00", hit=True, value="0xbb")]),  # stale
+        ]
+        rep = CacheVerifier(log, config=_CFG1).run()
+        assert any(v["check"] == "cache_data" for v in rep["violations"])
+
+    def test_gated_without_config(self):
+        from AGENT_H.cache_verifier import CacheVerifier
+        log = [_cache_rec(0, reads=[_cache_entry("0x00", hit=True)])]  # bogus
+        rep = CacheVerifier(log, config=None).run()
+        assert rep["pass"] is True and rep["cache_enabled"] is False
+
+    def test_gated_nondeterministic_policy(self):
+        from AGENT_H.cache_verifier import CacheVerifier
+        log = [_cache_rec(0, reads=[_cache_entry("0x00", hit=True)])]
+        cfg = {"sets": 1, "ways": 2, "line_size": 16, "policy": "random"}
+        assert CacheVerifier(log, config=cfg).run()["cache_enabled"] is False
+
+    def test_robustness_malformed(self):
+        from AGENT_H.cache_verifier import CacheVerifier
+        import copy
+        for log in ([], [None, 1, "x"], [{}], [{"mem_reads": None}]):
+            rep = CacheVerifier(copy.deepcopy(log), config=_CFG2).run()
+            assert rep["pass"] is True and "band" in rep
+
+    def test_report_schema(self):
+        from AGENT_H.cache_verifier import CacheVerifier
+        rep = CacheVerifier([], config=_CFG2).run()
+        for key in ("schema_version", "agent", "records_checked", "cache_enabled",
+                    "metrics", "total_violations", "pass", "violations", "band"):
+            assert key in rep, f"Missing key: {key}"
+        assert rep["agent"] == "cache_verifier"
+
+    def test_run_from_manifest(self, tmp_path):
+        from AGENT_H.cache_verifier import run_from_manifest
+        rtl = [
+            _cache_rec(0, reads=[_cache_entry("0x00", hit=False)]),
+            _cache_rec(1, reads=[_cache_entry("0x00", hit=True)]),
+        ]
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        manifest = {"schema_version": "2.1.0", "run_id": "cache-test",
+                    "run_dir": str(tmp_path), "cache_config": _CFG2,
+                    "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
+        mpath = tmp_path / "run_manifest.json"
+        mpath.write_text(json.dumps(manifest, indent=2))
+        rc = run_from_manifest(mpath)
+        assert rc == 0
+        assert (tmp_path / "cache_report.json").exists()
+        assert "cache_report" in json.loads(mpath.read_text())["outputs"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T34 — Bus Protocol Verifier (AXI / AHB / APB)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _axi_incr(addr=0x1000, length=3, size=2, resp="okay", beats=None):
+    return {"protocol": "axi4", "txn": "write", "addr": hex(addr),
+            "len": length, "size": size, "burst": "incr",
+            "beats": beats, "resp": resp}
+
+
+def _incr_beats(addr=0x1000, n=4, step=4):
+    return [{"addr": hex(addr + i * step), "last": (i == n - 1)} for i in range(n)]
+
+
+class TestBusVerifier:
+    def test_import(self):
+        from AGENT_H import bus_verifier
+        assert hasattr(bus_verifier, "BusVerifier")
+
+    def test_expected_beats_incr(self):
+        from AGENT_H.bus_verifier import axi_expected_beats
+        assert axi_expected_beats(0x1000, 3, 2, "incr") == [
+            (0x1000, False), (0x1004, False), (0x1008, False), (0x100c, True)]
+
+    def test_expected_beats_fixed(self):
+        from AGENT_H.bus_verifier import axi_expected_beats
+        assert axi_expected_beats(0x1000, 2, 2, "fixed") == [
+            (0x1000, False), (0x1000, False), (0x1000, True)]
+
+    def test_expected_beats_wrap(self):
+        from AGENT_H.bus_verifier import axi_expected_beats
+        # start mid-region: wraps at the 16-byte boundary 0x1000
+        assert axi_expected_beats(0x1008, 3, 2, "wrap") == [
+            (0x1008, False), (0x100c, False), (0x1000, False), (0x1004, True)]
+
+    def test_clean_incr_passes(self):
+        from AGENT_H.bus_verifier import BusVerifier
+        txn = _axi_incr(beats=_incr_beats())
+        rep = BusVerifier([txn]).run()
+        assert rep["pass"] is True
+        assert rep["metrics"]["beats"] == 4
+
+    def test_burst_length_bug(self):
+        from AGENT_H.bus_verifier import BusVerifier
+        txn = _axi_incr(length=3, beats=_incr_beats(n=3))  # 3 beats but AxLEN=3 ⇒ 4
+        rep = BusVerifier([txn]).run()
+        assert rep["pass"] is False
+        assert any(v["check"] == "bus_burst_length" for v in rep["violations"])
+        assert rep["band"] == "CRITICAL"
+
+    def test_beat_addr_bug(self):
+        from AGENT_H.bus_verifier import BusVerifier
+        beats = _incr_beats()
+        beats[1]["addr"] = "0x1010"   # should be 0x1004
+        rep = BusVerifier([_axi_incr(beats=beats)]).run()
+        assert any(v["check"] == "bus_beat_addr" for v in rep["violations"])
+
+    def test_wlast_bug(self):
+        from AGENT_H.bus_verifier import BusVerifier
+        beats = _incr_beats()
+        beats[2]["last"] = True       # premature LAST
+        beats[3]["last"] = False
+        rep = BusVerifier([_axi_incr(beats=beats)]).run()
+        assert any(v["check"] == "bus_wlast" for v in rep["violations"])
+
+    def test_4kb_boundary(self):
+        from AGENT_H.bus_verifier import BusVerifier
+        txn = _axi_incr(addr=0xFF8, length=3, size=2)  # 0xFF8..0x1007 crosses 0x1000
+        rep = BusVerifier([txn]).run()
+        assert any(v["check"] == "bus_4kb_boundary" for v in rep["violations"])
+
+    def test_wrap_invalid(self):
+        from AGENT_H.bus_verifier import BusVerifier
+        txn = {"protocol": "axi4", "addr": "0x1000", "len": 2, "size": 2, "burst": "wrap"}
+        rep = BusVerifier([txn]).run()
+        assert any(v["check"] == "bus_wrap_invalid" for v in rep["violations"])
+
+    def test_invalid_resp(self):
+        from AGENT_H.bus_verifier import BusVerifier
+        txn = _axi_incr(beats=_incr_beats(), resp="bogus")
+        rep = BusVerifier([txn]).run()
+        assert any(v["check"] == "bus_resp" for v in rep["violations"])
+
+    def test_apb_single_passes(self):
+        from AGENT_H.bus_verifier import BusVerifier
+        txn = {"protocol": "apb", "txn": "read", "addr": "0x4000",
+               "len": 0, "size": 2, "burst": "incr",
+               "beats": [{"addr": "0x4000", "last": True}], "resp": "okay"}
+        assert BusVerifier([txn]).run()["pass"] is True
+
+    def test_robustness_malformed(self):
+        from AGENT_H.bus_verifier import BusVerifier
+        import copy
+        for txns in ([], [None, 1, "x"], [{}], [{"protocol": None}]):
+            rep = BusVerifier(copy.deepcopy(txns)).run()
+            assert rep["pass"] is True and "band" in rep
+
+    def test_report_schema(self):
+        from AGENT_H.bus_verifier import BusVerifier
+        rep = BusVerifier([]).run()
+        for key in ("schema_version", "agent", "transactions",
+                    "metrics", "total_violations", "pass", "violations", "band"):
+            assert key in rep, f"Missing key: {key}"
+        assert rep["agent"] == "bus_verifier"
+
+    def test_run_from_manifest(self, tmp_path):
+        from AGENT_H.bus_verifier import run_from_manifest
+        # transactions embedded in the commit log via the "bus" field
+        rtl = [{"schema_version": "2.1.0", "seq": 0, "pc": "0x0", "disasm": "sw",
+                "regs": {}, "csrs": {}, "bus": _axi_incr(beats=_incr_beats())}]
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        manifest = {"schema_version": "2.1.0", "run_id": "bus-test",
+                    "run_dir": str(tmp_path),
+                    "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
+        mpath = tmp_path / "run_manifest.json"
+        mpath.write_text(json.dumps(manifest, indent=2))
+        rc = run_from_manifest(mpath)
+        assert rc == 0
+        assert (tmp_path / "bus_report.json").exists()
+        assert "bus_report" in json.loads(mpath.read_text())["outputs"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T35 — Fault-Injection Campaign Engine
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _alu_golden_log():
+    # a clean ALU trace the pipeline verifier passes as-is
+    return [
+        {"schema_version": "2.1.0", "seq": 0, "pc": "0x80000000",
+         "disasm": "addi x5,x0,5", "regs": {"x5": "0x00000005"}, "csrs": {}},
+        {"schema_version": "2.1.0", "seq": 1, "pc": "0x80000004",
+         "disasm": "add x6,x5,x0", "regs": {"x6": "0x00000005"}, "csrs": {}},
+        {"schema_version": "2.1.0", "seq": 2, "pc": "0x80000008",
+         "disasm": "xori x7,x5,0xff", "regs": {"x7": "0x000000fa"}, "csrs": {}},
+    ]
+
+
+class TestFaultInjector:
+    def test_import(self):
+        from AGENT_H import fault_injector
+        assert hasattr(fault_injector, "FaultCampaign")
+
+    def test_inject_register_corruption(self):
+        from AGENT_H.fault_injector import inject_fault, Fault, REGISTER_CORRUPTION
+        log = _alu_golden_log()
+        f = Fault(REGISTER_CORRUPTION, seq=1, target="reg", reg="x6")
+        faulted = inject_fault(log, f)
+        assert faulted[1]["regs"]["x6"] != "0x00000005"
+        assert f.old == 5 and f.new != 5
+        assert log[1]["regs"]["x6"] == "0x00000005"   # original untouched
+
+    def test_inject_bit_flip(self):
+        from AGENT_H.fault_injector import inject_fault, Fault, BIT_FLIP
+        f = Fault(BIT_FLIP, seq=1, target="reg", reg="x6", bit=1)
+        faulted = inject_fault(_alu_golden_log(), f)
+        assert int(faulted[1]["regs"]["x6"], 16) == (5 ^ (1 << 1))  # 5 -> 7
+
+    def test_register_fault_detected(self):
+        from AGENT_H.fault_injector import inject_fault, Fault, REGISTER_CORRUPTION
+        from AGENT_H.pipeline_verifier import PipelineVerifier
+        f = Fault(REGISTER_CORRUPTION, seq=1, target="reg", reg="x6")
+        faulted = inject_fault(_alu_golden_log(), f)
+        assert PipelineVerifier(faulted).run()["pass"] is False
+
+    def test_campaign_high_detection_for_register_faults(self):
+        from AGENT_H.fault_injector import FaultCampaign, REGISTER_CORRUPTION
+        rep = FaultCampaign(_alu_golden_log(), models=[REGISTER_CORRUPTION],
+                            seed=1).run(n=20)
+        assert rep["detection_rate"] == 1.0
+        assert rep["per_model"][REGISTER_CORRUPTION]["rate"] == 1.0
+        assert rep["band"] == "VERIFIED"
+
+    def test_campaign_reports_blind_spot(self):
+        from AGENT_H.fault_injector import FaultCampaign, PC_CORRUPTION
+        # the panel has no PC/control checker for plain ALU ops -> undetected
+        rep = FaultCampaign(_alu_golden_log(), models=[PC_CORRUPTION], seed=2).run(n=10)
+        assert rep["detection_rate"] == 0.0
+        assert len(rep["undetected"]) > 0
+
+    def test_campaign_deterministic(self):
+        from AGENT_H.fault_injector import FaultCampaign
+        a = FaultCampaign(_alu_golden_log(), seed=7).run(n=15)
+        b = FaultCampaign(_alu_golden_log(), seed=7).run(n=15)
+        assert a["faults_injected"] == b["faults_injected"]
+        assert a["detection_rate"] == b["detection_rate"]
+
+    def test_robustness_malformed(self):
+        from AGENT_H.fault_injector import FaultCampaign
+        import copy
+        for log in ([], [None, 1, "x"], [{}]):
+            rep = FaultCampaign(copy.deepcopy(log), seed=1).run(n=5)
+            assert rep["pass"] is True and "detection_rate" in rep
+
+    def test_report_schema(self):
+        from AGENT_H.fault_injector import FaultCampaign
+        rep = FaultCampaign(_alu_golden_log(), seed=0).run(n=5)
+        for key in ("schema_version", "agent", "golden_records", "faults_injected",
+                    "detection_rate", "fault_coverage", "per_model", "undetected",
+                    "band", "pass"):
+            assert key in rep, f"Missing key: {key}"
+        assert rep["agent"] == "fault_injector"
+
+    def test_run_from_manifest(self, tmp_path):
+        from AGENT_H.fault_injector import run_from_manifest
+        rtl = _alu_golden_log()
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        manifest = {"schema_version": "2.1.0", "run_id": "fi-test",
+                    "run_dir": str(tmp_path),
+                    "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
+        mpath = tmp_path / "run_manifest.json"
+        mpath.write_text(json.dumps(manifest, indent=2))
+        rc = run_from_manifest(mpath, n=10)
+        assert rc == 0
+        assert (tmp_path / "fault_report.json").exists()
+        assert "fault_report" in json.loads(mpath.read_text())["outputs"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T36 — RV64 Datapath Verifier (XLEN-64 widening)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _rv64_rec(seq, disasm, regs):
+    return {"schema_version": "2.1.0", "seq": seq, "pc": f"0x{0x80000000 + seq*4:08x}",
+            "disasm": disasm, "regs": regs, "csrs": {}}
+
+
+class TestRV64Verifier:
+    def test_import(self):
+        from AGENT_H import rv64_verifier
+        assert hasattr(rv64_verifier, "RV64Verifier")
+
+    def test_golden_helpers(self):
+        from AGENT_H.rv64_verifier import sext32, alu64, aluw
+        assert sext32(0x7FFFFFFF) == 0x7FFFFFFF
+        assert sext32(0x80000000) == 0xFFFFFFFF80000000
+        assert alu64("add", 0x100000000, 1) == 0x100000001       # no 32-bit truncation
+        assert alu64("sll", 1, 32) == 0x100000000                # 64-bit shift
+        assert aluw("addw", 0xFFFFFFFF, 1) == 0                   # 32-bit wrap, sext 0
+        assert aluw("subw", 0, 1) == 0xFFFFFFFFFFFFFFFF          # -1 sign-extended
+        assert aluw("sraw", 0x80000000, 4) == 0xFFFFFFFFF8000000  # arith shift + sext
+
+    def test_clean_rv64_passes(self):
+        from AGENT_H.rv64_verifier import RV64Verifier
+        log = [
+            _rv64_rec(0, "addiw x5,x0,5", {"x5": "0x5"}),
+            _rv64_rec(1, "addw x6,x5,x5", {"x6": "0xa"}),
+        ]
+        rep = RV64Verifier(log).run()
+        assert rep["rv64_detected"] is True and rep["pass"] is True
+        assert rep["stats"]["word_ops"] == 2
+
+    def test_word_sext_bug_diagnosed(self):
+        from AGENT_H.rv64_verifier import RV64Verifier
+        log = [
+            _rv64_rec(0, "addiw x5,x0,5", {"x5": "0x5"}),
+            # slliw 5<<31 = 0x80000000 -> must sign-extend to 0xFFFFFFFF80000000
+            _rv64_rec(1, "slliw x6,x5,31", {"x6": "0x0000000080000000"}),
+        ]
+        rep = RV64Verifier(log).run()
+        assert rep["pass"] is False
+        v = [x for x in rep["violations"] if x["check"] == "rv64_word_sext"]
+        assert v and v[0]["expected"] == "0xffffffff80000000"
+        assert rep["band"] == "CRITICAL"
+
+    def test_64bit_result_bug(self):
+        from AGENT_H.rv64_verifier import RV64Verifier
+        log = [
+            _rv64_rec(0, "addi x5,x0,1", {"x5": "0x1"}),
+            _rv64_rec(1, "slli x6,x5,32", {"x6": "0x1"}),   # truncated (RV32 behaviour)
+        ]
+        rep = RV64Verifier(log, force=True).run()
+        assert any(v["check"] == "rv64_result" for v in rep["violations"])
+
+    def test_rv32_trace_is_noop(self):
+        from AGENT_H.rv64_verifier import RV64Verifier
+        # no W-op, no 64-bit value -> not RV64 -> agent stays out even on a wrong result
+        log = [_rv64_rec(0, "addi x5,x0,5", {"x5": "0x99"})]
+        rep = RV64Verifier(log).run()
+        assert rep["rv64_detected"] is False and rep["pass"] is True
+
+    def test_reserved_shamt(self):
+        from AGENT_H.rv64_verifier import RV64Verifier
+        log = [
+            _rv64_rec(0, "addiw x5,x0,5", {"x5": "0x5"}),
+            _rv64_rec(1, "slliw x6,x5,40", {"x6": "0x0"}),   # shamt > 31 reserved
+        ]
+        rep = RV64Verifier(log).run()
+        assert any(v["check"] == "rv64_shamt" for v in rep["violations"])
+
+    def test_robustness_malformed(self):
+        from AGENT_H.rv64_verifier import RV64Verifier
+        import copy
+        for log in ([], [None, 1, "x"], [{}], [{"disasm": None, "regs": None}]):
+            rep = RV64Verifier(copy.deepcopy(log)).run()
+            assert rep["pass"] is True and "band" in rep
+
+    def test_report_schema(self):
+        from AGENT_H.rv64_verifier import RV64Verifier
+        rep = RV64Verifier([]).run()
+        for key in ("schema_version", "agent", "records_checked", "rv64_detected",
+                    "ops_checked", "total_violations", "pass", "violations", "band"):
+            assert key in rep, f"Missing key: {key}"
+        assert rep["agent"] == "rv64_verifier"
+
+    def test_run_from_manifest(self, tmp_path):
+        from AGENT_H.rv64_verifier import run_from_manifest
+        rtl = [
+            _rv64_rec(0, "addiw x5,x0,5", {"x5": "0x5"}),
+            _rv64_rec(1, "addw x6,x5,x5", {"x6": "0xa"}),
+        ]
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        manifest = {"schema_version": "2.1.0", "run_id": "rv64-test",
+                    "run_dir": str(tmp_path),
+                    "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
+        mpath = tmp_path / "run_manifest.json"
+        mpath.write_text(json.dumps(manifest, indent=2))
+        rc = run_from_manifest(mpath)
+        assert rc == 0
+        assert (tmp_path / "rv64_report.json").exists()
+        assert "rv64_report" in json.loads(mpath.read_text())["outputs"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T37 — Sv39 / Sv48 Virtual-Memory Verifier (RV64 paging)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# satp: MODE=Sv39 (8), root page table at physical 0x80000000 (PPN 0x80000)
+_SATP39 = "0x8000000000080000"
+# 3-level table mapping VA 0x1000 -> PA 0x90000000 (4 KB page)
+#   L2 @ 0x80000000 -> L1 @ 0x80001000 -> L0 @ 0x80002008 (leaf, RWXUAD)
+_PT_SV39_4K = {
+    "0x80000000": "0x20000401",   # -> ppn 0x80001
+    "0x80001000": "0x20000801",   # -> ppn 0x80002
+    "0x80002008": "0x240000df",   # leaf -> ppn 0x90000
+}
+
+
+def _sv_rec(seq, disasm, reads=None, satp=_SATP39, priv=0, trap=None, phys_mem=None):
+    rec = {"schema_version": "2.1.0", "seq": seq, "pc": f"0x{0x80000000 + seq*4:08x}",
+           "disasm": disasm, "regs": {}, "csrs": {"satp": satp}, "priv": priv}
+    if reads is not None:
+        rec["mem_reads"] = reads
+    if trap is not None:
+        rec["trap"] = trap
+    if phys_mem is not None:
+        rec["phys_mem"] = phys_mem
+    return rec
+
+
+class TestSvMMUVerifier:
+    # -- mode detection ------------------------------------------------------
+    def test_mode_detection(self):
+        from AGENT_H.sv_mmu_verifier import satp_mode
+        assert satp_mode(0x8000000000080000) == "sv39"
+        assert satp_mode(0x9000000000080000) == "sv48"
+        assert satp_mode(0x0) == "bare"
+
+    # -- golden Sv39 walker --------------------------------------------------
+    def test_sv39_4kb(self):
+        from AGENT_H.sv_mmu_verifier import SvMMU
+        pm = {0x80000000: 0x20000401, 0x80001000: 0x20000801, 0x80002008: 0x240000DF}
+        t = SvMMU(pm, 0x8000000000080000).translate(0x1000, "load", 0)
+        assert t.ok and t.pa == 0x90000000 and t.level == 0
+
+    def test_sv39_2mb_superpage(self):
+        from AGENT_H.sv_mmu_verifier import SvMMU
+        # L1 leaf @ 0x80001008 -> 2 MB page, PA 0x40000000
+        pm = {0x80000000: 0x20000401, 0x80001008: 0x100000DF}
+        t = SvMMU(pm, 0x8000000000080000).translate(0x200000, "load", 0)
+        assert t.ok and t.pa == 0x40000000 and t.level == 1
+
+    def test_sv39_1gb_superpage(self):
+        from AGENT_H.sv_mmu_verifier import SvMMU
+        # L2 leaf @ 0x80000008 -> 1 GB page, PA 0xC0000000
+        pm = {0x80000008: 0x300000DF}
+        t = SvMMU(pm, 0x8000000000080000).translate(0x40000000, "load", 0)
+        assert t.ok and t.pa == 0xC0000000 and t.level == 2
+
+    def test_sv39_misaligned_superpage(self):
+        from AGENT_H.sv_mmu_verifier import SvMMU
+        # L2 leaf with non-zero low PPN bits -> misaligned 1 GB superpage
+        pm = {0x80000008: 0x300010DF}
+        t = SvMMU(pm, 0x8000000000080000).translate(0x40000000, "load", 0)
+        assert not t.ok and t.cause == 13
+
+    def test_sv39_invalid_pte(self):
+        from AGENT_H.sv_mmu_verifier import SvMMU
+        pm = {0x80000000: 0x20000401, 0x80001000: 0x20000801, 0x80002008: 0x240000DE}
+        t = SvMMU(pm, 0x8000000000080000).translate(0x1000, "load", 0)
+        assert not t.ok and t.cause == 13
+
+    def test_sv39_noncanonical_va(self):
+        from AGENT_H.sv_mmu_verifier import SvMMU
+        pm = {0x80000000: 0x20000401}
+        t = SvMMU(pm, 0x8000000000080000).translate(1 << 39, "load", 0)
+        assert not t.ok and "non-canonical" in t.reason
+
+    # -- checker -------------------------------------------------------------
+    def test_clean_translation_passes(self):
+        from AGENT_H.sv_mmu_verifier import SvMMUVerifier
+        log = [_sv_rec(0, "ld x1,0(x2)",
+                       reads=[{"vaddr": "0x1000", "paddr": "0x90000000", "size": 8}])]
+        rep = SvMMUVerifier(log, phys_mem=_PT_SV39_4K).run()
+        assert rep["pass"] is True
+        assert rep["mode"] == "sv39" and rep["translations"] == 1
+
+    def test_translation_bug_caught(self):
+        from AGENT_H.sv_mmu_verifier import SvMMUVerifier
+        log = [_sv_rec(0, "ld x1,0(x2)",
+                       reads=[{"vaddr": "0x1000", "paddr": "0x90000004", "size": 8}])]
+        rep = SvMMUVerifier(log, phys_mem=_PT_SV39_4K).run()
+        assert rep["pass"] is False
+        assert any(v["check"] == "sv_translation" for v in rep["violations"])
+        assert rep["band"] == "CRITICAL"
+
+    def test_missing_fault_caught(self):
+        from AGENT_H.sv_mmu_verifier import SvMMUVerifier
+        pt = dict(_PT_SV39_4K); pt["0x80002008"] = "0x240000de"  # invalid leaf
+        log = [_sv_rec(0, "ld x1,0(x2)", reads=[{"vaddr": "0x1000", "size": 8}])]
+        rep = SvMMUVerifier(log, phys_mem=pt).run()
+        assert any(v["check"] == "sv_missing_fault" for v in rep["violations"])
+
+    def test_gated_bare_mode(self):
+        from AGENT_H.sv_mmu_verifier import SvMMUVerifier
+        log = [_sv_rec(0, "ld x1,0(x2)", satp="0x0",
+                       reads=[{"vaddr": "0x1000", "paddr": "0xdead", "size": 8}])]
+        rep = SvMMUVerifier(log, phys_mem=_PT_SV39_4K).run()
+        assert rep["pass"] is True and rep["sv_enabled"] is False
+
+    def test_robustness_malformed(self):
+        from AGENT_H.sv_mmu_verifier import SvMMUVerifier
+        import copy
+        for log in ([], [None, 1, "x"], [{}], [{"csrs": None}]):
+            rep = SvMMUVerifier(copy.deepcopy(log)).run()
+            assert rep["pass"] is True and "band" in rep
+
+    def test_report_schema(self):
+        from AGENT_H.sv_mmu_verifier import SvMMUVerifier
+        rep = SvMMUVerifier([]).run()
+        for key in ("schema_version", "agent", "records_checked", "mode",
+                    "sv_enabled", "translations", "total_violations", "pass",
+                    "violations", "band"):
+            assert key in rep, f"Missing key: {key}"
+        assert rep["agent"] == "sv_mmu_verifier"
+
+    def test_run_from_manifest(self, tmp_path):
+        from AGENT_H.sv_mmu_verifier import run_from_manifest
+        rtl = [_sv_rec(0, "ld x1,0(x2)",
+                       reads=[{"vaddr": "0x1000", "paddr": "0x90000000", "size": 8}],
+                       phys_mem=_PT_SV39_4K)]
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        manifest = {"schema_version": "2.1.0", "run_id": "sv-test",
+                    "run_dir": str(tmp_path),
+                    "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
+        mpath = tmp_path / "run_manifest.json"
+        mpath.write_text(json.dumps(manifest, indent=2))
+        rc = run_from_manifest(mpath)
+        assert rc == 0
+        assert (tmp_path / "sv_mmu_report.json").exists()
+        assert "sv_mmu_report" in json.loads(mpath.read_text())["outputs"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────

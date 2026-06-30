@@ -4,6 +4,189 @@ All notable changes to AVA — Autonomic Verification Agent are documented here.
 
 ---
 
+## [2.15.0] — 2026-06-30
+
+### Added — RV64 widening (phase 2)
+- **T37 — Sv39 / Sv48 Virtual-Memory Verifier** (`AGENT_H/sv_mmu_verifier.py`).
+  The marquee Linux-class unlock: generalises the golden page-table walker to
+  the RV64 paging modes.
+  - `SvMMU` — one mode-parameterised walker for **Sv39** (3-level, 39-bit VA)
+    and **Sv48** (4-level, 48-bit VA): 8-byte PTEs, 64-bit satp/VA/PA, 4 KB /
+    2 MB / 1 GB (and 512 GB) superpages with alignment checking, the
+    non-canonical-address rule (VA high bits must sign-extend the top VA bit),
+    and the R/W/X + U + SUM + MXR permission model.
+  - `SvMMUVerifier` checks the DUT-served translation: `sv_translation`,
+    `sv_missing_fault`, `sv_spurious_fault`.
+  - Gated on **Sv39/Sv48** only, so it never double-covers the Sv32
+    `vm_verifier`; conservative gating otherwise (page-table image + S/U
+    privilege + virtual-address access). Clean no-op on bare-metal / Sv32 / M.
+  - `satp_mode()`, `SvMMU.translate()`, `SvMMUVerifier.run()` (schema v2.1.0),
+    `run_from_manifest()`.
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_svmmu` import,
+  `EXTENDED_AGENTS_AVAILABLE`, per-run `sv_mmu_report.json` when Sv39/Sv48 is
+  detected).
+- 14 new pytest cases in `tests/test_agents.py::TestSvMMUVerifier`
+  (mode detection; Sv39 4 KB / 2 MB / 1 GB walks; misaligned superpage; invalid
+  PTE; non-canonical VA; checker bugs; gating; robustness; manifest).
+
+### Verified
+- Suite: **319 passed, 1 skipped**; `compileall` clean; orchestrator self-test
+  passes with all fifteen new agents wired.
+
+---
+
+## [2.14.0] — 2026-06-30
+
+### Added — RV64 widening (phase 1)
+- **T36 — RV64 Datapath Verifier** (`AGENT_H/rv64_verifier.py`). The first agent
+  of the XLEN-64 widening. Verifies the defining RV64 semantics:
+  - 64-bit `alu64()` golden ALU (full-width add/sub/logic/shift/compare,
+    6-bit shift amounts).
+  - W-suffix word ops `aluw()` (`addw/subw/sllw/srlw/sraw` + immediate forms):
+    32-bit operation with mandatory **sign-extension to 64 bits**.
+  - `rv64_word_sext` — explainable diagnosis of the classic "forgot to
+    sign-extend" bug (low 32 bits correct, upper 32 not the sign-extension of
+    bit 31); `rv64_word_op`, `rv64_result`, `rv64_shamt` (reserved W-shift
+    shamt > 31).
+  - **Auto-detects RV64** (a W-op or a >32-bit register value); a clean no-op on
+    RV32 traces, so the existing suite is unaffected and no schema change is
+    needed. `force=True` overrides detection.
+  - `RV64Verifier.run()` (schema v2.1.0 report with band), `run_from_manifest()`.
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_rv64` import,
+  `EXTENDED_AGENTS_AVAILABLE`, per-run `rv64_report.json` when RV64 is detected).
+- 10 new pytest cases in `tests/test_agents.py::TestRV64Verifier`
+  (64-bit + W-op golden vectors, sign-extension bug, 64-bit-result bug, RV32
+  no-op, reserved shamt, robustness, schema, manifest).
+
+### Verified
+- Suite: **305 passed, 1 skipped**; `compileall` clean; orchestrator self-test
+  passes with all fourteen new agents wired.
+
+---
+
+## [2.13.0] — 2026-06-30
+
+### Added
+- **T35 — Fault-Injection Campaign Engine** (`AGENT_H/fault_injector.py`).
+  A meta-verification agent: it verifies the **verification suite itself** by
+  injecting hardware fault models into a known-good commit log and measuring how
+  many the AVA detector panel catches (mutation testing of the environment).
+  - Fault models: `bit_flip`, `stuck_at_0`, `stuck_at_1`, `register_corruption`,
+    `memory_corruption`, `pc_corruption`.
+  - `inject_fault()` applies a fault to a deep copy (original untouched);
+    `FaultCampaign` runs a reproducible (seeded) campaign and reports
+    **detection_rate / fault_coverage**, a **per-model** breakdown, and the list
+    of **undetected** faults — each a concrete verification blind spot.
+  - Default detector panel = golden-ALU `PipelineVerifier` + `CSRVerifier` +
+    `AtomicsVerifier`; custom detector callables supported.
+  - `band` reflects coverage (VERIFIED ≥0.9 … CRITICAL <0.3); the agent is a
+    *measurement*, so it never fails the DUT.
+  - `FaultCampaign.run()` (schema v2.1.0 report), `run_from_manifest()` runs a
+    small per-run campaign measuring the panel's coverage on the run's own log.
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_faultinj` import,
+  `EXTENDED_AGENTS_AVAILABLE`, per-run `fault_report.json`).
+- 10 new pytest cases in `tests/test_agents.py::TestFaultInjector`
+  (injection, bit-flip math, detection, 100% register-fault coverage, blind-spot
+  reporting, determinism, robustness, schema, manifest).
+
+### Verified
+- Suite: **295 passed, 1 skipped**; `compileall` clean; orchestrator self-test
+  passes with all thirteen new agents wired.
+
+---
+
+## [2.12.0] — 2026-06-30
+
+### Added
+- **T34 — Bus Protocol Verifier** (`AGENT_H/bus_verifier.py`).
+  Verifies on-chip bus transactions (AXI4 / AXI4-Lite / AHB / APB) against a
+  golden transaction-level protocol model:
+  - `axi_expected_beats()` generates the exact mandated beat-address sequence
+    for FIXED / INCR / WRAP bursts (with correct WRAP wrap-around).
+  - `bus_burst_length` (beats ≠ AxLEN+1), `bus_wlast` (LAST not on the final
+    beat), `bus_beat_addr` (beat address ≠ mandated), `bus_4kb_boundary`
+    (burst crosses a 4 KB page), `bus_wrap_invalid` (WRAP length ∉ {2,4,8,16}
+    or unaligned start), `bus_resp` (invalid response code per protocol).
+  - Metrics: transactions, reads, writes, beats, error responses.
+  - Conservatively gated: each check fires only for the descriptor fields a
+    transaction provides; unknown-protocol/partial transactions are
+    metrics-only. Transactions are read from a `bus_trace` file or from a
+    record's additive `bus` field.
+  - `BusVerifier.run()` (schema v2.1.0 report with band), `run_from_manifest()`.
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_bus` import,
+  `EXTENDED_AGENTS_AVAILABLE`, per-run `bus_report.json`).
+- 15 new pytest cases in `tests/test_agents.py::TestBusVerifier`
+  (golden FIXED/INCR/WRAP beat vectors + protocol-rule bugs + gating + metrics).
+
+### Verified
+- Suite: **285 passed, 1 skipped**; `compileall` clean; orchestrator self-test
+  passes with all twelve new agents wired.
+
+---
+
+## [2.11.0] — 2026-06-29
+
+### Added
+- **T33 — Cache Subsystem Verifier** (`AGENT_H/cache_verifier.py`).
+  Verifies cache behaviour against a **golden set-associative cache model**
+  (`CacheModel`): configurable sets/ways/line-size, LRU or FIFO replacement,
+  write-back or write-through. Replays the access stream and checks the DUT's
+  reported cache events:
+  - `cache_hitmiss` — reported hit/miss ≠ golden model.
+  - `cache_eviction` — wrong replacement victim (policy violation).
+  - `cache_writeback` — dirty eviction without a write-back (or spurious one).
+  - `cache_data` — a hit returned data inconsistent with the last write
+    (line corruption / stale data).
+  - Metrics: accesses, hits, misses, hit-rate, evictions, write-backs.
+  - Conservatively gated: runs only with a known cache config and a
+    **deterministic** policy (LRU/FIFO); each check fires only for the fields
+    the DUT actually reports. A clean no-op otherwise.
+  - `CacheModel.access()`, `CacheVerifier.run()` (schema v2.1.0 report with
+    band), `run_from_manifest()`.
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_cache` import,
+  `EXTENDED_AGENTS_AVAILABLE`, per-run `cache_report.json`).
+- 14 new pytest cases in `tests/test_agents.py::TestCacheVerifier`
+  (golden model hit/miss/LRU/dirty-eviction + checker bugs + gating + metrics).
+
+### Verified
+- Suite: **270 passed, 1 skipped**; `compileall` clean; orchestrator self-test
+  passes with all eleven new agents wired.
+
+---
+
+## [2.10.0] — 2026-06-29
+
+### Added
+- **T32 — Pipeline & Hazard Verifier** (`AGENT_H/pipeline_verifier.py`).
+  Verifies pipeline hazard handling from the commit log and produces the
+  Level-2 pipeline metrics:
+  - **Golden in-order ALU** recomputes every RV32I ALU result from the
+    architectural register file. On a mismatch it re-derives the result with the
+    **un-forwarded stale** operand; if that reproduces the committed value the
+    bug is diagnosed precisely as `hazard_forwarding` (forwarding/stall failure,
+    naming the stale source and producer distance) — otherwise `alu_result`.
+  - `control_hazard` — `jalr`/`ret`/`jr` that did not redirect to its computed
+    target (flush / branch-recovery failure).
+  - **Metrics** (analytics, never fail the run): RAW/WAR/WAW + control hazard
+    inventory; IPC, CPI, stall cycles, utilization from `perf_counters`.
+  - Shadow register file is updated from the *committed* value after each
+    instruction, so a single bug is flagged exactly once — no error cascade, no
+    false positive on a correct trace. Hard checks fire only when fully
+    evaluable; ABI and `xN` register names both supported.
+  - `alu_eval()`, `PipelineVerifier.run()` (schema v2.1.0 report with band),
+    `run_from_manifest()`.
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_pipeline` import,
+  `EXTENDED_AGENTS_AVAILABLE`, per-run `pipeline_report.json`).
+- 12 new pytest cases in `tests/test_agents.py::TestPipelineVerifier`
+  (golden ALU table, clean pass, forwarding-hazard diagnosis, generic mismatch,
+  control hazard ±, hazard inventory, perf metrics, robustness, manifest).
+
+### Verified
+- Suite: **256 passed, 1 skipped**; `compileall` clean; orchestrator self-test
+  passes with all ten new agents wired.
+
+---
+
 ## [2.9.0] — 2026-06-29
 
 ### Added

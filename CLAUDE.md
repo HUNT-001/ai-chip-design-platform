@@ -40,6 +40,12 @@ The main entry point is `ava_patched.py` — specifically the `AVA` class and
 | `AGENT_H/privilege_verifier.py` | `PrivilegeVerifier` — privilege transitions + PMP (xRET/CSR legality, ECALL cause, MRET target, PMP region permission/access-fault model) |
 | `AGENT_H/vm_verifier.py` | `Sv32MMU` + `VMVerifier` — golden Sv32 page-table walker (4KB/4MB, permissions, faults) and translation/page-fault checker |
 | `AGENT_H/tlb_verifier.py` | `TLBVerifier` — TLB coherence + sfence.vma (golden TLB over Sv32MMU: stale-after-sfence, incoherent/fabricated translation, scoped invalidation) |
+| `AGENT_H/pipeline_verifier.py` | `PipelineVerifier` — pipeline hazards (golden in-order ALU forwarding/stall diagnosis, control-hazard, RAW/WAR/WAW inventory, IPC/CPI/stall metrics) |
+| `AGENT_H/cache_verifier.py` | `CacheModel` + `CacheVerifier` — golden set-associative cache (LRU/FIFO, WB/WT) checking hit/miss, eviction victim, dirty write-back, line integrity + miss-rate metrics |
+| `AGENT_H/bus_verifier.py` | `BusVerifier` + `axi_expected_beats` — AXI4/AHB/APB protocol checks (burst length, WLAST, beat-addr FIXED/INCR/WRAP, 4KB boundary, WRAP alignment, response codes) |
+| `AGENT_H/fault_injector.py` | `FaultCampaign` + `inject_fault` — fault-injection / mutation testing of the verification suite (bit-flip/stuck-at/corruption models, detection-rate & blind-spot reporting) |
+| `AGENT_H/rv64_verifier.py` | `RV64Verifier` — RV64 datapath (64-bit `alu64` + W-ops `aluw` with 32→64 sign-extension, `rv64_word_sext` diagnosis; auto-detects RV64, no-op on RV32) |
+| `AGENT_H/sv_mmu_verifier.py` | `SvMMU` + `SvMMUVerifier` — golden Sv39/Sv48 multi-level page-table walker (4KB/2MB/1GB superpages, non-canonical VA, permissions) for RV64 virtual memory |
 | `AGENT_H/security_intel.py` | `SecurityIntelligence` — Spectre/privilege/cache detection |
 | `AGENT_H/economics_engine.py` | `EconomicsEngine` — bugs/hour, ROI, persistent ledger |
 | `AGENT_H/cross_domain.py` | `get_adapter(DUTClass.CRYPTO/DMA/UART)` — non-CPU adapters |
