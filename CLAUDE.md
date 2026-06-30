@@ -46,6 +46,7 @@ The main entry point is `ava_patched.py` — specifically the `AVA` class and
 | `AGENT_H/fault_injector.py` | `FaultCampaign` + `inject_fault` — fault-injection / mutation testing of the verification suite (bit-flip/stuck-at/corruption models, detection-rate & blind-spot reporting) |
 | `AGENT_H/rv64_verifier.py` | `RV64Verifier` — RV64 datapath (64-bit `alu64` + W-ops `aluw` with 32→64 sign-extension, `rv64_word_sext` diagnosis; auto-detects RV64, no-op on RV32) |
 | `AGENT_H/sv_mmu_verifier.py` | `SvMMU` + `SvMMUVerifier` — golden Sv39/Sv48 multi-level page-table walker (4KB/2MB/1GB superpages, non-canonical VA, permissions) for RV64 virtual memory |
+| `AGENT_H/rv64_atomics_verifier.py` | `RV64AtomicsVerifier` + `amo_compute64` — RV64 64-bit atomics (LR.D/SC.D + 9 AMO.D ops, golden signed/unsigned 64-bit math, reservation, 8-byte alignment) |
 | `AGENT_H/security_intel.py` | `SecurityIntelligence` — Spectre/privilege/cache detection |
 | `AGENT_H/economics_engine.py` | `EconomicsEngine` — bugs/hour, ROI, persistent ledger |
 | `AGENT_H/cross_domain.py` | `get_adapter(DUTClass.CRYPTO/DMA/UART)` — non-CPU adapters |

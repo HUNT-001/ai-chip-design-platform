@@ -4,6 +4,33 @@ All notable changes to AVA — Autonomic Verification Agent are documented here.
 
 ---
 
+## [2.16.0] — 2026-06-30
+
+### Added — RV64 widening (phase 3)
+- **T38 — RV64 Atomics Verifier** (`AGENT_H/rv64_atomics_verifier.py`).
+  Verifies the 64-bit "A" extension — `LR.D`/`SC.D` and the nine `AMO*.D`
+  operations — against a golden 64-bit reference model (`amo_compute64`, with
+  correct signed/unsigned 64-bit min/max and wrap). Checks AMO destination =
+  old memory value, AMO write-back = `f(old, rs2)`, SC.D success/fail vs a live
+  reservation, and 8-byte alignment. Reuses the shared `decode_atomic` decoder
+  and acts only on `.D` atomics (clean no-op on RV32 / non-atomic traces).
+- `atomics_verifier` (RV32) now **detects RV64** (a >32-bit register value) and
+  no longer flags legal `.D` atomics as `rv32_illegal_d` on RV64 traces —
+  leaving them to the RV64 module. RV32 behaviour is unchanged.
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_rv64atom` import,
+  `EXTENDED_AGENTS_AVAILABLE`, per-run `rv64_atomics_report.json` when `.D`
+  atomics are present).
+- 13 new pytest cases in `tests/test_agents.py::TestRV64AtomicsVerifier`
+  (64-bit golden vectors, clean AMO.D, signed min.D, write-back bug, LR/SC.D,
+  spurious SC.D, misalignment, the RV32-guard both ways, robustness, schema,
+  manifest).
+
+### Verified
+- Suite: **332 passed, 1 skipped**; `compileall` clean; orchestrator self-test
+  passes with all sixteen new agents wired.
+
+---
+
 ## [2.15.0] — 2026-06-30
 
 ### Added — RV64 widening (phase 2)

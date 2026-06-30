@@ -33,6 +33,7 @@ from .pipeline_verifier    import PipelineVerifier, alu_eval
 from .privilege_verifier   import PrivilegeVerifier, PMPModel, parse_priv
 from .root_cause_localizer import RootCauseLocalizer
 from .rv64_verifier        import RV64Verifier, alu64, aluw, sext32
+from .rv64_atomics_verifier import RV64AtomicsVerifier, amo_compute64
 from .rvc_verifier         import RVCVerifier, is_compressed
 from .security_intel       import SecurityIntelligence
 from .sv_mmu_verifier      import SvMMU, SvMMUVerifier
@@ -58,6 +59,7 @@ __all__ = [
     "PipelineVerifier", "alu_eval",
     "PrivilegeVerifier", "PMPModel", "parse_priv",
     "RV64Verifier", "alu64", "aluw", "sext32",
+    "RV64AtomicsVerifier", "amo_compute64",
     "RVCVerifier", "is_compressed",
     "RootCauseLocalizer", "SecurityIntelligence", "TemporalChecker",
     "SvMMU", "SvMMUVerifier",

@@ -551,6 +551,7 @@ class TestSchemaFiles:
             "AGENT_H.bus_verifier",
             "AGENT_H.fault_injector",
             "AGENT_H.rv64_verifier",
+            "AGENT_H.rv64_atomics_verifier",
             "AGENT_H.sv_mmu_verifier",
             "AGENT_H.peripheral_verifier",
             "AGENT_H.security_intel",
@@ -2680,6 +2681,152 @@ class TestSvMMUVerifier:
         assert rc == 0
         assert (tmp_path / "sv_mmu_report.json").exists()
         assert "sv_mmu_report" in json.loads(mpath.read_text())["outputs"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T38 — RV64 Atomics Verifier (.D atomics)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _rv64a_rec(seq, disasm, regs=None, reads=None, writes=None, trap=None):
+    rec = {"schema_version": "2.1.0", "seq": seq, "pc": f"0x{0x80000000 + seq*4:08x}",
+           "disasm": disasm, "regs": regs or {}, "csrs": {}}
+    if reads is not None:
+        rec["mem_reads"] = reads
+    if writes is not None:
+        rec["mem_writes"] = writes
+    if trap is not None:
+        rec["trap"] = trap
+    return rec
+
+
+class TestRV64AtomicsVerifier:
+    def test_import(self):
+        from AGENT_H import rv64_atomics_verifier
+        assert hasattr(rv64_atomics_verifier, "RV64AtomicsVerifier")
+
+    def test_amo_compute64_golden(self):
+        from AGENT_H.rv64_atomics_verifier import amo_compute64
+        assert amo_compute64("swap", 0x10, 0x99) == 0x99
+        assert amo_compute64("add", 0xFFFFFFFFFFFFFFFF, 1) == 0      # 64-bit wrap
+        assert amo_compute64("min", 0xFFFFFFFFFFFFFFFF, 1) == 0xFFFFFFFFFFFFFFFF  # -1<1
+        assert amo_compute64("max", 0xFFFFFFFFFFFFFFFF, 1) == 1
+        assert amo_compute64("minu", 0xFFFFFFFFFFFFFFFF, 1) == 1
+        assert amo_compute64("maxu", 0xFFFFFFFFFFFFFFFF, 1) == 0xFFFFFFFFFFFFFFFF
+
+    def test_clean_amod_passes(self):
+        from AGENT_H.rv64_atomics_verifier import RV64AtomicsVerifier
+        log = [
+            _rv64a_rec(0, "li x6,0x100000000", regs={"x6": "0x100000000"}),
+            _rv64a_rec(1, "amoadd.d x5,x6,(x10)", regs={"x5": "0x200000000"},
+                       reads=[{"addr": "0x100", "size": 8, "value": "0x200000000"}],
+                       writes=[{"addr": "0x100", "size": 8, "value": "0x300000000"}]),
+        ]
+        rep = RV64AtomicsVerifier(log).run()
+        assert rep["pass"] is True and rep["atomics_d_examined"] == 1
+
+    def test_signed_min_d_passes(self):
+        from AGENT_H.rv64_atomics_verifier import RV64AtomicsVerifier
+        log = [
+            _rv64a_rec(0, "li x6,-1", regs={"x6": "0xffffffffffffffff"}),
+            _rv64a_rec(1, "amomin.d x5,x6,(x10)", regs={"x5": "0x1"},
+                       reads=[{"addr": "0x100", "size": 8, "value": "0x1"}],
+                       writes=[{"addr": "0x100", "size": 8, "value": "0xffffffffffffffff"}]),
+        ]
+        assert RV64AtomicsVerifier(log).run()["pass"] is True
+
+    def test_amod_writeback_bug(self):
+        from AGENT_H.rv64_atomics_verifier import RV64AtomicsVerifier
+        log = [
+            _rv64a_rec(0, "li x6,0x100000000", regs={"x6": "0x100000000"}),
+            _rv64a_rec(1, "amoadd.d x5,x6,(x10)", regs={"x5": "0x200000000"},
+                       reads=[{"addr": "0x100", "size": 8, "value": "0x200000000"}],
+                       writes=[{"addr": "0x100", "size": 8, "value": "0x300000001"}]),  # bug
+        ]
+        rep = RV64AtomicsVerifier(log).run()
+        assert rep["pass"] is False
+        v = [x for x in rep["violations"] if x["check"] == "amod_writeback"]
+        assert v and v[0]["expected"] == "0x0000000300000000"
+
+    def test_lr_sc_d_success(self):
+        from AGENT_H.rv64_atomics_verifier import RV64AtomicsVerifier
+        log = [
+            _rv64a_rec(0, "addi x6,x0,7", regs={"x6": "0x7"}),
+            _rv64a_rec(1, "lr.d x5,(x10)", regs={"x5": "0x10"},
+                       reads=[{"addr": "0x100", "size": 8, "value": "0x10"}]),
+            _rv64a_rec(2, "sc.d x4,x6,(x10)", regs={"x4": "0x0"},
+                       writes=[{"addr": "0x100", "size": 8, "value": "0x7"}]),
+        ]
+        rep = RV64AtomicsVerifier(log).run()
+        assert rep["pass"] is True and rep["stats"]["sc_success"] == 1
+
+    def test_scd_spurious_store_caught(self):
+        from AGENT_H.rv64_atomics_verifier import RV64AtomicsVerifier
+        log = [
+            _rv64a_rec(0, "addi x6,x0,7", regs={"x6": "0x7"}),
+            _rv64a_rec(1, "sc.d x4,x6,(x10)", regs={"x4": "0x0"},
+                       writes=[{"addr": "0x100", "size": 8, "value": "0x7"}]),
+        ]
+        rep = RV64AtomicsVerifier(log).run()
+        assert any(v["check"] in ("scd_fail_wrote", "scd_fail_rd") for v in rep["violations"])
+
+    def test_misaligned_d_caught(self):
+        from AGENT_H.rv64_atomics_verifier import RV64AtomicsVerifier
+        log = [_rv64a_rec(0, "amoadd.d x5,x6,(x10)", regs={"x5": "0x10"},
+                          reads=[{"addr": "0x104", "size": 8, "value": "0x10"}],
+                          writes=[{"addr": "0x104", "size": 8, "value": "0x15"}])]
+        rep = RV64AtomicsVerifier(log).run()
+        assert any(v["check"] == "amod_alignment" for v in rep["violations"])
+
+    def test_rv32_atomics_no_longer_flags_d_on_rv64(self):
+        from AGENT_H.atomics_verifier import AtomicsVerifier
+        # RV64 trace (64-bit value present) -> .D must NOT be flagged illegal
+        log = [
+            _rv64a_rec(0, "li x1,0x100000000", regs={"x1": "0x100000000"}),
+            _rv64a_rec(1, "amoadd.d x5,x6,(x10)", regs={"x5": "0x10"},
+                       reads=[{"addr": "0x100", "size": 8, "value": "0x10"}],
+                       writes=[{"addr": "0x100", "size": 8, "value": "0x10"}]),
+        ]
+        rep = AtomicsVerifier(log).run()
+        assert not any(v["check"] == "rv32_illegal_d" for v in rep["violations"])
+
+    def test_rv32_atomics_still_flags_d_on_rv32(self):
+        from AGENT_H.atomics_verifier import AtomicsVerifier
+        log = [_rv64a_rec(0, "amoswap.d x5,x6,(x10)", regs={"x5": "0x1"})]
+        rep = AtomicsVerifier(log).run()
+        assert any(v["check"] == "rv32_illegal_d" for v in rep["violations"])
+
+    def test_robustness_malformed(self):
+        from AGENT_H.rv64_atomics_verifier import RV64AtomicsVerifier
+        import copy
+        for log in ([], [None, 1, "x"], [{}], [{"disasm": None}]):
+            rep = RV64AtomicsVerifier(copy.deepcopy(log)).run()
+            assert rep["pass"] is True and "band" in rep
+
+    def test_report_schema(self):
+        from AGENT_H.rv64_atomics_verifier import RV64AtomicsVerifier
+        rep = RV64AtomicsVerifier([]).run()
+        for key in ("schema_version", "agent", "records_checked",
+                    "atomics_d_examined", "total_violations", "pass", "violations", "band"):
+            assert key in rep, f"Missing key: {key}"
+        assert rep["agent"] == "rv64_atomics_verifier"
+
+    def test_run_from_manifest(self, tmp_path):
+        from AGENT_H.rv64_atomics_verifier import run_from_manifest
+        rtl = [
+            _rv64a_rec(0, "li x6,0x100000000", regs={"x6": "0x100000000"}),
+            _rv64a_rec(1, "amoadd.d x5,x6,(x10)", regs={"x5": "0x200000000"},
+                       reads=[{"addr": "0x100", "size": 8, "value": "0x200000000"}],
+                       writes=[{"addr": "0x100", "size": 8, "value": "0x300000000"}]),
+        ]
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        manifest = {"schema_version": "2.1.0", "run_id": "rv64a-test",
+                    "run_dir": str(tmp_path),
+                    "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
+        mpath = tmp_path / "run_manifest.json"
+        mpath.write_text(json.dumps(manifest, indent=2))
+        rc = run_from_manifest(mpath)
+        assert rc == 0
+        assert (tmp_path / "rv64_atomics_report.json").exists()
 
 
 # ─────────────────────────────────────────────────────────────────────────────

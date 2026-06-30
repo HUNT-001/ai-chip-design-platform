@@ -287,6 +287,27 @@ class AtomicsVerifier:
             "sc_success": 0, "sc_fail": 0,
             "misaligned": 0,
         }
+        # RV64 detection: a 64-bit register value means .d atomics are legal,
+        # so they are left to AGENT_H.rv64_atomics_verifier rather than flagged.
+        self._is_rv64 = self._detect_rv64()
+
+    def _detect_rv64(self) -> bool:
+        for rec in self.rtl_log:
+            if not isinstance(rec, dict):
+                continue
+            for v in (rec.get("regs") or {}).values():
+                if isinstance(v, str):
+                    try:
+                        iv = int(v, 16) if v.lower().startswith("0x") else int(v, 0)
+                    except ValueError:
+                        continue
+                elif isinstance(v, int):
+                    iv = v
+                else:
+                    continue
+                if iv > 0xFFFFFFFF:
+                    return True
+        return False
 
     # -- shadow-state maintenance --------------------------------------------
 
@@ -550,12 +571,14 @@ class AtomicsVerifier:
 
             if d is not None:
                 if d.width == "d":
-                    # RV32 has no 64-bit atomics; flag and skip semantic checks
-                    self._flag(AtomicViolation(
-                        check="rv32_illegal_d", severity="MEDIUM", seq=seq,
-                        pc=rec.get("pc"), disasm=disasm,
-                        description="64-bit atomic (.d) committed on an RV32 core",
-                    ))
+                    # On RV32 a 64-bit atomic is illegal; on RV64 it is legal and
+                    # is verified by AGENT_H.rv64_atomics_verifier, so skip here.
+                    if not self._is_rv64:
+                        self._flag(AtomicViolation(
+                            check="rv32_illegal_d", severity="MEDIUM", seq=seq,
+                            pc=rec.get("pc"), disasm=disasm,
+                            description="64-bit atomic (.d) committed on an RV32 core",
+                        ))
                 else:
                     try:
                         if d.kind == "lr":

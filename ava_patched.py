@@ -90,6 +90,7 @@ _bus       = _try_import("AGENT_H.bus_verifier",          "BusVerifier")
 _faultinj  = _try_import("AGENT_H.fault_injector",        "FaultCampaign")
 _rv64      = _try_import("AGENT_H.rv64_verifier",         "RV64Verifier")
 _svmmu     = _try_import("AGENT_H.sv_mmu_verifier",       "SvMMUVerifier")
+_rv64atom  = _try_import("AGENT_H.rv64_atomics_verifier", "RV64AtomicsVerifier")
 _peripheral= _try_import("AGENT_H.peripheral_verifier",   "PeripheralVerifier")
 _security  = _try_import("AGENT_H.security_intel",        "SecurityIntel")
 _economics = _try_import("AGENT_H.economics_engine",      "EconomicsEngine")
@@ -100,7 +101,7 @@ EXTENDED_AGENTS_AVAILABLE = any([
     _agent_i, _agent_j, _agent_k, _agent_l,
     _intent, _confidence, _contract, _temporal, _atomics, _csr, _rvc, _fp,
     _bitmanip, _privilege, _vm, _tlb, _pipeline, _cache, _bus,
-    _faultinj, _rv64, _svmmu, _peripheral, _security,
+    _faultinj, _rv64, _svmmu, _rv64atom, _peripheral, _security,
 ])
 
 # ── Agent F: real Verilator coverage backend ──────────────────────────────────
@@ -2363,6 +2364,27 @@ endclass
                                 r.get("total_violations", 0), r.get("band"))
             except Exception as exc:
                 logger.warning("  Sv-MMU verifier failed: %s", exc)
+
+        # -- RV64 (.D) atomics verifier (no-op unless .D atomics present)
+        if _rv64atom and rtl_log:
+            try:
+                ra = _rv64atom.RV64AtomicsVerifier(rtl_log, iss_log)
+                r = ra.run()
+                if r.get("atomics_d_examined", 0) > 0:
+                    rp = run_dir / "rv64_atomics_report.json"
+                    with open(rp, "w") as f:
+                        json.dump(r, f, indent=2)
+                    reports["rv64_atomics"] = {
+                        "atomics_d_examined": r.get("atomics_d_examined", 0),
+                        "violations": r.get("total_violations", 0),
+                        "band": r.get("band", "CLEAN"),
+                        "pass": r.get("pass", True),
+                    }
+                    logger.info("  RV64 atomics: %d .D atomics, %d violations, band=%s",
+                                r.get("atomics_d_examined", 0),
+                                r.get("total_violations", 0), r.get("band"))
+            except Exception as exc:
+                logger.warning("  RV64 atomics verifier failed: %s", exc)
 
         # -- SoC peripheral protocol verifier (self-gates on dut_class)
         if _peripheral:
