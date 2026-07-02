@@ -547,6 +547,8 @@ class TestSchemaFiles:
             "AGENT_H.vm_verifier",
             "AGENT_H.tlb_verifier",
             "AGENT_H.pipeline_verifier",
+            "AGENT_H.branch_predictor_verifier",
+            "AGENT_H.self_evolving_engine",
             "AGENT_H.cache_verifier",
             "AGENT_H.bus_verifier",
             "AGENT_H.fault_injector",
@@ -2827,6 +2829,478 @@ class TestRV64AtomicsVerifier:
         rc = run_from_manifest(mpath)
         assert rc == 0
         assert (tmp_path / "rv64_atomics_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RV64 M-extension ops (mul/div/rem + W forms) in the RV64 verifier
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestRV64MExtension:
+    def test_alu64_m_golden(self):
+        from AGENT_H.rv64_verifier import alu64
+        assert alu64("mul", 0xFFFFFFFFFFFFFFFF, 2) == 0xFFFFFFFFFFFFFFFE
+        assert alu64("mulh", 0x8000000000000000, 2) == 0xFFFFFFFFFFFFFFFF
+        assert alu64("mulhu", 0xFFFFFFFFFFFFFFFF, 0xFFFFFFFFFFFFFFFF) == 0xFFFFFFFFFFFFFFFE
+        assert alu64("div", 0xFFFFFFFFFFFFFFF9, 2) == 0xFFFFFFFFFFFFFFFD   # -7/2 = -3
+        assert alu64("div", 5, 0) == 0xFFFFFFFFFFFFFFFF                    # x/0 = -1
+        assert alu64("div", 0x8000000000000000, 0xFFFFFFFFFFFFFFFF) == 0x8000000000000000  # overflow
+        assert alu64("divu", 0xFFFFFFFFFFFFFFFF, 2) == 0x7FFFFFFFFFFFFFFF
+        assert alu64("rem", 0xFFFFFFFFFFFFFFF9, 2) == 0xFFFFFFFFFFFFFFFF   # -7%2 = -1
+        assert alu64("rem", 5, 0) == 5                                     # x%0 = x
+        assert alu64("remu", 0xFFFFFFFFFFFFFFFF, 3) == 0
+
+    def test_aluw_m_golden(self):
+        from AGENT_H.rv64_verifier import aluw
+        assert aluw("mulw", 0xFFFFFFFF, 2) == 0xFFFFFFFFFFFFFFFE
+        assert aluw("divw", 0xFFFFFFF9, 2) == 0xFFFFFFFFFFFFFFFD          # -7/2 sext
+        assert aluw("divw", 5, 0) == 0xFFFFFFFFFFFFFFFF                    # /0 -> -1 sext
+        assert aluw("divuw", 0xFFFFFFFF, 2) == 0x7FFFFFFF
+        assert aluw("remw", 0xFFFFFFF9, 2) == 0xFFFFFFFFFFFFFFFF          # -7%2 = -1 sext
+        assert aluw("remuw", 7, 0) == 7
+
+    def test_mulw_integration_passes(self):
+        from AGENT_H.rv64_verifier import RV64Verifier
+        log = [
+            _rv64_rec(0, "addiw x5,x0,6", {"x5": "0x6"}),
+            _rv64_rec(1, "addiw x6,x0,7", {"x6": "0x7"}),
+            _rv64_rec(2, "mulw x7,x5,x6", {"x7": "0x2a"}),   # 42
+        ]
+        rep = RV64Verifier(log).run()
+        assert rep["pass"] is True and rep["stats"]["word_ops"] == 3
+
+    def test_divw_by_zero_passes(self):
+        from AGENT_H.rv64_verifier import RV64Verifier
+        log = [
+            _rv64_rec(0, "addiw x5,x0,5", {"x5": "0x5"}),
+            _rv64_rec(1, "addiw x6,x0,0", {"x6": "0x0"}),
+            _rv64_rec(2, "divw x7,x5,x6", {"x7": "0xffffffffffffffff"}),  # -1
+        ]
+        assert RV64Verifier(log).run()["pass"] is True
+
+    def test_mulw_bug_caught(self):
+        from AGENT_H.rv64_verifier import RV64Verifier
+        log = [
+            _rv64_rec(0, "addiw x5,x0,6", {"x5": "0x6"}),
+            _rv64_rec(1, "addiw x6,x0,7", {"x6": "0x7"}),
+            _rv64_rec(2, "mulw x7,x5,x6", {"x7": "0x2b"}),   # wrong (should be 0x2a)
+        ]
+        rep = RV64Verifier(log).run()
+        assert rep["pass"] is False
+        assert any(v["check"] in ("rv64_word_op", "rv64_word_sext") for v in rep["violations"])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T39 — Branch Predictor Verifier
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _bp_rec(seq, disasm, pc, regs=None, target=None, predict=None, trap=None):
+    r = {"schema_version": "2.1.0", "seq": seq, "pc": pc, "disasm": disasm,
+         "regs": regs or {}, "csrs": {}}
+    if target is not None:
+        r["target"] = target
+    if predict is not None:
+        r["predict"] = predict
+    if trap is not None:
+        r["trap"] = trap
+    return r
+
+
+class TestBranchPredictorVerifier:
+    def test_import(self):
+        from AGENT_H import branch_predictor_verifier
+        assert hasattr(branch_predictor_verifier, "BranchPredictorVerifier")
+
+    def test_helpers(self):
+        from AGENT_H.branch_predictor_verifier import reg_idx, _abs_target
+        assert reg_idx("a0") == 10 and reg_idx("ra") == 1
+        assert _abs_target("beq a0,a1,0x80000040") == 0x80000040
+        assert _abs_target("addi a0,a0,16") is None
+
+    def test_recovery_taken_clean(self):
+        from AGENT_H.branch_predictor_verifier import BranchPredictorVerifier
+        log = [_bp_rec(0, "addi a0,x0,5", "0x80000000", {"a0": "0x5"}),
+               _bp_rec(1, "addi a1,x0,5", "0x80000004", {"a1": "0x5"}),
+               _bp_rec(2, "beq a0,a1,0x80000040", "0x80000008", target="0x80000040"),
+               _bp_rec(3, "addi x0,x0,0", "0x80000040")]
+        r = BranchPredictorVerifier(log).run()
+        assert r["pass"] is True and r["metrics"]["taken_rate"] == 1.0
+
+    def test_recovery_taken_bug(self):
+        from AGENT_H.branch_predictor_verifier import BranchPredictorVerifier
+        log = [_bp_rec(0, "addi a0,x0,5", "0x80000000", {"a0": "0x5"}),
+               _bp_rec(1, "addi a1,x0,5", "0x80000004", {"a1": "0x5"}),
+               _bp_rec(2, "beq a0,a1,0x80000040", "0x80000008", target="0x80000040"),
+               _bp_rec(3, "addi x0,x0,0", "0x8000000c")]
+        r = BranchPredictorVerifier(log).run()
+        assert r["pass"] is False
+        assert any(v["check"] == "bp_recovery" for v in r["violations"])
+        assert r["band"] == "CRITICAL"
+
+    def test_recovery_not_taken_bug(self):
+        from AGENT_H.branch_predictor_verifier import BranchPredictorVerifier
+        log = [_bp_rec(0, "addi a0,x0,5", "0x80000000", {"a0": "0x5"}),
+               _bp_rec(1, "addi a1,x0,6", "0x80000004", {"a1": "0x6"}),
+               _bp_rec(2, "beq a0,a1,0x80000040", "0x80000008", target="0x80000040"),
+               _bp_rec(3, "addi x0,x0,0", "0x80000040")]
+        r = BranchPredictorVerifier(log).run()
+        assert any(v["check"] == "bp_recovery" for v in r["violations"])
+
+    def test_hit_flag_inconsistent(self):
+        from AGENT_H.branch_predictor_verifier import BranchPredictorVerifier
+        log = [_bp_rec(0, "addi a0,x0,5", "0x80000000", {"a0": "0x5"}),
+               _bp_rec(1, "addi a1,x0,5", "0x80000004", {"a1": "0x5"}),
+               _bp_rec(2, "beq a0,a1,0x80000040", "0x80000008", target="0x80000040",
+                       predict={"taken": True, "correct": False}),
+               _bp_rec(3, "addi x0,x0,0", "0x80000040")]
+        r = BranchPredictorVerifier(log).run()
+        assert any(v["check"] == "bp_hit_flag" for v in r["violations"])
+
+    def test_accuracy_metric(self):
+        from AGENT_H.branch_predictor_verifier import BranchPredictorVerifier
+        log = [_bp_rec(0, "addi a0,x0,5", "0x80000000", {"a0": "0x5"}),
+               _bp_rec(1, "addi a1,x0,5", "0x80000004", {"a1": "0x5"}),
+               _bp_rec(2, "beq a0,a1,0x80000040", "0x80000008", target="0x80000040",
+                       predict={"taken": True, "correct": True}),
+               _bp_rec(3, "addi x0,x0,0", "0x80000040")]
+        m = BranchPredictorVerifier(log).run()["metrics"]
+        assert m["predictions"] == 1 and m["accuracy"] == 1.0
+
+    def test_jump_recovery_bug(self):
+        from AGENT_H.branch_predictor_verifier import BranchPredictorVerifier
+        log = [_bp_rec(0, "jal ra,0x80000100", "0x80000010", target="0x80000100"),
+               _bp_rec(1, "addi x0,x0,0", "0x80000014")]
+        r = BranchPredictorVerifier(log).run()
+        assert any(v["check"] == "bp_recovery" for v in r["violations"])
+
+    def test_ras_return_accuracy(self):
+        from AGENT_H.branch_predictor_verifier import BranchPredictorVerifier
+        log = [_bp_rec(0, "jal ra,0x80000100", "0x80000010", target="0x80000100"),
+               _bp_rec(1, "addi x0,x0,0", "0x80000100"),
+               _bp_rec(2, "ret", "0x80000104"),
+               _bp_rec(3, "addi x0,x0,0", "0x80000014")]
+        m = BranchPredictorVerifier(log).run()["metrics"]
+        assert m["ras_returns"] == 1 and m["ras_accuracy"] == 1.0
+
+    def test_robustness_malformed(self):
+        from AGENT_H.branch_predictor_verifier import BranchPredictorVerifier
+        import copy
+        for log in ([], [None, 1, "x"], [{}], [{"disasm": None}]):
+            r = BranchPredictorVerifier(copy.deepcopy(log)).run()
+            assert r["pass"] is True and "band" in r
+
+    def test_report_schema(self):
+        from AGENT_H.branch_predictor_verifier import BranchPredictorVerifier
+        r = BranchPredictorVerifier([]).run()
+        for k in ("schema_version", "agent", "records_checked", "metrics",
+                  "total_violations", "pass", "violations", "band"):
+            assert k in r
+        assert r["agent"] == "branch_predictor_verifier"
+
+    def test_run_from_manifest(self, tmp_path):
+        from AGENT_H.branch_predictor_verifier import run_from_manifest
+        log = [_bp_rec(0, "addi a0,x0,5", "0x80000000", {"a0": "0x5"}),
+               _bp_rec(1, "addi a1,x0,5", "0x80000004", {"a1": "0x5"}),
+               _bp_rec(2, "beq a0,a1,0x80000040", "0x80000008", target="0x80000040"),
+               _bp_rec(3, "addi x0,x0,0", "0x80000040")]
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(x) for x in log))
+        man = {"schema_version": "2.1.0", "run_id": "bp", "run_dir": str(tmp_path),
+               "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
+        mp = tmp_path / "run_manifest.json"
+        mp.write_text(json.dumps(man))
+        rc = run_from_manifest(mp)
+        assert rc == 0 and (tmp_path / "branch_predictor_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T40 — Self-Evolving Verification Engine (RL coverage-closure loop)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _se_env(seed=0):
+    """genetic > directed > random productivity; deterministic."""
+    import random as _r
+    rng = _r.Random(seed)
+    yields = {"genetic": 4, "directed": 2, "random": 1}
+
+    def generate(strategy, constraints):
+        return {"strategy": strategy, "targets": [c["target"] for c in constraints]}
+
+    def evaluate(batch):
+        s = batch["strategy"]; n = yields.get(s, 1); targets = batch["targets"]
+        covered = ([f"bin{rng.randrange(40)}" for _ in range(n)]
+                   if s == "random" else targets[:n])
+        bugs = 1 if (s == "genetic" and rng.random() < 0.3) else 0
+        cost = {"genetic": 0.4, "directed": 0.25, "random": 0.1}.get(s, 0.2)
+        return {"covered": covered, "bugs": bugs, "cost": cost}
+    return generate, evaluate
+
+
+_SE_BINS = [f"bin{i}" for i in range(40)]
+_SE_STRATS = ["random", "directed", "genetic"]
+
+
+class TestSelfEvolvingEngine:
+    def test_import(self):
+        from AGENT_H import self_evolving_engine as se
+        assert hasattr(se, "SelfEvolvingEngine")
+
+    def test_ucb1_cold_start_then_exploit(self):
+        from AGENT_H.self_evolving_engine import UCB1
+        b = UCB1(["a", "b", "c"])
+        picks = []
+        for _ in range(3):
+            p = b.select(); b.update(p, 1.0 if p == "b" else 0.0); picks.append(p)
+        assert set(picks) == {"a", "b", "c"}
+        for _ in range(50):
+            a = b.select(); b.update(a, 1.0 if a == "b" else 0.0)
+        assert b.best() == "b"
+
+    def test_ucb1_unknown_arm_safe(self):
+        from AGENT_H.self_evolving_engine import UCB1
+        b = UCB1(["a"]); b.update("zz", 0.5)
+        assert "zz" in b.counts
+
+    def test_coverage_state(self):
+        from AGENT_H.self_evolving_engine import CoverageState
+        c = CoverageState(["x", "y", "z"])
+        assert c.cover(["x", "x", "q"]) == {"x"}
+        assert c.holes() == {"y", "z"}
+
+    def test_coverage_no_universe_adopts(self):
+        from AGENT_H.self_evolving_engine import CoverageState
+        c = CoverageState([]); c.cover(["a", "b"])
+        assert c.total == {"a", "b"} and c.fraction() == 1.0
+
+    def test_constraint_for(self):
+        from AGENT_H.self_evolving_engine import constraint_for
+        con = constraint_for("branch:taken:neg")
+        assert con["kind"] == "branch" and con["values"] == ["taken", "neg"]
+        assert constraint_for("weirdbin")["kind"] == "bin"
+
+    def test_evolve_increases_coverage(self):
+        from AGENT_H.self_evolving_engine import SelfEvolvingEngine
+        gen, ev = _se_env()
+        eng = SelfEvolvingEngine(_SE_BINS, _SE_STRATS, seed=1,
+                                 coverage_target=0.95, plateau_patience=8)
+        rep = eng.evolve(gen, ev, max_rounds=100)
+        assert rep["final_coverage"] > rep["initial_round_coverage"]
+        assert rep["coverage_improvement"] > 0.5
+        traj = rep["coverage_trajectory"]
+        assert all(traj[i] <= traj[i + 1] + 1e-9 for i in range(len(traj) - 1))
+
+    def test_evolve_bandit_prefers_productive(self):
+        from AGENT_H.self_evolving_engine import SelfEvolvingEngine
+        gen, ev = _se_env()
+        eng = SelfEvolvingEngine(_SE_BINS, _SE_STRATS, seed=2,
+                                 coverage_target=1.0, plateau_patience=12,
+                                 holes_per_round=3)
+        rep = eng.evolve(gen, ev, max_rounds=200)
+        st = rep["strategy_stats"]
+        assert st["genetic"]["mean_reward"] >= st["random"]["mean_reward"]
+        assert rep["recommended_strategy"] in ("genetic", "directed")
+
+    def test_evolve_target_stop(self):
+        from AGENT_H.self_evolving_engine import SelfEvolvingEngine
+        gen, ev = _se_env()
+        eng = SelfEvolvingEngine(_SE_BINS, _SE_STRATS, seed=3,
+                                 coverage_target=0.5, plateau_patience=20)
+        rep = eng.evolve(gen, ev, max_rounds=200)
+        assert rep["final_coverage"] >= 0.5
+        assert rep["stop_reason"] in ("coverage_target_reached", "no_holes_remaining")
+
+    def test_evolve_plateau_stop(self):
+        from AGENT_H.self_evolving_engine import SelfEvolvingEngine
+        eng = SelfEvolvingEngine(_SE_BINS, _SE_STRATS, seed=4, plateau_patience=3)
+        rep = eng.evolve(lambda s, c: {"strategy": s, "targets": []},
+                         lambda b: {"covered": [], "bugs": 0, "cost": 0.1},
+                         max_rounds=100)
+        assert rep["stop_reason"] == "plateau" and rep["rounds_run"] == 3
+
+    def test_evolve_bad_plugin_survives(self):
+        from AGENT_H.self_evolving_engine import SelfEvolvingEngine
+        def gen(s, c): raise RuntimeError("boom")
+        eng = SelfEvolvingEngine(_SE_BINS, _SE_STRATS, seed=5, plateau_patience=2)
+        rep = eng.evolve(gen, lambda b: {}, max_rounds=10)
+        assert rep["pass"] is True and rep["stop_reason"] == "plateau"
+
+    def test_report_schema(self):
+        from AGENT_H.self_evolving_engine import SelfEvolvingEngine
+        gen, ev = _se_env()
+        rep = SelfEvolvingEngine(_SE_BINS, _SE_STRATS, seed=6).evolve(gen, ev, max_rounds=30)
+        for k in ("schema_version", "agent", "pass", "band", "rounds_run",
+                  "final_coverage", "coverage_trajectory", "recommended_strategy",
+                  "strategy_stats", "bugs_found", "holes_remaining"):
+            assert k in rep
+        assert rep["agent"] == "self_evolving_engine"
+        assert rep["schema_version"] == "2.1.0"
+
+    def test_plan_from_coverage(self):
+        from AGENT_H.self_evolving_engine import plan_from_coverage
+        plan = plan_from_coverage(
+            covered_bins=["bin0", "bin1"], total_bins=_SE_BINS,
+            strategy_stats={"random": {"mean_reward": 0.1},
+                            "genetic": {"mean_reward": 0.6}})
+        assert plan["holes_remaining"] == 38
+        assert plan["recommended_strategy"] == "genetic"
+
+    def test_run_from_manifest(self, tmp_path):
+        from AGENT_H.self_evolving_engine import run_from_manifest
+        (tmp_path / "coverage_summary.json").write_text(json.dumps({
+            "covered_bins": ["instr:add", "instr:sub"],
+            "total_bins": ["instr:add", "instr:sub", "instr:amoadd.w",
+                           "csr:mstatus:write"]}))
+        man = {"schema_version": "2.1.0", "run_id": "se", "run_dir": str(tmp_path)}
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 0
+        out = json.loads((tmp_path / "self_evolving_report.json").read_text())
+        assert out["holes_remaining"] == 2 and out["status"] == "completed"
+
+    def test_run_from_manifest_no_coverage(self, tmp_path):
+        from AGENT_H.self_evolving_engine import run_from_manifest
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path)}
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 0
+        out = json.loads((tmp_path / "self_evolving_report.json").read_text())
+        assert out["status"] == "skipped"
+
+    def test_robustness_empty(self):
+        from AGENT_H.self_evolving_engine import SelfEvolvingEngine
+        gen, ev = _se_env()
+        rep = SelfEvolvingEngine([], [], seed=0).evolve(gen, ev, max_rounds=5)
+        assert rep["pass"] is True
+
+
+class TestSelfEvolvingResearchGrade:
+    """T40 hardening: non-stationary policies, difficulty scheduler, regret,
+    reproducibility, constraint escalation, novelty."""
+
+    def test_make_policy_variants(self):
+        from AGENT_H.self_evolving_engine import (
+            make_policy, UCB1, DiscountedUCB1, SlidingWindowUCB, ThompsonSampling)
+        assert isinstance(make_policy("ucb1", _SE_STRATS), UCB1)
+        assert isinstance(make_policy("discounted", _SE_STRATS), DiscountedUCB1)
+        assert isinstance(make_policy("sliding_window", _SE_STRATS), SlidingWindowUCB)
+        assert isinstance(make_policy("thompson", _SE_STRATS, seed=0), ThompsonSampling)
+        with pytest.raises(ValueError):
+            make_policy("nope", _SE_STRATS)
+
+    def test_discounted_is_nonstationary(self):
+        from AGENT_H.self_evolving_engine import DiscountedUCB1
+        duc = DiscountedUCB1(["a", "b"], gamma=0.7)
+        for _ in range(20): duc.update("a", 1.0); duc.update("b", 0.0)
+        for _ in range(20): duc.update("a", 0.0); duc.update("b", 1.0)
+        assert duc.mean("b") > duc.mean("a")  # forgets stale evidence
+        assert duc.name == "discounted_ucb"
+
+    def test_ucb1_stationary_averages(self):
+        from AGENT_H.self_evolving_engine import UCB1
+        uc = UCB1(["a", "b"])
+        for _ in range(20): uc.update("a", 1.0); uc.update("b", 0.0)
+        for _ in range(20): uc.update("a", 0.0); uc.update("b", 1.0)
+        assert abs(uc.mean("a") - 0.5) < 1e-6  # stationary → full-history mean
+
+    def test_sliding_window_forgets(self):
+        from AGENT_H.self_evolving_engine import SlidingWindowUCB
+        sw = SlidingWindowUCB(["a", "b"], window=6)
+        for _ in range(10): sw.update("a", 1.0)
+        for _ in range(10): sw.update("b", 1.0)
+        assert sw.counts["a"] == 10 and "a" in sw.arms
+
+    def test_thompson_confidence_shrinks(self):
+        from AGENT_H.self_evolving_engine import ThompsonSampling
+        ts = ThompsonSampling(["a"], seed=1)
+        c0 = ts.confidence("a")
+        for _ in range(50): ts.update("a", 1.0)
+        assert ts.confidence("a") < c0
+
+    def test_policy_confidence_reported(self):
+        from AGENT_H.self_evolving_engine import make_policy
+        for name in ("ucb1", "discounted", "sliding_window", "thompson"):
+            p = make_policy(name, _SE_STRATS, seed=0)
+            for a in _SE_STRATS: p.update(a, 0.5)
+            assert all("confidence" in p.stats()[a] for a in _SE_STRATS)
+
+    def test_constraint_escalation_ladder(self):
+        from AGENT_H.self_evolving_engine import constraint_for, _ESCALATION
+        assert constraint_for("instr:amoadd.w", 0)["mutations"] == []
+        c2 = constraint_for("instr:amoadd.w", 2)
+        assert c2["strategy_hint"] == "edge_values" and len(c2["mutations"]) == 2
+        c4 = constraint_for("instr:amoadd.w", 4)
+        assert c4["adversarial"] and c4["repair"]
+        assert constraint_for("x", 99)["level"] == len(_ESCALATION) - 1
+
+    def test_importance_ranked_scheduling(self):
+        from AGENT_H.self_evolving_engine import SelfEvolvingEngine
+        eng = SelfEvolvingEngine(_SE_BINS, _SE_STRATS, seed=0,
+                                 weights={"bin5": 10.0}, holes_per_round=3)
+        assert "bin5" in eng.select_holes()
+
+    def test_weighted_coverage(self):
+        from AGENT_H.self_evolving_engine import SelfEvolvingEngine
+        w = {b: 1.0 for b in _SE_BINS}; w["bin0"] = 100.0
+        eng = SelfEvolvingEngine(_SE_BINS, _SE_STRATS, seed=0, weights=w)
+        eng.cov.cover(["bin0"])
+        assert eng.cov.weighted_fraction() > eng.cov.fraction()
+
+    def test_novelty_rewards_new_regions(self):
+        from AGENT_H.self_evolving_engine import CoverageState
+        c = CoverageState(["k1:a", "k1:b", "k2:a"]); c.cover(["k1:a"])
+        assert c.novelty("k2:a") > c.novelty("k1:b")
+
+    def test_suspected_unreachable_flagged(self):
+        from AGENT_H.self_evolving_engine import SelfEvolvingEngine
+        eng = SelfEvolvingEngine(["h0", "h1", "h2"], _SE_STRATS, seed=0,
+                                 plateau_patience=100, unreachable_after=3,
+                                 holes_per_round=3)
+        rep = eng.evolve(
+            lambda s, c: {"strategy": s, "targets": [x["target"] for x in c]},
+            lambda b: {"covered": [], "bugs": 0, "cost": 0.1}, max_rounds=5)
+        assert rep["suspected_unreachable_count"] >= 1
+        assert all(h in rep["suspected_unreachable"] for h in ("h0", "h1", "h2"))
+
+    def test_regret_and_efficiency(self):
+        from AGENT_H.self_evolving_engine import SelfEvolvingEngine
+        gen, ev = _se_env()
+        rep = SelfEvolvingEngine(_SE_BINS, _SE_STRATS, seed=1,
+                                 coverage_target=0.9, plateau_patience=10
+                                 ).evolve(gen, ev, max_rounds=100)
+        assert rep["cumulative_regret"] >= 0.0 and rep["coverage_velocity"] > 0
+        assert "closure_confidence" in rep and "est_rounds_to_target" in rep
+
+    def test_run_campaign_stats(self):
+        from AGENT_H.self_evolving_engine import run_campaign
+        rep = run_campaign(_SE_BINS, _SE_STRATS,
+                           env_factory=lambda s: _se_env(s),
+                           seeds=[0, 1, 2, 3, 4], coverage_target=0.9,
+                           plateau_patience=10, max_rounds=100)
+        fc = rep["final_coverage"]
+        assert fc["n"] == 5 and fc["min"] <= fc["mean"] <= fc["max"]
+        assert rep["modal_strategy"] in _SE_STRATS
+
+    def test_campaign_determinism(self):
+        from AGENT_H.self_evolving_engine import run_campaign
+        kw = dict(env_factory=lambda s: _se_env(s), seeds=[0, 1, 2],
+                  coverage_target=0.8, plateau_patience=8, max_rounds=80)
+        a = run_campaign(_SE_BINS, _SE_STRATS, **kw)
+        b = run_campaign(_SE_BINS, _SE_STRATS, **kw)
+        assert a["final_coverage"] == b["final_coverage"]
+
+    def test_engine_policy_selectable(self):
+        from AGENT_H.self_evolving_engine import SelfEvolvingEngine
+        gen, ev = _se_env()
+        for pol in ("ucb1", "discounted", "sliding_window", "thompson"):
+            rep = SelfEvolvingEngine(_SE_BINS, _SE_STRATS, seed=0, policy=pol,
+                                     coverage_target=0.8, plateau_patience=10
+                                     ).evolve(gen, ev, max_rounds=100)
+            assert rep["policy"] in ("ucb1", "discounted_ucb",
+                                     "sliding_window_ucb", "thompson")
+            assert rep["pass"] is True
+
+    def test_plan_escalates_by_attempts(self):
+        from AGENT_H.self_evolving_engine import plan_from_coverage
+        plan = plan_from_coverage(covered_bins=[], total_bins=["a", "b"],
+                                  attempts={"a": 6})
+        entry = [p for p in plan["closure_plan"] if p["hole"] == "a"][0]
+        assert entry["constraint"]["level"] >= 2
 
 
 # ─────────────────────────────────────────────────────────────────────────────

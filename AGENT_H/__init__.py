@@ -14,6 +14,7 @@ Quick imports::
 from .agent_h_intent       import IntentChecker
 from .atomics_verifier     import AtomicsVerifier, amo_compute, decode_atomic
 from .bitmanip_verifier    import BitmanipVerifier, decode_bitmanip
+from .branch_predictor_verifier import BranchPredictorVerifier
 from .bus_verifier         import BusVerifier, axi_expected_beats
 from .cache_verifier       import CacheVerifier, CacheModel
 from .confidence_scorer    import ConfidenceScorer
@@ -36,6 +37,11 @@ from .rv64_verifier        import RV64Verifier, alu64, aluw, sext32
 from .rv64_atomics_verifier import RV64AtomicsVerifier, amo_compute64
 from .rvc_verifier         import RVCVerifier, is_compressed
 from .security_intel       import SecurityIntelligence
+from .self_evolving_engine import (
+    SelfEvolvingEngine, BanditPolicy, UCB1, DiscountedUCB1, SlidingWindowUCB,
+    ThompsonSampling, make_policy, CoverageState, constraint_for,
+    plan_from_coverage, run_campaign,
+)
 from .sv_mmu_verifier      import SvMMU, SvMMUVerifier
 from .temporal_checker     import TemporalChecker
 from .tlb_verifier         import TLBVerifier
@@ -45,6 +51,7 @@ __version__ = "2.0.0"
 __all__ = [
     "IntentChecker", "AtomicsVerifier", "amo_compute", "decode_atomic",
     "BitmanipVerifier", "decode_bitmanip",
+    "BranchPredictorVerifier",
     "BusVerifier", "axi_expected_beats",
     "CacheVerifier", "CacheModel",
     "ConfidenceScorer", "ContractRunner",
@@ -62,6 +69,9 @@ __all__ = [
     "RV64AtomicsVerifier", "amo_compute64",
     "RVCVerifier", "is_compressed",
     "RootCauseLocalizer", "SecurityIntelligence", "TemporalChecker",
+    "SelfEvolvingEngine", "BanditPolicy", "UCB1", "DiscountedUCB1",
+    "SlidingWindowUCB", "ThompsonSampling", "make_policy", "CoverageState",
+    "constraint_for", "plan_from_coverage", "run_campaign",
     "SvMMU", "SvMMUVerifier",
     "VMVerifier", "Sv32MMU", "TLBVerifier",
 ]

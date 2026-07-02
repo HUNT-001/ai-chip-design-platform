@@ -142,7 +142,20 @@ _R64 = {"add", "sub", "and", "or", "xor", "sll", "srl", "sra", "slt", "sltu"}
 _I64 = {"addi", "andi", "ori", "xori", "slti", "sltiu", "slli", "srli", "srai"}
 _WORD_R = {"addw", "subw", "sllw", "srlw", "sraw"}
 _WORD_I = {"addiw", "slliw", "srliw", "sraiw"}
-_WORD_MNEMS = _WORD_R | _WORD_I
+# M-extension: 64-bit (R-type) and the RV64-only W-suffix forms
+_M64OPS = {"mul", "mulh", "mulhsu", "mulhu", "div", "divu", "rem", "remu"}
+_MWORD  = {"mulw", "divw", "divuw", "remw", "remuw"}
+_WORD_MNEMS = _WORD_R | _WORD_I | _MWORD
+
+
+def _trunc_div(a: int, b: int) -> int:
+    """Signed division truncated toward zero (RISC-V semantics)."""
+    q = abs(a) // abs(b)
+    return -q if (a < 0) != (b < 0) else q
+
+
+def _trunc_rem(a: int, b: int) -> int:
+    return a - _trunc_div(a, b) * b
 
 
 def alu64(op: str, a: int, b: int) -> Optional[int]:
@@ -168,6 +181,33 @@ def alu64(op: str, a: int, b: int) -> Optional[int]:
         return 1 if _s64(a) < _s64(b) else 0
     if op in ("sltu", "sltiu"):
         return 1 if _u64(a) < _u64(b) else 0
+    # M-extension (64-bit)
+    if op == "mul":
+        return _u64(a * b)
+    if op == "mulh":
+        return _u64((_s64(a) * _s64(b)) >> 64)
+    if op == "mulhu":
+        return _u64((_u64(a) * _u64(b)) >> 64)
+    if op == "mulhsu":
+        return _u64((_s64(a) * _u64(b)) >> 64)
+    if op == "div":
+        sa, sb = _s64(a), _s64(b)
+        if sb == 0:
+            return _M64                                  # x / 0 -> -1
+        if sa == -(1 << 63) and sb == -1:
+            return _u64(sa)                              # overflow -> dividend
+        return _u64(_trunc_div(sa, sb))
+    if op == "divu":
+        return _M64 if _u64(b) == 0 else _u64(a) // _u64(b)
+    if op == "rem":
+        sa, sb = _s64(a), _s64(b)
+        if sb == 0:
+            return _u64(sa)                             # x % 0 -> x
+        if sa == -(1 << 63) and sb == -1:
+            return 0                                     # overflow -> 0
+        return _u64(_trunc_rem(sa, sb))
+    if op == "remu":
+        return _u64(a) if _u64(b) == 0 else _u64(a) % _u64(b)
     return None
 
 
@@ -184,6 +224,28 @@ def aluw(op: str, a: int, b: int) -> Optional[int]:
         return sext32((a32 & _M32) >> (b & 31))
     if op in ("sraw", "sraiw"):
         return sext32((_s32(a32) >> (b & 31)) & _M32)
+    # M-extension W-ops: 32-bit operation, result sign-extended to 64 bits
+    b32 = b & _M32
+    if op == "mulw":
+        return sext32((a32 * b32) & _M32)
+    if op == "divw":
+        sa, sb = _s32(a32), _s32(b32)
+        if sb == 0:
+            return sext32(_M32)                          # -1
+        if sa == -(1 << 31) and sb == -1:
+            return sext32(0x80000000)                    # overflow -> dividend
+        return sext32(_trunc_div(sa, sb) & _M32)
+    if op == "divuw":
+        return sext32(_M32) if b32 == 0 else sext32((a32 // b32) & _M32)
+    if op == "remw":
+        sa, sb = _s32(a32), _s32(b32)
+        if sb == 0:
+            return sext32(a32)
+        if sa == -(1 << 31) and sb == -1:
+            return 0
+        return sext32(_trunc_rem(sa, sb) & _M32)
+    if op == "remuw":
+        return sext32(a32) if b32 == 0 else sext32((a32 % b32) & _M32)
     return None
 
 
@@ -202,16 +264,16 @@ def decode(disasm: str) -> Optional[Decoded]:
         return None
     d = disasm.strip().lower()
     mnem = d.split()[0]
-    if mnem not in (_R64 | _I64 | _WORD_MNEMS) and mnem != "mv":
+    if mnem not in (_R64 | _I64 | _WORD_MNEMS | _M64OPS) and mnem != "mv":
         return None
     regs = [reg_idx(t) for t in _REGTOK.findall(d)]
     regs = [r for r in regs if r is not None]
     rd  = regs[0] if len(regs) > 0 else None
     rs1 = regs[1] if len(regs) > 1 else None
 
-    if mnem in _R64 or mnem in _WORD_R:
+    if mnem in _R64 or mnem in _WORD_R or mnem in _M64OPS or mnem in _MWORD:
         rs2 = regs[2] if len(regs) > 2 else None
-        return Decoded(mnem, rd, rs1, rs2, None, mnem in _WORD_R)
+        return Decoded(mnem, rd, rs1, rs2, None, mnem in _WORD_R or mnem in _MWORD)
     if mnem == "mv":
         return Decoded("addi", rd, rs1, None, 0, False)
     # I-type / word-I

@@ -4,6 +4,104 @@ All notable changes to AVA — Autonomic Verification Agent are documented here.
 
 ---
 
+## [2.19.0] — 2026-06-30
+
+### Added
+- **T40 — Self-Evolving Verification Engine** (`AGENT_H/self_evolving_engine.py`).
+  A reinforcement-learning coverage-closure loop — the AI "self-evolving test"
+  research track. Instead of blindly generating more constrained-random tests
+  as coverage plateaus, it treats closure as a **multi-armed bandit** problem:
+  - **Non-stationary bandit policies** (pluggable) — coverage closure is a
+    *non-stationary* problem (a strategy decays once it has covered the holes it
+    is good at), so vanilla UCB1 is theoretically wrong for it. The engine ships
+    four provably-grounded policies behind one interface:
+    `UCB1` (stationary baseline, Auer 2002), **`DiscountedUCB1`** (γ-discounted
+    counts — "forgetting", Garivier & Moulines 2011, **the default**),
+    **`SlidingWindowUCB`** (window re-estimation), and **`ThompsonSampling`**
+    (Bayesian Beta posterior with native uncertainty). `make_policy()` factory.
+  - **Difficulty-aware + importance-ranked hole scheduler** — targets
+    least-attempted, highest-weight holes first; tracks per-hole attempts and
+    flags **suspected-unreachable** holes (candidate coverage waivers).
+  - **`constraint_for(hole, level)` escalation ladder** — baseline → widen
+    ranges → edge values → repair → adversarial, auto-climbed as a hole resists
+    (constraint auto-tuning / mutation / repair / adversarial).
+  - **Importance-weighted, novelty-boosted reward** = weighted coverage-closure
+    + curiosity (rarely-hit regions) + bugs − runtime cost, bounded to [0,1].
+  - **Intelligence metrics**: cumulative **regret** (learning-stability
+    diagnostic), coverage **velocity**, coverage-**per-cost**, **closure
+    prediction** (est. rounds-to-target + confidence), per-arm **uncertainty**,
+    weighted coverage.
+  - **`run_campaign()`** — multi-seed reproducibility runner reporting
+    **mean ± 95% CI** over final coverage / rounds / regret, plus a modal
+    recommended strategy (results with error bars, not one lucky run).
+  - **`CoverageState`** (importance weights + region-novelty tracking),
+    `evolve(generate, evaluate)` with plateau/target/exhausted stops and
+    bad-plugin containment, schema-v2.1.0 report.
+  - **`plan_from_coverage` / `run_from_manifest`** — offline advisory mode: no
+    simulator; reads `coverage_summary.json`, ranks holes by importance ×
+    difficulty, attaches an escalated constraint to each, recommends a strategy.
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_selfevolve` import,
+  `EXTENDED_AGENTS_AVAILABLE`, writes `self_evolving_report.json` when a
+  coverage snapshot is present).
+- 34 new pytest cases across
+  `tests/test_agents.py::TestSelfEvolvingEngine` +
+  `TestSelfEvolvingResearchGrade` (policy variants, non-stationarity vs.
+  stationarity, sliding-window forgetting, Thompson posterior, constraint
+  escalation, importance scheduling, novelty, suspected-unreachable, regret /
+  efficiency / closure-prediction, multi-seed CI + determinism, per-policy
+  plumbing, offline planning, robustness).
+
+---
+
+## [2.18.0] — 2026-06-30
+
+### Added
+- **T39 — Branch Predictor Verifier** (`AGENT_H/branch_predictor_verifier.py`).
+  Level-7 branch-prediction verification from the commit log:
+  - `bp_recovery` — after a conditional branch or direct jump, the committed
+    next-PC must equal the architecturally-correct outcome (taken → target,
+    not-taken → fall-through). The outcome is recomputed **independently** from
+    the register operands, so a predictor that mis-speculates and fails to
+    recover (commits a wrong-path instruction) is caught. Sound — no assumption
+    about which predictor the DUT uses.
+  - `bp_hit_flag` — if the DUT reports its own prediction (`predict.taken` /
+    `predict.correct`), that hit/miss flag must agree with the actual outcome.
+  - **Metrics** (analytics, never fail the run): branches, taken-rate,
+    prediction accuracy, mispredicts, MPKI, and **RAS return-prediction
+    accuracy** from a golden return-address stack (call/return hint model).
+  - Conservatively gated: checks run only when operands / target / next-PC (and,
+    for the flag check, the DUT's prediction) are available; a clean no-op on
+    traces without branch information.
+  - `BranchPredictorVerifier.run()` (schema v2.1.0 report with band),
+    `run_from_manifest()`.
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_branchp` import,
+  `EXTENDED_AGENTS_AVAILABLE`, per-run `branch_predictor_report.json` when
+  branches are present).
+- 12 new pytest cases in `tests/test_agents.py::TestBranchPredictorVerifier`.
+
+---
+
+## [2.17.0] — 2026-06-30
+
+### Added — RV64 widening (phase 4)
+- **RV64 M-extension ops** in `AGENT_H/rv64_verifier.py`:
+  - 64-bit `alu64`: `mul`, `mulh`, `mulhsu`, `mulhu`, `div`, `divu`, `rem`,
+    `remu` — with the RISC-V division semantics (truncate toward zero,
+    divide-by-zero → −1 / all-ones, signed-overflow → dividend / 0).
+  - W-suffix `aluw`: `mulw`, `divw`, `divuw`, `remw`, `remuw` — 32-bit
+    operation with the same div/rem rules, result sign-extended to 64 bits.
+  - `decode` recognises all the new mnemonics; the W forms are treated as word
+    ops (so the `rv64_word_sext` diagnosis applies to them too).
+- 5 new pytest cases in `tests/test_agents.py::TestRV64MExtension`
+  (64-bit + W-op golden vectors incl. truncate-toward-zero, div-by-zero and
+  overflow; `mulw`/`divw` integration pass; `mulw` bug caught).
+
+### Verified
+- Suite: **337 passed, 1 skipped**; `compileall` clean; orchestrator self-test
+  passes.
+
+---
+
 ## [2.16.0] — 2026-06-30
 
 ### Added — RV64 widening (phase 3)

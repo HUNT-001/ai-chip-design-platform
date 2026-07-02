@@ -85,6 +85,7 @@ _privilege = _try_import("AGENT_H.privilege_verifier",    "PrivilegeVerifier")
 _vm        = _try_import("AGENT_H.vm_verifier",           "VMVerifier")
 _tlb       = _try_import("AGENT_H.tlb_verifier",          "TLBVerifier")
 _pipeline  = _try_import("AGENT_H.pipeline_verifier",     "PipelineVerifier")
+_branchp   = _try_import("AGENT_H.branch_predictor_verifier", "BranchPredictorVerifier")
 _cache     = _try_import("AGENT_H.cache_verifier",        "CacheVerifier")
 _bus       = _try_import("AGENT_H.bus_verifier",          "BusVerifier")
 _faultinj  = _try_import("AGENT_H.fault_injector",        "FaultCampaign")
@@ -96,12 +97,13 @@ _security  = _try_import("AGENT_H.security_intel",        "SecurityIntel")
 _economics = _try_import("AGENT_H.economics_engine",      "EconomicsEngine")
 _ffuzz     = _try_import("AGENT_H.formal_fuzzer",         "FormalFuzzer")
 _twin      = _try_import("AGENT_H.digital_twin",          "DigitalTwin")
+_selfevolve= _try_import("AGENT_H.self_evolving_engine",  "SelfEvolvingEngine")
 
 EXTENDED_AGENTS_AVAILABLE = any([
     _agent_i, _agent_j, _agent_k, _agent_l,
     _intent, _confidence, _contract, _temporal, _atomics, _csr, _rvc, _fp,
-    _bitmanip, _privilege, _vm, _tlb, _pipeline, _cache, _bus,
-    _faultinj, _rv64, _svmmu, _rv64atom, _peripheral, _security,
+    _bitmanip, _privilege, _vm, _tlb, _pipeline, _branchp, _cache, _bus,
+    _faultinj, _rv64, _svmmu, _rv64atom, _peripheral, _security, _selfevolve,
 ])
 
 # ── Agent F: real Verilator coverage backend ──────────────────────────────────
@@ -2256,6 +2258,27 @@ endclass
             except Exception as exc:
                 logger.warning("  Pipeline verifier failed: %s", exc)
 
+        # -- Branch predictor verifier (recovery + prediction metrics)
+        if _branchp and rtl_log:
+            try:
+                bpv = _branchp.BranchPredictorVerifier(rtl_log, iss_log)
+                r = bpv.run()
+                if r.get("metrics", {}).get("branches", 0) > 0:
+                    rp = run_dir / "branch_predictor_report.json"
+                    with open(rp, "w") as f:
+                        json.dump(r, f, indent=2)
+                    reports["branch_predictor"] = {
+                        "metrics": r.get("metrics", {}),
+                        "violations": r.get("total_violations", 0),
+                        "band": r.get("band", "CLEAN"),
+                        "pass": r.get("pass", True),
+                    }
+                    logger.info("  Branch predictor: %d branches, %d violations, band=%s",
+                                r.get("metrics", {}).get("branches", 0),
+                                r.get("total_violations", 0), r.get("band"))
+            except Exception as exc:
+                logger.warning("  Branch predictor verifier failed: %s", exc)
+
         # -- Cache subsystem verifier (gated on cache_config + events)
         if _cache and rtl_log:
             try:
@@ -2528,6 +2551,32 @@ endclass
                             r.get("score", 0), r.get("band"))
             except Exception as exc:
                 logger.warning("  Confidence scorer failed: %s", exc)
+
+        # -- Self-evolving coverage-closure planner (offline / advisory)
+        #    Consumes any coverage_summary.json in the run dir, ranks the open
+        #    holes, synthesises a constraint per hole and recommends a
+        #    generation strategy — the seed for the next adaptive round.
+        if _selfevolve:
+            try:
+                rc = _selfevolve.run_from_manifest(str(mpath)) \
+                    if hasattr(_selfevolve, "run_from_manifest") else 0
+                rp = run_dir / "self_evolving_report.json"
+                if rp.exists():
+                    with open(rp) as f:
+                        sr = json.load(f)
+                    if sr.get("status") != "skipped":
+                        reports["self_evolving"] = {
+                            "final_coverage": sr.get("final_coverage"),
+                            "holes_remaining": sr.get("holes_remaining"),
+                            "recommended_strategy": sr.get("recommended_strategy"),
+                            "band": sr.get("band"),
+                        }
+                        logger.info("  Self-evolving planner: coverage=%.3f, %d holes, strategy=%s",
+                                    sr.get("final_coverage", 0.0) or 0.0,
+                                    sr.get("holes_remaining", 0),
+                                    sr.get("recommended_strategy"))
+            except Exception as exc:
+                logger.warning("  Self-evolving planner failed: %s", exc)
 
         # Update manifest status
         try:

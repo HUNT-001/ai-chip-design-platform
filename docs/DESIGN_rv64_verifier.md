@@ -101,13 +101,12 @@ self-test passes.
 This agent is **phase 1**. The remaining widening, in feasible order, each
 reusing the established pattern:
 
-1. **Sv39 / Sv48 virtual memory** — generalise `Sv32MMU` to 3- and 4-level
-   walks with 64-bit PTEs and addresses. The walk loop and PTE decode are
-   already structured for this; it is the marquee Linux-class unlock.
-2. **RV64 atomics (`AMO*.D`, `LR.D`/`SC.D`)** — extend `atomics_verifier`
-   (currently flags `.d` as illegal on RV32) to verify 64-bit atomics.
-3. **RV64 M-extension word ops** (`mulw`, `divw`, `divuw`, `remw`, `remuw`) —
-   add to the W-op evaluator.
+1. ✅ **Sv39 / Sv48 virtual memory** — `AGENT_H/sv_mmu_verifier.py` (`SvMMU`).
+2. ✅ **RV64 atomics (`AMO*.D`, `LR.D`/`SC.D`)** —
+   `AGENT_H/rv64_atomics_verifier.py`.
+3. ✅ **RV64 M-extension** — `mul/mulh/mulhsu/mulhu/div/divu/rem/remu` and the
+   W forms `mulw/divw/divuw/remw/remuw` are now in `alu64`/`aluw` (this module),
+   with truncate-toward-zero, divide-by-zero and signed-overflow semantics.
 4. **64-bit addresses across PMP / cache / bus** — widen the address masks in
    those agents behind an `xlen` parameter (default 32, set 64 for RV64 runs).
 5. **A shared `riscv_xlen` helper** consolidating the per-module `_u32/_s32`
