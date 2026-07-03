@@ -549,6 +549,7 @@ class TestSchemaFiles:
             "AGENT_H.pipeline_verifier",
             "AGENT_H.branch_predictor_verifier",
             "AGENT_H.self_evolving_engine",
+            "AGENT_H.vector_verifier",
             "AGENT_H.cache_verifier",
             "AGENT_H.bus_verifier",
             "AGENT_H.fault_injector",
@@ -3301,6 +3302,248 @@ class TestSelfEvolvingResearchGrade:
                                   attempts={"a": 6})
         entry = [p for p in plan["closure_plan"] if p["hole"] == "a"][0]
         assert entry["constraint"]["level"] >= 2
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T41 — RISC-V Vector (RVV) Verifier
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _vrec(seq, disasm, **kw):
+    r = {"schema_version": "2.1.0", "seq": seq, "pc": hex(0x80000000 + seq * 4),
+         "disasm": disasm, "regs": kw.pop("regs", {}), "csrs": {}}
+    r.update(kw)
+    return r
+
+
+class TestVectorVerifier:
+    def test_import(self):
+        from AGENT_H import vector_verifier as vv
+        assert hasattr(vv, "VectorVerifier")
+
+    def test_decode_vtype(self):
+        from AGENT_H.vector_verifier import decode_vtype
+        d = decode_vtype({"sew": 32, "lmul": 1})
+        assert d["sew"] == 32 and d["golden_vill"] is False
+        enc = (2 << 3) | (1 << 6)              # sew32, lmul1, vta1
+        assert decode_vtype(enc)["sew"] == 32
+
+    def test_vlmax_fractional(self):
+        from AGENT_H.vector_verifier import vlmax
+        assert vlmax(32, 1.0, 128) == 4 and vlmax(32, 0.5, 128) == 2
+
+    def test_velem_compute(self):
+        from AGENT_H.vector_verifier import velem_compute
+        assert velem_compute("vadd", 8, 200, 100) == (300 & 0xFF)
+        assert velem_compute("vminu", 8, 0xFF, 1) == 1
+        assert velem_compute("vmin", 8, 0xFF, 1) == 0xFF     # signed -1 < 1
+        assert velem_compute("vmulhu", 8, 0xFF, 0xFF) == 0xFE
+
+    def test_vset_vl_clean(self):
+        from AGENT_H.vector_verifier import VectorVerifier
+        log = [_vrec(0, "vsetvli x1,x2,e32,m1", vtype={"sew": 32, "lmul": 1},
+                     vl=4, avl=4, vlen=128)]
+        assert VectorVerifier(log).run()["pass"]
+
+    def test_vset_vl_exceeds_vlmax(self):
+        from AGENT_H.vector_verifier import VectorVerifier
+        log = [_vrec(0, "vsetvli x1,x2,e32,m1", vtype={"sew": 32, "lmul": 1},
+                     vl=8, avl=8, vlen=128)]
+        r = VectorVerifier(log).run()
+        assert not r["pass"] and any(v["check"] == "vset_vl" for v in r["violations"])
+
+    def test_vset_ambiguous_band(self):
+        from AGENT_H.vector_verifier import VectorVerifier
+        # VLMAX=4, AVL=6 → vl ∈ [3,4] legal; vl=2 illegal
+        assert VectorVerifier([_vrec(0, "vsetvli x1,x2,e32,m1",
+                                     vtype={"sew": 32, "lmul": 1}, vl=4, avl=6,
+                                     vlen=128)]).run()["pass"]
+        assert not VectorVerifier([_vrec(0, "vsetvli x1,x2,e32,m1",
+                                         vtype={"sew": 32, "lmul": 1}, vl=2,
+                                         avl=6, vlen=128)]).run()["pass"]
+
+    def test_vill_on_illegal(self):
+        from AGENT_H.vector_verifier import VectorVerifier
+        log = [_vrec(0, "vsetvli x1,x2,e128,m1", vtype={"sew": 128, "lmul": 1},
+                     vl=1, avl=1, vlen=128)]
+        assert any(v["check"] == "vtype_vill"
+                   for v in VectorVerifier(log).run()["violations"])
+
+    def test_velem_clean_and_bug(self):
+        from AGENT_H.vector_verifier import VectorVerifier
+        clean = [_vrec(0, "vadd.vv v1,v2,v3", vtype={"sew": 8, "lmul": 1}, vl=4,
+                       vregs={"v2": [1, 2, 3, 4], "v3": [10, 20, 30, 40],
+                              "v1": [11, 22, 33, 44]})]
+        assert VectorVerifier(clean).run()["pass"]
+        bug = [_vrec(0, "vadd.vv v1,v2,v3", vtype={"sew": 8, "lmul": 1}, vl=4,
+                     vregs={"v2": [1, 2, 3, 4], "v3": [10, 20, 30, 40],
+                            "v1": [11, 22, 99, 44]})]
+        r = VectorVerifier(bug).run()
+        assert not r["pass"] and any(v["check"] == "velem" for v in r["violations"])
+
+    def test_velem_vx_and_vi(self):
+        from AGENT_H.vector_verifier import VectorVerifier
+        vx = [_vrec(0, "vadd.vx v1,v2,x5", vtype={"sew": 8, "lmul": 1}, vl=3,
+                    regs={"x5": 5}, vregs={"v2": [1, 2, 3], "v1": [6, 7, 8]})]
+        vi = [_vrec(0, "vadd.vi v1,v2,3", vtype={"sew": 8, "lmul": 1}, vl=2,
+                    vregs={"v2": [10, 20], "v1": [13, 23]})]
+        assert VectorVerifier(vx).run()["pass"]
+        assert VectorVerifier(vi).run()["pass"]
+
+    def test_velem_tail_and_mask_ignored(self):
+        from AGENT_H.vector_verifier import VectorVerifier
+        # tail element beyond vl and mask-off element may be garbage
+        tail = [_vrec(0, "vadd.vv v1,v2,v3", vtype={"sew": 8, "lmul": 1}, vl=2,
+                      vregs={"v2": [1, 2, 9], "v3": [10, 20, 9],
+                             "v1": [11, 22, 123]})]
+        masked = [_vrec(0, "vadd.vv v1,v2,v3,v0.t", vtype={"sew": 8, "lmul": 1},
+                        vl=3, vmask=[True, False, True],
+                        vregs={"v2": [1, 2, 3], "v3": [10, 20, 30],
+                               "v1": [11, 99, 33]})]
+        assert VectorVerifier(tail).run()["pass"]
+        assert VectorVerifier(masked).run()["pass"]
+
+    def test_vtail_disturbed(self):
+        from AGENT_H.vector_verifier import VectorVerifier
+        log = [_vrec(0, "vadd.vv v1,v2,v3", vtype={"sew": 8, "lmul": 1, "vta": 0},
+                     vl=2, vlen=32,
+                     vregs={"v2": [1, 2, 0, 0], "v3": [10, 20, 0, 0],
+                            "v1": [11, 22, 55, 66]},
+                     vstate_prev={"v1": [0, 0, 33, 44]})]
+        assert any(v["check"] == "vtail"
+                   for v in VectorVerifier(log).run()["violations"])
+
+    def test_no_vector_noop(self):
+        from AGENT_H.vector_verifier import VectorVerifier
+        r = VectorVerifier([_vrec(0, "addi x1,x0,1")]).run()
+        assert r["pass"] and r["vector_active"] is False
+
+    def test_robustness(self):
+        from AGENT_H.vector_verifier import VectorVerifier
+        for log in ([], [None, 5, "x"], [{}], [{"disasm": None}],
+                    [_vrec(0, "vadd.vv v1,v2,v3")]):
+            r = VectorVerifier(log).run()
+            assert r["pass"] and "band" in r
+
+    def test_report_schema(self):
+        from AGENT_H.vector_verifier import VectorVerifier
+        r = VectorVerifier([]).run()
+        for k in ("schema_version", "agent", "records_checked", "metrics",
+                  "total_violations", "pass", "violations", "band"):
+            assert k in r
+        assert r["agent"] == "vector_verifier"
+
+    def test_run_from_manifest(self, tmp_path):
+        from AGENT_H.vector_verifier import run_from_manifest
+        log = [_vrec(0, "vsetvli x1,x2,e32,m1", vtype={"sew": 32, "lmul": 1},
+                     vl=8, avl=8, vlen=128)]
+        (tmp_path / "rtl_commit.jsonl").write_text(
+            "\n".join(json.dumps(x) for x in log))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 1
+        assert (tmp_path / "vector_report.json").exists()
+
+
+class TestVectorMemory:
+    """T41 vector load/store: addressing modes, active-element accesses, EEW,
+    value consistency."""
+
+    def test_decode_vmem_modes(self):
+        from AGENT_H.vector_verifier import decode_vmem
+        assert decode_vmem("vle32.v v1,(a0)")["mode"] == "unit"
+        assert decode_vmem("vlse64.v v1,(a0),a1")["mode"] == "strided"
+        ix = decode_vmem("vluxei32.v v1,(a0),v2")
+        assert ix["mode"] == "indexed" and ix["index_eew"] == 32
+        assert decode_vmem("vadd.vv v1,v2,v3") is None
+        assert decode_vmem("vsub.vv v1,v2,v3") is None
+
+    def test_unit_load_clean_and_wrong(self):
+        from AGENT_H.vector_verifier import VectorVerifier
+        clean = [_vrec(0, "vle32.v v1,(a0)", vtype={"sew": 32, "lmul": 1}, vl=4,
+                       regs={"a0": 0x1000},
+                       mem_reads=[{"addr": hex(0x1000 + i * 4), "size": 4}
+                                  for i in range(4)])]
+        assert VectorVerifier(clean).run()["pass"]
+        wrong = [_vrec(0, "vle32.v v1,(a0)", vtype={"sew": 32, "lmul": 1}, vl=4,
+                       regs={"a0": 0x1000},
+                       mem_reads=[{"addr": hex(0x1000 + i * 8), "size": 4}
+                                  for i in range(4)])]
+        r = VectorVerifier(wrong).run()
+        assert not r["pass"] and any(v["check"] == "vmem_addr" for v in r["violations"])
+
+    def test_spurious_access_count(self):
+        from AGENT_H.vector_verifier import VectorVerifier
+        log = [_vrec(0, "vse32.v v1,(a0)", vtype={"sew": 32, "lmul": 1}, vl=4,
+                     regs={"a0": 0x2000},
+                     mem_writes=[{"addr": hex(0x2000 + i * 4), "size": 4}
+                                 for i in range(5)])]
+        assert any(v["check"] == "vmem_count"
+                   for v in VectorVerifier(log).run()["violations"])
+
+    def test_mask_suppresses_access(self):
+        from AGENT_H.vector_verifier import VectorVerifier
+        ok = [_vrec(0, "vle32.v v1,(a0),v0.t", vtype={"sew": 32, "lmul": 1},
+                    vl=4, regs={"a0": 0x1000}, vmask=[True, False, True, True],
+                    mem_reads=[{"addr": hex(0x1000 + i * 4), "size": 4}
+                               for i in (0, 2, 3)])]
+        assert VectorVerifier(ok).run()["pass"]
+        spur = [_vrec(0, "vle32.v v1,(a0),v0.t", vtype={"sew": 32, "lmul": 1},
+                      vl=4, regs={"a0": 0x1000}, vmask=[True, False, True, True],
+                      mem_reads=[{"addr": hex(0x1000 + i * 4), "size": 4}
+                                 for i in range(4)])]
+        r = VectorVerifier(spur).run()
+        assert any(v["check"] in ("vmem_addr", "vmem_count") for v in r["violations"])
+
+    def test_strided(self):
+        from AGENT_H.vector_verifier import VectorVerifier
+        log = [_vrec(0, "vlse32.v v1,(a0),a1", vtype={"sew": 32, "lmul": 1},
+                     vl=3, regs={"a0": 0x1000, "a1": 16},
+                     mem_reads=[{"addr": hex(0x1000 + i * 16), "size": 4}
+                                for i in range(3)])]
+        assert VectorVerifier(log).run()["pass"]
+
+    def test_indexed_clean_and_wrong(self):
+        from AGENT_H.vector_verifier import VectorVerifier
+        clean = [_vrec(0, "vluxei32.v v1,(a0),v2", vtype={"sew": 32, "lmul": 1},
+                       vl=3, regs={"a0": 0x1000}, vregs={"v2": [0, 64, 8]},
+                       mem_reads=[{"addr": hex(0x1000 + o), "size": 4}
+                                  for o in (0, 64, 8)])]
+        assert VectorVerifier(clean).run()["pass"]
+        wrong = [_vrec(0, "vluxei32.v v1,(a0),v2", vtype={"sew": 32, "lmul": 1},
+                       vl=3, regs={"a0": 0x1000}, vregs={"v2": [0, 64, 8]},
+                       mem_reads=[{"addr": hex(0x1000 + o), "size": 4}
+                                  for o in (0, 64, 99)])]
+        assert any(v["check"] == "vmem_addr"
+                   for v in VectorVerifier(wrong).run()["violations"])
+
+    def test_eew_and_value(self):
+        from AGENT_H.vector_verifier import VectorVerifier
+        eew = [_vrec(0, "vle32.v v1,(a0)", vtype={"sew": 32, "lmul": 1}, vl=2,
+                     regs={"a0": 0x1000},
+                     mem_reads=[{"addr": hex(0x1000 + i * 4), "size": 2}
+                                for i in range(2)])]
+        assert any(v["check"] == "vmem_eew"
+                   for v in VectorVerifier(eew).run()["violations"])
+        val = [_vrec(0, "vle32.v v1,(a0)", vtype={"sew": 32, "lmul": 1}, vl=2,
+                     regs={"a0": 0x1000}, vregs={"v1": [0xAA, 0xBB]},
+                     mem_reads=[{"addr": "0x1000", "size": 4, "value": 0xAA},
+                                {"addr": "0x1004", "size": 4, "value": 0xCC}])]
+        assert any(v["check"] == "vmem_value"
+                   for v in VectorVerifier(val).run()["violations"])
+
+    def test_metrics_and_gating(self):
+        from AGENT_H.vector_verifier import VectorVerifier
+        log = [_vrec(0, "vle32.v v1,(a0)", vtype={"sew": 32, "lmul": 1}, vl=4,
+                     regs={"a0": 0x1000},
+                     mem_reads=[{"addr": hex(0x1000 + i * 4), "size": 4}
+                                for i in range(4)])]
+        met = VectorVerifier(log).run()["metrics"]
+        assert met["mem_ops"] == 1 and met["mem_elements"] == 4
+        # no access data → cannot check, no false positive
+        nodata = [_vrec(0, "vle32.v v1,(a0)", vtype={"sew": 32, "lmul": 1},
+                        vl=4, regs={"a0": 0x1000})]
+        assert VectorVerifier(nodata).run()["pass"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -4,6 +4,52 @@ All notable changes to AVA — Autonomic Verification Agent are documented here.
 
 ---
 
+## [2.20.0] — 2026-06-30
+
+### Added
+- **T41 — RISC-V Vector (RVV) Verifier** (`AGENT_H/vector_verifier.py`). Golden
+  checker for the Vector extension — the widest ISA gap, because RVV correctness
+  hinges on dynamic `vtype`/`vl` state a scalar tandem-diff never inspects:
+  - **`vset_vl`** (HIGH) — spec-accurate application-vector-length rules for the
+    configured SEW/LMUL/VLEN (incl. **fractional LMUL** 1/8…1/2):
+    `AVL ≤ VLMAX → vl==AVL`; `AVL ≥ 2·VLMAX → vl==VLMAX`; in the impl-defined
+    band `VLMAX<AVL<2·VLMAX` only the spec-guaranteed bounds
+    `ceil(AVL/2) ≤ vl ≤ VLMAX` are asserted (a compliant design is never
+    falsely flagged); always `vl ≤ VLMAX`.
+  - **`vtype_vill`** (HIGH) — an unsupported `vtype` (reserved LMUL, SEW > ELEN,
+    VLMAX < 1) must set `vill` and force `vl = 0`.
+  - **`velem`** (HIGH) — element-wise golden SEW-width recompute for the vector
+    ALU (`vadd/vsub/vrsub`, `vand/vor/vxor`, `vsll/vsrl/vsra`,
+    `vmul/vmulh/vmulhu`, `vmin/vmax/vminu/vmaxu`, `vmerge`, `vmv`) across
+    **active, unmasked** elements only — masked/tail elements are skipped
+    (agnostic policy is legal), so only architecturally-pinned elements are
+    checked. Handles `.vv` / `.vx` / `.vi` forms.
+  - **`vtail`** (MEDIUM) — under `vta=0` the destination tail `[vl, VLMAX)` must
+    stay undisturbed (when the pre-state is exposed).
+  - **Vector load/store** (`vle/vse`, `vlse/vsse`, `vlxei/vsxei`) — golden
+    per-element **address generation** for unit-stride / strided / indexed
+    modes, checking: `vmem_addr` (address set correctness), `vmem_count`
+    (exactly one access per active, unmasked element — catches spurious or
+    missing accesses, incl. accesses to masked-off/tail elements), `vmem_eew`
+    (access size == encoded EEW), and `vmem_value` (loaded/stored element vs.
+    memory value at that address). `decode_vmem` mnemonic decode; mem metrics.
+  - `decode_vtype` (dict or encoded int), `vlmax`, `velem_compute`,
+    `decode_vector_alu`; RVV metrics (vector-instr / vset counts, mean `vl`,
+    SEW & LMUL histograms, masked-op & active-element counts). Additive trace
+    contract (`vtype`, `vl`, `avl`, `vlen`, `vregs`, `vmask`, `vstate_prev`) —
+    clean no-op on non-vector traces.
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_vector` import,
+  `EXTENDED_AGENTS_AVAILABLE`, writes `vector_report.json` when vector activity
+  is present).
+- 24 new pytest cases in `tests/test_agents.py::TestVectorVerifier` +
+  `TestVectorMemory` (vtype decode, vlmax, element golden, vset
+  clean/exceed/ambiguous-band, vill, velem clean/bug/vx/vi, tail+mask skipping,
+  vtail, no-op, robustness, schema, manifest; plus vmem decode, unit/strided/
+  indexed addressing, spurious-access count, mask-suppressed accesses, EEW,
+  load/store value, metrics/gating).
+
+---
+
 ## [2.19.0] — 2026-06-30
 
 ### Added

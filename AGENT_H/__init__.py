@@ -45,6 +45,7 @@ from .self_evolving_engine import (
 from .sv_mmu_verifier      import SvMMU, SvMMUVerifier
 from .temporal_checker     import TemporalChecker
 from .tlb_verifier         import TLBVerifier
+from .vector_verifier      import VectorVerifier, decode_vtype, velem_compute, vlmax
 from .vm_verifier          import VMVerifier, Sv32MMU
 
 __version__ = "2.0.0"
@@ -74,4 +75,5 @@ __all__ = [
     "constraint_for", "plan_from_coverage", "run_campaign",
     "SvMMU", "SvMMUVerifier",
     "VMVerifier", "Sv32MMU", "TLBVerifier",
+    "VectorVerifier", "decode_vtype", "velem_compute", "vlmax",
 ]

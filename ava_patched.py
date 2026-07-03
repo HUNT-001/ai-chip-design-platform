@@ -86,6 +86,7 @@ _vm        = _try_import("AGENT_H.vm_verifier",           "VMVerifier")
 _tlb       = _try_import("AGENT_H.tlb_verifier",          "TLBVerifier")
 _pipeline  = _try_import("AGENT_H.pipeline_verifier",     "PipelineVerifier")
 _branchp   = _try_import("AGENT_H.branch_predictor_verifier", "BranchPredictorVerifier")
+_vector    = _try_import("AGENT_H.vector_verifier",       "VectorVerifier")
 _cache     = _try_import("AGENT_H.cache_verifier",        "CacheVerifier")
 _bus       = _try_import("AGENT_H.bus_verifier",          "BusVerifier")
 _faultinj  = _try_import("AGENT_H.fault_injector",        "FaultCampaign")
@@ -104,6 +105,7 @@ EXTENDED_AGENTS_AVAILABLE = any([
     _intent, _confidence, _contract, _temporal, _atomics, _csr, _rvc, _fp,
     _bitmanip, _privilege, _vm, _tlb, _pipeline, _branchp, _cache, _bus,
     _faultinj, _rv64, _svmmu, _rv64atom, _peripheral, _security, _selfevolve,
+    _vector,
 ])
 
 # ── Agent F: real Verilator coverage backend ──────────────────────────────────
@@ -2278,6 +2280,31 @@ endclass
                                 r.get("total_violations", 0), r.get("band"))
             except Exception as exc:
                 logger.warning("  Branch predictor verifier failed: %s", exc)
+
+        # -- Vector (RVV) verifier — gated on vector activity in the log
+        if _vector and rtl_log:
+            try:
+                vlen = None
+                if hasattr(semantic_map, "raw"):
+                    vlen = (semantic_map.raw or {}).get("vlen")
+                vv = _vector.VectorVerifier(rtl_log, iss_log,
+                                            vlen=vlen or 128)
+                r = vv.run()
+                if r.get("vector_active"):
+                    rp = run_dir / "vector_report.json"
+                    with open(rp, "w") as f:
+                        json.dump(r, f, indent=2)
+                    reports["vector"] = {
+                        "metrics": r.get("metrics", {}),
+                        "violations": r.get("total_violations", 0),
+                        "band": r.get("band", "CLEAN"),
+                        "pass": r.get("pass", True),
+                    }
+                    logger.info("  Vector (RVV): %d vector instrs, %d violations, band=%s",
+                                r.get("metrics", {}).get("vector_instrs", 0),
+                                r.get("total_violations", 0), r.get("band"))
+            except Exception as exc:
+                logger.warning("  Vector verifier failed: %s", exc)
 
         # -- Cache subsystem verifier (gated on cache_config + events)
         if _cache and rtl_log:
