@@ -4,6 +4,125 @@ All notable changes to AVA — Autonomic Verification Agent are documented here.
 
 ---
 
+## [2.24.0] — 2026-06-30
+
+### Added
+- **T44 — Multicore Cache-Coherence Checker** (`AGENT_H/coherence_verifier.py`).
+  A distinct verification *level*: coherence bugs (missing invalidations, stale
+  reads, two simultaneous writers) only manifest across cores, so a single-core
+  tandem-diff can't see them. Golden checks over a multicore memory-access trace:
+  - **`read_from_valid`** (HIGH) — every load's value was actually written by
+    some store to that address (or the initial value); no fabricated data.
+  - **`coherence_read_monotonic`** (HIGH) — **write serialization**: all writes
+    to one address occur in a single total order and every core observes them in
+    that order. Per core, reads-from must be non-decreasing in the global
+    per-address write order; a core that sees a newer write then an older one has
+    hit a stale read / lost invalidation. Catches cross-core write-order
+    disagreement.
+  - **`swmr`** (HIGH) — Single-Writer/Multiple-Reader invariant, checked
+    structurally from per-line MESI state: a writable (M/E) line may not coexist
+    with another writable or shared holder.
+  - Coherence order is taken from the trace's global-visibility order (`cycle`
+    stamps, else list order); `ver` fields disambiguate equal-valued writes.
+    Additive trace contract (`core/op/addr/value/cycle/state/ver`), separate
+    `coherence_trace.jsonl`. Metrics: cores, addresses, loads, stores, SWMR
+    checks. Clean no-op on single-core / absent traces.
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_coherence` import,
+  `EXTENDED_AGENTS_AVAILABLE`, `run_from_manifest` writing `coherence_report.json`
+  when a coherence trace is present).
+- 18 new pytest cases in `tests/test_agents.py::TestCoherenceVerifier`
+  (producer-consumer, fabricated value, initial-value, stale read, cross-core
+  order disagreement, explicit `ver`, SWMR two-writers / writer+reader / clean
+  paths, cycle reordering, single-core no-op, robustness, schema, manifest).
+
+---
+
+## [2.23.0] — 2026-06-30
+
+### Added
+- **Cross-coverage (opcode × result value-class)** in the coverage collector +
+  stimulus generator — the most bug-productive coverage type. New
+  `cross:{mnem}:{valclass}` bins over a default arithmetic instruction set
+  (`add,sub,addi,and,or,xor,sll,srl,sra,slt,sltu,mul`) × the six value classes
+  (72-bin finite universe → real holes, weight 2). Answers questions plain
+  coverage can't: "did we test `add` producing a *negative* result?
+  `sub` producing *all-ones*?".
+  - `coverage_collector.py`: cross bins derived from each record's mnemonic ×
+    written-register value class; `cross_instructions` overridable via the
+    coverage model; new `cross` category in the per-category breakdown.
+  - `stimulus_generator.py`: `cross` template emits `{mnem} …` producing a
+    value of the target class — self-validating like every other template, so
+    the self-evolving loop closes over cross bins too.
+- 3 new pytest cases (`TestCoverageCollector::test_cross_coverage`,
+  `TestStimulusGenerator::test_cross_coverage_targets`) + the loop-closure and
+  planner-integration tests updated for the larger, importance-ranked hole set.
+
+---
+
+## [2.22.0] — 2026-06-30
+
+### Added
+- **T43 — Coverage-Directed Stimulus Generator** (`AGENT_H/stimulus_generator.py`).
+  The generation half of the self-evolving loop — it converts a coverage hole /
+  constraint into a concrete RISC-V instruction **seed**, closing the loop
+  end-to-end (`holes → planner → constraints → generator → seeds → run →
+  collector → holes`).
+  - **Templates** map each bin kind to directed stimulus: `reg:x{n}`
+    (`addi`), `valclass:*` (value-producing `li`), `branch:{taken,not_taken}`
+    (operand-set + branch with the next-PC reflecting the direction),
+    `priv:{M,S,U}`, `instr:{mnem}`; a random fallback for unknown kinds.
+  - **Self-validating by construction** — every template emits the assembly
+    *and* the golden commit records it should produce; `predicted_coverage()`
+    runs those through the real `CoverageCollector`, so `covers_target()` proves
+    a seed hits its bin. The generator checks its own work.
+  - **Real self-evolving plugins** — `make_env()` returns a `generate`/`evaluate`
+    pair, and **`close_coverage()`** wires the generator into
+    `SelfEvolvingEngine` and drives coverage to target with *generated*
+    stimulus (not a synthetic env); the bandit learns to prefer directed over
+    random generation (directed-random hybrid / coverage-guided generation).
+  - `generate_from_holes()` + `run_from_manifest` read the run's
+    `coverage_summary.json` and write `stimulus.json` (directed seeds + a
+    self-validation count) for the next round.
+- Wired into `ava_patched.py::_run_extended_pipeline` after the self-evolving
+  planner (`_stimgen` import, `EXTENDED_AGENTS_AVAILABLE`), so a run now emits
+  directed stimulus for its own open holes.
+- 14 new pytest cases in `tests/test_agents.py::TestStimulusGenerator`,
+  including an **end-to-end closure test** proving generated stimulus reaches
+  ≥95% coverage through the self-evolving loop and the bandit prefers directed
+  generation.
+
+---
+
+## [2.21.0] — 2026-06-30
+
+### Added
+- **T42 — Functional Coverage Collector** (`AGENT_H/coverage_collector.py`).
+  Computes functional coverage from the commit log and, crucially, **closes the
+  self-evolving loop**: it emits the exact `coverage_summary.json` that
+  `AGENT_H.self_evolving_engine` consumes, so the RL closure-planner now runs on
+  real coverage instead of a hypothetical snapshot.
+  - **Bins** as `category:key` labels (the shape `constraint_for` already
+    understands): `reg:x{1..31}` (register writes), `valclass:{zero,one,neg,
+    pos_small,pos_large,all_ones}` (value classes, `classify_value`),
+    `branch:{taken,not_taken}` (direction, from the next PC), `priv:{M,S,U}`,
+    and `instr:{mnem}` when a model lists an expected instruction set.
+  - **Finite-universe categories produce real holes**; CSR / trap / vtype are
+    reported as observed-only telemetry.
+  - **Importance weights** per bin (priv=3, branch=2, others=1) — higher-weight
+    holes are the ones the self-evolving scheduler chases first.
+  - `collect()` returns a schema-v2.1.0 report with an embedded
+    `coverage_summary`; `run_from_manifest` writes both `coverage_report.json`
+    and the machine `coverage_summary.json`; RV32/RV64 auto-detected.
+- Wired into `ava_patched.py::_run_extended_pipeline` **before** the
+  self-evolving planner (`_covcoll` import, `EXTENDED_AGENTS_AVAILABLE`), so the
+  planner picks up live coverage in the same run.
+- 13 new pytest cases in `tests/test_agents.py::TestCoverageCollector`,
+  including an **integration test** proving the collector's holes/weights drive
+  the self-evolving planner (high-weight `priv` holes ranked ahead of register
+  holes; hole labels round-trip into constraints).
+
+---
+
 ## [2.20.0] — 2026-06-30
 
 ### Added

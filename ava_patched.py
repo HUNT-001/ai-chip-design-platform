@@ -87,6 +87,9 @@ _tlb       = _try_import("AGENT_H.tlb_verifier",          "TLBVerifier")
 _pipeline  = _try_import("AGENT_H.pipeline_verifier",     "PipelineVerifier")
 _branchp   = _try_import("AGENT_H.branch_predictor_verifier", "BranchPredictorVerifier")
 _vector    = _try_import("AGENT_H.vector_verifier",       "VectorVerifier")
+_covcoll   = _try_import("AGENT_H.coverage_collector",   "CoverageCollector")
+_stimgen   = _try_import("AGENT_H.stimulus_generator",   "StimulusGenerator")
+_coherence = _try_import("AGENT_H.coherence_verifier",   "CoherenceVerifier")
 _cache     = _try_import("AGENT_H.cache_verifier",        "CacheVerifier")
 _bus       = _try_import("AGENT_H.bus_verifier",          "BusVerifier")
 _faultinj  = _try_import("AGENT_H.fault_injector",        "FaultCampaign")
@@ -105,7 +108,7 @@ EXTENDED_AGENTS_AVAILABLE = any([
     _intent, _confidence, _contract, _temporal, _atomics, _csr, _rvc, _fp,
     _bitmanip, _privilege, _vm, _tlb, _pipeline, _branchp, _cache, _bus,
     _faultinj, _rv64, _svmmu, _rv64atom, _peripheral, _security, _selfevolve,
-    _vector,
+    _vector, _covcoll, _stimgen, _coherence,
 ])
 
 # ── Agent F: real Verilator coverage backend ──────────────────────────────────
@@ -2306,6 +2309,28 @@ endclass
             except Exception as exc:
                 logger.warning("  Vector verifier failed: %s", exc)
 
+        # -- Multicore cache-coherence checker — gated on a coherence trace
+        if _coherence:
+            try:
+                rc = _coherence.run_from_manifest(str(mpath)) \
+                    if hasattr(_coherence, "run_from_manifest") else 0
+                cp = run_dir / "coherence_report.json"
+                if cp.exists():
+                    with open(cp) as f:
+                        chr_ = json.load(f)
+                    if chr_.get("status") != "skipped":
+                        reports["coherence"] = {
+                            "metrics": chr_.get("metrics", {}),
+                            "violations": chr_.get("total_violations", 0),
+                            "band": chr_.get("band", "CLEAN"),
+                            "pass": chr_.get("pass", True),
+                        }
+                        logger.info("  Coherence: %d cores, %d violations, band=%s",
+                                    chr_.get("metrics", {}).get("cores", 0),
+                                    chr_.get("total_violations", 0), chr_.get("band"))
+            except Exception as exc:
+                logger.warning("  Coherence verifier failed: %s", exc)
+
         # -- Cache subsystem verifier (gated on cache_config + events)
         if _cache and rtl_log:
             try:
@@ -2579,6 +2604,31 @@ endclass
             except Exception as exc:
                 logger.warning("  Confidence scorer failed: %s", exc)
 
+        # -- Functional coverage collector — emits coverage_summary.json that
+        #    the self-evolving planner (below) consumes, closing the loop.
+        if _covcoll and rtl_log:
+            try:
+                model = None
+                if hasattr(semantic_map, "raw"):
+                    model = (semantic_map.raw or {}).get("coverage_model")
+                cc = _covcoll.CoverageCollector(rtl_log, model=model)
+                cr = cc.collect()
+                with open(run_dir / "coverage_report.json", "w") as f:
+                    json.dump(cr, f, indent=2)
+                with open(run_dir / "coverage_summary.json", "w") as f:
+                    json.dump(cr["coverage_summary"], f, indent=2)
+                reports["coverage"] = {
+                    "coverage_pct": cr.get("coverage_pct"),
+                    "holes": cr.get("holes_count"),
+                    "band": cr.get("band"),
+                    "by_category": cr.get("by_category", {}),
+                }
+                logger.info("  Functional coverage: %.1f%% (%d holes, band=%s)",
+                            100 * (cr.get("coverage_pct", 0.0) or 0.0),
+                            cr.get("holes_count", 0), cr.get("band"))
+            except Exception as exc:
+                logger.warning("  Coverage collector failed: %s", exc)
+
         # -- Self-evolving coverage-closure planner (offline / advisory)
         #    Consumes any coverage_summary.json in the run dir, ranks the open
         #    holes, synthesises a constraint per hole and recommends a
@@ -2604,6 +2654,28 @@ endclass
                                     sr.get("recommended_strategy"))
             except Exception as exc:
                 logger.warning("  Self-evolving planner failed: %s", exc)
+
+        # -- Coverage-directed stimulus generator — turns the open holes into
+        #    concrete directed test seeds (stimulus.json) for the next round,
+        #    closing the self-evolving loop end-to-end.
+        if _stimgen:
+            try:
+                rc = _stimgen.run_from_manifest(str(mpath)) \
+                    if hasattr(_stimgen, "run_from_manifest") else 0
+                sp = run_dir / "stimulus.json"
+                if sp.exists():
+                    with open(sp) as f:
+                        st = json.load(f)
+                    if st.get("status") == "completed":
+                        reports["stimulus"] = {
+                            "holes_targeted": st.get("holes_targeted", 0),
+                            "seeds_self_validated": st.get("seeds_self_validated", 0),
+                        }
+                        logger.info("  Stimulus generator: %d directed seeds (%d self-validated)",
+                                    st.get("holes_targeted", 0),
+                                    st.get("seeds_self_validated", 0))
+            except Exception as exc:
+                logger.warning("  Stimulus generator failed: %s", exc)
 
         # Update manifest status
         try:

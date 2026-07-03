@@ -30,6 +30,8 @@ The main entry point is `ava_patched.py` — specifically the `AVA` class and
 | `AGENT_G/causal_engine.py` | `CausalGeneticEngine` — causal AI-guided test generation |
 | `AGENT_H/agent_h_intent.py` | `IntentChecker` — architectural intent verification |
 | `AGENT_H/confidence_scorer.py` | `ConfidenceScorer` — weighted confidence score [0,1] |
+| `AGENT_H/coherence_verifier.py` | `CoherenceVerifier` — multicore cache-coherence (read_from_valid: no fabricated load values; coherence_read_monotonic: per-core reads non-decreasing in the global per-address write order = write serialization; swmr: single-writer/multiple-reader from MESI state). Golden checks over a `coherence_trace.jsonl` multicore event stream |
+| `AGENT_H/coverage_collector.py` | `CoverageCollector` + `classify_value` — functional coverage from the commit log (reg-write/value-class/branch-dir/priv/instr bins with finite universes → holes + importance weights; CSR/trap/vtype telemetry). Emits `coverage_summary.json` consumed by `self_evolving_engine`, closing the RL loop |
 | `AGENT_H/contract_dsl.py` | `ContractRunner` + `@contract` / `@for_instruction` decorators |
 | `AGENT_H/temporal_checker.py` | `TemporalChecker` — LTL-style monitors over commit stream |
 | `AGENT_H/atomics_verifier.py` | `AtomicsVerifier` — RV32A golden-reference checker (LR/SC + 9 AMO ops) |
@@ -49,6 +51,7 @@ The main entry point is `ava_patched.py` — specifically the `AVA` class and
 | `AGENT_H/rv64_verifier.py` | `RV64Verifier` — RV64 datapath (64-bit `alu64` + W-ops `aluw` with 32→64 sign-extension, `rv64_word_sext` diagnosis; auto-detects RV64, no-op on RV32) |
 | `AGENT_H/sv_mmu_verifier.py` | `SvMMU` + `SvMMUVerifier` — golden Sv39/Sv48 multi-level page-table walker (4KB/2MB/1GB superpages, non-canonical VA, permissions) for RV64 virtual memory |
 | `AGENT_H/rv64_atomics_verifier.py` | `RV64AtomicsVerifier` + `amo_compute64` — RV64 64-bit atomics (LR.D/SC.D + 9 AMO.D ops, golden signed/unsigned 64-bit math, reservation, 8-byte alignment) |
+| `AGENT_H/stimulus_generator.py` | `StimulusGenerator` + `generate_from_holes` — coverage-directed RISC-V stimulus: hole/constraint → concrete instruction seed (asm + golden commit records), self-validating via `coverage_collector`. `make_env`/`close_coverage` provide real generate/evaluate plugins so `self_evolving_engine` closes coverage with generated stimulus; `run_from_manifest` emits `stimulus.json` from coverage holes |
 | `AGENT_H/self_evolving_engine.py` | `SelfEvolvingEngine` + pluggable **non-stationary** bandits (`UCB1`/`DiscountedUCB1`/`SlidingWindowUCB`/`ThompsonSampling` via `make_policy`) + `constraint_for` escalation ladder + `CoverageState` (importance-weighted, novelty) + `run_campaign` (multi-seed mean±CI) — RL coverage-closure loop (difficulty-aware hole scheduler, suspected-unreachable waivers, weighted+novelty reward, regret/velocity/closure-prediction metrics; offline planner via `plan_from_coverage`/`run_from_manifest`) |
 | `AGENT_H/security_intel.py` | `SecurityIntelligence` — Spectre/privilege/cache detection |
 | `AGENT_H/economics_engine.py` | `EconomicsEngine` — bugs/hour, ROI, persistent ledger |

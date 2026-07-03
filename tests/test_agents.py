@@ -538,6 +538,8 @@ class TestSchemaFiles:
             "AGENT_H.explainer",
             "AGENT_H.contract_dsl",
             "AGENT_H.temporal_checker",
+            "AGENT_H.coverage_collector",
+            "AGENT_H.coherence_verifier",
             "AGENT_H.atomics_verifier",
             "AGENT_H.bitmanip_verifier",
             "AGENT_H.csr_verifier",
@@ -549,6 +551,7 @@ class TestSchemaFiles:
             "AGENT_H.pipeline_verifier",
             "AGENT_H.branch_predictor_verifier",
             "AGENT_H.self_evolving_engine",
+            "AGENT_H.stimulus_generator",
             "AGENT_H.vector_verifier",
             "AGENT_H.cache_verifier",
             "AGENT_H.bus_verifier",
@@ -3544,6 +3547,329 @@ class TestVectorMemory:
         nodata = [_vrec(0, "vle32.v v1,(a0)", vtype={"sew": 32, "lmul": 1},
                         vl=4, regs={"a0": 0x1000})]
         assert VectorVerifier(nodata).run()["pass"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T42 — Functional Coverage Collector (+ self-evolving loop closure)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _crec(seq, disasm, regs=None, **kw):
+    r = {"schema_version": "2.1.0", "seq": seq, "pc": hex(0x80000000 + seq * 4),
+         "disasm": disasm, "regs": regs or {}, "csrs": {}}
+    r.update(kw)
+    return r
+
+
+class TestCoverageCollector:
+    def test_import(self):
+        from AGENT_H import coverage_collector as cc
+        assert hasattr(cc, "CoverageCollector")
+
+    def test_classify_value(self):
+        from AGENT_H.coverage_collector import classify_value
+        assert classify_value(0) == "zero" and classify_value(1) == "one"
+        assert classify_value(0xFFFFFFFF) == "all_ones"
+        assert classify_value(0x80000000) == "neg"
+        assert classify_value(42) == "pos_small" and classify_value(0x1234) == "pos_large"
+
+    def test_reg_and_valclass(self):
+        from AGENT_H.coverage_collector import CoverageCollector
+        log = [_crec(0, "addi x5,x0,1", {"x5": "0x1"}),
+               _crec(1, "add x6,x5,x5", {"x6": "0x2"})]
+        r = CoverageCollector(log).collect()
+        assert "reg:x5" in r["covered_bins"] and "valclass:one" in r["covered_bins"]
+        assert "reg:x7" in r["holes"] and "reg:x0" not in r["total_bins"]
+
+    def test_abi_name_maps(self):
+        from AGENT_H.coverage_collector import CoverageCollector
+        r = CoverageCollector([_crec(0, "mv ra,sp", {"ra": "0x80"})]).collect()
+        assert "reg:x1" in r["covered_bins"]
+
+    def test_branch_direction(self):
+        from AGENT_H.coverage_collector import CoverageCollector
+        taken = [_crec(0, "beq x1,x2,0x80000040"),
+                 {"seq": 1, "pc": "0x80000040", "disasm": "nop", "regs": {}}]
+        nt = [_crec(0, "beq x1,x2,0x80000040"),
+              {"seq": 1, "pc": "0x80000004", "disasm": "nop", "regs": {}}]
+        assert "branch:taken" in CoverageCollector(taken).collect()["covered_bins"]
+        assert "branch:not_taken" in CoverageCollector(nt).collect()["covered_bins"]
+
+    def test_privilege_and_holes(self):
+        from AGENT_H.coverage_collector import CoverageCollector
+        r = CoverageCollector([_crec(0, "csrr x1,mstatus", priv="M"),
+                               _crec(1, "sret", priv="S")]).collect()
+        assert "priv:M" in r["covered_bins"] and "priv:U" in r["holes"]
+
+    def test_instruction_model(self):
+        from AGENT_H.coverage_collector import CoverageCollector
+        r = CoverageCollector([_crec(0, "add x1,x2,x3", {"x1": "0x5"})],
+                              model={"instructions": ["add", "sub"]}).collect()
+        assert "instr:add" in r["covered_bins"] and "instr:sub" in r["holes"]
+
+    def test_weights(self):
+        from AGENT_H.coverage_collector import CoverageCollector
+        w = CoverageCollector([_crec(0, "addi x1,x0,1", {"x1": "0x1"})]).collect()["weights"]
+        assert w["priv:M"] == 3.0 and w["branch:taken"] == 2.0 and w["reg:x1"] == 1.0
+
+    def test_telemetry(self):
+        from AGENT_H.coverage_collector import CoverageCollector
+        log = [_crec(0, "csrrw x1,mstatus,x2", {"x1": "0x0"},
+                     csrs={"mstatus": "0x1800"}, trap={"cause": 11},
+                     vtype={"sew": 32, "lmul": 1})]
+        ex = CoverageCollector(log).collect()["observed_extra"]
+        assert "trap:cause11" in ex and any(x.startswith("csr:mstatus") for x in ex)
+
+    def test_cross_coverage(self):
+        from AGENT_H.coverage_collector import CoverageCollector
+        log = [_crec(0, "add x5,x6,x7", {"x5": "0x80000000"})]   # add → neg
+        r = CoverageCollector(log).collect()
+        assert "cross:add:neg" in r["covered_bins"]
+        assert "cross:add:zero" in r["holes"]           # finite universe → hole
+        assert r["weights"]["cross:mul:all_ones"] == 2.0
+        assert "cross" in r["by_category"]
+        # cross bins only for known instructions
+        r2 = CoverageCollector([_crec(0, "fakeop x5,x6,x7", {"x5": "0x1"})]).collect()
+        assert not any(b.startswith("cross:fakeop") for b in r2["covered_bins"])
+
+    def test_report_schema(self):
+        from AGENT_H.coverage_collector import CoverageCollector
+        r = CoverageCollector([]).collect()
+        for k in ("schema_version", "agent", "coverage_pct", "covered_bins",
+                  "total_bins", "holes", "weights", "coverage_summary", "band"):
+            assert k in r
+        assert r["agent"] == "coverage_collector"
+
+    def test_run_from_manifest(self, tmp_path):
+        from AGENT_H.coverage_collector import run_from_manifest
+        log = [_crec(0, "addi x5,x0,1", {"x5": "0x1"})]
+        (tmp_path / "rtl_commit.jsonl").write_text(
+            "\n".join(json.dumps(x) for x in log))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 0
+        summ = json.loads((tmp_path / "coverage_summary.json").read_text())
+        assert "covered_bins" in summ and "total_bins" in summ
+
+    def test_feeds_self_evolving_planner(self):
+        """Loop closure: collector holes/weights drive the self-evolving planner."""
+        from AGENT_H.coverage_collector import CoverageCollector
+        from AGENT_H.self_evolving_engine import plan_from_coverage
+        log = [_crec(0, "addi x5,x0,1", {"x5": "0x1"}),
+               _crec(1, "sub x7,x6,x5", {"x7": "0xFFFFFFFF"})]
+        summ = CoverageCollector(log).collect()["coverage_summary"]
+        plan = plan_from_coverage(summ["covered_bins"], summ["total_bins"],
+                                  weights=summ["weights"], max_holes=500)
+        assert plan["holes_remaining"] == len(summ["holes"])
+        labels = [p["hole"] for p in plan["closure_plan"]]
+        assert "priv:M" in labels
+        assert labels.index("priv:M") < labels.index("reg:x31")  # weight-ranked
+        assert plan["closure_plan"][0]["constraint"]["target"] in summ["holes"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T43 — Coverage-Directed Stimulus Generator (end-to-end loop closure)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestStimulusGenerator:
+    def test_import(self):
+        from AGENT_H import stimulus_generator as sg
+        assert hasattr(sg, "StimulusGenerator")
+
+    def test_reg_target_self_validates(self):
+        from AGENT_H.stimulus_generator import StimulusGenerator
+        from AGENT_H.self_evolving_engine import constraint_for
+        g = StimulusGenerator(seed=0)
+        s = g.generate_for(constraint_for("reg:x15"))
+        assert g.covers_target(s) and "reg:x15" in g.predicted_coverage(s)
+
+    def test_all_valclass_targets(self):
+        from AGENT_H.stimulus_generator import StimulusGenerator
+        from AGENT_H.self_evolving_engine import constraint_for
+        g = StimulusGenerator(seed=0)
+        for c in ("zero", "one", "neg", "all_ones", "pos_small", "pos_large"):
+            assert g.covers_target(g.generate_for(constraint_for(f"valclass:{c}")))
+
+    def test_branch_and_priv_targets(self):
+        from AGENT_H.stimulus_generator import StimulusGenerator
+        from AGENT_H.self_evolving_engine import constraint_for
+        g = StimulusGenerator(seed=1)
+        assert g.covers_target(g.generate_for(constraint_for("branch:taken")))
+        assert g.covers_target(g.generate_for(constraint_for("branch:not_taken")))
+        for mode in ("M", "S", "U"):
+            assert g.covers_target(g.generate_for(constraint_for(f"priv:{mode}")))
+
+    def test_instr_and_batch(self):
+        from AGENT_H.stimulus_generator import StimulusGenerator
+        from AGENT_H.self_evolving_engine import constraint_for
+        g = StimulusGenerator(seed=0)
+        assert "instr:xor" in g.predicted_coverage(
+            g.generate_for(constraint_for("instr:xor")))
+        seeds = g.generate_batch([constraint_for(h)
+                                  for h in ("reg:x3", "valclass:neg", "priv:S")])
+        assert len(seeds) == 3 and all(g.covers_target(s) for s in seeds)
+
+    def test_cross_coverage_targets(self):
+        from AGENT_H.stimulus_generator import StimulusGenerator
+        from AGENT_H.self_evolving_engine import constraint_for
+        g = StimulusGenerator(seed=0)
+        for m in ("add", "sub", "xor", "mul"):
+            for c in ("zero", "neg", "all_ones", "pos_large"):
+                s = g.generate_for(constraint_for(f"cross:{m}:{c}"))
+                assert g.covers_target(s), f"{m}:{c}"
+
+    def test_env_plugins(self):
+        from AGENT_H.stimulus_generator import StimulusGenerator
+        from AGENT_H.self_evolving_engine import constraint_for
+        g = StimulusGenerator(seed=0)
+        gen, ev = g.make_env()
+        res = ev(gen("directed", [constraint_for("reg:x9"), constraint_for("priv:U")]))
+        assert "reg:x9" in res["covered"] and "priv:U" in res["covered"]
+
+    def test_close_coverage_end_to_end(self):
+        """Headline: generated stimulus actually closes coverage via the loop."""
+        from AGENT_H.stimulus_generator import StimulusGenerator
+        rep = StimulusGenerator(seed=0).close_coverage(coverage_target=0.95,
+                                                       max_rounds=400)
+        assert rep["final_coverage"] >= 0.95 and rep["pass"] is True
+        assert rep["strategy_stats"]["directed"]["mean_reward"] >= \
+            rep["strategy_stats"]["random"]["mean_reward"]
+
+    def test_generate_from_holes(self):
+        from AGENT_H.stimulus_generator import StimulusGenerator, generate_from_holes
+        seeds = generate_from_holes(["reg:x20", "valclass:all_ones",
+                                     "branch:taken", "priv:S"])
+        g = StimulusGenerator()
+        assert len(seeds) == 4 and all(g.covers_target(s) for s in seeds)
+
+    def test_run_from_manifest(self, tmp_path):
+        from AGENT_H.stimulus_generator import run_from_manifest
+        summary = {"covered_bins": ["reg:x1"],
+                   "total_bins": ["reg:x1", "reg:x2", "priv:S", "valclass:neg"],
+                   "holes": ["reg:x2", "priv:S", "valclass:neg"]}
+        (tmp_path / "coverage_summary.json").write_text(json.dumps(summary))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path)}
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 0
+        out = json.loads((tmp_path / "stimulus.json").read_text())
+        assert out["holes_targeted"] == 3 and out["seeds_self_validated"] == 3
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T44 — Multicore Cache-Coherence Checker
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _cev(core, op, addr, value=None, **kw):
+    e = {"core": core, "op": op, "addr": hex(addr)}
+    if value is not None:
+        e["value"] = hex(value)
+    e.update(kw)
+    return e
+
+
+class TestCoherenceVerifier:
+    def test_import(self):
+        from AGENT_H import coherence_verifier as cv
+        assert hasattr(cv, "CoherenceVerifier")
+
+    def test_clean_producer_consumer(self):
+        from AGENT_H.coherence_verifier import CoherenceVerifier
+        evs = [_cev(0, "store", 0x40, 7, cycle=1), _cev(1, "load", 0x40, 7, cycle=2)]
+        r = CoherenceVerifier(evs).run()
+        assert r["pass"] and r["metrics"]["cores"] == 2
+
+    def test_fabricated_value(self):
+        from AGENT_H.coherence_verifier import CoherenceVerifier
+        evs = [_cev(0, "store", 0x40, 7, cycle=1), _cev(1, "load", 0x40, 99, cycle=2)]
+        r = CoherenceVerifier(evs).run()
+        assert any(v["check"] == "read_from_valid" for v in r["violations"])
+
+    def test_initial_zero_ok_nonzero_flagged(self):
+        from AGENT_H.coherence_verifier import CoherenceVerifier
+        assert CoherenceVerifier([_cev(0, "load", 0x40, 0, cycle=1)]).run()["pass"]
+        r = CoherenceVerifier([_cev(0, "load", 0x40, 5, cycle=1)]).run()
+        assert any(v["check"] == "read_from_valid" for v in r["violations"])
+
+    def test_stale_read(self):
+        from AGENT_H.coherence_verifier import CoherenceVerifier
+        evs = [_cev(0, "store", 0x40, 10, cycle=1), _cev(0, "store", 0x40, 20, cycle=2),
+               _cev(1, "load", 0x40, 20, cycle=3), _cev(1, "load", 0x40, 10, cycle=4)]
+        r = CoherenceVerifier(evs).run()
+        assert not r["pass"]
+        assert any(v["check"] == "coherence_read_monotonic" for v in r["violations"])
+
+    def test_cores_disagree_on_order(self):
+        from AGENT_H.coherence_verifier import CoherenceVerifier
+        evs = [_cev(0, "store", 0x80, 10, cycle=1), _cev(1, "store", 0x80, 20, cycle=2),
+               _cev(2, "load", 0x80, 20, cycle=3), _cev(2, "load", 0x80, 10, cycle=4)]
+        assert any(v["check"] == "coherence_read_monotonic"
+                   for v in CoherenceVerifier(evs).run()["violations"])
+
+    def test_explicit_ver(self):
+        from AGENT_H.coherence_verifier import CoherenceVerifier
+        evs = [_cev(0, "store", 0x40, 5, ver=0, cycle=1),
+               _cev(0, "store", 0x40, 5, ver=1, cycle=2),
+               _cev(1, "load", 0x40, 5, ver=1, cycle=3),
+               _cev(1, "load", 0x40, 5, ver=0, cycle=4)]
+        assert any(v["check"] == "coherence_read_monotonic"
+                   for v in CoherenceVerifier(evs).run()["violations"])
+
+    def test_swmr_two_writers(self):
+        from AGENT_H.coherence_verifier import CoherenceVerifier
+        evs = [_cev(0, "store", 0x40, 1, cycle=1, state="M"),
+               _cev(1, "store", 0x40, 2, cycle=2, state="M")]
+        assert any(v["check"] == "swmr" for v in CoherenceVerifier(evs).run()["violations"])
+
+    def test_swmr_writer_with_reader(self):
+        from AGENT_H.coherence_verifier import CoherenceVerifier
+        evs = [_cev(0, "store", 0x40, 1, cycle=1, state="M"),
+               _cev(1, "load", 0x40, 1, cycle=2, state="S")]
+        assert any(v["check"] == "swmr" for v in CoherenceVerifier(evs).run()["violations"])
+
+    def test_swmr_clean_paths(self):
+        from AGENT_H.coherence_verifier import CoherenceVerifier
+        after_inval = [_cev(0, "store", 0x40, 1, cycle=1, state="M"),
+                       _cev(0, "load", 0x40, 1, cycle=2, state="I"),
+                       _cev(1, "store", 0x40, 2, cycle=3, state="M")]
+        assert CoherenceVerifier(after_inval).run()["pass"]
+        sharers = [_cev(0, "load", 0x40, 0, cycle=1, state="S"),
+                   _cev(1, "load", 0x40, 0, cycle=2, state="S"),
+                   _cev(2, "load", 0x40, 0, cycle=3, state="S")]
+        assert CoherenceVerifier(sharers).run()["pass"]
+
+    def test_cycle_ordering(self):
+        from AGENT_H.coherence_verifier import CoherenceVerifier
+        evs = [_cev(1, "load", 0x40, 20, cycle=4), _cev(0, "store", 0x40, 10, cycle=1),
+               _cev(1, "load", 0x40, 10, cycle=2), _cev(0, "store", 0x40, 20, cycle=3)]
+        assert CoherenceVerifier(evs).run()["pass"]
+
+    def test_single_core_noop_and_robustness(self):
+        from AGENT_H.coherence_verifier import CoherenceVerifier
+        r = CoherenceVerifier([_cev(0, "store", 0x40, 1, cycle=1),
+                               _cev(0, "load", 0x40, 1, cycle=2)]).run()
+        assert r["pass"] and r["coherence_active"] is False
+        for evs in ([], [None, 5, "x"], [{}], [{"op": "load"}]):
+            assert CoherenceVerifier(evs).run()["pass"]
+
+    def test_report_schema(self):
+        from AGENT_H.coherence_verifier import CoherenceVerifier
+        r = CoherenceVerifier([]).run()
+        for k in ("schema_version", "agent", "records_checked", "metrics",
+                  "total_violations", "pass", "violations", "band"):
+            assert k in r
+        assert r["agent"] == "coherence_verifier"
+
+    def test_run_from_manifest(self, tmp_path):
+        from AGENT_H.coherence_verifier import run_from_manifest
+        evs = [_cev(0, "store", 0x40, 10, cycle=1), _cev(0, "store", 0x40, 20, cycle=2),
+               _cev(1, "load", 0x40, 20, cycle=3), _cev(1, "load", 0x40, 10, cycle=4)]
+        (tmp_path / "coherence_trace.jsonl").write_text(
+            "\n".join(json.dumps(x) for x in evs))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "outputs": {"coherence_trace": "coherence_trace.jsonl"}}
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 1
+        assert (tmp_path / "coherence_report.json").exists()
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -18,6 +18,8 @@ from .branch_predictor_verifier import BranchPredictorVerifier
 from .bus_verifier         import BusVerifier, axi_expected_beats
 from .cache_verifier       import CacheVerifier, CacheModel
 from .confidence_scorer    import ConfidenceScorer
+from .coherence_verifier   import CoherenceVerifier
+from .coverage_collector   import CoverageCollector, classify_value
 from .contract_dsl         import ContractRunner
 from .cross_domain         import get_adapter, DUTClass, register_adapter
 from .csr_verifier         import CSRVerifier, decode_csr, csr_is_readonly
@@ -42,6 +44,7 @@ from .self_evolving_engine import (
     ThompsonSampling, make_policy, CoverageState, constraint_for,
     plan_from_coverage, run_campaign,
 )
+from .stimulus_generator   import StimulusGenerator, generate_from_holes
 from .sv_mmu_verifier      import SvMMU, SvMMUVerifier
 from .temporal_checker     import TemporalChecker
 from .tlb_verifier         import TLBVerifier
@@ -56,6 +59,7 @@ __all__ = [
     "BusVerifier", "axi_expected_beats",
     "CacheVerifier", "CacheModel",
     "ConfidenceScorer", "ContractRunner",
+    "CoverageCollector", "classify_value", "CoherenceVerifier",
     "CSRVerifier", "decode_csr", "csr_is_readonly",
     "FPVerifier", "decode_fp", "fclass_mask",
     "get_adapter", "DUTClass", "register_adapter",
@@ -73,6 +77,7 @@ __all__ = [
     "SelfEvolvingEngine", "BanditPolicy", "UCB1", "DiscountedUCB1",
     "SlidingWindowUCB", "ThompsonSampling", "make_policy", "CoverageState",
     "constraint_for", "plan_from_coverage", "run_campaign",
+    "StimulusGenerator", "generate_from_holes",
     "SvMMU", "SvMMUVerifier",
     "VMVerifier", "Sv32MMU", "TLBVerifier",
     "VectorVerifier", "decode_vtype", "velem_compute", "vlmax",
