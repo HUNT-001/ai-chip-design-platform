@@ -57,6 +57,83 @@ SCHEMA_VERSION = "2.1.0"
 AGENT_NAME = "coherence_verifier"
 _EXCLUSIVE = {"M", "E"}
 _VALID = {"M", "E", "S"}
+# Coherence *coverage* universes. Transitions are restricted to those a core can
+# produce via its OWN op (load/store) — snoop-induced downgrades (M->S, E->S,
+# M->I by a remote RFO) aren't issued by the owning core, so covering them from
+# a per-core op trace would be unsound; they're left out on purpose.
+_LEGAL_OWN_TRANS = ["I->S", "I->E", "I->M", "S->M", "E->M"]
+_COH_PATTERNS = ["producer_consumer", "migratory", "read_shared", "write_shared"]
+
+
+def coherence_coverage_bins(events: Sequence[Dict[str, Any]]):
+    """
+    Functional coverage of coherence *scenarios* from a multicore trace.
+    Returns (covered_bins:set, states_present:bool).
+
+    - cohpat:* — sharing patterns, always computable from load/store cores.
+    - cohstate/cohtrans/cohshare — only when the trace carries MESI ``state``.
+    """
+    covered: set = set()
+    states_present = False
+    evs = [e for e in (events or []) if isinstance(e, dict)]
+    indexed = list(enumerate(evs))
+    if evs and all(_to_int(e.get("cycle")) is not None for _, e in indexed):
+        indexed.sort(key=lambda p: (_to_int(p[1].get("cycle")), p[0]))
+
+    storers: Dict[int, set] = {}
+    loaders: Dict[int, set] = {}
+    prev_state: Dict[tuple, str] = {}
+    state_now: Dict[tuple, str] = {}
+
+    for _, e in indexed:
+        op = _norm_op(e.get("op"))
+        addr = _to_int(e.get("addr"))
+        core = e.get("core")
+        if op is None or addr is None or core is None:
+            continue
+        if op == "store":
+            if storers.get(addr, set()) - {core}:
+                covered.add("cohpat:migratory")
+            storers.setdefault(addr, set()).add(core)
+            if len(storers[addr]) >= 2:
+                covered.add("cohpat:write_shared")
+        else:
+            if storers.get(addr, set()) - {core}:
+                covered.add("cohpat:producer_consumer")
+            loaders.setdefault(addr, set()).add(core)
+            if len(loaders[addr]) >= 2:
+                covered.add("cohpat:read_shared")
+
+        st = e.get("state")
+        if isinstance(st, str) and st.upper() in ("M", "E", "S", "I"):
+            states_present = True
+            s = st.upper()
+            covered.add(f"cohstate:{s}")
+            key = (core, addr)
+            p = prev_state.get(key, "I")
+            if p != s and f"{p}->{s}" in _LEGAL_OWN_TRANS:
+                covered.add(f"cohtrans:{p}->{s}")
+            prev_state[key] = s
+            state_now[key] = s
+            sharers = sum(1 for (c, a), ss in state_now.items()
+                          if a == addr and ss in _VALID)
+            if sharers >= 1:
+                covered.add(f"cohshare:{'3plus' if sharers >= 3 else sharers}")
+    return covered, states_present
+
+
+def coherence_universe(states_present: bool = True) -> Dict[str, float]:
+    """Finite coherence-coverage universe → real holes. Weights make coherence
+    scenarios high-priority for the self-evolving scheduler."""
+    uni: Dict[str, float] = {f"cohpat:{p}": 3.0 for p in _COH_PATTERNS}
+    if states_present:
+        for s in ("M", "E", "S", "I"):
+            uni[f"cohstate:{s}"] = 2.0
+        for t in _LEGAL_OWN_TRANS:
+            uni[f"cohtrans:{t}"] = 3.0
+        for b in ("1", "2", "3plus"):
+            uni[f"cohshare:{b}"] = 2.0
+    return uni
 
 
 def _now() -> str:
@@ -146,7 +223,12 @@ class CoherenceVerifier:
 
         self.metrics["cores"] = len(cores)
         self.metrics["addresses"] = len(addrs)
+        self._coh_cov, self._coh_states = coherence_coverage_bins(self.events)
         return self._report(started)
+
+    def coverage_bins(self) -> set:
+        """Coherence-coverage bins this trace covers (for the coverage loop)."""
+        return coherence_coverage_bins(self.events)[0]
 
     def _check_load(self, idx: int, ev: Dict[str, Any], addr: int, core: Any,
                     writes, val_vers, last_seen) -> None:
@@ -199,6 +281,10 @@ class CoherenceVerifier:
         med = sum(1 for v in self.violations if v["severity"] == "MEDIUM")
         band = ("CLEAN" if total == 0 else "CRITICAL" if high else
                 "DEGRADED" if med else "MINOR")
+        coh_cov = getattr(self, "_coh_cov", set())
+        coh_uni = coherence_universe(getattr(self, "_coh_states", False))
+        coh_total = set(coh_uni)
+        coh_holes = sorted(coh_total - coh_cov)
         return {
             "schema_version": SCHEMA_VERSION,
             "agent": AGENT_NAME,
@@ -214,6 +300,12 @@ class CoherenceVerifier:
             "band": band,
             "pass": high == 0,
             "violations": self.violations[:100],
+            "coherence_coverage": {
+                "covered_bins": sorted(coh_cov & coh_total),
+                "total_bins": sorted(coh_total),
+                "holes": coh_holes,
+                "weights": coh_uni,
+            },
         }
 
 

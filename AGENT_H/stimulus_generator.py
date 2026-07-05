@@ -59,6 +59,43 @@ _VC_VALUE = {
     "all_ones": 0xFFFFFFFF, "pos_small": 0x7, "pos_large": 0x12340,
 }
 
+# Multicore coherence scenario templates. Sharing patterns need no MESI state;
+# the state/transition/sharer ones carry (op, core, state, value) sequences that
+# a single core produces via its own ops (sound — no snoop-induced transitions).
+_COH_PATTERN_EVENTS = {
+    "producer_consumer": [
+        {"core": 0, "op": "store", "addr": "0x40", "value": "0x7", "cycle": 1},
+        {"core": 1, "op": "load", "addr": "0x40", "value": "0x7", "cycle": 2}],
+    "migratory": [
+        {"core": 0, "op": "store", "addr": "0x40", "value": "0x1", "cycle": 1},
+        {"core": 1, "op": "store", "addr": "0x40", "value": "0x2", "cycle": 2}],
+    "read_shared": [
+        {"core": 0, "op": "store", "addr": "0x40", "value": "0x5", "cycle": 1},
+        {"core": 1, "op": "load", "addr": "0x40", "value": "0x5", "cycle": 2},
+        {"core": 2, "op": "load", "addr": "0x40", "value": "0x5", "cycle": 3}],
+    "write_shared": [
+        {"core": 0, "op": "store", "addr": "0x40", "value": "0x1", "cycle": 1},
+        {"core": 1, "op": "store", "addr": "0x40", "value": "0x2", "cycle": 2}],
+}
+_COH_STATE_SEQ = {
+    "M": [("store", 0, "M", 1)],
+    "E": [("load", 0, "E", 0)],
+    "S": [("load", 0, "S", 0)],
+    "I": [("store", 0, "M", 1), ("load", 0, "I", 1)],
+}
+_COH_TRANS_SEQ = {
+    "I->S": [("load", 0, "S", 0)],
+    "I->E": [("load", 0, "E", 0)],
+    "I->M": [("store", 0, "M", 1)],
+    "S->M": [("load", 0, "S", 0), ("store", 0, "M", 1)],
+    "E->M": [("load", 0, "E", 0), ("store", 0, "M", 1)],
+}
+_COH_SHARE_SEQ = {
+    "1": [("load", 0, "S", 0)],
+    "2": [("load", 0, "S", 0), ("load", 1, "S", 0)],
+    "3plus": [("load", 0, "S", 0), ("load", 1, "S", 0), ("load", 2, "S", 0)],
+}
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -118,8 +155,43 @@ class StimulusGenerator:
             return self._seed(target, "directed", [
                 _rec(b, f"{mnem} x5,x6,x7", {"x5": hex(v)})])
 
+        if kind == "opnd" and len(vals) >= 2 and vals[0] in _VC_VALUE and vals[1] in _VC_VALUE:
+            v1, v2 = _VC_VALUE[vals[0]], _VC_VALUE[vals[1]]
+            return self._seed(target, "directed", [
+                _rec(b, f"li x6,{hex(v1)}", {"x6": hex(v1)}),
+                _rec(b + 4, f"li x7,{hex(v2)}", {"x7": hex(v2)}),
+                _rec(b + 8, "add x5,x6,x7", {"x5": hex((v1 + v2) & 0xFFFFFFFF)})])
+
+        # -- coherence scenarios (multicore) --
+        if kind == "cohpat" and vals:
+            return self._coh_seed(target, _COH_PATTERN_EVENTS.get(vals[0], []))
+        if kind == "cohstate" and vals:
+            return self._coh_seed(target, self._coh_events(_COH_STATE_SEQ.get(vals[0], [])))
+        if kind == "cohtrans" and vals:
+            return self._coh_seed(target, self._coh_events(_COH_TRANS_SEQ.get(vals[0], [])))
+        if kind == "cohshare" and vals:
+            return self._coh_seed(target, self._coh_events(_COH_SHARE_SEQ.get(vals[0], [])))
+
         # fallback — a benign random write (still valid stimulus)
         return self.generate_random()
+
+    # -- coherence event builders --------------------------------------------
+    def _coh_events(self, seq: List[tuple]) -> List[Dict[str, Any]]:
+        """seq of (op, core, state, value) → cycle-stamped coherence events."""
+        out = []
+        for i, (op, core, state, value) in enumerate(seq):
+            e = {"core": core, "op": op, "addr": "0x40", "cycle": i + 1}
+            if value is not None:
+                e["value"] = hex(value)
+            if state is not None:
+                e["state"] = state
+            out.append(e)
+        return out
+
+    def _coh_seed(self, target: str, events: List[Dict[str, Any]]) -> Dict[str, Any]:
+        return {"target": target, "strategy": "directed",
+                "asm": [f"{e['op']}@core{e['core']}" for e in events],
+                "commit": [], "coherence_events": events}
 
     def _branch_seed(self, target: str, taken: bool) -> Dict[str, Any]:
         b = self.base_pc
@@ -159,7 +231,8 @@ class StimulusGenerator:
     def predicted_coverage(self, seed: Dict[str, Any]) -> set:
         """Bins the seed is expected to cover (its own commit records, scored by
         the real CoverageCollector). Lets the generator check its own work."""
-        cc = CoverageCollector(seed.get("commit", []))
+        cc = CoverageCollector(seed.get("commit", []),
+                               coherence_events=seed.get("coherence_events"))
         cc.collect()
         return set(cc.covered) | set(cc.observed_extra)
 

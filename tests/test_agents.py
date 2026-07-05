@@ -540,6 +540,7 @@ class TestSchemaFiles:
             "AGENT_H.temporal_checker",
             "AGENT_H.coverage_collector",
             "AGENT_H.coherence_verifier",
+            "AGENT_H.memory_model_verifier",
             "AGENT_H.atomics_verifier",
             "AGENT_H.bitmanip_verifier",
             "AGENT_H.csr_verifier",
@@ -3631,6 +3632,27 @@ class TestCoverageCollector:
         r2 = CoverageCollector([_crec(0, "fakeop x5,x6,x7", {"x5": "0x1"})]).collect()
         assert not any(b.startswith("cross:fakeop") for b in r2["covered_bins"])
 
+    def test_operand_cross_coverage(self):
+        from AGENT_H.coverage_collector import CoverageCollector
+        # shadow: x6=neg, x7=zero, then add → opnd:neg:zero
+        log = [_crec(0, "li x6,0x80000000", {"x6": "0x80000000"}),
+               _crec(1, "li x7,0x0", {"x7": "0x0"}),
+               _crec(2, "add x5,x6,x7", {"x5": "0x80000000"})]
+        r = CoverageCollector(log).collect()
+        assert "opnd:neg:zero" in r["covered_bins"]
+        assert "opnd:all_ones:all_ones" in r["holes"]
+        assert len([b for b in r["total_bins"] if b.startswith("opnd:")]) == 36
+        assert "opnd" in r["by_category"]
+
+    def test_operand_reads_preexecution_value(self):
+        from AGENT_H.coverage_collector import CoverageCollector
+        # add x5,x5,x6 must read the OLD x5 (5=pos_small), not the result
+        log = [_crec(0, "li x5,0x5", {"x5": "0x5"}),
+               _crec(1, "li x6,0x1", {"x6": "0x1"}),
+               _crec(2, "add x5,x5,x6", {"x5": "0x6"})]
+        r = CoverageCollector(log).collect()
+        assert "opnd:pos_small:one" in r["covered_bins"]
+
     def test_report_schema(self):
         from AGENT_H.coverage_collector import CoverageCollector
         r = CoverageCollector([]).collect()
@@ -3717,6 +3739,15 @@ class TestStimulusGenerator:
             for c in ("zero", "neg", "all_ones", "pos_large"):
                 s = g.generate_for(constraint_for(f"cross:{m}:{c}"))
                 assert g.covers_target(s), f"{m}:{c}"
+
+    def test_operand_cross_targets(self):
+        from AGENT_H.stimulus_generator import StimulusGenerator
+        from AGENT_H.self_evolving_engine import constraint_for
+        g = StimulusGenerator(seed=0)
+        for a in ("zero", "one", "neg", "all_ones", "pos_small", "pos_large"):
+            for b in ("zero", "neg", "all_ones"):
+                s = g.generate_for(constraint_for(f"opnd:{a}:{b}"))
+                assert g.covers_target(s), f"{a}:{b}"
 
     def test_env_plugins(self):
         from AGENT_H.stimulus_generator import StimulusGenerator
@@ -3870,6 +3901,217 @@ class TestCoherenceVerifier:
         mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "coherence_report.json").exists()
+
+
+class TestCoherenceCoverage:
+    """Coherence-aware coverage/generation loop: multicore scenario bins flow
+    through collector → planner → coherence stimulus → coverage."""
+
+    def test_coverage_bins_and_universe(self):
+        from AGENT_H.coherence_verifier import (
+            coherence_coverage_bins, coherence_universe)
+        evs = [_cev(0, "load", 0x40, 0, cycle=1, state="S"),
+               _cev(0, "store", 0x40, 1, cycle=2, state="M"),
+               _cev(1, "load", 0x40, 1, cycle=3, state="S")]
+        covered, sp = coherence_coverage_bins(evs)
+        assert sp is True
+        assert {"cohtrans:I->S", "cohtrans:S->M", "cohstate:M",
+                "cohpat:producer_consumer", "cohshare:1"} <= covered
+        # universe is dynamic: state bins only when states present
+        assert "cohstate:M" not in coherence_universe(False)
+        assert "cohpat:migratory" in coherence_universe(False)
+
+    def test_verifier_report_carries_coverage(self):
+        from AGENT_H.coherence_verifier import CoherenceVerifier
+        rep = CoherenceVerifier(
+            [_cev(0, "store", 0x40, 7, cycle=1),
+             _cev(1, "load", 0x40, 7, cycle=2)]).run()
+        cov = rep["coherence_coverage"]
+        assert "cohpat:producer_consumer" in cov["covered_bins"]
+        assert "cohpat:read_shared" in cov["holes"]
+
+    def test_collector_merges_coherence_bins(self):
+        from AGENT_H.coverage_collector import CoverageCollector
+        evs = [_cev(0, "store", 0x40, 1, cycle=1, state="M"),
+               _cev(1, "load", 0x40, 1, cycle=2, state="S")]
+        r = CoverageCollector([], coherence_events=evs).collect()
+        assert "cohstate:M" in r["covered_bins"] and "cohstate:M" in r["total_bins"]
+        assert "cohpat:migratory" in r["holes"]           # not exercised → hole
+        assert "cohpat" in r["by_category"]
+        # no coherence trace → no coherence bins
+        r2 = CoverageCollector([_crec(0, "addi x5,x0,1", {"x5": "0x1"})]).collect()
+        assert not any(b.startswith("coh") for b in r2["total_bins"])
+
+    def test_stimulus_coherence_templates_self_validate(self):
+        from AGENT_H.stimulus_generator import StimulusGenerator
+        from AGENT_H.self_evolving_engine import constraint_for
+        g = StimulusGenerator(seed=0)
+        for bin_ in ("cohpat:producer_consumer", "cohpat:migratory",
+                     "cohpat:read_shared", "cohpat:write_shared",
+                     "cohstate:M", "cohstate:E", "cohstate:S", "cohstate:I",
+                     "cohtrans:I->S", "cohtrans:I->E", "cohtrans:I->M",
+                     "cohtrans:S->M", "cohtrans:E->M",
+                     "cohshare:1", "cohshare:2", "cohshare:3plus"):
+            assert g.covers_target(g.generate_for(constraint_for(bin_))), bin_
+
+    def test_generated_coherence_is_coherence_clean(self):
+        from AGENT_H.stimulus_generator import StimulusGenerator
+        from AGENT_H.coherence_verifier import CoherenceVerifier
+        from AGENT_H.self_evolving_engine import constraint_for
+        g = StimulusGenerator(seed=0)
+        for bin_ in ("cohpat:producer_consumer", "cohtrans:S->M", "cohshare:2"):
+            s = g.generate_for(constraint_for(bin_))
+            assert CoherenceVerifier(s["coherence_events"]).run()["pass"], bin_
+
+    def test_loop_closes_coherence_coverage(self):
+        from AGENT_H.stimulus_generator import StimulusGenerator
+        from AGENT_H.coverage_collector import CoverageCollector
+        from AGENT_H.coherence_verifier import coherence_universe
+        g = StimulusGenerator(seed=0)
+        total = sorted(set(CoverageCollector([]).collect()["total_bins"])
+                       | set(coherence_universe(True)))
+        assert any(b.startswith("coh") for b in total)
+        rep = g.close_coverage(total_bins=total, coverage_target=0.9,
+                               max_rounds=1200)
+        assert rep["final_coverage"] >= 0.9
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T45 — Memory-Consistency Checker (SC / TSO / RVWMO)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _mop(core, o, addr=None, value=None, **kw):
+    e = {"core": core, "op": o}
+    if addr is not None:
+        e["addr"] = hex(addr)
+    if value is not None:
+        e["value"] = value
+    e.update(kw)
+    return e
+
+
+_MX, _MY = 0x10, 0x20
+_SB = [_mop(0, "store", _MX, 1), _mop(0, "load", _MY, 0),
+       _mop(1, "store", _MY, 1), _mop(1, "load", _MX, 0)]
+_MP = [_mop(0, "store", _MX, 1), _mop(0, "store", _MY, 1),
+       _mop(1, "load", _MY, 1), _mop(1, "load", _MX, 0)]
+_LB = [_mop(0, "load", _MX, 1), _mop(0, "store", _MY, 1),
+       _mop(1, "load", _MY, 1), _mop(1, "store", _MX, 1)]
+
+
+class TestMemoryModelVerifier:
+    def test_import(self):
+        from AGENT_H import memory_model_verifier as mm
+        assert hasattr(mm, "MemoryModelVerifier")
+
+    def test_sb_allowed_tso_forbidden_sc(self):
+        from AGENT_H.memory_model_verifier import MemoryModelVerifier
+        assert MemoryModelVerifier(_SB, "tso").run()["pass"]        # store→load relaxed
+        r = MemoryModelVerifier(_SB, "sc").run()
+        assert not r["pass"]
+        assert any(v["check"] == "consistency_sc" for v in r["violations"])
+
+    def test_sb_fenced_forbidden_tso(self):
+        from AGENT_H.memory_model_verifier import MemoryModelVerifier
+        fenced = [_mop(0, "store", _MX, 1), _mop(0, "fence"), _mop(0, "load", _MY, 0),
+                  _mop(1, "store", _MY, 1), _mop(1, "fence"), _mop(1, "load", _MX, 0)]
+        assert not MemoryModelVerifier(fenced, "tso").run()["pass"]
+
+    def test_mp_forbidden_tso_allowed_rvwmo(self):
+        from AGENT_H.memory_model_verifier import MemoryModelVerifier
+        assert not MemoryModelVerifier(_MP, "tso").run()["pass"]    # ss & ll preserved
+        assert MemoryModelVerifier(_MP, "rvwmo").run()["pass"]      # unordered w/o fence
+
+    def test_mp_fenced_forbidden_rvwmo(self):
+        from AGENT_H.memory_model_verifier import MemoryModelVerifier
+        fenced = [_mop(0, "store", _MX, 1), _mop(0, "fence"), _mop(0, "store", _MY, 1),
+                  _mop(1, "load", _MY, 1), _mop(1, "fence"), _mop(1, "load", _MX, 0)]
+        assert not MemoryModelVerifier(fenced, "rvwmo").run()["pass"]
+
+    def test_lb_forbidden_tso_allowed_rvwmo(self):
+        from AGENT_H.memory_model_verifier import MemoryModelVerifier
+        assert not MemoryModelVerifier(_LB, "tso").run()["pass"]    # load→store preserved
+        assert MemoryModelVerifier(_LB, "rvwmo").run()["pass"]
+
+    def test_coherence_via_sc_per_location(self):
+        from AGENT_H.memory_model_verifier import MemoryModelVerifier
+        corr = [_mop(0, "store", _MX, 1, co=0), _mop(0, "store", _MX, 2, co=1),
+                _mop(1, "load", _MX, 2), _mop(1, "load", _MX, 1)]   # reads 2 then 1
+        r = MemoryModelVerifier(corr, "tso").run()
+        assert not r["pass"]
+        assert any(v["check"] == "sc_per_location" for v in r["violations"])
+
+    def test_cycle_witness(self):
+        from AGENT_H.memory_model_verifier import MemoryModelVerifier
+        r = MemoryModelVerifier(_MP, "tso").run()
+        assert r["violations"][0]["cycle"] and len(r["violations"][0]["cycle"]) >= 3
+
+    def test_model_normalisation_and_noop(self):
+        from AGENT_H.memory_model_verifier import MemoryModelVerifier
+        assert MemoryModelVerifier([], "garbage").model == "tso"
+        assert MemoryModelVerifier([], "RVWMO").model == "rvwmo"
+        r = MemoryModelVerifier([_mop(0, "store", _MX, 1),
+                                 _mop(0, "load", _MX, 1)], "tso").run()
+        assert r["pass"] and r["consistency_active"] is False
+
+    def test_robustness_and_schema(self):
+        from AGENT_H.memory_model_verifier import MemoryModelVerifier
+        for exe in ([], [None, 5], [{}], [{"op": "bogus"}]):
+            assert MemoryModelVerifier(exe, "tso").run()["pass"]
+        r = MemoryModelVerifier([], "tso").run()
+        for k in ("schema_version", "agent", "model", "metrics",
+                  "total_violations", "pass", "violations", "band"):
+            assert k in r
+        assert r["agent"] == "memory_model_verifier"
+
+    def test_run_from_manifest(self, tmp_path):
+        from AGENT_H.memory_model_verifier import run_from_manifest
+        (tmp_path / "consistency_trace.jsonl").write_text(
+            "\n".join(json.dumps(x) for x in _MP))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "memory_model": "tso",
+               "outputs": {"consistency_trace": "consistency_trace.jsonl"}}
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 1     # MP is a TSO violation
+        assert (tmp_path / "memory_model_report.json").exists()
+
+    def test_release_acquire_rvwmo(self):
+        from AGENT_H.memory_model_verifier import MemoryModelVerifier
+        # release store + acquire load restores MP ordering under RVWMO
+        forb = [_mop(0, "store", _MX, 1), _mop(0, "store", _MY, 1, rl=True),
+                _mop(1, "load", _MY, 1, aq=True), _mop(1, "load", _MX, 0)]
+        assert not MemoryModelVerifier(forb, "rvwmo").run()["pass"]
+        # release alone (no acquire) is insufficient
+        rel_only = [_mop(0, "store", _MX, 1), _mop(0, "store", _MY, 1, rl=True),
+                    _mop(1, "load", _MY, 1), _mop(1, "load", _MX, 0)]
+        assert MemoryModelVerifier(rel_only, "rvwmo").run()["pass"]
+
+    def test_fence_predecessor_successor_sets(self):
+        from AGENT_H.memory_model_verifier import MemoryModelVerifier
+        rr = [_mop(0, "store", _MX, 1), _mop(0, "fence", pred="r", succ="r"),
+              _mop(0, "load", _MY, 0),
+              _mop(1, "store", _MY, 1), _mop(1, "fence", pred="r", succ="r"),
+              _mop(1, "load", _MX, 0)]
+        assert MemoryModelVerifier(rr, "tso").run()["pass"]      # r,r doesn't order W→R
+        rw = [_mop(0, "store", _MX, 1), _mop(0, "fence", pred="rw", succ="rw"),
+              _mop(0, "load", _MY, 0),
+              _mop(1, "store", _MY, 1), _mop(1, "fence", pred="rw", succ="rw"),
+              _mop(1, "load", _MX, 0)]
+        assert not MemoryModelVerifier(rw, "tso").run()["pass"]  # rw,rw does
+
+    def test_rmw_atomicity(self):
+        from AGENT_H.memory_model_verifier import MemoryModelVerifier
+        # a remote store interposed between the RMW's read and write
+        broken = [_mop(0, "load", _MX, 0, rmw="g"),
+                  _mop(1, "store", _MX, 9, co=0),
+                  _mop(0, "store", _MX, 1, rmw="g", co=1)]
+        r = MemoryModelVerifier(broken, "tso").run()
+        assert not r["pass"]
+        assert any(v["check"] == "rmw_atomicity" for v in r["violations"])
+        # no interposition → atomic
+        ok = [_mop(0, "load", _MX, 0, rmw="g"),
+              _mop(0, "store", _MX, 1, rmw="g", co=0)]
+        assert MemoryModelVerifier(ok, "tso").run()["pass"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -4,6 +4,117 @@ All notable changes to AVA — Autonomic Verification Agent are documented here.
 
 ---
 
+## [2.28.0] — 2026-06-30
+
+### Added
+- **RVWMO enrichment** of the memory-consistency checker
+  (`memory_model_verifier.py`) — the RISC-V synchronization mechanisms real
+  concurrent code depends on:
+  - **Acquire/release** (`.aq` / `.rl`, RCsc) — an acquire load is ordered
+    before every later op in program order; every earlier op is ordered before a
+    release store. Restores ordering weak RVWMO otherwise drops. (Test: a
+    release+acquire MP is forbidden; release *alone* is insufficient.)
+  - **Fence predecessor/successor sets** (`FENCE pr,pw,sr,sw`) — a fence now
+    orders only accesses whose types are in its predecessor/successor sets, so
+    `FENCE r,r` correctly leaves a store→load relaxed while `FENCE rw,rw` orders
+    it. (Default = full `rw,rw`.)
+  - **RMW atomicity axiom** — for an atomic read-modify-write (LR/SC, AMO,
+    grouped by `rmw` id), no store may be coherence-interposed between the
+    atomic's read and its write; an interposing store breaks atomicity and is
+    reported HIGH with a `load → interposed store(s) → write` witness.
+- 4 new in-repo pytest cases (release/acquire, fence r/w sets, RMW atomicity)
+  + 7 standalone.
+
+---
+
+## [2.27.0] — 2026-06-30
+
+### Added
+- **T45 — Memory-Consistency Checker** (`AGENT_H/memory_model_verifier.py`). The
+  verification level *above* cache coherence: coherence governs one location,
+  consistency governs ordering *across* locations — the missing-fence / illegal-
+  reordering bugs that are the hardest and most severe in multicore. Rigorous
+  **axiomatic** ("herd"-style) verification for **SC / TSO / RVWMO**:
+  - Builds the standard relations from an observed execution — program order
+    (po), **preserved** program order (ppo, model-specific), reads-from
+    (rf / external rfe), coherence order (co), from-read (fr), and fence order.
+  - Checks two acyclicity axioms: **sc-per-location**
+    (`po-loc ∪ rf ∪ co ∪ fr`, i.e. coherence) and the model's **global order**
+    (`ppo ∪ fence ∪ rfe ∪ co ∪ fr`). A **cycle = the execution is not permitted
+    by the model** = a real consistency bug, reported HIGH with the offending
+    cycle as a witness.
+  - `ppo` per model: `sc` keeps all po; `tso` all *except* store→load (the
+    store-buffer relaxation); `rvwmo` keeps only same-address pairs or a
+    syntactic dependency, otherwise ordering must come from a fence.
+  - **Validated against the canonical litmus tests**: SB (allowed under TSO,
+    forbidden under SC, forbidden under TSO once fenced), MP and LB (forbidden
+    reorderings under TSO; allowed under RVWMO without fences/deps; forbidden
+    once fenced), and coherence (CoRR) via sc-per-location. `co` from `cycle`/
+    `co` rank; `rf` explicit or inferred by value. Additive
+    `consistency_trace.jsonl` contract (`core/op/addr/value/cycle/rf/co/deps`).
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_memmodel` import,
+  `EXTENDED_AGENTS_AVAILABLE`, `run_from_manifest` writing
+  `memory_model_report.json` when an execution trace is present).
+- 12 new pytest cases in `tests/test_agents.py::TestMemoryModelVerifier`
+  (SB/MP/LB across models, fences, coherence, cycle witness, normalisation,
+  robustness, schema, manifest).
+
+---
+
+## [2.26.0] — 2026-06-30
+
+### Added
+- **Operand-value cross-coverage** (`opnd:{srcA_class}:{srcB_class}`) — the
+  operand corner-case combinations plain coverage misses ("did we test `add` of
+  neg+neg? sub with a zero operand? all-ones × all-ones?"). 6×6 = 36-bin finite
+  universe (weight 2 → real holes).
+  - `coverage_collector.py`: maintains a **golden register-file shadow** so the
+    *source*-operand values of each binary arithmetic instruction can be
+    recovered from the commit log (operands read **before** the write is
+    applied, so `add x5,x5,x6` correctly reads the old `x5`). Register and
+    immediate operands both resolved; unresolvable operands are skipped (no
+    false bins). New `opnd` category in the per-category breakdown.
+  - `stimulus_generator.py`: `opnd` template sets two source registers to the
+    target classes then adds them — self-validating like every other template.
+- The self-evolving loop now closes a **166-bin** universe (register,
+  value-class, opcode×result cross, operand-pair cross, branch, privilege, and
+  four coherence categories) to ~92% with generated stimulus, discounted-UCB
+  preferring directed generation.
+- 3 new in-repo pytest cases + standalone operand suite.
+
+---
+
+## [2.25.0] — 2026-06-30
+
+### Added
+- **Coherence-aware coverage/generation loop** — the multicore coherence work
+  (T44) now participates in the closed self-evolving loop, so the platform can
+  *drive coverage of coherence corner cases*, not just detect violations.
+  - `coherence_verifier.py`: `coherence_coverage_bins()` + `coherence_universe()`
+    compute functional coverage of coherence *scenarios*:
+    `cohpat:{producer_consumer,migratory,read_shared,write_shared}` (sharing
+    patterns, always computable from the load/store cores); and — when the trace
+    carries MESI state — `cohstate:{M,E,S,I}`, `cohtrans:{I->S,I->E,I->M,S->M,
+    E->M}` and `cohshare:{1,2,3plus}`. **Soundness:** transitions are restricted
+    to those a core produces via its *own* op; snoop-induced downgrades
+    (`M->S`, `E->S`, remote `M->I`) are deliberately excluded because they can't
+    be attributed to the owning core's op trace. Universe is dynamic (state bins
+    only appear when states are present, avoiding a meaningless denominator).
+    The verifier report now carries a `coherence_coverage` block.
+  - `coverage_collector.py`: accepts `coherence_events=` and merges coherence
+    bins into the same coverage model / `coverage_summary.json`, with new
+    `cohpat/cohstate/cohtrans/cohshare` categories (weights 2–3, so coherence
+    scenarios are high-priority holes).
+  - `stimulus_generator.py`: coherence templates emit multicore
+    `coherence_events` for each coherence bin (producer-consumer, migratory,
+    read/write-shared, per-state, own-op transitions, sharer counts),
+    self-validating via the collector; the generated scenarios are themselves
+    coherence-clean (verified). The self-evolving loop closes coherence bins
+    with generated multicore stimulus (end-to-end test ≥90%).
+- 6 new in-repo pytest cases (`TestCoherenceCoverage`) + 11 standalone.
+
+---
+
 ## [2.24.0] — 2026-06-30
 
 ### Added

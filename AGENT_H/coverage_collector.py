@@ -46,6 +46,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
+try:                                                # package or standalone import
+    from .coherence_verifier import coherence_coverage_bins, coherence_universe
+except ImportError:                                 # pragma: no cover
+    try:
+        from coherence_verifier import coherence_coverage_bins, coherence_universe  # type: ignore
+    except ImportError:                             # coherence module unavailable
+        coherence_coverage_bins = None              # type: ignore
+        coherence_universe = None                   # type: ignore
+
 log = logging.getLogger("AGENT_H.coverage")
 
 SCHEMA_VERSION = "2.1.0"
@@ -58,7 +67,12 @@ _COND_BRANCH = {"beq", "bne", "blt", "bge", "bltu", "bgeu",
 _DEFAULT_CROSS = ["add", "sub", "addi", "and", "or", "xor",
                   "sll", "srl", "sra", "slt", "sltu", "mul"]
 _CATEGORY_WEIGHT = {"reg": 1.0, "valclass": 1.0, "branch": 2.0,
-                    "priv": 3.0, "instr": 1.0, "cross": 2.0}
+                    "priv": 3.0, "instr": 1.0, "cross": 2.0, "opnd": 2.0}
+# ABI register-name → index (for resolving source operands in disassembly).
+_ABI = {"zero": 0, "ra": 1, "sp": 2, "gp": 3, "tp": 4, "fp": 8,
+        "t0": 5, "t1": 6, "t2": 7, "s0": 8, "s1": 9,
+        "a0": 10, "a1": 11, "a2": 12, "a3": 13, "a4": 14, "a5": 15,
+        "a6": 16, "a7": 17}
 
 
 def _now() -> str:
@@ -106,11 +120,15 @@ def _mnemonic(disasm: Any) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 class CoverageCollector:
     def __init__(self, rtl_log: Sequence[Dict[str, Any]],
-                 model: Optional[Dict[str, Any]] = None):
+                 model: Optional[Dict[str, Any]] = None,
+                 coherence_events: Optional[Sequence[Dict[str, Any]]] = None):
         self.rtl = list(rtl_log or [])
         self.model = model or {}
+        self.coherence_events = list(coherence_events or [])
+        self._coh_states = False
         self.cross_instrs = set(self.model.get("cross_instructions", _DEFAULT_CROSS))
         self.width = 64 if self._detect_rv64() else 32
+        self.shadow: Dict[int, int] = {0: 0}          # golden register-file shadow
         self.covered: set = set()
         self.observed_extra: set = set()
         self.by_category: Dict[str, set] = {}
@@ -150,6 +168,13 @@ class CoverageCollector:
         for m in sorted(self.cross_instrs):
             for c in _VALUE_CLASSES:
                 uni[f"cross:{m}:{c}"] = _CATEGORY_WEIGHT["cross"]
+        # operand-pair cross universe (source operand class × class)
+        for a in _VALUE_CLASSES:
+            for b in _VALUE_CLASSES:
+                uni[f"opnd:{a}:{b}"] = _CATEGORY_WEIGHT["opnd"]
+        # coherence-coverage universe (multicore scenarios)
+        if self.coherence_events and coherence_universe is not None:
+            uni.update(coherence_universe(self._coh_states))
         # model overrides / extensions
         for b, w in (self.model.get("weights", {}) or {}).items():
             uni[b] = float(w)
@@ -170,6 +195,10 @@ class CoverageCollector:
                 self.instr_hist[mnem] = self.instr_hist.get(mnem, 0) + 1
                 self._add("instr", mnem)
 
+            # operand-value cross coverage — read source operands from the shadow
+            # register file *before* this instruction's writes are applied.
+            self._record_operands(rec, mnem)
+
             # register writes + value classes
             regs = rec.get("regs", {})
             if isinstance(regs, dict):
@@ -183,6 +212,8 @@ class CoverageCollector:
                     iv = _to_int(rval)
                     if idx is not None and idx != 0:
                         self._add("reg", f"x{idx}")
+                    if idx is not None and idx != 0 and iv is not None:
+                        self.shadow[idx] = iv            # update golden shadow
                     if iv is not None:
                         vc = classify_value(iv, self.width)
                         self._add("valclass", vc)
@@ -215,7 +246,40 @@ class CoverageCollector:
             if mnem in _COND_BRANCH:
                 self._record_branch_dir(rec, i)
 
+        # coherence coverage (multicore scenarios) — merged into the same model
+        if self.coherence_events and coherence_coverage_bins is not None:
+            coh_cov, self._coh_states = coherence_coverage_bins(self.coherence_events)
+            for b in coh_cov:
+                cat = b.split(":", 1)[0]
+                self.covered.add(b)
+                self.by_category.setdefault(cat, set()).add(b.split(":", 1)[1])
+
         return self._report(started)
+
+    def _resolve(self, tok: str) -> Optional[int]:
+        """Resolve a source-operand token to a value (shadow reg or immediate)."""
+        m = re.fullmatch(r"x(\d+)", tok)
+        if m:
+            return self.shadow.get(int(m.group(1)), 0)
+        if tok in _ABI:
+            return self.shadow.get(_ABI[tok], 0)
+        return _to_int(tok)
+
+    def _record_operands(self, rec: Dict[str, Any], mnem: str) -> None:
+        """opnd:{srcA_class}:{srcB_class} for binary arithmetic ops — the
+        operand corner-case combinations plain coverage misses."""
+        if mnem not in self.cross_instrs:
+            return
+        dis = rec.get("disasm", "")
+        if not isinstance(dis, str):
+            return
+        toks = dis.replace(",", " ").split()
+        if len(toks) < 4:                                # need mnem dest src1 src2
+            return
+        a, b = self._resolve(toks[2]), self._resolve(toks[3])
+        if a is not None and b is not None:
+            self._add("opnd", f"{classify_value(a, self.width)}:"
+                              f"{classify_value(b, self.width)}")
 
     def _record_branch_dir(self, rec: Dict[str, Any], i: int) -> None:
         pc = _to_int(rec.get("pc"))
@@ -239,7 +303,8 @@ class CoverageCollector:
         pct = round(len(covered_in) / len(total), 4) if total else 1.0
 
         cats: Dict[str, Any] = {}
-        for cat in ("reg", "valclass", "branch", "priv", "instr", "cross"):
+        for cat in ("reg", "valclass", "branch", "priv", "instr", "cross",
+                    "opnd", "cohpat", "cohstate", "cohtrans", "cohshare"):
             cat_total = sorted(b for b in total if b.split(":", 1)[0] == cat)
             cat_cov = sorted(b for b in covered_in if b.split(":", 1)[0] == cat)
             if cat_total:

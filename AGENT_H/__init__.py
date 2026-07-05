@@ -30,6 +30,7 @@ from .explainer            import BugExplainer
 from .fault_injector       import FaultCampaign, inject_fault
 from .formal_fuzzer        import FormalFuzzBridge, disassemble_rv32im
 from .knowledge_graph      import KnowledgeGraph
+from .memory_model_verifier import MemoryModelVerifier, find_cycle
 from .minimizer            import CommitLogMinimizer
 from .peripheral_verifier  import PeripheralVerifier, get_checker, register_checker
 from .pipeline_verifier    import PipelineVerifier, alu_eval
@@ -67,6 +68,7 @@ __all__ = [
     "FaultCampaign", "inject_fault",
     "FormalFuzzBridge", "disassemble_rv32im",
     "KnowledgeGraph", "CommitLogMinimizer",
+    "MemoryModelVerifier", "find_cycle",
     "PeripheralVerifier", "get_checker", "register_checker",
     "PipelineVerifier", "alu_eval",
     "PrivilegeVerifier", "PMPModel", "parse_priv",

@@ -107,6 +107,30 @@ round-trip. All pass (validated standalone: 18 in the isolated harness).
 > against the real repo. Additive change (new module + lazy pipeline hook + new
 > test class), existing agents unaffected.
 
+## 7a. Coherence-aware coverage (v2.25.0)
+
+Beyond *detecting* coherence bugs, the verifier now feeds the closed
+coverage/generation loop so the platform can *drive coverage of coherence
+scenarios*. `coherence_coverage_bins()` emits:
+
+- **`cohpat:*`** — sharing patterns (`producer_consumer`, `migratory`,
+  `read_shared`, `write_shared`), computable from just the load/store cores.
+- **`cohstate:*` / `cohtrans:*` / `cohshare:*`** — MESI states, transitions and
+  sharer-count buckets, when the trace carries `state`.
+
+**Soundness rule for transitions:** only transitions a core produces via its
+*own* op are in the universe (`I->S,I->E,I->M,S->M,E->M`). Snoop-induced
+downgrades (`M->S`, `E->S`, remote `M->I`) are *not* covered, because they
+aren't attributable to the owning core's op in a per-core trace — covering them
+would be unsound. `coherence_universe()` is dynamic: state-based bins appear only
+when states are present.
+
+`coverage_collector` merges these bins (via `coherence_events=`) into the single
+`coverage_summary.json`; `stimulus_generator` has matching templates that emit
+multicore `coherence_events` for each bin (self-validating, and themselves
+coherence-clean). Net effect: the self-evolving loop closes coherence-scenario
+holes with generated multicore stimulus (end-to-end test ≥90%).
+
 ## 8. Limitations / next steps
 
 - **Full MESI/MOESI directory model** — replay bus transactions

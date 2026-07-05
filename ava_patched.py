@@ -90,6 +90,7 @@ _vector    = _try_import("AGENT_H.vector_verifier",       "VectorVerifier")
 _covcoll   = _try_import("AGENT_H.coverage_collector",   "CoverageCollector")
 _stimgen   = _try_import("AGENT_H.stimulus_generator",   "StimulusGenerator")
 _coherence = _try_import("AGENT_H.coherence_verifier",   "CoherenceVerifier")
+_memmodel  = _try_import("AGENT_H.memory_model_verifier", "MemoryModelVerifier")
 _cache     = _try_import("AGENT_H.cache_verifier",        "CacheVerifier")
 _bus       = _try_import("AGENT_H.bus_verifier",          "BusVerifier")
 _faultinj  = _try_import("AGENT_H.fault_injector",        "FaultCampaign")
@@ -108,7 +109,7 @@ EXTENDED_AGENTS_AVAILABLE = any([
     _intent, _confidence, _contract, _temporal, _atomics, _csr, _rvc, _fp,
     _bitmanip, _privilege, _vm, _tlb, _pipeline, _branchp, _cache, _bus,
     _faultinj, _rv64, _svmmu, _rv64atom, _peripheral, _security, _selfevolve,
-    _vector, _covcoll, _stimgen, _coherence,
+    _vector, _covcoll, _stimgen, _coherence, _memmodel,
 ])
 
 # ── Agent F: real Verilator coverage backend ──────────────────────────────────
@@ -2330,6 +2331,29 @@ endclass
                                     chr_.get("total_violations", 0), chr_.get("band"))
             except Exception as exc:
                 logger.warning("  Coherence verifier failed: %s", exc)
+
+        # -- Memory-consistency (SC/TSO/RVWMO) checker — gated on an execution trace
+        if _memmodel:
+            try:
+                rc = _memmodel.run_from_manifest(str(mpath)) \
+                    if hasattr(_memmodel, "run_from_manifest") else 0
+                mmp = run_dir / "memory_model_report.json"
+                if mmp.exists():
+                    with open(mmp) as f:
+                        mmr = json.load(f)
+                    if mmr.get("status") != "skipped":
+                        reports["memory_model"] = {
+                            "model": mmr.get("model"),
+                            "metrics": mmr.get("metrics", {}),
+                            "violations": mmr.get("total_violations", 0),
+                            "band": mmr.get("band", "CLEAN"),
+                            "pass": mmr.get("pass", True),
+                        }
+                        logger.info("  Memory model (%s): %d violations, band=%s",
+                                    mmr.get("model"), mmr.get("total_violations", 0),
+                                    mmr.get("band"))
+            except Exception as exc:
+                logger.warning("  Memory-model verifier failed: %s", exc)
 
         # -- Cache subsystem verifier (gated on cache_config + events)
         if _cache and rtl_log:
