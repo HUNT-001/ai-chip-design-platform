@@ -54,6 +54,14 @@ except ImportError:                                 # pragma: no cover
     except ImportError:                             # coherence module unavailable
         coherence_coverage_bins = None              # type: ignore
         coherence_universe = None                   # type: ignore
+try:
+    from .memory_model_verifier import consistency_coverage_bins, consistency_universe
+except ImportError:                                 # pragma: no cover
+    try:
+        from memory_model_verifier import consistency_coverage_bins, consistency_universe  # type: ignore
+    except ImportError:
+        consistency_coverage_bins = None            # type: ignore
+        consistency_universe = None                 # type: ignore
 
 log = logging.getLogger("AGENT_H.coverage")
 
@@ -121,10 +129,12 @@ def _mnemonic(disasm: Any) -> str:
 class CoverageCollector:
     def __init__(self, rtl_log: Sequence[Dict[str, Any]],
                  model: Optional[Dict[str, Any]] = None,
-                 coherence_events: Optional[Sequence[Dict[str, Any]]] = None):
+                 coherence_events: Optional[Sequence[Dict[str, Any]]] = None,
+                 consistency_execution: Optional[Sequence[Dict[str, Any]]] = None):
         self.rtl = list(rtl_log or [])
         self.model = model or {}
         self.coherence_events = list(coherence_events or [])
+        self.consistency_execution = list(consistency_execution or [])
         self._coh_states = False
         self.cross_instrs = set(self.model.get("cross_instructions", _DEFAULT_CROSS))
         self.width = 64 if self._detect_rv64() else 32
@@ -175,6 +185,9 @@ class CoverageCollector:
         # coherence-coverage universe (multicore scenarios)
         if self.coherence_events and coherence_universe is not None:
             uni.update(coherence_universe(self._coh_states))
+        # consistency-coverage universe (memory-ordering mechanisms)
+        if self.consistency_execution and consistency_universe is not None:
+            uni.update(consistency_universe())
         # model overrides / extensions
         for b, w in (self.model.get("weights", {}) or {}).items():
             uni[b] = float(w)
@@ -254,6 +267,13 @@ class CoverageCollector:
                 self.covered.add(b)
                 self.by_category.setdefault(cat, set()).add(b.split(":", 1)[1])
 
+        # consistency coverage (memory-ordering mechanisms)
+        if self.consistency_execution and consistency_coverage_bins is not None:
+            for b in consistency_coverage_bins(self.consistency_execution):
+                self.covered.add(b)
+                self.by_category.setdefault(b.split(":", 1)[0], set()).add(
+                    b.split(":", 1)[1])
+
         return self._report(started)
 
     def _resolve(self, tok: str) -> Optional[int]:
@@ -304,7 +324,8 @@ class CoverageCollector:
 
         cats: Dict[str, Any] = {}
         for cat in ("reg", "valclass", "branch", "priv", "instr", "cross",
-                    "opnd", "cohpat", "cohstate", "cohtrans", "cohshare"):
+                    "opnd", "cohpat", "cohstate", "cohtrans", "cohshare",
+                    "mmpair", "mmsync"):
             cat_total = sorted(b for b in total if b.split(":", 1)[0] == cat)
             cat_cov = sorted(b for b in covered_in if b.split(":", 1)[0] == cat)
             if cat_total:

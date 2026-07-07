@@ -541,6 +541,8 @@ class TestSchemaFiles:
             "AGENT_H.coverage_collector",
             "AGENT_H.coherence_verifier",
             "AGENT_H.memory_model_verifier",
+            "AGENT_H.interrupt_verifier",
+            "AGENT_H.perf_counter_verifier",
             "AGENT_H.atomics_verifier",
             "AGENT_H.bitmanip_verifier",
             "AGENT_H.csr_verifier",
@@ -4112,6 +4114,188 @@ class TestMemoryModelVerifier:
         ok = [_mop(0, "load", _MX, 0, rmw="g"),
               _mop(0, "store", _MX, 1, rmw="g", co=0)]
         assert MemoryModelVerifier(ok, "tso").run()["pass"]
+
+    def test_consistency_coverage_and_loop(self):
+        from AGENT_H.memory_model_verifier import (
+            consistency_coverage_bins, consistency_universe)
+        from AGENT_H.coverage_collector import CoverageCollector
+        from AGENT_H.stimulus_generator import StimulusGenerator
+        from AGENT_H.self_evolving_engine import constraint_for
+        exe = [_mop(0, "store", _MX, 1), _mop(0, "fence"),
+               _mop(0, "load", _MY, 0, aq=True)]
+        cov = consistency_coverage_bins(exe)
+        assert {"mmpair:store_load", "mmsync:fence", "mmsync:aq"} <= cov
+        assert len(consistency_universe()) == 8
+        # collector merges consistency bins into the coverage model
+        r = CoverageCollector([], consistency_execution=exe).collect()
+        assert "mmpair:store_load" in r["covered_bins"] and "mmsync:rmw" in r["holes"]
+        # stimulus templates self-validate + loop closes over the mm universe
+        g = StimulusGenerator(seed=0)
+        for b in ("mmpair:load_store", "mmsync:rl", "mmsync:rmw"):
+            assert g.covers_target(g.generate_for(constraint_for(b))), b
+        total = sorted(set(CoverageCollector([]).collect()["total_bins"])
+                       | set(consistency_universe()))
+        rep = g.close_coverage(total_bins=total, coverage_target=0.9, max_rounds=1000)
+        assert rep["final_coverage"] >= 0.9
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T46 — Interrupt Controller (PLIC / CLINT) Checker
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestInterruptVerifier:
+    _CFG = {"op": "config", "priorities": {"3": 7, "5": 4, "7": 0},
+            "enables": {"0": [3, 5, 7]}, "thresholds": {"0": 2}}
+
+    def _run(self, evs):
+        from AGENT_H.interrupt_verifier import InterruptVerifier
+        return InterruptVerifier(evs).run()
+
+    def test_import(self):
+        from AGENT_H import interrupt_verifier as iv
+        assert hasattr(iv, "InterruptVerifier") and hasattr(iv, "PLICModel")
+
+    def test_claim_highest_priority_and_wrong(self):
+        pend = [self._CFG, {"op": "pending", "source": 3},
+                {"op": "pending", "source": 5}]
+        assert self._run(pend + [{"op": "claim", "context": 0, "result": 3}])["pass"]
+        r = self._run(pend + [{"op": "claim", "context": 0, "result": 5}])
+        assert not r["pass"] and any(v["check"] == "plic_claim_wrong"
+                                     for v in r["violations"])
+
+    def test_threshold_and_priority0(self):
+        thr = [{"op": "config", "priorities": {"5": 4}, "enables": {"0": [5]},
+                "thresholds": {"0": 5}}, {"op": "pending", "source": 5},
+               {"op": "claim", "context": 0, "result": 5}]
+        assert not self._run(thr)["pass"]
+        p0 = [self._CFG, {"op": "pending", "source": 7},
+              {"op": "claim", "context": 0, "result": 7}]
+        assert any(v["check"] == "plic_priority0"
+                   for v in self._run(p0)["violations"])
+
+    def test_tie_break_and_claim_clears(self):
+        tie = [{"op": "config", "priorities": {"3": 5, "5": 5},
+                "enables": {"0": [3, 5]}, "thresholds": {"0": 0}},
+               {"op": "pending", "source": 5}, {"op": "pending", "source": 3},
+               {"op": "claim", "context": 0, "result": 3}]     # tie → lowest id
+        assert self._run(tie)["pass"]
+        seq = [self._CFG, {"op": "pending", "source": 3}, {"op": "pending", "source": 5},
+               {"op": "claim", "context": 0, "result": 3},
+               {"op": "claim", "context": 0, "result": 5}]      # 3 cleared → 5 next
+        assert self._run(seq)["pass"]
+
+    def test_disabled_and_no_pending(self):
+        dis = [{"op": "config", "priorities": {"3": 7}, "enables": {"0": []},
+                "thresholds": {"0": 0}}, {"op": "pending", "source": 3},
+               {"op": "claim", "context": 0, "result": 3}]
+        assert not self._run(dis)["pass"]
+        assert self._run([self._CFG, {"op": "claim", "context": 0, "result": 0}])["pass"]
+
+    def test_clint(self):
+        assert self._run([{"op": "clint", "mtime": 100, "mtimecmp": 100,
+                           "mtip": True}])["pass"]
+        r = self._run([{"op": "clint", "mtime": 99, "mtimecmp": 100, "mtip": True}])
+        assert not r["pass"] and any(v["check"] == "clint_mtip" for v in r["violations"])
+        r2 = self._run([{"op": "clint", "msip": True, "expected_msip": False}])
+        assert any(v["check"] == "clint_msip" for v in r2["violations"])
+
+    def test_robustness_and_schema(self):
+        for evs in ([], [None, 5], [{}], [{"op": "bogus"}]):
+            assert self._run(evs)["pass"]
+        r = self._run([])
+        for k in ("schema_version", "agent", "metrics", "total_violations",
+                  "pass", "violations", "band"):
+            assert k in r
+        assert r["agent"] == "interrupt_verifier"
+
+    def test_run_from_manifest(self, tmp_path):
+        from AGENT_H.interrupt_verifier import run_from_manifest
+        evs = [self._CFG, {"op": "pending", "source": 3}, {"op": "pending", "source": 5},
+               {"op": "claim", "context": 0, "result": 5}]
+        (tmp_path / "interrupt_trace.jsonl").write_text(
+            "\n".join(json.dumps(x) for x in evs))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "outputs": {"interrupt_trace": "interrupt_trace.jsonl"}}
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 1
+        assert (tmp_path / "interrupt_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T47 — Performance-Counter Checker
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _prec(seq, ins=None, cyc=None, inhibit=None, trap=None):
+    pc = {}
+    if ins is not None:
+        pc["instret"] = ins
+    if cyc is not None:
+        pc["cycles"] = cyc
+    r = {"schema_version": "2.1.0", "seq": seq, "disasm": "add x1,x2,x3",
+         "regs": {}, "csrs": {}}
+    if pc:
+        r["perf_counters"] = pc
+    if inhibit is not None:
+        r["csrs"]["mcountinhibit"] = hex(inhibit)
+    if trap is not None:
+        r["trap"] = trap
+    return r
+
+
+class TestPerfCounterVerifier:
+    def _run(self, rs):
+        from AGENT_H.perf_counter_verifier import PerfCounterVerifier
+        return PerfCounterVerifier(rs).run()
+
+    def test_import(self):
+        from AGENT_H import perf_counter_verifier as pv
+        assert hasattr(pv, "PerfCounterVerifier")
+
+    def test_clean_and_ipc(self):
+        r = self._run([_prec(0, 1, 10), _prec(1, 2, 15), _prec(2, 3, 18)])
+        assert r["pass"] and r["metrics"]["ipc"] is not None
+
+    def test_instret_skip_and_freeze(self):
+        assert any(v["check"] == "perf_instret_increment"
+                   for v in self._run([_prec(0, 1, 10), _prec(1, 3, 15)])["violations"])
+        assert any(v["check"] == "perf_instret_increment"
+                   for v in self._run([_prec(0, 1, 10), _prec(1, 1, 15)])["violations"])
+
+    def test_ir_inhibit(self):
+        assert self._run([_prec(0, 5, 10), _prec(1, 5, 15, inhibit=0x4)])["pass"]
+        assert not self._run([_prec(0, 5, 10), _prec(1, 6, 15, inhibit=0x4)])["pass"]
+
+    def test_cycle_monotonic_and_superscalar(self):
+        assert not self._run([_prec(0, 1, 20), _prec(1, 2, 15)])["pass"]   # backwards
+        assert self._run([_prec(0, 1, 10), _prec(1, 2, 10)])["pass"]       # same cycle ok
+
+    def test_cy_inhibit_and_trap(self):
+        assert self._run([_prec(0, 1, 10), _prec(1, 2, 10, inhibit=0x1)])["pass"]
+        assert not self._run([_prec(0, 1, 10), _prec(1, 2, 12, inhibit=0x1)])["pass"]
+        assert self._run([_prec(0, 1, 10),
+                          _prec(1, 1, 12, trap={"cause": 2})])["pass"]     # trap → no retire
+
+    def test_noop_and_robustness(self):
+        r = self._run([{"disasm": "add", "regs": {}, "csrs": {}}])
+        assert r["pass"] and r["perf_active"] is False
+        for rs in ([], [None, 5], [{}]):
+            assert self._run(rs)["pass"]
+
+    def test_schema_and_manifest(self, tmp_path):
+        from AGENT_H.perf_counter_verifier import run_from_manifest
+        r = self._run([])
+        for k in ("schema_version", "agent", "metrics", "total_violations",
+                  "pass", "violations", "band"):
+            assert k in r
+        assert r["agent"] == "perf_counter_verifier"
+        rs = [_prec(0, 1, 10), _prec(1, 3, 15)]
+        (tmp_path / "rtl_commit.jsonl").write_text(
+            "\n".join(json.dumps(x) for x in rs))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 1
+        assert (tmp_path / "perf_counter_report.json").exists()
 
 
 # ─────────────────────────────────────────────────────────────────────────────

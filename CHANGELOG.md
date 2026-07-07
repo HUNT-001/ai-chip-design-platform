@@ -4,6 +4,71 @@ All notable changes to AVA — Autonomic Verification Agent are documented here.
 
 ---
 
+## [2.31.0] — 2026-06-30
+
+### Added
+- **T47 — Performance-Counter Checker** (`AGENT_H/perf_counter_verifier.py`).
+  Golden checker for `mcycle` / `minstret` / `mcountinhibit`, reading the
+  `perf_counters` field the **standard commit log** already carries — so it needs
+  no separate trace and runs in the normal pipeline.
+  - **perf_instret_increment** (HIGH) — `minstret` increases by exactly 1 per
+    retired instruction; 0 when IR-inhibited; a trapping (non-retiring) record
+    may be 0 or 1.
+  - **perf_cycle_monotonic** (HIGH) — `mcycle` is non-decreasing (superscalar
+    retire ⇒ delta 0 allowed), and exactly 0 when CY-inhibited.
+  - Metrics: cycles/instret spanned, IPC, CPI. Clean no-op when no record
+    carries `perf_counters`.
+- Wired into `ava_patched.py::_run_extended_pipeline` as a commit-log verifier
+  (`_perfcnt`, runs on `rtl_log`, writes `perf_counter_report.json`).
+- 8 new pytest cases (`TestPerfCounterVerifier`) + 11 standalone.
+
+---
+
+## [2.30.0] — 2026-06-30
+
+### Added
+- **T46 — Interrupt Controller Checker** (`AGENT_H/interrupt_verifier.py`).
+  Golden model of the RISC-V interrupt controllers, a verification level the
+  trap/privilege agents don't cover (they check the CSR side of an already-
+  delivered trap, not the controller that decides *which* interrupt fires):
+  - **PLIC** priority arbitration — `claim` must return the highest-priority
+    source that is pending AND enabled for the context AND priority > threshold,
+    ties broken to the lowest source id, priority 0 = never
+    (`plic_claim_wrong`); a source at/below threshold or at priority 0 is never
+    claimable (`plic_threshold`, `plic_priority0`); claim clears pending (state
+    progression verified by the golden `PLICModel`).
+  - **CLINT** — timer interrupt `MTIP` set iff `mtime >= mtimecmp`
+    (`clint_mtip`); software interrupt `MSIP` equals the written bit
+    (`clint_msip`).
+  - Additive `interrupt_trace.jsonl` contract
+    (`config`/`pending`/`claim`/`complete`/`clint`). Clean no-op without a trace.
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_interrupt` import,
+  `EXTENDED_AGENTS_AVAILABLE`, `run_from_manifest` → `interrupt_report.json`).
+- 9 new pytest cases (`TestInterruptVerifier`) + 12 standalone (priority,
+  threshold, priority-0, tie-break, claim-clears-pending, disabled/no-pending,
+  CLINT mtip/msip, robustness, schema, manifest).
+
+---
+
+## [2.29.0] — 2026-06-30
+
+### Added
+- **Consistency coverage** — the memory-consistency level now feeds the closed
+  self-evolving loop (mirroring the coherence-coverage work).
+  `memory_model_verifier.consistency_coverage_bins()` / `consistency_universe()`
+  emit `mmpair:{store_load,load_load,store_store,load_store}` (the po pair types
+  / reordering opportunities present) and `mmsync:{fence,aq,rl,rmw}` (ordering
+  mechanisms exercised) — an 8-bin universe (weights 2–3 → real holes).
+  `coverage_collector` accepts `consistency_execution=` and merges them into the
+  same `coverage_summary.json` (new `mmpair`/`mmsync` categories);
+  `stimulus_generator` has matching templates that emit minimal
+  `consistency_execution` seeds, self-validating. The loop closes the full
+  register/value/cross/operand/coherence/consistency universe with generated
+  stimulus.
+- 1 in-repo pytest case (`test_consistency_coverage_and_loop`) + 5 standalone.
+
+---
+
 ## [2.28.0] — 2026-06-30
 
 ### Added

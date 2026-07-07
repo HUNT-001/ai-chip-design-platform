@@ -91,6 +91,8 @@ _covcoll   = _try_import("AGENT_H.coverage_collector",   "CoverageCollector")
 _stimgen   = _try_import("AGENT_H.stimulus_generator",   "StimulusGenerator")
 _coherence = _try_import("AGENT_H.coherence_verifier",   "CoherenceVerifier")
 _memmodel  = _try_import("AGENT_H.memory_model_verifier", "MemoryModelVerifier")
+_interrupt = _try_import("AGENT_H.interrupt_verifier",    "InterruptVerifier")
+_perfcnt   = _try_import("AGENT_H.perf_counter_verifier", "PerfCounterVerifier")
 _cache     = _try_import("AGENT_H.cache_verifier",        "CacheVerifier")
 _bus       = _try_import("AGENT_H.bus_verifier",          "BusVerifier")
 _faultinj  = _try_import("AGENT_H.fault_injector",        "FaultCampaign")
@@ -109,7 +111,7 @@ EXTENDED_AGENTS_AVAILABLE = any([
     _intent, _confidence, _contract, _temporal, _atomics, _csr, _rvc, _fp,
     _bitmanip, _privilege, _vm, _tlb, _pipeline, _branchp, _cache, _bus,
     _faultinj, _rv64, _svmmu, _rv64atom, _peripheral, _security, _selfevolve,
-    _vector, _covcoll, _stimgen, _coherence, _memmodel,
+    _vector, _covcoll, _stimgen, _coherence, _memmodel, _interrupt, _perfcnt,
 ])
 
 # ── Agent F: real Verilator coverage backend ──────────────────────────────────
@@ -2310,6 +2312,26 @@ endclass
             except Exception as exc:
                 logger.warning("  Vector verifier failed: %s", exc)
 
+        # -- Performance-counter checker (mcycle/minstret/mcountinhibit)
+        if _perfcnt and rtl_log:
+            try:
+                pv = _perfcnt.PerfCounterVerifier(rtl_log, iss_log)
+                r = pv.run()
+                if r.get("perf_active"):
+                    with open(run_dir / "perf_counter_report.json", "w") as f:
+                        json.dump(r, f, indent=2)
+                    reports["perf_counter"] = {
+                        "metrics": r.get("metrics", {}),
+                        "violations": r.get("total_violations", 0),
+                        "band": r.get("band", "CLEAN"),
+                        "pass": r.get("pass", True),
+                    }
+                    logger.info("  Perf counters: %d violations, IPC=%s, band=%s",
+                                r.get("total_violations", 0),
+                                r.get("metrics", {}).get("ipc"), r.get("band"))
+            except Exception as exc:
+                logger.warning("  Perf-counter verifier failed: %s", exc)
+
         # -- Multicore cache-coherence checker — gated on a coherence trace
         if _coherence:
             try:
@@ -2354,6 +2376,27 @@ endclass
                                     mmr.get("band"))
             except Exception as exc:
                 logger.warning("  Memory-model verifier failed: %s", exc)
+
+        # -- Interrupt-controller (PLIC/CLINT) checker — gated on an event trace
+        if _interrupt:
+            try:
+                rc = _interrupt.run_from_manifest(str(mpath)) \
+                    if hasattr(_interrupt, "run_from_manifest") else 0
+                ip = run_dir / "interrupt_report.json"
+                if ip.exists():
+                    with open(ip) as f:
+                        ir = json.load(f)
+                    if ir.get("status") != "skipped":
+                        reports["interrupt"] = {
+                            "metrics": ir.get("metrics", {}),
+                            "violations": ir.get("total_violations", 0),
+                            "band": ir.get("band", "CLEAN"),
+                            "pass": ir.get("pass", True),
+                        }
+                        logger.info("  Interrupt controller: %d violations, band=%s",
+                                    ir.get("total_violations", 0), ir.get("band"))
+            except Exception as exc:
+                logger.warning("  Interrupt verifier failed: %s", exc)
 
         # -- Cache subsystem verifier (gated on cache_config + events)
         if _cache and rtl_log:

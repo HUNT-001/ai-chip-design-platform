@@ -95,6 +95,45 @@ def _norm_op(op: Any) -> Optional[str]:
     return None
 
 
+_MM_PAIRS = ["store_load", "load_load", "store_store", "load_store"]
+_MM_SYNC = ["fence", "aq", "rl", "rmw"]
+
+
+def consistency_coverage_bins(execution: Sequence[Dict[str, Any]]) -> set:
+    """Coverage of memory-ordering *mechanisms* exercised by an execution:
+    which po pair types appear (reordering opportunities) and which
+    synchronisation features are used (fence / acquire / release / RMW)."""
+    covered: set = set()
+    by_core: Dict[Any, List[Dict[str, Any]]] = {}
+    for e in execution or []:
+        if not isinstance(e, dict):
+            continue
+        k = _norm_op(e.get("op"))
+        if k is None:
+            continue
+        by_core.setdefault(e.get("core"), []).append({"k": k, "e": e})
+        if k == "fence":
+            covered.add("mmsync:fence")
+        if e.get("aq"):
+            covered.add("mmsync:aq")
+        if e.get("rl"):
+            covered.add("mmsync:rl")
+        if e.get("rmw") is not None:
+            covered.add("mmsync:rmw")
+    for seq in by_core.values():
+        mem = [o["k"] for o in seq if o["k"] in ("load", "store")]
+        for i in range(len(mem)):
+            for j in range(i + 1, len(mem)):
+                covered.add(f"mmpair:{mem[i]}_{mem[j]}")
+    return covered
+
+
+def consistency_universe() -> Dict[str, float]:
+    uni = {f"mmpair:{p}": 2.0 for p in _MM_PAIRS}
+    uni.update({f"mmsync:{s}": 3.0 for s in _MM_SYNC})
+    return uni
+
+
 @dataclass
 class Op:
     idx: int

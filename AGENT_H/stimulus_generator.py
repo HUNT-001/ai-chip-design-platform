@@ -95,6 +95,24 @@ _COH_SHARE_SEQ = {
     "2": [("load", 0, "S", 0), ("load", 1, "S", 0)],
     "3plus": [("load", 0, "S", 0), ("load", 1, "S", 0), ("load", 2, "S", 0)],
 }
+# Memory-consistency stimulus: minimal executions exercising each mechanism.
+_MM_EXEC = {
+    "mmpair:store_load": [{"core": 0, "op": "store", "addr": "0x10", "value": 1},
+                          {"core": 0, "op": "load", "addr": "0x20", "value": 0}],
+    "mmpair:load_load": [{"core": 0, "op": "load", "addr": "0x10", "value": 0},
+                         {"core": 0, "op": "load", "addr": "0x20", "value": 0}],
+    "mmpair:store_store": [{"core": 0, "op": "store", "addr": "0x10", "value": 1},
+                           {"core": 0, "op": "store", "addr": "0x20", "value": 1}],
+    "mmpair:load_store": [{"core": 0, "op": "load", "addr": "0x10", "value": 0},
+                          {"core": 0, "op": "store", "addr": "0x20", "value": 1}],
+    "mmsync:fence": [{"core": 0, "op": "store", "addr": "0x10", "value": 1},
+                     {"core": 0, "op": "fence"},
+                     {"core": 0, "op": "load", "addr": "0x20", "value": 0}],
+    "mmsync:aq": [{"core": 0, "op": "load", "addr": "0x10", "value": 0, "aq": True}],
+    "mmsync:rl": [{"core": 0, "op": "store", "addr": "0x10", "value": 1, "rl": True}],
+    "mmsync:rmw": [{"core": 0, "op": "load", "addr": "0x10", "value": 0, "rmw": "g"},
+                   {"core": 0, "op": "store", "addr": "0x10", "value": 1, "rmw": "g"}],
+}
 
 
 def _now() -> str:
@@ -172,6 +190,10 @@ class StimulusGenerator:
         if kind == "cohshare" and vals:
             return self._coh_seed(target, self._coh_events(_COH_SHARE_SEQ.get(vals[0], [])))
 
+        # -- memory-consistency mechanisms --
+        if kind in ("mmpair", "mmsync") and vals:
+            return self._mm_seed(target, _MM_EXEC.get(f"{kind}:{vals[0]}", []))
+
         # fallback — a benign random write (still valid stimulus)
         return self.generate_random()
 
@@ -192,6 +214,11 @@ class StimulusGenerator:
         return {"target": target, "strategy": "directed",
                 "asm": [f"{e['op']}@core{e['core']}" for e in events],
                 "commit": [], "coherence_events": events}
+
+    def _mm_seed(self, target: str, execution: List[Dict[str, Any]]) -> Dict[str, Any]:
+        return {"target": target, "strategy": "directed",
+                "asm": [f"{e['op']}@core{e.get('core')}" for e in execution],
+                "commit": [], "consistency_execution": execution}
 
     def _branch_seed(self, target: str, taken: bool) -> Dict[str, Any]:
         b = self.base_pc
@@ -232,7 +259,8 @@ class StimulusGenerator:
         """Bins the seed is expected to cover (its own commit records, scored by
         the real CoverageCollector). Lets the generator check its own work."""
         cc = CoverageCollector(seed.get("commit", []),
-                               coherence_events=seed.get("coherence_events"))
+                               coherence_events=seed.get("coherence_events"),
+                               consistency_execution=seed.get("consistency_execution"))
         cc.collect()
         return set(cc.covered) | set(cc.observed_extra)
 
