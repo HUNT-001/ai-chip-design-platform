@@ -23,6 +23,7 @@ from .coverage_collector   import CoverageCollector, classify_value
 from .contract_dsl         import ContractRunner
 from .cross_domain         import get_adapter, DUTClass, register_adapter
 from .csr_verifier         import CSRVerifier, decode_csr, csr_is_readonly
+from .debug_verifier       import DebugVerifier, Trigger
 from .digital_twin         import DigitalTwin
 from .fp_verifier          import FPVerifier, decode_fp, fclass_mask
 from .economics_engine     import EconomicsEngine
@@ -72,6 +73,7 @@ __all__ = [
     "KnowledgeGraph", "CommitLogMinimizer",
     "MemoryModelVerifier", "find_cycle",
     "InterruptVerifier", "PLICModel", "PerfCounterVerifier",
+    "DebugVerifier", "Trigger",
     "PeripheralVerifier", "get_checker", "register_checker",
     "PipelineVerifier", "alu_eval",
     "PrivilegeVerifier", "PMPModel", "parse_priv",

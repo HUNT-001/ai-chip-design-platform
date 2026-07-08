@@ -93,6 +93,7 @@ _coherence = _try_import("AGENT_H.coherence_verifier",   "CoherenceVerifier")
 _memmodel  = _try_import("AGENT_H.memory_model_verifier", "MemoryModelVerifier")
 _interrupt = _try_import("AGENT_H.interrupt_verifier",    "InterruptVerifier")
 _perfcnt   = _try_import("AGENT_H.perf_counter_verifier", "PerfCounterVerifier")
+_debug     = _try_import("AGENT_H.debug_verifier",       "DebugVerifier")
 _cache     = _try_import("AGENT_H.cache_verifier",        "CacheVerifier")
 _bus       = _try_import("AGENT_H.bus_verifier",          "BusVerifier")
 _faultinj  = _try_import("AGENT_H.fault_injector",        "FaultCampaign")
@@ -112,6 +113,7 @@ EXTENDED_AGENTS_AVAILABLE = any([
     _bitmanip, _privilege, _vm, _tlb, _pipeline, _branchp, _cache, _bus,
     _faultinj, _rv64, _svmmu, _rv64atom, _peripheral, _security, _selfevolve,
     _vector, _covcoll, _stimgen, _coherence, _memmodel, _interrupt, _perfcnt,
+    _debug,
 ])
 
 # ── Agent F: real Verilator coverage backend ──────────────────────────────────
@@ -2397,6 +2399,27 @@ endclass
                                     ir.get("total_violations", 0), ir.get("band"))
             except Exception as exc:
                 logger.warning("  Interrupt verifier failed: %s", exc)
+
+        # -- Debug & Trigger module checker — gated on a debug trace
+        if _debug:
+            try:
+                rc = _debug.run_from_manifest(str(mpath)) \
+                    if hasattr(_debug, "run_from_manifest") else 0
+                dp = run_dir / "debug_report.json"
+                if dp.exists():
+                    with open(dp) as f:
+                        dr = json.load(f)
+                    if dr.get("status") != "skipped":
+                        reports["debug"] = {
+                            "metrics": dr.get("metrics", {}),
+                            "violations": dr.get("total_violations", 0),
+                            "band": dr.get("band", "CLEAN"),
+                            "pass": dr.get("pass", True),
+                        }
+                        logger.info("  Debug/Trigger: %d violations, band=%s",
+                                    dr.get("total_violations", 0), dr.get("band"))
+            except Exception as exc:
+                logger.warning("  Debug verifier failed: %s", exc)
 
         # -- Cache subsystem verifier (gated on cache_config + events)
         if _cache and rtl_log:

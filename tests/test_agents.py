@@ -543,6 +543,7 @@ class TestSchemaFiles:
             "AGENT_H.memory_model_verifier",
             "AGENT_H.interrupt_verifier",
             "AGENT_H.perf_counter_verifier",
+            "AGENT_H.debug_verifier",
             "AGENT_H.atomics_verifier",
             "AGENT_H.bitmanip_verifier",
             "AGENT_H.csr_verifier",
@@ -4296,6 +4297,97 @@ class TestPerfCounterVerifier:
         mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "perf_counter_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T48 — Debug & Trigger Module Checker
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestDebugVerifier:
+    _XT = {"op": "trigger_config", "index": 0, "execute": True,
+           "tdata2": "0x80000040", "action": 1, "priv": ["M"]}
+
+    def _run(self, evs):
+        from AGENT_H.debug_verifier import DebugVerifier
+        return DebugVerifier(evs).run()
+
+    def test_import(self):
+        from AGENT_H import debug_verifier as dv
+        assert hasattr(dv, "DebugVerifier") and hasattr(dv, "Trigger")
+
+    def test_trigger_fire_missed_spurious(self):
+        assert self._run([self._XT, {"op": "exec", "pc": "0x80000040",
+                                     "priv": "M", "fired": True, "dcsr_cause": 2}])["pass"]
+        assert any(v["check"] == "trigger_missed" for v in self._run(
+            [self._XT, {"op": "exec", "pc": "0x80000040", "priv": "M",
+                        "fired": False}])["violations"])
+        assert any(v["check"] == "trigger_spurious" for v in self._run(
+            [{"op": "exec", "pc": "0x80000040", "priv": "M", "fired": True}])["violations"])
+
+    def test_nonmatch_and_priv_gating(self):
+        assert self._run([self._XT, {"op": "exec", "pc": "0x80000044",
+                                     "priv": "M", "fired": False}])["pass"]
+        assert self._run([self._XT, {"op": "exec", "pc": "0x80000040",
+                                     "priv": "U", "fired": False}])["pass"]  # M-only
+        assert any(v["check"] == "trigger_spurious" for v in self._run(
+            [self._XT, {"op": "exec", "pc": "0x80000040", "priv": "U",
+                        "fired": True}])["violations"])
+
+    def test_load_store_type(self):
+        lt = {"op": "trigger_config", "index": 1, "load": True,
+              "tdata2": "0x2000", "priv": ["M"]}
+        assert self._run([lt, {"op": "load", "addr": "0x2000", "pc": "0x10",
+                               "priv": "M", "fired": True}])["pass"]
+        assert any(v["check"] == "trigger_spurious" for v in self._run(
+            [lt, {"op": "store", "addr": "0x2000", "pc": "0x10", "priv": "M",
+                  "fired": True}])["violations"])            # store not enabled
+
+    def test_trigger_cause(self):
+        assert any(v["check"] == "trigger_cause" for v in self._run(
+            [self._XT, {"op": "exec", "pc": "0x80000040", "priv": "M",
+                        "fired": True, "dcsr_cause": 3}])["violations"])
+
+    def test_debug_cause_dpc_step(self):
+        assert self._run([{"op": "halt", "cause": "haltreq", "pc": "0x100",
+                           "dpc": "0x100", "dcsr_cause": 3}])["pass"]
+        assert any(v["check"] == "debug_cause" for v in self._run(
+            [{"op": "halt", "cause": "haltreq", "dcsr_cause": 1}])["violations"])
+        assert any(v["check"] == "debug_dpc" for v in self._run(
+            [{"op": "halt", "cause": "step", "pc": "0x100", "dpc": "0x200",
+              "dcsr_cause": 4}])["violations"])
+        assert not self._run([{"op": "step", "instrs_executed": 2}])["pass"]
+
+    def test_abstract(self):
+        assert self._run([{"op": "halt", "cause": "haltreq"},
+                          {"op": "abstract", "cmd": "access_reg", "regno": 10,
+                           "halted": True, "result": "0x5", "expected": "0x5"}])["pass"]
+        assert any(v["check"] == "abstract_nothalted" for v in self._run(
+            [{"op": "abstract", "cmd": "access_reg", "halted": False,
+              "result": "0x5"}])["violations"])
+        assert any(v["check"] == "abstract_result" for v in self._run(
+            [{"op": "abstract", "cmd": "access_reg", "halted": True,
+              "result": "0x9", "expected": "0x5"}])["violations"])
+
+    def test_robustness_and_schema(self):
+        for evs in ([], [None, 5], [{}], [{"op": "bogus"}]):
+            assert self._run(evs)["pass"]
+        r = self._run([])
+        for k in ("schema_version", "agent", "metrics", "total_violations",
+                  "pass", "violations", "band"):
+            assert k in r
+        assert r["agent"] == "debug_verifier"
+
+    def test_manifest(self, tmp_path):
+        from AGENT_H.debug_verifier import run_from_manifest
+        evs = [self._XT, {"op": "exec", "pc": "0x80000040", "priv": "M",
+                          "fired": False}]
+        (tmp_path / "debug_trace.jsonl").write_text(
+            "\n".join(json.dumps(x) for x in evs))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "outputs": {"debug_trace": "debug_trace.jsonl"}}
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 1
+        assert (tmp_path / "debug_report.json").exists()
 
 
 # ─────────────────────────────────────────────────────────────────────────────

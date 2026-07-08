@@ -4,6 +4,30 @@ All notable changes to AVA — Autonomic Verification Agent are documented here.
 
 ---
 
+## [2.32.0] — 2026-06-30
+
+### Added
+- **T48 — Debug & Trigger Module Checker** (`AGENT_H/debug_verifier.py`).
+  Golden checker for the RISC-V Debug spec + hardware Trigger (breakpoint/
+  watchpoint) module — a level the trap/privilege agents don't cover:
+  - **Trigger (mcontrol)** golden match: a trigger fires iff its access type
+    (execute/load/store) is enabled, the privilege is enabled, and `tdata2`
+    matches the accessed address (execute ⇒ PC, load/store ⇒ data addr).
+    `trigger_missed` (matched but didn't fire), `trigger_spurious` (fired with
+    no match), `trigger_cause` (a debug-entering fire must set `dcsr.cause=2`).
+  - **Debug entry**: `dcsr.cause` per source (ebreak=1, trigger=2, haltreq=3,
+    step=4, resethaltreq=5) via `debug_cause`; `dpc` = halted PC via
+    `debug_dpc`; single-step runs exactly one instruction via `step_count`.
+  - **Abstract commands**: must run only while halted (`abstract_nothalted`) and
+    an access-register read returns the true value (`abstract_result`).
+  - Additive `debug_trace.jsonl` contract
+    (`trigger_config`/`exec`/`load`/`store`/`halt`/`step`/`resume`/`abstract`).
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_debug`,
+  `run_from_manifest` → `debug_report.json`).
+- 9 new pytest cases (`TestDebugVerifier`) + 12 standalone.
+
+---
+
 ## [2.31.0] — 2026-06-30
 
 ### Added
