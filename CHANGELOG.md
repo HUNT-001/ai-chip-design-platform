@@ -4,6 +4,51 @@ All notable changes to AVA — Autonomic Verification Agent are documented here.
 
 ---
 
+## [2.35.0] — 2026-06-30
+
+### Added
+- **T50 — Hypervisor Two-Stage Translation Checker**
+  (`AGENT_H/hypervisor_verifier.py`). Golden checker for the RISC-V Hypervisor
+  (H) extension's defining feature: a guest virtual address is translated by the
+  **VS-stage** (`vsatp`) to a guest physical address, which the **G-stage**
+  (`hgatp`) translates to a supervisor/host PA (`TwoStageMMU`).
+  - Verifies the **composition** and the H-specific **fault semantics** that no
+    non-virtual core has: a VS-stage fault is an *ordinary* page fault
+    (exec/load/store = 12/13/15), a G-stage fault is a distinct *guest*-page
+    fault (20/21/23); per-stage permissions checked independently.
+  - **htrans_result** (HIGH) — composed supervisor PA wrong.
+  - **htrans_fault** (HIGH) — fault missing / spurious / wrong cause / wrong
+    stage.
+  - Scope: each stage is supplied as its resolved VPN→(GPN,perms) /
+    GPN→(PPN,perms) mapping — the multi-level page-table *walk* of a single
+    stage is already covered by `vm_verifier` / `sv_mmu_verifier`, so this agent
+    focuses on the two-stage composition + fault classification.
+  - Additive `hypervisor_trace.jsonl` contract (`config` + `translate`).
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_hyp`,
+  `run_from_manifest` → `hypervisor_report.json`).
+- 8 new pytest cases (`TestHypervisorVerifier`) + 10 standalone.
+
+---
+
+## [2.34.0] — 2026-06-30
+
+### Added
+- **CLIC (Core-Local Interrupt Controller / fast interrupts)** in
+  `interrupt_verifier.py` — a new `CLICModel` and golden arbitration:
+  - **clic_arbitration** (HIGH) — the presented interrupt is the highest
+    `clicintctl` (level in the top `nlbits`, priority below, so a raw compare
+    orders level-then-priority) among pending ∧ enabled interrupts, ties broken
+    to the **highest** interrupt id (vs. PLIC's lowest).
+  - **clic_threshold** (HIGH) — a presented interrupt's level must exceed
+    `mintthresh`.
+  - **clic_disabled** (HIGH) — a not-enabled interrupt is never presented.
+  - New ops `clic_config` / `clic_claim` (sharing the `pending` stream) in the
+    same `interrupt_trace.jsonl`.
+- 2 new in-repo pytest cases + 7 standalone (highest-level, tie→priority,
+  tie→highest-id, wrong-pick, threshold, disabled, none-above-threshold).
+
+---
+
 ## [2.33.0] — 2026-06-30
 
 ### Added

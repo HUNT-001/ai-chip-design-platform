@@ -95,6 +95,7 @@ _interrupt = _try_import("AGENT_H.interrupt_verifier",    "InterruptVerifier")
 _perfcnt   = _try_import("AGENT_H.perf_counter_verifier", "PerfCounterVerifier")
 _debug     = _try_import("AGENT_H.debug_verifier",       "DebugVerifier")
 _reset     = _try_import("AGENT_H.reset_verifier",       "ResetVerifier")
+_hyp       = _try_import("AGENT_H.hypervisor_verifier",  "HypervisorVerifier")
 _cache     = _try_import("AGENT_H.cache_verifier",        "CacheVerifier")
 _bus       = _try_import("AGENT_H.bus_verifier",          "BusVerifier")
 _faultinj  = _try_import("AGENT_H.fault_injector",        "FaultCampaign")
@@ -114,7 +115,7 @@ EXTENDED_AGENTS_AVAILABLE = any([
     _bitmanip, _privilege, _vm, _tlb, _pipeline, _branchp, _cache, _bus,
     _faultinj, _rv64, _svmmu, _rv64atom, _peripheral, _security, _selfevolve,
     _vector, _covcoll, _stimgen, _coherence, _memmodel, _interrupt, _perfcnt,
-    _debug, _reset,
+    _debug, _reset, _hyp,
 ])
 
 # ── Agent F: real Verilator coverage backend ──────────────────────────────────
@@ -2442,6 +2443,27 @@ endclass
                                     rr.get("total_violations", 0), rr.get("band"))
             except Exception as exc:
                 logger.warning("  Reset verifier failed: %s", exc)
+
+        # -- Hypervisor two-stage translation checker — gated on a hyp trace
+        if _hyp:
+            try:
+                rc = _hyp.run_from_manifest(str(mpath)) \
+                    if hasattr(_hyp, "run_from_manifest") else 0
+                hp = run_dir / "hypervisor_report.json"
+                if hp.exists():
+                    with open(hp) as f:
+                        hr = json.load(f)
+                    if hr.get("status") != "skipped":
+                        reports["hypervisor"] = {
+                            "metrics": hr.get("metrics", {}),
+                            "violations": hr.get("total_violations", 0),
+                            "band": hr.get("band", "CLEAN"),
+                            "pass": hr.get("pass", True),
+                        }
+                        logger.info("  Hypervisor: %d violations, band=%s",
+                                    hr.get("total_violations", 0), hr.get("band"))
+            except Exception as exc:
+                logger.warning("  Hypervisor verifier failed: %s", exc)
 
         # -- Cache subsystem verifier (gated on cache_config + events)
         if _cache and rtl_log:

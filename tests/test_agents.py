@@ -545,6 +545,7 @@ class TestSchemaFiles:
             "AGENT_H.perf_counter_verifier",
             "AGENT_H.debug_verifier",
             "AGENT_H.reset_verifier",
+            "AGENT_H.hypervisor_verifier",
             "AGENT_H.atomics_verifier",
             "AGENT_H.bitmanip_verifier",
             "AGENT_H.csr_verifier",
@@ -4222,6 +4223,42 @@ class TestInterruptVerifier:
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "interrupt_report.json").exists()
 
+    def test_clic_arbitration(self):
+        def cc(**kw):
+            return {"op": "clic_config", **kw}
+        # highest level wins (0xF0=lvl15 > 0xC0=lvl12)
+        assert self._run([cc(nlbits=4, ctl={"3": 0xF0, "5": 0xC0}, enables=[3, 5]),
+                          {"op": "pending", "source": 3}, {"op": "pending", "source": 5},
+                          {"op": "clic_claim", "result": 3}])["pass"]
+        # tie level → higher priority (0xF5 > 0xF3)
+        assert self._run([cc(nlbits=4, ctl={"3": 0xF3, "5": 0xF5}, enables=[3, 5]),
+                          {"op": "pending", "source": 3}, {"op": "pending", "source": 5},
+                          {"op": "clic_claim", "result": 5}])["pass"]
+        # equal ctl → highest id
+        assert self._run([cc(nlbits=4, ctl={"3": 0xF0, "5": 0xF0}, enables=[3, 5]),
+                          {"op": "pending", "source": 3}, {"op": "pending", "source": 5},
+                          {"op": "clic_claim", "result": 5}])["pass"]
+        # wrong pick flagged
+        assert any(v["check"] == "clic_arbitration" for v in self._run(
+            [cc(nlbits=4, ctl={"3": 0xF0, "5": 0xC0}, enables=[3, 5]),
+             {"op": "pending", "source": 3}, {"op": "pending", "source": 5},
+             {"op": "clic_claim", "result": 5}])["violations"])
+
+    def test_clic_threshold_and_disabled(self):
+        def cc(**kw):
+            return {"op": "clic_config", **kw}
+        assert not self._run([cc(nlbits=4, ctl={"5": 0x40}, enables=[5], mintthresh=0x40),
+                              {"op": "pending", "source": 5},
+                              {"op": "clic_claim", "result": 5}])["pass"]   # lvl4 !> lvl4
+        assert any(v["check"] in ("clic_arbitration", "clic_disabled") for v in self._run(
+            [cc(nlbits=4, ctl={"3": 0xF0}, enables=[]),
+             {"op": "pending", "source": 3},
+             {"op": "clic_claim", "result": 3}])["violations"])
+        # nothing above threshold → claims 0
+        assert self._run([cc(nlbits=4, ctl={"3": 0xF0}, enables=[3], mintthresh=0xF0),
+                          {"op": "pending", "source": 3},
+                          {"op": "clic_claim", "result": 0}])["pass"]
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # T47 — Performance-Counter Checker
@@ -4458,6 +4495,103 @@ class TestResetVerifier:
         mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "reset_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T50 — Hypervisor Two-Stage Translation Checker
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestHypervisorVerifier:
+    _CFG = {"op": "config",
+            "vs_map": {"0x80": {"gpn": "0x120", "r": True, "w": True,
+                                "x": True, "v": True}},
+            "g_map": {"0x120": {"ppn": "0x300", "r": True, "w": True,
+                                "x": True, "v": True}}}
+
+    def _run(self, evs):
+        from AGENT_H.hypervisor_verifier import HypervisorVerifier
+        return HypervisorVerifier(evs).run()
+
+    def test_import_and_clean(self):
+        from AGENT_H import hypervisor_verifier as hv
+        assert hasattr(hv, "HypervisorVerifier") and hasattr(hv, "TwoStageMMU")
+        # gva 0x80abc → ppn 0x300 | 0xabc = 0x300abc
+        assert self._run([self._CFG, {"op": "translate", "gva": "0x80abc",
+                                      "access": "load", "pa": "0x300abc"}])["pass"]
+
+    def test_vs_stage_page_fault(self):
+        # vpn 0x99 unmapped → load page fault 13
+        assert self._run([self._CFG, {"op": "translate", "gva": "0x99000",
+                                      "access": "load", "fault": 13}])["pass"]
+        assert not self._run([self._CFG, {"op": "translate", "gva": "0x99000",
+                                          "access": "load", "pa": "0x1000"}])["pass"]
+
+    def test_vs_perm_fault(self):
+        cfg = {"op": "config",
+               "vs_map": {"0x80": {"gpn": "0x120", "r": True, "w": False,
+                                   "x": True, "v": True}},
+               "g_map": {"0x120": {"ppn": "0x300", "r": True, "w": True,
+                                   "x": True, "v": True}}}
+        assert self._run([cfg, {"op": "translate", "gva": "0x80000",
+                                "access": "store", "fault": 15}])["pass"]
+
+    def test_g_stage_guest_page_fault(self):
+        miss = {"op": "config",
+                "vs_map": {"0x80": {"gpn": "0x999", "r": True, "w": True,
+                                    "x": True, "v": True}},
+                "g_map": {"0x120": {"ppn": "0x300", "r": True, "v": True}}}
+        # gpn 0x999 unmapped in G-stage → guest page fault 21
+        assert self._run([miss, {"op": "translate", "gva": "0x80000",
+                                 "access": "load", "fault": 21}])["pass"]
+        perm = {"op": "config",
+                "vs_map": {"0x80": {"gpn": "0x120", "r": True, "w": True,
+                                    "x": True, "v": True}},
+                "g_map": {"0x120": {"ppn": "0x300", "r": True, "w": False,
+                                    "v": True}}}
+        # store where G-stage lacks W → guest page fault 23
+        assert self._run([perm, {"op": "translate", "gva": "0x80000",
+                                 "access": "store", "fault": 23}])["pass"]
+
+    def test_exec_causes(self):
+        cfg = {"op": "config",
+               "vs_map": {"0x80": {"gpn": "0x120", "r": True, "x": False,
+                                   "v": True}},
+               "g_map": {"0x120": {"ppn": "0x300", "x": True, "v": True}}}
+        # exec but VS lacks X → instruction page fault 12
+        assert self._run([cfg, {"op": "translate", "gva": "0x80000",
+                                "access": "exec", "fault": 12}])["pass"]
+
+    def test_spurious_wrong_cause_wrong_pa(self):
+        assert any(v["check"] == "htrans_fault" for v in self._run(
+            [self._CFG, {"op": "translate", "gva": "0x80abc", "access": "load",
+                         "fault": 13}])["violations"])                 # spurious
+        assert any(v["check"] == "htrans_fault" for v in self._run(
+            [self._CFG, {"op": "translate", "gva": "0x99000", "access": "load",
+                         "fault": 21}])["violations"])                 # VS miss is 13 not 21
+        assert any(v["check"] == "htrans_result" for v in self._run(
+            [self._CFG, {"op": "translate", "gva": "0x80abc", "access": "load",
+                         "pa": "0x999abc"}])["violations"])
+
+    def test_robustness_schema(self):
+        for evs in ([], [None, 5], [{}], [{"op": "bogus"}]):
+            assert self._run(evs)["pass"]
+        r = self._run([])
+        for k in ("schema_version", "agent", "metrics", "total_violations",
+                  "pass", "violations", "band"):
+            assert k in r
+        assert r["agent"] == "hypervisor_verifier"
+
+    def test_manifest(self, tmp_path):
+        from AGENT_H.hypervisor_verifier import run_from_manifest
+        evs = [self._CFG, {"op": "translate", "gva": "0x80abc",
+                           "access": "load", "pa": "0x999abc"}]
+        (tmp_path / "hypervisor_trace.jsonl").write_text(
+            "\n".join(json.dumps(x) for x in evs))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "outputs": {"hypervisor_trace": "hypervisor_trace.jsonl"}}
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 1
+        assert (tmp_path / "hypervisor_report.json").exists()
 
 
 # ─────────────────────────────────────────────────────────────────────────────

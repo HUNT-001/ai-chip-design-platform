@@ -65,6 +65,16 @@ manifest. All pass.
 > recently-grown files so the full in-repo suite runs against the real repo.
 > Additive change, existing agents unaffected.
 
+## 5a. CLIC (added v2.34.0)
+
+`CLICModel` adds fast-interrupt arbitration. Each source's 8-bit `clicintctl`
+encodes level (top `nlbits`) then priority, so a raw `clicintctl` compare orders
+level-then-priority directly; ties break to the **highest** interrupt id (the
+opposite of PLIC). A source is presentable only if its level exceeds
+`mintthresh`. Checks: `clic_arbitration` (wrong pick), `clic_threshold` (level ≤
+threshold), `clic_disabled` (not enabled). New ops `clic_config` / `clic_claim`
+share the `pending` stream in the same trace.
+
 ## 6. Limitations / next steps
 
 - **Nested/preemptive interrupts** — priority-based preemption while an

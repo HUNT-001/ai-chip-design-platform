@@ -114,6 +114,55 @@ class PLICModel:
         return max(cands, key=lambda s: (self.prio.get(s, 0), -s))
 
 
+class CLICModel:
+    """Core-Local Interrupt Controller (fast interrupts). Arbitration is
+    highest interrupt *level* then *priority* — both encoded in the 8-bit
+    ``clicintctl`` (level in the top ``nlbits``), so a raw clicintctl compare
+    orders level-then-priority; ties break to the **highest** interrupt id.
+    An interrupt is presentable only if its level exceeds ``mintthresh``."""
+
+    def __init__(self) -> None:
+        self.nlbits = 8
+        self.ctl: Dict[int, int] = {}       # source → clicintctl (8-bit)
+        self.enable: set = set()            # enabled sources (clicintie)
+        self.thresh = 0                     # mintthresh (raw 8-bit)
+        self.pending: set = set()
+
+    def configure(self, nlbits=None, ctl=None, enables=None, mintthresh=None) -> None:
+        if nlbits is not None:
+            n = _to_int(nlbits)
+            if n is not None:
+                self.nlbits = max(0, min(8, n))
+        for s, c in (ctl or {}).items():
+            si, ci = _to_int(s), _to_int(c)
+            if si is not None and ci is not None:
+                self.ctl[si] = ci & 0xFF
+        if enables is not None:
+            self.enable = set(_to_int(s) for s in enables if _to_int(s) is not None)
+        if mintthresh is not None:
+            t = _to_int(mintthresh)
+            if t is not None:
+                self.thresh = t & 0xFF
+
+    def level(self, ctl: int) -> int:
+        return (ctl >> (8 - self.nlbits)) if self.nlbits else 0
+
+    def set_pending(self, s: int) -> None:
+        self.pending.add(s)
+
+    def clear_pending(self, s: int) -> None:
+        self.pending.discard(s)
+
+    def best(self) -> int:
+        thr = self.level(self.thresh)
+        cands = [s for s in self.pending
+                 if s in self.enable and self.level(self.ctl.get(s, 0)) > thr]
+        if not cands:
+            return 0
+        # highest clicintctl (level then priority), then highest id
+        return max(cands, key=lambda s: (self.ctl.get(s, 0), s))
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Verifier
 # ─────────────────────────────────────────────────────────────────────────────
@@ -122,7 +171,9 @@ class InterruptVerifier:
         self.events = [e for e in (events or []) if isinstance(e, dict)]
         self.violations: List[Dict[str, Any]] = []
         self.metrics = {"claims": 0, "completes": 0, "pendings": 0,
-                        "clint_checks": 0, "plic_active": False, "clint_active": False}
+                        "clint_checks": 0, "clic_claims": 0,
+                        "plic_active": False, "clint_active": False,
+                        "clic_active": False}
 
     def _v(self, i: int, check: str, detail: str) -> None:
         self.violations.append({"event": i, "check": check,
@@ -131,19 +182,26 @@ class InterruptVerifier:
     def run(self) -> Dict[str, Any]:
         started = _now()
         plic = PLICModel()
+        clic = CLICModel()
         for i, e in enumerate(self.events):
             op = str(e.get("op", "")).lower()
             if op == "config":
                 plic.configure(e.get("priorities"), e.get("enables"),
                                e.get("thresholds"))
+            elif op == "clic_config":
+                clic.configure(e.get("nlbits"), e.get("ctl"),
+                               e.get("enables"), e.get("mintthresh"))
+                self.metrics["clic_active"] = True
             elif op in ("pending", "set_pending"):
                 s = _to_int(e.get("source"))
                 if s is not None:
                     plic.set_pending(s)
+                    clic.set_pending(s)          # shared pending stream
                     self.metrics["pendings"] += 1
-                    self.metrics["plic_active"] = True
             elif op == "claim":
                 self._check_claim(i, e, plic)
+            elif op == "clic_claim":
+                self._check_clic_claim(i, e, clic)
             elif op == "complete":
                 self.metrics["completes"] += 1
             elif op == "clint":
@@ -172,6 +230,27 @@ class InterruptVerifier:
                         f"≤ threshold {plic.thresh.get(ctx, 0)}")
         plic.clear_pending(dut if dut != 0 else golden)
 
+    def _check_clic_claim(self, i: int, e: Dict[str, Any], clic: CLICModel) -> None:
+        self.metrics["clic_claims"] += 1
+        self.metrics["clic_active"] = True
+        golden = clic.best()
+        dut = _to_int(e.get("result", e.get("claimed")))
+        if dut is None:
+            clic.clear_pending(golden)
+            return
+        if dut != golden:
+            self._v(i, "clic_arbitration",
+                    f"CLIC claimed {dut}, golden highest level/priority is {golden}")
+        if dut != 0:
+            if dut not in clic.enable:
+                self._v(i, "clic_disabled", f"claimed source {dut} is not enabled")
+            if clic.level(clic.ctl.get(dut, 0)) <= clic.level(clic.thresh):
+                self._v(i, "clic_threshold",
+                        f"claimed source {dut} level "
+                        f"{clic.level(clic.ctl.get(dut, 0))} ≤ threshold level "
+                        f"{clic.level(clic.thresh)}")
+        clic.clear_pending(dut if dut != 0 else golden)
+
     def _check_clint(self, i: int, e: Dict[str, Any]) -> None:
         self.metrics["clint_checks"] += 1
         self.metrics["clint_active"] = True
@@ -195,7 +274,9 @@ class InterruptVerifier:
             "started_at": started,
             "finished_at": _now(),
             "records_checked": len(self.events),
-            "interrupt_active": self.metrics["plic_active"] or self.metrics["clint_active"],
+            "interrupt_active": (self.metrics["plic_active"]
+                                 or self.metrics["clint_active"]
+                                 or self.metrics["clic_active"]),
             "metrics": self.metrics,
             "total_violations": total,
             "high_violations": high,

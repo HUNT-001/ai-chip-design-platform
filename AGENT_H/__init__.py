@@ -31,7 +31,8 @@ from .explainer            import BugExplainer
 from .fault_injector       import FaultCampaign, inject_fault
 from .formal_fuzzer        import FormalFuzzBridge, disassemble_rv32im
 from .knowledge_graph      import KnowledgeGraph
-from .interrupt_verifier   import InterruptVerifier, PLICModel
+from .hypervisor_verifier  import HypervisorVerifier, TwoStageMMU
+from .interrupt_verifier   import InterruptVerifier, PLICModel, CLICModel
 from .memory_model_verifier import MemoryModelVerifier, find_cycle
 from .minimizer            import CommitLogMinimizer
 from .perf_counter_verifier import PerfCounterVerifier
@@ -73,7 +74,8 @@ __all__ = [
     "FormalFuzzBridge", "disassemble_rv32im",
     "KnowledgeGraph", "CommitLogMinimizer",
     "MemoryModelVerifier", "find_cycle",
-    "InterruptVerifier", "PLICModel", "PerfCounterVerifier",
+    "InterruptVerifier", "PLICModel", "CLICModel", "PerfCounterVerifier",
+    "HypervisorVerifier", "TwoStageMMU",
     "DebugVerifier", "Trigger", "ResetVerifier",
     "PeripheralVerifier", "get_checker", "register_checker",
     "PipelineVerifier", "alu_eval",
