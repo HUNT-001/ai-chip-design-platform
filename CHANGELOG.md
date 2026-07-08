@@ -4,6 +4,28 @@ All notable changes to AVA — Autonomic Verification Agent are documented here.
 
 ---
 
+## [2.33.0] — 2026-06-30
+
+### Added
+- **T49 — Reset-State Checker** (`AGENT_H/reset_verifier.py`). Golden checker for
+  the RISC-V architectural reset state — a wrong reset value silently corrupts
+  every boot and is untouched by the runtime verifiers. Over a reset snapshot
+  (priv / PC / CSRs):
+  - **reset_priv** (HIGH) — resets into M-mode.
+  - **reset_mstatus_mie** (HIGH) — `mstatus.MIE = 0` (interrupts disabled).
+  - **reset_mstatus_mprv** (HIGH) — `mstatus.MPRV = 0`.
+  - **reset_pc** (HIGH) — PC equals the reset vector (`expected.pc` /
+    `reset_vector`).
+  - **reset_misa** (MEDIUM) — if `misa` is implemented, MXL is valid (1/2/3,
+    RV32/64 auto-detected) and a base-integer bit (I/E) is set.
+  - **reset_csr** (HIGH) — every CSR in `expected.csrs` matches its reset value.
+  - Accepts one snapshot or a multi-hart list.
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_reset`,
+  `run_from_manifest` → `reset_report.json`).
+- 8 new pytest cases (`TestResetVerifier`) + 12 standalone.
+
+---
+
 ## [2.32.0] — 2026-06-30
 
 ### Added

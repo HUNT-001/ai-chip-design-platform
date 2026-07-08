@@ -544,6 +544,7 @@ class TestSchemaFiles:
             "AGENT_H.interrupt_verifier",
             "AGENT_H.perf_counter_verifier",
             "AGENT_H.debug_verifier",
+            "AGENT_H.reset_verifier",
             "AGENT_H.atomics_verifier",
             "AGENT_H.bitmanip_verifier",
             "AGENT_H.csr_verifier",
@@ -4388,6 +4389,75 @@ class TestDebugVerifier:
         mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "debug_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T49 — Reset-State Checker
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestResetVerifier:
+    _GOOD = {"hart": 0, "priv": "M", "pc": "0x80000000",
+             "csrs": {"mstatus": "0x0", "misa": "0x40141101", "mie": "0x0"},
+             "expected": {"pc": "0x80000000"}}
+
+    def _run(self, s, cfg=None):
+        from AGENT_H.reset_verifier import ResetVerifier
+        return ResetVerifier(s, cfg).run()
+
+    def test_import_and_clean(self):
+        from AGENT_H import reset_verifier as rv
+        assert hasattr(rv, "ResetVerifier")
+        assert self._run(self._GOOD)["pass"]
+
+    def test_priv_mie_mprv(self):
+        assert any(v["check"] == "reset_priv" for v in
+                   self._run(dict(self._GOOD, priv="S"))["violations"])
+        assert any(v["check"] == "reset_mstatus_mie" for v in self._run(
+            dict(self._GOOD, csrs={"mstatus": "0x8", "misa": "0x40141101"}))["violations"])
+        assert any(v["check"] == "reset_mstatus_mprv" for v in self._run(
+            dict(self._GOOD, csrs={"mstatus": hex(1 << 17),
+                                   "misa": "0x40141101"}))["violations"])
+
+    def test_pc_snapshot_and_config(self):
+        assert any(v["check"] == "reset_pc" for v in
+                   self._run(dict(self._GOOD, pc="0x80000004"))["violations"])
+        s = {"priv": "M", "pc": "0x1000", "csrs": {"mstatus": "0x0"}}
+        assert self._run(s, {"reset_vector": "0x1000"})["pass"]
+        assert not self._run(dict(s, pc="0x2000"), {"reset_vector": "0x1000"})["pass"]
+
+    def test_misa_rv32_bad_rv64_ok(self):
+        assert any(v["check"] == "reset_misa" for v in self._run(
+            dict(self._GOOD, csrs={"mstatus": "0x0", "misa": "0x00141101"}))["violations"])
+        assert self._run(dict(self._GOOD,
+                              csrs={"mstatus": "0x0",
+                                    "misa": hex((2 << 62) | 0x141101)}))["pass"]
+
+    def test_expected_csr_and_multihart(self):
+        s = dict(self._GOOD, csrs={"mstatus": "0x0", "misa": "0x40141101",
+                                   "mtvec": "0x0"},
+                 expected={"pc": "0x80000000", "csrs": {"mtvec": "0x80000004"}})
+        assert any(v["check"] == "reset_csr" for v in self._run(s)["violations"])
+        r = self._run([self._GOOD, dict(self._GOOD, hart=1, priv="U")])
+        assert r["metrics"]["harts"] == 2 and not r["pass"]
+
+    def test_robustness_schema(self):
+        for s in ([], [None, 5], [{}]):
+            assert self._run(s)["pass"]
+        r = self._run([])
+        for k in ("schema_version", "agent", "metrics", "total_violations",
+                  "pass", "violations", "band"):
+            assert k in r
+        assert r["agent"] == "reset_verifier"
+
+    def test_manifest(self, tmp_path):
+        from AGENT_H.reset_verifier import run_from_manifest
+        (tmp_path / "reset_snapshot.json").write_text(
+            json.dumps(dict(self._GOOD, pc="0x4")))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "outputs": {"reset_snapshot": "reset_snapshot.json"}}
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 1
+        assert (tmp_path / "reset_report.json").exists()
 
 
 # ─────────────────────────────────────────────────────────────────────────────

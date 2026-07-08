@@ -94,6 +94,7 @@ _memmodel  = _try_import("AGENT_H.memory_model_verifier", "MemoryModelVerifier")
 _interrupt = _try_import("AGENT_H.interrupt_verifier",    "InterruptVerifier")
 _perfcnt   = _try_import("AGENT_H.perf_counter_verifier", "PerfCounterVerifier")
 _debug     = _try_import("AGENT_H.debug_verifier",       "DebugVerifier")
+_reset     = _try_import("AGENT_H.reset_verifier",       "ResetVerifier")
 _cache     = _try_import("AGENT_H.cache_verifier",        "CacheVerifier")
 _bus       = _try_import("AGENT_H.bus_verifier",          "BusVerifier")
 _faultinj  = _try_import("AGENT_H.fault_injector",        "FaultCampaign")
@@ -113,7 +114,7 @@ EXTENDED_AGENTS_AVAILABLE = any([
     _bitmanip, _privilege, _vm, _tlb, _pipeline, _branchp, _cache, _bus,
     _faultinj, _rv64, _svmmu, _rv64atom, _peripheral, _security, _selfevolve,
     _vector, _covcoll, _stimgen, _coherence, _memmodel, _interrupt, _perfcnt,
-    _debug,
+    _debug, _reset,
 ])
 
 # ── Agent F: real Verilator coverage backend ──────────────────────────────────
@@ -2420,6 +2421,27 @@ endclass
                                     dr.get("total_violations", 0), dr.get("band"))
             except Exception as exc:
                 logger.warning("  Debug verifier failed: %s", exc)
+
+        # -- Reset-state checker — gated on a reset snapshot
+        if _reset:
+            try:
+                rc = _reset.run_from_manifest(str(mpath)) \
+                    if hasattr(_reset, "run_from_manifest") else 0
+                rrp = run_dir / "reset_report.json"
+                if rrp.exists():
+                    with open(rrp) as f:
+                        rr = json.load(f)
+                    if rr.get("status") != "skipped":
+                        reports["reset"] = {
+                            "metrics": rr.get("metrics", {}),
+                            "violations": rr.get("total_violations", 0),
+                            "band": rr.get("band", "CLEAN"),
+                            "pass": rr.get("pass", True),
+                        }
+                        logger.info("  Reset state: %d violations, band=%s",
+                                    rr.get("total_violations", 0), rr.get("band"))
+            except Exception as exc:
+                logger.warning("  Reset verifier failed: %s", exc)
 
         # -- Cache subsystem verifier (gated on cache_config + events)
         if _cache and rtl_log:

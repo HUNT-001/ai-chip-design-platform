@@ -38,6 +38,7 @@ from .perf_counter_verifier import PerfCounterVerifier
 from .peripheral_verifier  import PeripheralVerifier, get_checker, register_checker
 from .pipeline_verifier    import PipelineVerifier, alu_eval
 from .privilege_verifier   import PrivilegeVerifier, PMPModel, parse_priv
+from .reset_verifier       import ResetVerifier
 from .root_cause_localizer import RootCauseLocalizer
 from .rv64_verifier        import RV64Verifier, alu64, aluw, sext32
 from .rv64_atomics_verifier import RV64AtomicsVerifier, amo_compute64
@@ -73,7 +74,7 @@ __all__ = [
     "KnowledgeGraph", "CommitLogMinimizer",
     "MemoryModelVerifier", "find_cycle",
     "InterruptVerifier", "PLICModel", "PerfCounterVerifier",
-    "DebugVerifier", "Trigger",
+    "DebugVerifier", "Trigger", "ResetVerifier",
     "PeripheralVerifier", "get_checker", "register_checker",
     "PipelineVerifier", "alu_eval",
     "PrivilegeVerifier", "PMPModel", "parse_priv",
