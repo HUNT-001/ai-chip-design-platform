@@ -3,7 +3,7 @@
 **Autonomic Verification Agent (AVA) v3.0**
 *A multi-agent, AI-assisted RISC-V RTL verification platform*
 
-Last updated: 2026-06-29 · Test suite: **244 passing, 1 skipped** · Pure-Python core (no EDA tools required to run the agent tier)
+Last updated: 2026-07-09 · Pure-Python core (no EDA tools required to run the agent tier)
 
 Status legend: ✅ **Done** (implemented + tested) · 🟡 **Partial** (foundation exists / partially covered) · ⬜ **Planned**
 
@@ -30,6 +30,68 @@ TLB coherence. The microarchitectural tiers (pipeline, cache, branch predictor,
 out-of-order, multicore/coherency — Levels 2, 3, 7, 8, 9, 10) and the
 fault-injection / power / bus-protocol tiers (Levels 5, 12, 15) are the main
 open frontier.
+
+---
+
+## 1a. Development cycle 2 — T39→T51 (2026-07)
+
+A second build arc added **13 new golden-reference agents** (all stdlib-only,
+each with a standalone + in-repo pytest suite), closing the microarchitectural,
+multicore-memory, interrupt-architecture and system-integration frontiers, and
+turning the AI coverage tier into a genuine closed loop.
+
+**Micro-architecture**
+- ✅ **Branch prediction** (T39, `branch_predictor_verifier`) — recovery
+  (operand-derived outcome vs committed next-PC), hit-flag, accuracy/MPKI +
+  golden RAS metrics.
+- ✅ **Vector "V" / RVV** (T41, `vector_verifier`) — `vset_vl` (spec-accurate vl
+  incl. fractional LMUL + impl-defined band), `vill`, element-wise golden ALU
+  (`.vv/.vx/.vi`), tail policy, and vector load/store addressing
+  (unit/strided/indexed + access-count/EEW/value).
+
+**AI self-evolving coverage/generation loop (advanced idea #3, now closed)**
+- ✅ **Self-evolving engine** (T40) — non-stationary bandits
+  (UCB1/Discounted-UCB/Sliding-Window/Thompson), difficulty-aware hole
+  scheduler, suspected-unreachable waivers, regret/velocity/closure-prediction,
+  multi-seed CI.
+- ✅ **Functional coverage collector** (T42) — reg/value-class/branch/priv/instr
+  + **cross** (opcode×result) + **opnd** (source-operand pair via a golden
+  shadow regfile) + **coherence** + **consistency** bins; emits the
+  `coverage_summary.json` the engine consumes.
+- ✅ **Coverage-directed stimulus generator** (T43) — turns holes into concrete,
+  **self-validating** seeds; `close_coverage()` drives the loop to ≥90% over a
+  166-bin universe with generated stimulus.
+
+**Multicore memory stack**
+- ✅ **Cache coherence** (T44, `coherence_verifier`) — read-from-valid,
+  write-serialization (per-core monotonic observation), SWMR from MESI state;
+  plus coherence *coverage* bins into the loop.
+- ✅ **Memory consistency** (T45, `memory_model_verifier`) — axiomatic
+  SC/TSO/RVWMO (po/ppo/rf/co/fr + fences), acquire/release, fence pred/succ
+  sets, RMW atomicity; litmus-validated (SB/MP/LB/CoRR); consistency coverage
+  into the loop.
+
+**Interrupt architecture** — PLIC + CLINT + CLIC + AIA/IMSIC
+- ✅ **PLIC/CLINT/CLIC** (T46, `interrupt_verifier`) — priority arbitration,
+  threshold/priority-0 masking, CLINT mtip/msip, CLIC level/priority fast
+  interrupts.
+- ✅ **AIA / IMSIC** (T51, `aia_verifier`) — `topei` selection (smallest
+  identity = highest priority, eithreshold, eidelivery).
+
+**System integration**
+- ✅ **Performance counters** (T47, `perf_counter_verifier`) — minstret/mcycle
+  increment + `mcountinhibit`, IPC/CPI (runs on the standard commit log).
+- ✅ **Debug & Trigger** (T48, `debug_verifier`) — mcontrol trigger match,
+  dcsr.cause/dpc, single-step, abstract commands.
+- ✅ **Reset state** (T49, `reset_verifier`) — mandated reset invariants
+  (priv=M, MIE/MPRV=0), reset PC, misa sanity, golden CSR compare.
+- ✅ **Hypervisor two-stage translation** (T50, `hypervisor_verifier`) —
+  VS-stage→G-stage composition; VS fault = page-fault (12/13/15), G fault =
+  guest-page-fault (20/21/23).
+
+**Still open:** APLIC + guest interrupt files (AIA depth); full interleaved
+two-stage page-table walk (H depth); out-of-order/scoreboard microarchitecture;
+power/CDC (AGENT_J foundation) and DFT/formal-property tiers.
 
 ---
 

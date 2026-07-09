@@ -4,6 +4,28 @@ All notable changes to AVA — Autonomic Verification Agent are documented here.
 
 ---
 
+## [2.36.0] — 2026-06-30
+
+### Added
+- **T51 — AIA / IMSIC Checker** (`AGENT_H/aia_verifier.py`). Golden checker for
+  the Advanced Interrupt Architecture's IMSIC (Incoming MSI Controller) `topei`
+  (top external interrupt) selection — the message-signaled counterpart to the
+  PLIC/CLIC wired controllers:
+  - **imsic_topei** (HIGH) — `topei` returns the **smallest identity number**
+    (IMSIC priority = identity, smaller = higher) among interrupts that are
+    pending (`eip`) AND enabled (`eie`) AND below `eithreshold`, gated by
+    `eidelivery`.
+  - **imsic_delivery** (HIGH) — `topei ≠ 0` while `eidelivery` is off.
+  - **imsic_threshold** (HIGH) — selected identity ≥ `eithreshold` (masked).
+  - **imsic_disabled** (HIGH) — selected identity not both pending and enabled.
+  - Additive `aia_trace.jsonl` contract (`imsic_config` + `imsic_topei`).
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_aia`,
+  `run_from_manifest` → `aia_report.json`).
+- 7 new pytest cases (`TestAIAVerifier`) + 9 standalone. Interrupt architecture
+  now spans **PLIC + CLINT + CLIC + AIA/IMSIC**.
+
+---
+
 ## [2.35.0] — 2026-06-30
 
 ### Added

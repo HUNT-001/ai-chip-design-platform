@@ -29,6 +29,7 @@ The main entry point is `ava_patched.py` — specifically the `AVA` class and
 | `ava_patched.py` | Main orchestrator — `AVA` class, 6-phase pipeline, `VerificationReportWriter` |
 | `AGENT_G/causal_engine.py` | `CausalGeneticEngine` — causal AI-guided test generation |
 | `AGENT_H/agent_h_intent.py` | `IntentChecker` — architectural intent verification |
+| `AGENT_H/aia_verifier.py` | `AIAVerifier` + `IMSICModel` — AIA/IMSIC message-signaled interrupt `topei` selection (smallest identity = highest priority among pending `eip` ∧ enabled `eie` below `eithreshold`, gated by `eidelivery`). Checks imsic_topei/delivery/threshold/disabled. Golden over an `aia_trace.jsonl` |
 | `AGENT_H/confidence_scorer.py` | `ConfidenceScorer` — weighted confidence score [0,1] |
 | `AGENT_H/hypervisor_verifier.py` | `HypervisorVerifier` + `TwoStageMMU` — Hypervisor (H) two-stage translation: GVA →VS-stage(vsatp)→ GPA →G-stage(hgatp)→ SPA composition + per-stage perms; VS-stage fault = ordinary page-fault (12/13/15), G-stage fault = guest-page-fault (20/21/23). Checks htrans_result/htrans_fault. Golden over a `hypervisor_trace.jsonl` |
 | `AGENT_H/reset_verifier.py` | `ResetVerifier` — RISC-V architectural reset state over a reset snapshot (priv==M; mstatus.MIE/MPRV==0; reset PC==reset vector; misa MXL/base sanity; golden expected-CSR compare). Multi-hart. Golden over a `reset_snapshot.json` |
