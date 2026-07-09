@@ -96,6 +96,7 @@ _perfcnt   = _try_import("AGENT_H.perf_counter_verifier", "PerfCounterVerifier")
 _debug     = _try_import("AGENT_H.debug_verifier",       "DebugVerifier")
 _reset     = _try_import("AGENT_H.reset_verifier",       "ResetVerifier")
 _hyp       = _try_import("AGENT_H.hypervisor_verifier",  "HypervisorVerifier")
+_aia       = _try_import("AGENT_H.aia_verifier",         "AIAVerifier")
 _cache     = _try_import("AGENT_H.cache_verifier",        "CacheVerifier")
 _bus       = _try_import("AGENT_H.bus_verifier",          "BusVerifier")
 _faultinj  = _try_import("AGENT_H.fault_injector",        "FaultCampaign")
@@ -115,7 +116,7 @@ EXTENDED_AGENTS_AVAILABLE = any([
     _bitmanip, _privilege, _vm, _tlb, _pipeline, _branchp, _cache, _bus,
     _faultinj, _rv64, _svmmu, _rv64atom, _peripheral, _security, _selfevolve,
     _vector, _covcoll, _stimgen, _coherence, _memmodel, _interrupt, _perfcnt,
-    _debug, _reset, _hyp,
+    _debug, _reset, _hyp, _aia,
 ])
 
 # ── Agent F: real Verilator coverage backend ──────────────────────────────────
@@ -2464,6 +2465,27 @@ endclass
                                     hr.get("total_violations", 0), hr.get("band"))
             except Exception as exc:
                 logger.warning("  Hypervisor verifier failed: %s", exc)
+
+        # -- AIA / IMSIC checker — gated on an AIA trace
+        if _aia:
+            try:
+                rc = _aia.run_from_manifest(str(mpath)) \
+                    if hasattr(_aia, "run_from_manifest") else 0
+                ap = run_dir / "aia_report.json"
+                if ap.exists():
+                    with open(ap) as f:
+                        ar = json.load(f)
+                    if ar.get("status") != "skipped":
+                        reports["aia"] = {
+                            "metrics": ar.get("metrics", {}),
+                            "violations": ar.get("total_violations", 0),
+                            "band": ar.get("band", "CLEAN"),
+                            "pass": ar.get("pass", True),
+                        }
+                        logger.info("  AIA/IMSIC: %d violations, band=%s",
+                                    ar.get("total_violations", 0), ar.get("band"))
+            except Exception as exc:
+                logger.warning("  AIA verifier failed: %s", exc)
 
         # -- Cache subsystem verifier (gated on cache_config + events)
         if _cache and rtl_log:

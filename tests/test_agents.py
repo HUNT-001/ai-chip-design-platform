@@ -546,6 +546,7 @@ class TestSchemaFiles:
             "AGENT_H.debug_verifier",
             "AGENT_H.reset_verifier",
             "AGENT_H.hypervisor_verifier",
+            "AGENT_H.aia_verifier",
             "AGENT_H.atomics_verifier",
             "AGENT_H.bitmanip_verifier",
             "AGENT_H.csr_verifier",
@@ -4592,6 +4593,77 @@ class TestHypervisorVerifier:
         mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "hypervisor_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T51 — AIA / IMSIC Checker
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestAIAVerifier:
+    def _run(self, evs):
+        from AGENT_H.aia_verifier import AIAVerifier
+        return AIAVerifier(evs).run()
+
+    @staticmethod
+    def _cfg(**kw):
+        return {"op": "imsic_config", **kw}
+
+    def test_import(self):
+        from AGENT_H import aia_verifier as av
+        assert hasattr(av, "AIAVerifier") and hasattr(av, "IMSICModel")
+
+    def test_lowest_identity_wins_and_wrong(self):
+        assert self._run([self._cfg(eidelivery=1, eie=[3, 7], eip=[3, 7]),
+                          {"op": "imsic_topei", "result": 3}])["pass"]
+        assert any(v["check"] == "imsic_topei" for v in self._run(
+            [self._cfg(eidelivery=1, eie=[3, 7], eip=[3, 7]),
+             {"op": "imsic_topei", "result": 7}])["violations"])
+
+    def test_threshold_masks(self):
+        assert self._run([self._cfg(eidelivery=1, eithreshold=5, eie=[3, 7],
+                                    eip=[3, 7]),
+                          {"op": "imsic_topei", "result": 3}])["pass"]
+        r = self._run([self._cfg(eidelivery=1, eithreshold=5, eie=[7], eip=[7]),
+                       {"op": "imsic_topei", "result": 7}])   # 7 ≥ 5 masked
+        assert not r["pass"]
+        assert any(v["check"] in ("imsic_topei", "imsic_threshold")
+                   for v in r["violations"])
+
+    def test_delivery_off(self):
+        assert self._run([self._cfg(eidelivery=0, eie=[3], eip=[3]),
+                          {"op": "imsic_topei", "result": 0}])["pass"]
+        assert any(v["check"] in ("imsic_topei", "imsic_delivery") for v in self._run(
+            [self._cfg(eidelivery=0, eie=[3], eip=[3]),
+             {"op": "imsic_topei", "result": 3}])["violations"])
+
+    def test_disabled_or_not_pending(self):
+        assert not self._run([self._cfg(eidelivery=1, eie=[], eip=[3]),
+                              {"op": "imsic_topei", "result": 3}])["pass"]
+        assert not self._run([self._cfg(eidelivery=1, eie=[3, 5], eip=[5]),
+                              {"op": "imsic_topei", "result": 3}])["pass"]
+        assert self._run([self._cfg(eidelivery=1, eie=[3], eip=[]),
+                          {"op": "imsic_topei", "result": 0}])["pass"]
+
+    def test_robustness_schema(self):
+        for evs in ([], [None, 5], [{}], [{"op": "bogus"}]):
+            assert self._run(evs)["pass"]
+        r = self._run([])
+        for k in ("schema_version", "agent", "metrics", "total_violations",
+                  "pass", "violations", "band"):
+            assert k in r
+        assert r["agent"] == "aia_verifier"
+
+    def test_manifest(self, tmp_path):
+        from AGENT_H.aia_verifier import run_from_manifest
+        evs = [self._cfg(eidelivery=1, eie=[3, 7], eip=[3, 7]),
+               {"op": "imsic_topei", "result": 7}]
+        (tmp_path / "aia_trace.jsonl").write_text(
+            "\n".join(json.dumps(x) for x in evs))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "outputs": {"aia_trace": "aia_trace.jsonl"}}
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 1
+        assert (tmp_path / "aia_report.json").exists()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
