@@ -12,6 +12,7 @@ Quick imports::
 """
 
 from .agent_h_intent       import IntentChecker
+from .aia_verifier         import AIAVerifier, IMSICModel
 from .atomics_verifier     import AtomicsVerifier, amo_compute, decode_atomic
 from .bitmanip_verifier    import BitmanipVerifier, decode_bitmanip
 from .branch_predictor_verifier import BranchPredictorVerifier
@@ -75,7 +76,7 @@ __all__ = [
     "KnowledgeGraph", "CommitLogMinimizer",
     "MemoryModelVerifier", "find_cycle",
     "InterruptVerifier", "PLICModel", "CLICModel", "PerfCounterVerifier",
-    "HypervisorVerifier", "TwoStageMMU",
+    "HypervisorVerifier", "TwoStageMMU", "AIAVerifier", "IMSICModel",
     "DebugVerifier", "Trigger", "ResetVerifier",
     "PeripheralVerifier", "get_checker", "register_checker",
     "PipelineVerifier", "alu_eval",
