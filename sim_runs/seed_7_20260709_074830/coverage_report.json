@@ -1,0 +1,106 @@
+{
+  "schema_version": "2.0",
+  "generated_at": "2026-07-09T07:48:30.370219+00:00",
+  "verilator_version": "",
+  "run_id": "",
+  "source_file": "NO_DATA",
+  "summary": {
+    "line": 0.0,
+    "branch": 0.0,
+    "toggle": 0.0,
+    "expression": 0.0,
+    "functional": 0.0
+  },
+  "raw_counts": {
+    "line": {
+      "hit": 0,
+      "total": 0
+    },
+    "branch": {
+      "hit": 0,
+      "total": 0
+    },
+    "toggle": {
+      "hit": 0,
+      "total": 0
+    },
+    "expression": {
+      "hit": 0,
+      "total": 0
+    },
+    "assert": {
+      "hit": 0,
+      "total": 0
+    }
+  },
+  "weights": {
+    "line": 0.35,
+    "branch": 0.35,
+    "toggle": 0.2,
+    "expression": 0.1
+  },
+  "industrial_grade": false,
+  "cold_paths": {
+    "lines": [],
+    "branches": [],
+    "toggles": []
+  },
+  "extra": {
+    "instr_functional_pct": 0.0,
+    "functional_detail": {
+      "RV32I": {
+        "hit": 0,
+        "total": 18,
+        "pct": 0.0,
+        "missing": [
+          "ADD",
+          "ALU_I",
+          "AND",
+          "AUIPC",
+          "BRANCH",
+          "JAL",
+          "JALR",
+          "LOAD",
+          "LUI",
+          "OR",
+          "SLL",
+          "SLT",
+          "SLTU",
+          "SRA",
+          "SRL",
+          "STORE",
+          "SUB",
+          "XOR"
+        ]
+      },
+      "RV32M": {
+        "hit": 0,
+        "total": 8,
+        "pct": 0.0,
+        "missing": [
+          "DIV",
+          "DIVU",
+          "MUL",
+          "MULH",
+          "MULHSU",
+          "MULHU",
+          "REM",
+          "REMU"
+        ]
+      },
+      "SYSTEM": {
+        "hit": 0,
+        "total": 6,
+        "pct": 0.0,
+        "missing": [
+          "CSR",
+          "EBREAK",
+          "ECALL",
+          "FENCE",
+          "MRET",
+          "WFI"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "schema_version": "2.1.0",
+  "agent": "agent_j",
+  "top_module": "core_tb",
+  "rtl_sources": [],
+  "clk_domains": [],
+  "cdc_paths": [],
+  "formal_results": {},
+  "reset_tests": {
+    "run": 0,
+    "passed": 0,
+    "failed": 0
+  },
+  "power_tests": {
+    "run": 0,
+    "passed": 0,
+    "failed": 0
+  },
+  "overall_result": "passed",
+  "violations": [],
+  "started_at": "2026-07-09T07:48:30Z",
+  "finished_at": "2026-07-09T07:48:30Z",
+  "duration_s": 0.009,
+  "generated_at": "2026-07-09T07:48:30Z",
+  "run_id": "seed_7_20260709_074830"
+}
