@@ -127,8 +127,16 @@ which already ride the commit log, then the separate-trace agents).
 
 ## Action items
 
-1. [ ] Teach AGENT_C/D (ISS/RTL adapters) to emit the additive trace fields
-       (vtype/vregs, coherence/consistency events, interrupt/debug/hyp/aia).
-2. [ ] Add one full-pipeline integration test with Phase-6 agents active.
+1. [~] Teach AGENT_C/D (ISS/RTL adapters) to emit the additive trace fields —
+       **reference contract now provided** by `AGENT_H/demo_traces.py`
+       (`write_demo_run`); the adapters still need to populate these fields from
+       real sim state.
+2. [x] Add a full-pipeline integration test with Phase-6 agents active —
+       `tests/test_agents.py::TestPhase6Integration` drives every extended agent
+       against a synthesized run and asserts each fires + passes.
 3. [ ] Refactor the Phase-6 manifest-agent boilerplate in `ava_patched.py`.
 4. [ ] Regenerate `AVA_Status_and_Roadmap.docx` from the refreshed markdown.
+5. [ ] Split `tests/test_agents.py` (~4850 lines) into per-area files — it now
+       exceeds the sandbox mount's file-serving cap; splitting also improves
+       maintainability (does not affect the real filesystem, where it runs
+       whole).

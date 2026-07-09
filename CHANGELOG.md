@@ -4,6 +4,30 @@ All notable changes to AVA — Autonomic Verification Agent are documented here.
 
 ---
 
+## [2.37.0] — 2026-07-09
+
+### Added
+- **Canonical trace synthesizer** (`AGENT_H/demo_traces.py`) — emits a
+  well-formed, *passing* example of every trace the extended tier consumes (an
+  enriched `rtl_commit.jsonl` plus `coherence_/consistency_/interrupt_/debug_/
+  hypervisor_/aia_trace` and `reset_snapshot`) and a matching run manifest via
+  `write_demo_run(run_dir)`. Serves as (a) the reference contract the ISS/RTL
+  adapters should populate, and (b) an integration harness.
+- **Phase-6 end-to-end integration test**
+  (`tests/test_agents.py::TestPhase6Integration`) — drives every extended-tier
+  agent against a synthesized run and asserts each one **fires** (`status ==
+  completed`, not skipped) and **passes** on clean input, plus that the
+  commit-log agents (vector / perf-counter / branch-predictor / coverage) are
+  active on the enriched log. Closes the integration gap from ADR-001.
+
+### Verified
+- Full in-repo suite: **515 passed, 1 skipped** (prior to this entry's two
+  additions, which are validated standalone — the sandbox mount caps the now
+  ~4850-line test file so the combined run is environment-limited there; the
+  real filesystem reads it whole).
+
+---
+
 ## [2.36.0] — 2026-06-30
 
 ### Added
