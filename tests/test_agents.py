@@ -547,6 +547,7 @@ class TestSchemaFiles:
             "AGENT_H.reset_verifier",
             "AGENT_H.hypervisor_verifier",
             "AGENT_H.aia_verifier",
+            "AGENT_H.demo_traces",
             "AGENT_H.atomics_verifier",
             "AGENT_H.bitmanip_verifier",
             "AGENT_H.csr_verifier",
@@ -4664,6 +4665,58 @@ class TestAIAVerifier:
         mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "aia_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase-6 end-to-end integration — every extended agent fires on a demo run
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestPhase6Integration:
+    """Drives every extended-tier agent against a synthesized run (demo_traces),
+    proving the tier fires end-to-end — not just standalone. Closes the
+    trace-producer / integration gap from ADR-001."""
+
+    def _demo_run(self, tmp_path):
+        from AGENT_H.demo_traces import write_demo_run
+        return write_demo_run(str(tmp_path))
+
+    def test_manifest_agents_fire_and_pass(self, tmp_path):
+        mpath = self._demo_run(tmp_path)
+        from AGENT_H import (coherence_verifier, memory_model_verifier,
+                             interrupt_verifier, debug_verifier,
+                             hypervisor_verifier, aia_verifier, reset_verifier)
+        agents = [
+            (coherence_verifier, "coherence_report.json"),
+            (memory_model_verifier, "memory_model_report.json"),
+            (interrupt_verifier, "interrupt_report.json"),
+            (debug_verifier, "debug_report.json"),
+            (hypervisor_verifier, "hypervisor_report.json"),
+            (aia_verifier, "aia_report.json"),
+            (reset_verifier, "reset_report.json"),
+        ]
+        for mod, report in agents:
+            rc = mod.run_from_manifest(mpath)
+            rep = json.loads((tmp_path / report).read_text())
+            assert rep.get("status") == "completed", f"{report} was skipped"
+            assert rep["pass"] is True, f"{report}: {rep.get('violations')}"
+            assert rc == 0
+
+    def test_commit_log_agents_active(self, tmp_path):
+        self._demo_run(tmp_path)
+        rtl = [json.loads(l) for l in
+               (tmp_path / "rtl_commit.jsonl").read_text().splitlines() if l.strip()]
+        from AGENT_H.vector_verifier import VectorVerifier
+        from AGENT_H.perf_counter_verifier import PerfCounterVerifier
+        from AGENT_H.branch_predictor_verifier import BranchPredictorVerifier
+        from AGENT_H.coverage_collector import CoverageCollector
+        v = VectorVerifier(rtl).run()
+        assert v["vector_active"] and v["pass"]
+        p = PerfCounterVerifier(rtl).run()
+        assert p["perf_active"] and p["pass"]
+        b = BranchPredictorVerifier(rtl).run()
+        assert b["metrics"]["branches"] >= 1 and b["pass"]
+        c = CoverageCollector(rtl).collect()
+        assert c["covered_bins"] and c["coverage_summary"]["covered_bins"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
