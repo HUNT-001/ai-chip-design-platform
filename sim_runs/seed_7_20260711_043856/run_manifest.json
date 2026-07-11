@@ -1,0 +1,72 @@
+{
+  "schema_version": "2.1.0",
+  "run_id": "seed_7_20260711_043856",
+  "run_dir": "sim_runs/seed_7_20260711_043856",
+  "status": "completed",
+  "started_at": "2026-07-11T04:38:56Z",
+  "isa": "rv32im",
+  "dut_module": "riscv_core",
+  "rtl_sources": [],
+  "metrics": {
+    "total_commits": 0,
+    "total_mismatches": 0,
+    "tests_run": 1,
+    "extended_reports": [
+      "agent_j",
+      "agent_l",
+      "peripheral",
+      "economics",
+      "confidence"
+    ]
+  },
+  "outputs": {
+    "rtl_commit_log": null,
+    "iss_commit_log": null,
+    "cdc_report": "cdc_report.json",
+    "equiv_report": "equiv_report.json"
+  },
+  "agent_config": {
+    "dut_class": "cpu",
+    "agent_i": {
+      "patterns": [
+        "store_load",
+        "fence",
+        "amo"
+      ]
+    },
+    "agent_j": {
+      "run_formal": false,
+      "reset_stress": false
+    },
+    "agent_k": {
+      "regression_pct": 20.0
+    },
+    "agent_l": {
+      "check_mode": "combinational",
+      "bmc_depth": 10
+    }
+  },
+  "phases": {
+    "cdc_check": {
+      "status": "passed",
+      "started_at": "2026-07-11T04:38:56Z",
+      "finished_at": "2026-07-11T04:38:56Z",
+      "duration_s": 0.042,
+      "exit_code": 0,
+      "error_msg": null,
+      "retry_count": 0,
+      "log_path": "logs/agent_j.log"
+    },
+    "equiv_check": {
+      "status": "passed",
+      "started_at": "2026-07-11T04:38:56Z",
+      "finished_at": "2026-07-11T04:38:56Z",
+      "duration_s": 0.009,
+      "exit_code": 0,
+      "error_msg": null,
+      "retry_count": 0,
+      "log_path": "logs/agent_l.log"
+    }
+  },
+  "finished_at": "2026-07-11T04:38:57Z"
+}

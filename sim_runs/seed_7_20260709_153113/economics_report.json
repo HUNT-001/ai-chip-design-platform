@@ -1,0 +1,27 @@
+{
+  "schema_version": "2.1.0",
+  "agent": "economics_engine",
+  "run_id": "seed_7_20260709_153113",
+  "duration_s": 0.0,
+  "duration_hours": 0.0,
+  "bugs_found": 0,
+  "tests_run": 1,
+  "bugs_per_hour": 0.0,
+  "cost_per_bug_hours": null,
+  "coverage_pct": 0.0,
+  "redundant_tests_pct": 0.0,
+  "agent_timings": [
+    {
+      "agent": "agent_j",
+      "duration_s": 0.009
+    },
+    {
+      "agent": "agent_l",
+      "duration_s": 0.012
+    }
+  ],
+  "total_agent_time_s": 0.021,
+  "roi_score": 0.2,
+  "roi_band": "POOR",
+  "computed_at": "2026-07-09T15:31:13Z"
+}

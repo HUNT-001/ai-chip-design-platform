@@ -1,0 +1,23 @@
+{
+  "schema_version": "2.1.0",
+  "agent": "agent_l",
+  "top_module": "core_tb",
+  "rtl_sources": [],
+  "check_mode": "combinational",
+  "bmc_depth": 10,
+  "synth_result": "skipped",
+  "comb_equiv": "skipped",
+  "seq_equiv": "skipped",
+  "gate_level_sim": {
+    "status": "skipped",
+    "instrs_matched": 0
+  },
+  "counterexample": null,
+  "violations": [],
+  "overall_result": "passed",
+  "started_at": "2026-07-10T21:04:02Z",
+  "finished_at": "2026-07-10T21:04:02Z",
+  "duration_s": 0.005,
+  "generated_at": "2026-07-10T21:04:02Z",
+  "run_id": "seed_7_20260710_210402"
+}

@@ -1,0 +1,6 @@
+{
+  "schema_version": "2.1.0",
+  "agent": "stimulus_generator",
+  "status": "skipped",
+  "reason": "no coverage_summary.json"
+}
