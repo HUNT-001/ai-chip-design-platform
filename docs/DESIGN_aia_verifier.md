@@ -60,10 +60,29 @@ All pass.
 > recently-grown files so the full in-repo suite runs against the real repo.
 > Additive change, existing agents unaffected.
 
+## 5a. APLIC (added v2.38.0)
+
+`APLICModel` adds the **Advanced PLIC** in direct-delivery mode — the wired
+counterpart to IMSIC. Its arbitration is inverted from PLIC and different from
+IMSIC:
+
+- priority is the target **`iprio`**, **smaller = higher** (`iprio 0` reserved →
+  treated as 1);
+- a source must be **active** (`sourcecfg` not `inactive`/`delegated`), pending
+  (`setip`), enabled (`setie`), and have `iprio < ithreshold` (0 ⇒ no threshold);
+- delivery is gated by `idelivery`; `topi`/`claimi` returns the lowest `iprio`,
+  ties → lowest identity.
+
+Checks: `aplic_topi` (wrong selection), `aplic_threshold` (iprio ≥ threshold),
+`aplic_inactive` (inactive/delegated/not-pending-enabled), `aplic_delivery`
+(topi ≠ 0 while idelivery off). New ops `aplic_config` / `aplic_topi` share the
+`aia_trace.jsonl`. This completes the interrupt architecture:
+**PLIC + CLINT + CLIC + AIA (IMSIC + APLIC)**.
+
 ## 6. Limitations / next steps
 
-- **APLIC** (Advanced PLIC) — domain hierarchy, source modes (edge/level), and
-  MSI-vs-direct delivery forwarding to IMSIC.
+- **MSI-mode APLIC** — forwarding a source as an MSI to IMSIC (vs. the modelled
+  direct-delivery mode), and the domain hierarchy / delegation chain.
 - **Guest interrupt files** — IMSIC `VGEIN`/guest external interrupts for the
   H-extension (links with `hypervisor_verifier`).
 - **`iprio` / indirect CSR** access (`miselect`/`mireg`) and the

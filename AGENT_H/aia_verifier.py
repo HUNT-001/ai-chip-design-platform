@@ -108,11 +108,71 @@ class IMSICModel:
         return min(cands) if cands else 0     # smallest identity = highest priority
 
 
+class APLICModel:
+    """Advanced PLIC, direct-delivery mode. Unlike IMSIC (priority = identity)
+    and PLIC (larger priority value wins), APLIC priority is the target
+    ``iprio`` where **smaller = higher priority** (0 → treated as 1); a source is
+    eligible only if pending (``setip``) ∧ enabled (``setie``) ∧ *active*
+    (sourcecfg not inactive/delegated) ∧ ``iprio < ithreshold`` (0 ⇒ no
+    threshold), and delivery is enabled (``idelivery``). ``topi``/``claimi``
+    returns the lowest ``iprio``, ties → lowest identity."""
+
+    def __init__(self) -> None:
+        self.idelivery = True
+        self.ithreshold = 0
+        self.setip: set = set()
+        self.setie: set = set()
+        self.iprio: Dict[int, int] = {}
+        self.sourcecfg: Dict[int, str] = {}
+
+    def configure(self, idelivery=None, ithreshold=None, setip=None,
+                  setie=None, iprio=None, sourcecfg=None) -> None:
+        if idelivery is not None:
+            self.idelivery = bool(_to_int(idelivery))
+        if ithreshold is not None:
+            t = _to_int(ithreshold)
+            if t is not None:
+                self.ithreshold = t
+        if setip is not None:
+            self.setip = _idset(setip)
+        if setie is not None:
+            self.setie = _idset(setie)
+        if iprio is not None:
+            for s, p in (iprio or {}).items():
+                si, pi = _to_int(s), _to_int(p)
+                if si is not None and pi is not None:
+                    self.iprio[si] = pi
+        if sourcecfg is not None:
+            for s, m in (sourcecfg or {}).items():
+                si = _to_int(s)
+                if si is not None:
+                    self.sourcecfg[si] = str(m).lower()
+
+    def active(self, s: int) -> bool:
+        return self.sourcecfg.get(s, "active") not in ("inactive", "delegated", "0")
+
+    def prio(self, s: int) -> int:
+        p = self.iprio.get(s, 1)
+        return p if p != 0 else 1              # iprio 0 is reserved → 1
+
+    def eligible(self, s: int) -> bool:
+        return (s in self.setip and s in self.setie and self.active(s)
+                and (self.ithreshold == 0 or self.prio(s) < self.ithreshold))
+
+    def topi(self) -> int:
+        if not self.idelivery:
+            return 0
+        cands = [s for s in (self.setip & self.setie) if self.eligible(s)]
+        if not cands:
+            return 0
+        return min(cands, key=lambda s: (self.prio(s), s))   # lowest iprio, tie lowest id
+
+
 class AIAVerifier:
     def __init__(self, events: Sequence[Dict[str, Any]]):
         self.events = [e for e in (events or []) if isinstance(e, dict)]
         self.violations: List[Dict[str, Any]] = []
-        self.metrics = {"topei_queries": 0, "aia_active": False}
+        self.metrics = {"topei_queries": 0, "topi_queries": 0, "aia_active": False}
 
     def _v(self, i: int, check: str, detail: str) -> None:
         self.violations.append({"event": i, "check": check,
@@ -121,6 +181,7 @@ class AIAVerifier:
     def run(self) -> Dict[str, Any]:
         started = _now()
         im = IMSICModel()
+        ap = APLICModel()
         for i, e in enumerate(self.events):
             op = str(e.get("op", "")).lower()
             if op == "imsic_config":
@@ -129,7 +190,36 @@ class AIAVerifier:
                 self.metrics["aia_active"] = True
             elif op == "imsic_topei":
                 self._check_topei(i, e, im)
+            elif op == "aplic_config":
+                ap.configure(e.get("idelivery"), e.get("ithreshold"),
+                             e.get("setip"), e.get("setie"), e.get("iprio"),
+                             e.get("sourcecfg"))
+                self.metrics["aia_active"] = True
+            elif op == "aplic_topi":
+                self._check_topi(i, e, ap)
         return self._report(started)
+
+    def _check_topi(self, i: int, e: Dict[str, Any], ap: APLICModel) -> None:
+        self.metrics["topi_queries"] += 1
+        self.metrics["aia_active"] = True
+        golden = ap.topi()
+        dut = _to_int(e.get("result", e.get("topi")))
+        if dut is None:
+            return
+        if dut != golden:
+            self._v(i, "aplic_topi",
+                    f"topi={dut}, golden highest-priority (lowest iprio) is {golden}")
+        if dut != 0:
+            if not ap.idelivery:
+                self._v(i, "aplic_delivery",
+                        f"topi={dut} while idelivery disabled (must be 0)")
+            if not ap.active(dut) or dut not in ap.setip or dut not in ap.setie:
+                self._v(i, "aplic_inactive",
+                        f"topi source {dut} is inactive/delegated or not pending+enabled")
+            elif ap.ithreshold and ap.prio(dut) >= ap.ithreshold:
+                self._v(i, "aplic_threshold",
+                        f"topi source {dut} iprio {ap.prio(dut)} ≥ ithreshold "
+                        f"{ap.ithreshold} (masked)")
 
     def _check_topei(self, i: int, e: Dict[str, Any], im: IMSICModel) -> None:
         self.metrics["topei_queries"] += 1
