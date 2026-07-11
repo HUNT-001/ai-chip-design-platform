@@ -4,6 +4,55 @@ All notable changes to AVA — Autonomic Verification Agent are documented here.
 
 ---
 
+## [2.39.0] — 2026-07-09
+
+### Added
+- **T52 — Out-of-Order Scoreboard Checker** (`AGENT_H/ooo_verifier.py`). Golden
+  checker for OOO *scheduling* correctness (the scoreboard / Tomasulo / ROB
+  discipline that lets instructions execute out of order while preserving
+  sequential semantics — a level the pipeline verifier's in-order model doesn't
+  cover):
+  - **ooo_commit_order** (HIGH) — instructions must **commit in program order**
+    (ROB retires in order); commit cycles non-decreasing in program order.
+  - **ooo_raw_hazard** (HIGH) — an instruction may **issue only after** the
+    newest earlier producer of each source register has **completed** (RAW
+    respected through forwarding; issue == producer-complete is legal).
+  - **ooo_exec_timing** (HIGH) — `issue ≤ complete ≤ commit` per instruction.
+  - **ooo_rename** (MED) — no two in-flight (issue…commit) instructions may
+    share a physical destination register.
+  - **ooo_squash** (MED) — a squashed (mis-speculated) instruction must never
+    commit.
+  - Metrics: instruction count, **max in-flight (reorder depth)**, mean
+    issue→commit latency. `src`/`dst` parsed from the disassembly when not given
+    explicitly; scheduling fields read from an `ooo` sub-dict or top level.
+- Wired into `ava_patched.py::_run_extended_pipeline` as a commit-log verifier
+  (`_ooo`, runs on `rtl_log`, writes `ooo_report.json` when OOO fields present).
+- 7 pytest cases (`tests/test_extended_agents.py::TestOOOVerifier`) + 14
+  standalone.
+
+---
+
+## [2.38.0] — 2026-07-09
+
+### Added
+- **APLIC (Advanced PLIC, direct-delivery)** in `aia_verifier.py` — a new
+  `APLICModel` completing the AIA family alongside IMSIC. `topi`/`claimi`
+  arbitration with APLIC's distinctive semantics:
+  - **aplic_topi** (HIGH) — selects the **lowest `iprio`** (APLIC priority is
+    *smaller = higher*, unlike PLIC; `iprio 0` reserved → treated as 1) among
+    sources that are pending (`setip`) ∧ enabled (`setie`) ∧ **active**
+    (`sourcecfg` not inactive/delegated) ∧ `iprio < ithreshold`, gated by
+    `idelivery`; ties → lowest identity.
+  - **aplic_threshold** (HIGH) — selected `iprio ≥ ithreshold` (masked).
+  - **aplic_inactive** (HIGH) — selected source inactive/delegated or not
+    pending+enabled.
+  - **aplic_delivery** (HIGH) — `topi ≠ 0` while `idelivery` off.
+  - New ops `aplic_config` / `aplic_topi` in the same `aia_trace.jsonl`.
+- 3 new in-repo pytest cases (`TestAIAVerifier`) + 11 standalone. The interrupt
+  architecture now spans **PLIC + CLINT + CLIC + AIA (IMSIC + APLIC)**.
+
+---
+
 ## [2.37.0] — 2026-07-09
 
 ### Added
@@ -20,11 +69,15 @@ All notable changes to AVA — Autonomic Verification Agent are documented here.
   commit-log agents (vector / perf-counter / branch-predictor / coverage) are
   active on the enriched log. Closes the integration gap from ADR-001.
 
+### Changed
+- **Split the test suite** — T50 (Hypervisor), T51 (AIA/IMSIC) and the Phase-6
+  integration test moved from `tests/test_agents.py` (now 4605 lines) to
+  `tests/test_extended_agents.py`, keeping each module under the workspace
+  mount's file-serving cap (ADR-001 action item #5). Run with
+  `pytest tests/ --import-mode=importlib -p no:cacheprovider -q`.
+
 ### Verified
-- Full in-repo suite: **515 passed, 1 skipped** (prior to this entry's two
-  additions, which are validated standalone — the sandbox mount caps the now
-  ~4850-line test file so the combined run is environment-limited there; the
-  real filesystem reads it whole).
+- Full in-repo suite (whole `tests/` directory): **532 passed, 1 skipped**.
 
 ---
 

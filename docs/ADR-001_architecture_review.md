@@ -136,7 +136,7 @@ which already ride the commit log, then the separate-trace agents).
        against a synthesized run and asserts each fires + passes.
 3. [ ] Refactor the Phase-6 manifest-agent boilerplate in `ava_patched.py`.
 4. [ ] Regenerate `AVA_Status_and_Roadmap.docx` from the refreshed markdown.
-5. [ ] Split `tests/test_agents.py` (~4850 lines) into per-area files — it now
-       exceeds the sandbox mount's file-serving cap; splitting also improves
-       maintainability (does not affect the real filesystem, where it runs
-       whole).
+5. [x] Split `tests/test_agents.py` — T50/T51 + Phase-6 integration moved to
+       `tests/test_extended_agents.py` (2026-07-09). `test_agents.py` is now
+       4605 lines (under the mount cap) and the full `tests/` directory runs
+       clean in-sandbox again: **532 passed, 1 skipped**.
