@@ -332,6 +332,82 @@ class TestOOOVerifier:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# T53 — Load/Store Queue Checker
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _st(seq, addr, val, commit=None):
+    r = {"schema_version": "2.1.0", "seq": seq, "disasm": "sw",
+         "mem_writes": [{"addr": hex(addr), "value": hex(val)}]}
+    if commit is not None:
+        r["ooo"] = {"commit": commit}
+    return r
+
+
+def _ld(seq, addr, val):
+    return {"schema_version": "2.1.0", "seq": seq, "disasm": "lw",
+            "mem_reads": [{"addr": hex(addr), "value": hex(val)}]}
+
+
+class TestLSQVerifier:
+    def _run(self, rs):
+        from AGENT_H.lsq_verifier import LSQVerifier
+        return LSQVerifier(rs).run()
+
+    def test_import_and_forwarding(self):
+        from AGENT_H import lsq_verifier as lv
+        assert hasattr(lv, "LSQVerifier")
+        assert self._run([_st(0, 0x40, 5), _ld(1, 0x40, 5)])["pass"]      # forwards 5
+        assert any(v["check"] == "lsq_forward" for v in                    # stale read
+                   self._run([_st(0, 0x40, 5), _ld(1, 0x40, 0)])["violations"])
+
+    def test_youngest_store_and_wrong_forward(self):
+        assert self._run([_st(0, 0x40, 5), _st(1, 0x40, 9),
+                          _ld(2, 0x40, 9)])["pass"]                        # youngest = 9
+        assert not self._run([_st(0, 0x40, 5), _st(1, 0x40, 9),
+                              _ld(2, 0x40, 5)])["pass"]                    # wrong (older)
+
+    def test_soundness_skips(self):
+        assert self._run([_ld(0, 0x40, 7)])["pass"]                       # no prior store
+        assert self._run([_st(0, 0x40, 5), _ld(1, 0x80, 0)])["pass"]      # other address
+
+    def test_store_drain_order(self):
+        assert self._run([_st(0, 0x40, 5, commit=3),
+                          _st(1, 0x40, 9, commit=5), _ld(2, 0x40, 9)])["pass"]
+        assert any(v["check"] == "lsq_store_order" for v in self._run(
+            [_st(0, 0x40, 5, commit=6), _st(1, 0x40, 9, commit=4)])["violations"])
+
+    def test_simplified_stream_and_metrics(self):
+        assert not self._run([{"seq": 0, "op": "store", "addr": "0x40", "value": "0x5"},
+                              {"seq": 1, "op": "load", "addr": "0x40",
+                               "value": "0x1"}])["pass"]
+        mm = self._run([_st(0, 0x40, 5), _ld(1, 0x40, 5),
+                        _ld(2, 0x40, 5)])["metrics"]
+        assert mm["stores"] == 1 and mm["loads"] == 2 and mm["forwards_checked"] == 2
+
+    def test_noop_robustness_schema(self):
+        r = self._run([{"seq": 0, "disasm": "add x1,x2,x3", "regs": {}}])
+        assert r["pass"] and r["lsq_active"] is False
+        for rs in ([], [None, 5], [{}]):
+            assert self._run(rs)["pass"]
+        r2 = self._run([])
+        for k in ("schema_version", "agent", "metrics", "total_violations",
+                  "pass", "violations", "band"):
+            assert k in r2
+        assert r2["agent"] == "lsq_verifier"
+
+    def test_manifest(self, tmp_path):
+        from AGENT_H.lsq_verifier import run_from_manifest
+        rs = [_st(0, 0x40, 5), _ld(1, 0x40, 0)]
+        (tmp_path / "rtl_commit.jsonl").write_text(
+            "\n".join(json.dumps(x) for x in rs))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "outputs": {"lsq_trace": "rtl_commit.jsonl"}}
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 1
+        assert (tmp_path / "lsq_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Phase-6 end-to-end integration — every extended agent fires on a demo run
 # ─────────────────────────────────────────────────────────────────────────────
 

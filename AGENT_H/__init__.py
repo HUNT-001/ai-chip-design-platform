@@ -38,6 +38,7 @@ from .interrupt_verifier   import InterruptVerifier, PLICModel, CLICModel
 from .memory_model_verifier import MemoryModelVerifier, find_cycle
 from .minimizer            import CommitLogMinimizer
 from .ooo_verifier         import OOOVerifier
+from .lsq_verifier         import LSQVerifier
 from .perf_counter_verifier import PerfCounterVerifier
 from .peripheral_verifier  import PeripheralVerifier, get_checker, register_checker
 from .pipeline_verifier    import PipelineVerifier, alu_eval
@@ -75,7 +76,7 @@ __all__ = [
     "DigitalTwin", "EconomicsEngine", "BugExplainer",
     "FaultCampaign", "inject_fault",
     "FormalFuzzBridge", "disassemble_rv32im",
-    "KnowledgeGraph", "CommitLogMinimizer", "OOOVerifier",
+    "KnowledgeGraph", "CommitLogMinimizer", "OOOVerifier", "LSQVerifier",
     "MemoryModelVerifier", "find_cycle",
     "InterruptVerifier", "PLICModel", "CLICModel", "PerfCounterVerifier",
     "HypervisorVerifier", "TwoStageMMU", "AIAVerifier", "IMSICModel", "APLICModel",
