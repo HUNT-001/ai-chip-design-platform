@@ -12,7 +12,7 @@ Quick imports::
 """
 
 from .agent_h_intent       import IntentChecker
-from .aia_verifier         import AIAVerifier, IMSICModel
+from .aia_verifier         import AIAVerifier, IMSICModel, APLICModel
 from .atomics_verifier     import AtomicsVerifier, amo_compute, decode_atomic
 from .bitmanip_verifier    import BitmanipVerifier, decode_bitmanip
 from .branch_predictor_verifier import BranchPredictorVerifier
@@ -37,6 +37,7 @@ from .hypervisor_verifier  import HypervisorVerifier, TwoStageMMU
 from .interrupt_verifier   import InterruptVerifier, PLICModel, CLICModel
 from .memory_model_verifier import MemoryModelVerifier, find_cycle
 from .minimizer            import CommitLogMinimizer
+from .ooo_verifier         import OOOVerifier
 from .perf_counter_verifier import PerfCounterVerifier
 from .peripheral_verifier  import PeripheralVerifier, get_checker, register_checker
 from .pipeline_verifier    import PipelineVerifier, alu_eval
@@ -74,10 +75,10 @@ __all__ = [
     "DigitalTwin", "EconomicsEngine", "BugExplainer",
     "FaultCampaign", "inject_fault",
     "FormalFuzzBridge", "disassemble_rv32im",
-    "KnowledgeGraph", "CommitLogMinimizer",
+    "KnowledgeGraph", "CommitLogMinimizer", "OOOVerifier",
     "MemoryModelVerifier", "find_cycle",
     "InterruptVerifier", "PLICModel", "CLICModel", "PerfCounterVerifier",
-    "HypervisorVerifier", "TwoStageMMU", "AIAVerifier", "IMSICModel",
+    "HypervisorVerifier", "TwoStageMMU", "AIAVerifier", "IMSICModel", "APLICModel",
     "DebugVerifier", "Trigger", "ResetVerifier", "write_demo_run",
     "PeripheralVerifier", "get_checker", "register_checker",
     "PipelineVerifier", "alu_eval",
