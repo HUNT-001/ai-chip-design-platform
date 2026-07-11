@@ -4,6 +4,31 @@ All notable changes to AVA — Autonomic Verification Agent are documented here.
 
 ---
 
+## [2.40.0] — 2026-07-09
+
+### Added
+- **T53 — Load/Store Queue Checker** (`AGENT_H/lsq_verifier.py`). Golden checker
+  for single-core store-to-load forwarding and memory disambiguation — the
+  intra-core LSQ machinery (cross-core ordering is the coherence/consistency
+  agents). Rides the **standard commit log** (`mem_reads` = loads,
+  `mem_writes` = stores), no separate trace:
+  - **lsq_forward** (HIGH) — a load whose address has a program-order-older
+    store must observe the **youngest** such store's value (store-to-load
+    forwarding); catches missing forwarding (stale memory read), forwarding from
+    the wrong store, and a load bypassing an older store it should have seen
+    (memory-ordering / disambiguation violation).
+  - **lsq_store_order** (HIGH, when commit cycles present) — stores to the same
+    address drain to memory in program order.
+  - **Soundness:** a load with no earlier in-trace store to its address is
+    skipped (its value comes from un-modelled initial memory), so no false
+    positives. Metrics: loads, stores, forwards-checked, addresses.
+- Wired into `ava_patched.py::_run_extended_pipeline` as a commit-log verifier
+  (`_lsq`, runs on `rtl_log`, writes `lsq_report.json` when memory ops present).
+- 7 pytest cases (`tests/test_extended_agents.py::TestLSQVerifier`) + 12
+  standalone.
+
+---
+
 ## [2.39.0] — 2026-07-09
 
 ### Added
