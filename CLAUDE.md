@@ -43,6 +43,7 @@ The main entry point is `ava_patched.py` — specifically the `AVA` class and
 | `AGENT_H/temporal_checker.py` | `TemporalChecker` — LTL-style monitors over commit stream |
 | `AGENT_H/atomics_verifier.py` | `AtomicsVerifier` — RV32A golden-reference checker (LR/SC + 9 AMO ops) |
 | `AGENT_H/csr_verifier.py` | `CSRVerifier` — Zicsr/Zifencei semantics (CSR RMW, read-only enforcement, FENCE.I sync) |
+| `AGENT_H/crypto_verifier.py` | `CryptoVerifier` + `crypto_golden` — scalar-crypto (Zknh/Zksh) golden transforms: SHA-256 sig/sum (32b), SHA-512 sig/sum (RV64 64b), SM3 p0/p1; recomputes ROTR/ROTL/SHR/XOR recipe from shadow-regfile rs1, checks committed rd (crypto_result). Rides commit log |
 | `AGENT_H/rvc_verifier.py` | `RVCVerifier` — RV32C checks (PC+2 stride, reserved encodings, x8-x15 prime fields) |
 | `AGENT_H/fp_verifier.py` | `FPVerifier` — RV32F/D golden IEEE-754 checker (NaN-boxing, RNE arithmetic, sgnj/min-max/compare/fclass/fmv, fflags) |
 | `AGENT_H/bitmanip_verifier.py` | `BitmanipVerifier` — RV32B golden checker (Zba/Zbb/Zbc/Zbs: shadd, clz/ctz/cpop, rol/ror, clmul, b{set,clr,ext,inv}) |

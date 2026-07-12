@@ -408,6 +408,139 @@ class TestLSQVerifier:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# T54 — Scalar Cryptography Checker (SHA-256/512, SM3)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _rotr(x, n, w):
+    x &= (1 << w) - 1
+    return ((x >> n) | (x << (w - n))) & ((1 << w) - 1)
+
+
+def _rotl(x, n, w):
+    x &= (1 << w) - 1
+    return ((x << n) | (x >> (w - n))) & ((1 << w) - 1)
+
+
+def _cinstr(dis, src_reg, src_val, rd_reg, rd_val):
+    return [
+        {"schema_version": "2.1.0", "seq": 0, "disasm": f"li x{src_reg},{hex(src_val)}",
+         "regs": {f"x{src_reg}": hex(src_val)}},
+        {"schema_version": "2.1.0", "seq": 1, "disasm": dis,
+         "regs": {f"x{rd_reg}": hex(rd_val)}},
+    ]
+
+
+class TestCryptoVerifier:
+    def _run(self, rs):
+        from AGENT_H.crypto_verifier import CryptoVerifier
+        return CryptoVerifier(rs).run()
+
+    def test_golden_matches_independent_reference(self):
+        from AGENT_H.crypto_verifier import crypto_golden
+        x = 0x12345678
+        # sha256sig0 = ROTR7 ^ ROTR18 ^ SHR3  (recomputed here independently)
+        assert crypto_golden("sha256sig0", x) == (_rotr(x, 7, 32) ^ _rotr(x, 18, 32) ^ (x >> 3))
+        # sm3p1 = x ^ ROTL15 ^ ROTL23
+        assert crypto_golden("sm3p1", x) == ((x ^ _rotl(x, 15, 32) ^ _rotl(x, 23, 32)) & 0xFFFFFFFF)
+        y = 0x0123456789ABCDEF
+        assert crypto_golden("sha512sum1", y) == (
+            _rotr(y, 14, 64) ^ _rotr(y, 18, 64) ^ _rotr(y, 41, 64))
+
+    def test_sha256_clean_and_bug(self):
+        from AGENT_H.crypto_verifier import crypto_golden
+        x = 0xABCDEF01
+        ok = _cinstr("sha256sig0 x5,x6", 6, x, 5, crypto_golden("sha256sig0", x))
+        r = self._run(ok)
+        assert r["pass"] and r["metrics"]["checked"] == 1 and r["crypto_active"]
+        bad = _cinstr("sha256sum0 x5,x6", 6, x, 5, 0xDEADBEEF)
+        rb = self._run(bad)
+        assert not rb["pass"] and any(v["check"] == "crypto_result"
+                                      for v in rb["violations"])
+
+    def test_sha512_and_sm3(self):
+        from AGENT_H.crypto_verifier import crypto_golden
+        y = 0xFEDCBA9876543210
+        assert self._run(_cinstr("sha512sum1 x5,x6", 6, y, 5,
+                                 crypto_golden("sha512sum1", y)))["pass"]
+        assert not self._run(_cinstr("sha512sig0 x5,x6", 6, y, 5, 0x1))["pass"]
+        x = 0x0F0F0F0F
+        assert self._run(_cinstr("sm3p1 x5,x6", 6, x, 5,
+                                 crypto_golden("sm3p1", x)))["pass"]
+
+    def test_abi_names_and_metrics(self):
+        from AGENT_H.crypto_verifier import crypto_golden
+        x = 0x11223344
+        rs = [{"schema_version": "2.1.0", "seq": 0, "disasm": "li a1,0x11223344",
+               "regs": {"a1": hex(x)}},
+              {"schema_version": "2.1.0", "seq": 1, "disasm": "sha256sig1 a0,a1",
+               "regs": {"a0": hex(crypto_golden("sha256sig1", x))}}]
+        r = self._run(rs)
+        assert r["pass"] and r["metrics"]["by_op"]["sha256sig1"] == 1
+
+    def test_noop_robustness_schema(self):
+        r = self._run([{"schema_version": "2.1.0", "seq": 0,
+                        "disasm": "add x1,x2,x3", "regs": {"x1": "0x5"}}])
+        assert r["pass"] and r["crypto_active"] is False
+        for rs in ([], [None, 5], [{}], [{"disasm": None}]):
+            assert self._run(rs)["pass"]
+        r2 = self._run([])
+        for k in ("schema_version", "agent", "metrics", "total_violations",
+                  "pass", "violations", "band"):
+            assert k in r2
+        assert r2["agent"] == "crypto_verifier"
+
+    def test_manifest(self, tmp_path):
+        from AGENT_H.crypto_verifier import run_from_manifest
+        rs = _cinstr("sha256sum0 x5,x6", 6, 0xABCDEF01, 5, 0xDEADBEEF)
+        (tmp_path / "rtl_commit.jsonl").write_text(
+            "\n".join(json.dumps(r) for r in rs))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 1
+        assert (tmp_path / "crypto_report.json").exists()
+
+    # --- Zbkb / Zbkx bit-manipulation for cryptography ---
+    def test_zbk_golden_matches_reference(self):
+        from AGENT_H.crypto_verifier import zbk_one, zbk_two
+        x = 0x12345678
+        ref_brev8 = 0
+        for b in range(4):
+            byte = (x >> (b * 8)) & 0xFF
+            ref_brev8 |= int(f"{byte:08b}"[::-1], 2) << (b * 8)
+        assert zbk_one("brev8", x, 32) == ref_brev8
+        # zip then unzip is identity
+        assert zbk_one("unzip", zbk_one("zip", x, 32), 32) == x
+        assert zbk_two("pack", 0xAAAA, 0xBBBB, 32) == (0xAAAA | (0xBBBB << 16))
+        assert zbk_two("packh", 0xAB, 0xCD, 32) == (0xAB | (0xCD << 8))
+
+    def test_zbk_pack_brev_xperm(self):
+        from AGENT_H.crypto_verifier import zbk_one, zbk_two
+        x = 0xDEADBEEF
+        assert self._run(_cinstr("brev8 x5,x6", 6, x, 5,
+                                 zbk_one("brev8", x, 32)))["pass"]
+        assert not self._run(_cinstr("brev8 x5,x6", 6, x, 5, 0xDEAD))["pass"]
+        # pack (two-source): build via a 3-record sequence
+        a, b = 0x11112222, 0x33334444
+        rs = [{"schema_version": "2.1.0", "seq": 0, "disasm": "li x6",
+               "regs": {"x6": hex(a)}},
+              {"schema_version": "2.1.0", "seq": 1, "disasm": "li x7",
+               "regs": {"x7": hex(b)}},
+              {"schema_version": "2.1.0", "seq": 2, "disasm": "pack x5,x6,x7",
+               "regs": {"x5": hex(zbk_two("pack", a, b, 32))}}]
+        assert self._run(rs)["pass"]
+        # xperm8 reverse-byte-order permutation
+        av, idx = 0x03020100, 0x00010203
+        rs2 = [{"schema_version": "2.1.0", "seq": 0, "disasm": "li x6",
+                "regs": {"x6": hex(av)}},
+               {"schema_version": "2.1.0", "seq": 1, "disasm": "li x7",
+                "regs": {"x7": hex(idx)}},
+               {"schema_version": "2.1.0", "seq": 2, "disasm": "xperm8 x5,x6,x7",
+                "regs": {"x5": hex(zbk_two("xperm8", av, idx, 32))}}]
+        assert self._run(rs2)["pass"]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Phase-6 end-to-end integration — every extended agent fires on a demo run
 # ─────────────────────────────────────────────────────────────────────────────
 

@@ -99,6 +99,7 @@ _hyp       = _try_import("AGENT_H.hypervisor_verifier",  "HypervisorVerifier")
 _aia       = _try_import("AGENT_H.aia_verifier",         "AIAVerifier")
 _ooo       = _try_import("AGENT_H.ooo_verifier",         "OOOVerifier")
 _lsq       = _try_import("AGENT_H.lsq_verifier",         "LSQVerifier")
+_crypto    = _try_import("AGENT_H.crypto_verifier",      "CryptoVerifier")
 _cache     = _try_import("AGENT_H.cache_verifier",        "CacheVerifier")
 _bus       = _try_import("AGENT_H.bus_verifier",          "BusVerifier")
 _faultinj  = _try_import("AGENT_H.fault_injector",        "FaultCampaign")
@@ -118,7 +119,7 @@ EXTENDED_AGENTS_AVAILABLE = any([
     _bitmanip, _privilege, _vm, _tlb, _pipeline, _branchp, _cache, _bus,
     _faultinj, _rv64, _svmmu, _rv64atom, _peripheral, _security, _selfevolve,
     _vector, _covcoll, _stimgen, _coherence, _memmodel, _interrupt, _perfcnt,
-    _debug, _reset, _hyp, _aia, _ooo, _lsq,
+    _debug, _reset, _hyp, _aia, _ooo, _lsq, _crypto,
 ])
 
 # ── Agent F: real Verilator coverage backend ──────────────────────────────────
@@ -2378,6 +2379,26 @@ endclass
                                 r.get("metrics", {}).get("forwards_checked"), r.get("band"))
             except Exception as exc:
                 logger.warning("  LSQ verifier failed: %s", exc)
+
+        # -- Scalar-crypto checker (SHA/SM3 transforms) — gated on crypto ops
+        if _crypto and rtl_log:
+            try:
+                cyv = _crypto.CryptoVerifier(rtl_log)
+                r = cyv.run()
+                if r.get("crypto_active"):
+                    with open(run_dir / "crypto_report.json", "w") as f:
+                        json.dump(r, f, indent=2)
+                    reports["crypto"] = {
+                        "metrics": r.get("metrics", {}),
+                        "violations": r.get("total_violations", 0),
+                        "band": r.get("band", "CLEAN"),
+                        "pass": r.get("pass", True),
+                    }
+                    logger.info("  Scalar crypto: %d violations, %d checked, band=%s",
+                                r.get("total_violations", 0),
+                                r.get("metrics", {}).get("checked"), r.get("band"))
+            except Exception as exc:
+                logger.warning("  Crypto verifier failed: %s", exc)
 
         # -- Multicore cache-coherence checker — gated on a coherence trace
         if _coherence:

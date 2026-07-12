@@ -4,6 +4,44 @@ All notable changes to AVA — Autonomic Verification Agent are documented here.
 
 ---
 
+## [2.42.0] — 2026-07-09
+
+### Added
+- **Zbkb / Zbkx — bit-manipulation for cryptography** in `crypto_verifier.py`
+  (`zbk_one` / `zbk_two` golden functions):
+  - **Zbkb**: `pack`/`packh`/`packw` (combine register halves/bytes), `brev8`
+    (reverse bits within each byte), `zip`/`unzip` (RV32 bit interleave).
+  - **Zbkx**: `xperm8` / `xperm4` (byte / nibble permutation, `rs2` = index
+    vector).
+  - Two-source operand handling + RV32/RV64 auto-detection; reuses the shadow
+    register file. Same `crypto_result` (HIGH) check.
+- 2 new in-repo pytest cases (independent-reference golden cross-check +
+  round-trip identity `unzip(zip(x))==x`) + 8 standalone. The scalar-crypto
+  agent now covers **SHA-256/512 + SM3 + Zbkb/Zbkx**.
+
+---
+
+## [2.41.0] — 2026-07-09
+
+### Added
+- **T54 — Scalar Cryptography Checker** (`AGENT_H/crypto_verifier.py`). Golden
+  reference for the RISC-V scalar-crypto transform instructions — pure
+  single-source bit functions with an exact model, where a mismatch is an
+  unambiguous (and security-critical) datapath bug:
+  - **SHA-256** (`sha256sig0/sig1/sum0/sum1`, 32-bit), **SHA-512**
+    (`sha512sig0/sig1/sum0/sum1`, RV64 64-bit), **SM3** (`sm3p0/p1`) — each
+    recomputed from the standard ROTR/ROTL/SHR/XOR recipe and compared to the
+    committed `rd`.
+  - **crypto_result** (HIGH) — committed `rd` ≠ golden transform of `rs1`.
+  - Source `rs1` recovered from a **golden shadow register file**; runs on the
+    standard commit log (no separate trace). Per-op metrics.
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_crypto`, runs on
+  `rtl_log`, writes `crypto_report.json` when crypto ops present).
+- 6 pytest cases (`tests/test_extended_agents.py::TestCryptoVerifier`, including
+  an independent-reference cross-check of the golden model) + 10 standalone.
+
+---
+
 ## [2.40.0] — 2026-07-09
 
 ### Added

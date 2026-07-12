@@ -24,6 +24,7 @@ from .coverage_collector   import CoverageCollector, classify_value
 from .contract_dsl         import ContractRunner
 from .cross_domain         import get_adapter, DUTClass, register_adapter
 from .csr_verifier         import CSRVerifier, decode_csr, csr_is_readonly
+from .crypto_verifier      import CryptoVerifier, crypto_golden
 from .debug_verifier       import DebugVerifier, Trigger
 from .demo_traces          import write_demo_run
 from .digital_twin         import DigitalTwin
@@ -71,6 +72,7 @@ __all__ = [
     "ConfidenceScorer", "ContractRunner",
     "CoverageCollector", "classify_value", "CoherenceVerifier",
     "CSRVerifier", "decode_csr", "csr_is_readonly",
+    "CryptoVerifier", "crypto_golden",
     "FPVerifier", "decode_fp", "fclass_mask",
     "get_adapter", "DUTClass", "register_adapter",
     "DigitalTwin", "EconomicsEngine", "BugExplainer",
