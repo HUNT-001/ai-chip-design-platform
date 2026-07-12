@@ -4,6 +4,25 @@ All notable changes to AVA — Autonomic Verification Agent are documented here.
 
 ---
 
+## [2.43.0] — 2026-07-09
+
+### Added
+- **T55 — Zacas Compare-and-Swap Checker** (`AGENT_H/cas_verifier.py`). Golden
+  checker for the `amocas.w/.d/.q` atomic compare-and-swap — the primitive all
+  lock-free/concurrent code is built on, where a subtly-wrong CAS silently
+  corrupts every lock and queue that uses it:
+  - **cas_return** (HIGH) — `rd` after the op must equal the old memory value.
+  - **cas_success** (HIGH) — when `mem_old == compare`, memory becomes `swap`.
+  - **cas_fail** (HIGH) — when `mem_old != compare`, memory is unchanged.
+  - Width (`.w/.d/.q`) masks the compared values. Metrics: ops / successes /
+    failures. Additive `cas_trace.jsonl`; clean no-op when absent.
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_cas`,
+  `run_from_manifest` → `cas_report.json`).
+- 5 pytest cases (`tests/test_extended_agents.py::TestCASVerifier`) + 10
+  standalone.
+
+---
+
 ## [2.42.0] — 2026-07-09
 
 ### Added

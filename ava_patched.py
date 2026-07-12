@@ -100,6 +100,7 @@ _aia       = _try_import("AGENT_H.aia_verifier",         "AIAVerifier")
 _ooo       = _try_import("AGENT_H.ooo_verifier",         "OOOVerifier")
 _lsq       = _try_import("AGENT_H.lsq_verifier",         "LSQVerifier")
 _crypto    = _try_import("AGENT_H.crypto_verifier",      "CryptoVerifier")
+_cas       = _try_import("AGENT_H.cas_verifier",         "CASVerifier")
 _cache     = _try_import("AGENT_H.cache_verifier",        "CacheVerifier")
 _bus       = _try_import("AGENT_H.bus_verifier",          "BusVerifier")
 _faultinj  = _try_import("AGENT_H.fault_injector",        "FaultCampaign")
@@ -119,7 +120,7 @@ EXTENDED_AGENTS_AVAILABLE = any([
     _bitmanip, _privilege, _vm, _tlb, _pipeline, _branchp, _cache, _bus,
     _faultinj, _rv64, _svmmu, _rv64atom, _peripheral, _security, _selfevolve,
     _vector, _covcoll, _stimgen, _coherence, _memmodel, _interrupt, _perfcnt,
-    _debug, _reset, _hyp, _aia, _ooo, _lsq, _crypto,
+    _debug, _reset, _hyp, _aia, _ooo, _lsq, _crypto, _cas,
 ])
 
 # ── Agent F: real Verilator coverage backend ──────────────────────────────────
@@ -2399,6 +2400,27 @@ endclass
                                 r.get("metrics", {}).get("checked"), r.get("band"))
             except Exception as exc:
                 logger.warning("  Crypto verifier failed: %s", exc)
+
+        # -- Zacas compare-and-swap checker — gated on a CAS trace
+        if _cas:
+            try:
+                rc = _cas.run_from_manifest(str(mpath)) \
+                    if hasattr(_cas, "run_from_manifest") else 0
+                cp = run_dir / "cas_report.json"
+                if cp.exists():
+                    with open(cp) as f:
+                        cr = json.load(f)
+                    if cr.get("status") != "skipped":
+                        reports["cas"] = {
+                            "metrics": cr.get("metrics", {}),
+                            "violations": cr.get("total_violations", 0),
+                            "band": cr.get("band", "CLEAN"),
+                            "pass": cr.get("pass", True),
+                        }
+                        logger.info("  Zacas CAS: %d violations, band=%s",
+                                    cr.get("total_violations", 0), cr.get("band"))
+            except Exception as exc:
+                logger.warning("  CAS verifier failed: %s", exc)
 
         # -- Multicore cache-coherence checker — gated on a coherence trace
         if _coherence:

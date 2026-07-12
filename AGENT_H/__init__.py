@@ -17,6 +17,7 @@ from .atomics_verifier     import AtomicsVerifier, amo_compute, decode_atomic
 from .bitmanip_verifier    import BitmanipVerifier, decode_bitmanip
 from .branch_predictor_verifier import BranchPredictorVerifier
 from .bus_verifier         import BusVerifier, axi_expected_beats
+from .cas_verifier         import CASVerifier
 from .cache_verifier       import CacheVerifier, CacheModel
 from .confidence_scorer    import ConfidenceScorer
 from .coherence_verifier   import CoherenceVerifier
@@ -67,7 +68,7 @@ __all__ = [
     "IntentChecker", "AtomicsVerifier", "amo_compute", "decode_atomic",
     "BitmanipVerifier", "decode_bitmanip",
     "BranchPredictorVerifier",
-    "BusVerifier", "axi_expected_beats",
+    "BusVerifier", "axi_expected_beats", "CASVerifier",
     "CacheVerifier", "CacheModel",
     "ConfidenceScorer", "ContractRunner",
     "CoverageCollector", "classify_value", "CoherenceVerifier",

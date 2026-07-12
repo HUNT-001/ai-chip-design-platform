@@ -541,6 +541,65 @@ class TestCryptoVerifier:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# T55 — Zacas Compare-and-Swap Checker
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _cas(compare, swap, mem_old, mem_new, rd, op="amocas.w", addr=0x40):
+    return {"op": op, "addr": hex(addr), "compare": hex(compare),
+            "swap": hex(swap), "mem_old": hex(mem_old), "mem_new": hex(mem_new),
+            "rd": hex(rd)}
+
+
+class TestCASVerifier:
+    def _run(self, evs):
+        from AGENT_H.cas_verifier import CASVerifier
+        return CASVerifier(evs).run()
+
+    def test_import_and_success_fail(self):
+        from AGENT_H import cas_verifier as cv
+        assert hasattr(cv, "CASVerifier")
+        assert self._run([_cas(5, 9, 5, 9, 5)])["pass"]      # match → swap, rd=old
+        assert self._run([_cas(5, 9, 7, 7, 7)])["pass"]      # mismatch → unchanged
+
+    def test_return_success_fail_bugs(self):
+        assert any(v["check"] == "cas_return" for v in
+                   self._run([_cas(5, 9, 5, 9, 9)])["violations"])       # rd wrong
+        assert any(v["check"] == "cas_success" for v in
+                   self._run([_cas(5, 9, 5, 5, 5)])["violations"])       # no write
+        assert any(v["check"] == "cas_fail" for v in
+                   self._run([_cas(5, 9, 7, 9, 7)])["violations"])       # modified
+
+    def test_width_mask_and_metrics(self):
+        assert self._run([_cas(0x100000005, 9, 5, 9, 5, op="amocas.w")])["pass"]
+        assert self._run([_cas(0x100000005, 9, 0x100000005, 9, 0x100000005,
+                               op="amocas.d")])["pass"]
+        mm = self._run([_cas(5, 9, 5, 9, 5), _cas(5, 9, 7, 7, 7)])["metrics"]
+        assert mm["cas_ops"] == 2 and mm["successes"] == 1 and mm["failures"] == 1
+
+    def test_noop_robustness_schema(self):
+        r = self._run([{"op": "add"}])
+        assert r["pass"] and r["cas_active"] is False
+        for evs in ([], [None, 5], [{}], [{"op": "amocas.w"}]):
+            assert self._run(evs)["pass"]
+        r2 = self._run([])
+        for k in ("schema_version", "agent", "metrics", "total_violations",
+                  "pass", "violations", "band"):
+            assert k in r2
+        assert r2["agent"] == "cas_verifier"
+
+    def test_manifest(self, tmp_path):
+        from AGENT_H.cas_verifier import run_from_manifest
+        evs = [_cas(5, 9, 5, 5, 5)]                            # bug → rc 1
+        (tmp_path / "cas_trace.jsonl").write_text(
+            "\n".join(json.dumps(x) for x in evs))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "outputs": {"cas_trace": "cas_trace.jsonl"}}
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 1
+        assert (tmp_path / "cas_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Phase-6 end-to-end integration — every extended agent fires on a demo run
 # ─────────────────────────────────────────────────────────────────────────────
 
