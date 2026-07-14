@@ -398,3 +398,4 @@ if __name__ == "__main__":  # pragma: no cover
     ap.add_argument("--manifest", required=True)
     args = ap.parse_args()
     raise SystemExit(run_from_manifest(args.manifest))
+# (cache-sync touch 2026-07-09)
