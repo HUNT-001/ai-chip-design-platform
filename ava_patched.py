@@ -101,6 +101,10 @@ _ooo       = _try_import("AGENT_H.ooo_verifier",         "OOOVerifier")
 _lsq       = _try_import("AGENT_H.lsq_verifier",         "LSQVerifier")
 _crypto    = _try_import("AGENT_H.crypto_verifier",      "CryptoVerifier")
 _cas       = _try_import("AGENT_H.cas_verifier",         "CASVerifier")
+_aes       = _try_import("AGENT_H.aes_verifier",         "AESVerifier")
+_sm4       = _try_import("AGENT_H.sm4_verifier",         "SM4Verifier")
+_vaes      = _try_import("AGENT_H.vaes_verifier",        "VAESVerifier")
+_vsha      = _try_import("AGENT_H.vsha_verifier",        "VSHAVerifier")
 _cache     = _try_import("AGENT_H.cache_verifier",        "CacheVerifier")
 _bus       = _try_import("AGENT_H.bus_verifier",          "BusVerifier")
 _faultinj  = _try_import("AGENT_H.fault_injector",        "FaultCampaign")
@@ -120,7 +124,7 @@ EXTENDED_AGENTS_AVAILABLE = any([
     _bitmanip, _privilege, _vm, _tlb, _pipeline, _branchp, _cache, _bus,
     _faultinj, _rv64, _svmmu, _rv64atom, _peripheral, _security, _selfevolve,
     _vector, _covcoll, _stimgen, _coherence, _memmodel, _interrupt, _perfcnt,
-    _debug, _reset, _hyp, _aia, _ooo, _lsq, _crypto, _cas,
+    _debug, _reset, _hyp, _aia, _ooo, _lsq, _crypto, _cas, _aes, _sm4, _vaes, _vsha,
 ])
 
 # ── Agent F: real Verilator coverage backend ──────────────────────────────────
@@ -2400,6 +2404,88 @@ endclass
                                 r.get("metrics", {}).get("checked"), r.get("band"))
             except Exception as exc:
                 logger.warning("  Crypto verifier failed: %s", exc)
+
+        # -- AES scalar-crypto checker (FIPS-197-validated golden) — gated on AES ops
+        if _aes and rtl_log:
+            try:
+                av = _aes.AESVerifier(rtl_log)
+                r = av.run()
+                if r.get("aes_active"):
+                    with open(run_dir / "aes_report.json", "w") as f:
+                        json.dump(r, f, indent=2)
+                    reports["aes"] = {
+                        "metrics": r.get("metrics", {}),
+                        "violations": r.get("total_violations", 0),
+                        "band": r.get("band", "CLEAN"),
+                        "pass": r.get("pass", True),
+                    }
+                    logger.info("  AES crypto: %d violations, %d checked, band=%s",
+                                r.get("total_violations", 0),
+                                r.get("metrics", {}).get("checked"), r.get("band"))
+            except Exception as exc:
+                logger.warning("  AES verifier failed: %s", exc)
+
+        # -- SM4 scalar-crypto checker (GB/T-32907-validated golden) — gated on SM4 ops
+        if _sm4 and rtl_log:
+            try:
+                sv = _sm4.SM4Verifier(rtl_log)
+                r = sv.run()
+                if r.get("sm4_active"):
+                    with open(run_dir / "sm4_report.json", "w") as f:
+                        json.dump(r, f, indent=2)
+                    reports["sm4"] = {
+                        "metrics": r.get("metrics", {}),
+                        "violations": r.get("total_violations", 0),
+                        "band": r.get("band", "CLEAN"),
+                        "pass": r.get("pass", True),
+                    }
+                    logger.info("  SM4 crypto: %d violations, %d checked, band=%s",
+                                r.get("total_violations", 0),
+                                r.get("metrics", {}).get("checked"), r.get("band"))
+            except Exception as exc:
+                logger.warning("  SM4 verifier failed: %s", exc)
+
+        # -- Vector AES checker (Zvkned, FIPS-197-validated core) — gated on a vaes trace
+        if _vaes:
+            try:
+                rc = _vaes.run_from_manifest(str(mpath)) \
+                    if hasattr(_vaes, "run_from_manifest") else 0
+                vp = run_dir / "vaes_report.json"
+                if vp.exists():
+                    with open(vp) as f:
+                        vr = json.load(f)
+                    if vr.get("status") != "skipped":
+                        reports["vaes"] = {
+                            "metrics": vr.get("metrics", {}),
+                            "violations": vr.get("total_violations", 0),
+                            "band": vr.get("band", "CLEAN"),
+                            "pass": vr.get("pass", True),
+                        }
+                        logger.info("  Vector AES: %d violations, band=%s",
+                                    vr.get("total_violations", 0), vr.get("band"))
+            except Exception as exc:
+                logger.warning("  Vector-AES verifier failed: %s", exc)
+
+        # -- Vector SHA-2 checker (Zvknha/b, hashlib-validated) — gated on a vsha trace
+        if _vsha:
+            try:
+                rc = _vsha.run_from_manifest(str(mpath)) \
+                    if hasattr(_vsha, "run_from_manifest") else 0
+                vp = run_dir / "vsha_report.json"
+                if vp.exists():
+                    with open(vp) as f:
+                        vr = json.load(f)
+                    if vr.get("status") != "skipped":
+                        reports["vsha"] = {
+                            "metrics": vr.get("metrics", {}),
+                            "violations": vr.get("total_violations", 0),
+                            "band": vr.get("band", "CLEAN"),
+                            "pass": vr.get("pass", True),
+                        }
+                        logger.info("  Vector SHA-2: %d violations, band=%s",
+                                    vr.get("total_violations", 0), vr.get("band"))
+            except Exception as exc:
+                logger.warning("  Vector-SHA-2 verifier failed: %s", exc)
 
         # -- Zacas compare-and-swap checker — gated on a CAS trace
         if _cas:
