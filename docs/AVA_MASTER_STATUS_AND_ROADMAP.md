@@ -3,7 +3,7 @@
 **Autonomic Verification Agent (AVA) v3.0**
 *A multi-agent, AI-assisted RISC-V RTL verification platform*
 
-Last updated: 2026-07-09 · Pure-Python core (no EDA tools required to run the agent tier)
+Last updated: 2026-07-09 (cycle 2 through T55) · Pure-Python core (no EDA tools required to run the agent tier)
 
 Status legend: ✅ **Done** (implemented + tested) · 🟡 **Partial** (foundation exists / partially covered) · ⬜ **Planned**
 
@@ -15,8 +15,9 @@ AVA is not a conventional testbench — it is an **autonomous, multi-agent
 verification engineer**. Given an RTL spec it runs a six-phase pipeline that
 analyses the design, generates a testbench, runs tandem simulation against a
 golden ISS (Spike), drives compliance, adapts coverage with AI, and then runs a
-research tier of **30+ specialised agents** that each verify one slice of the
-architecture from the canonical commit log.
+research tier of **50+ specialised agents** (21 added in cycle 2, T39→T55) that
+each verify one slice of the architecture from the canonical commit log or an
+additive trace.
 
 This document inventories everything built, maps it honestly against the
 **20-level verification taxonomy** and the **17 advanced research ideas**, and
@@ -33,12 +34,15 @@ open frontier.
 
 ---
 
-## 1a. Development cycle 2 — T39→T51 (2026-07)
+## 1a. Development cycle 2 — T39→T55 (2026-07)
 
-A second build arc added **13 new golden-reference agents** (all stdlib-only,
+A second build arc added **21 new golden-reference agents** (all stdlib-only,
 each with a standalone + in-repo pytest suite), closing the microarchitectural,
-multicore-memory, interrupt-architecture and system-integration frontiers, and
-turning the AI coverage tier into a genuine closed loop.
+multicore-memory, interrupt-architecture, virtualization, crypto and
+system-integration frontiers, and turning the AI coverage tier into a genuine
+closed loop. A canonical trace synthesizer (`demo_traces`) + a Phase-6
+integration test now drive **every** extended agent end-to-end; ADR-001 records
+the full-architecture review (515+ passing at review time).
 
 **Micro-architecture**
 - ✅ **Branch prediction** (T39, `branch_predictor_verifier`) — recovery
@@ -48,6 +52,13 @@ turning the AI coverage tier into a genuine closed loop.
   incl. fractional LMUL + impl-defined band), `vill`, element-wise golden ALU
   (`.vv/.vx/.vi`), tail policy, and vector load/store addressing
   (unit/strided/indexed + access-count/EEW/value).
+- ✅ **Out-of-order scoreboard** (T52, `ooo_verifier`) — in-order ROB commit,
+  RAW-through-scoreboard (issue ≥ producer complete), exec-timing
+  (issue≤complete≤commit), physical-rename uniqueness, squash discipline;
+  reorder-depth/latency metrics.
+- ✅ **Load/store queue** (T53, `lsq_verifier`) — store-to-load forwarding /
+  memory disambiguation (youngest older store wins) + store drain order; rides
+  the commit log's mem_reads/mem_writes.
 
 **AI self-evolving coverage/generation loop (advanced idea #3, now closed)**
 - ✅ **Self-evolving engine** (T40) — non-stationary bandits
@@ -71,12 +82,20 @@ turning the AI coverage tier into a genuine closed loop.
   sets, RMW atomicity; litmus-validated (SB/MP/LB/CoRR); consistency coverage
   into the loop.
 
-**Interrupt architecture** — PLIC + CLINT + CLIC + AIA/IMSIC
+**Interrupt architecture** — PLIC + CLINT + CLIC + AIA (IMSIC + APLIC)
 - ✅ **PLIC/CLINT/CLIC** (T46, `interrupt_verifier`) — priority arbitration,
   threshold/priority-0 masking, CLINT mtip/msip, CLIC level/priority fast
   interrupts.
-- ✅ **AIA / IMSIC** (T51, `aia_verifier`) — `topei` selection (smallest
-  identity = highest priority, eithreshold, eidelivery).
+- ✅ **AIA / IMSIC + APLIC** (T51, `aia_verifier`) — IMSIC `topei` (smallest
+  identity = highest priority, eithreshold, eidelivery) and APLIC direct-mode
+  `topi` (lowest iprio = highest, active-source + ithreshold, tie→lowest id).
+
+**Cryptography & atomics**
+- ✅ **Scalar crypto** (T54, `crypto_verifier`) — SHA-256/512 σ/Σ, SM3 P0/P1
+  (exact ROTR/ROTL/SHR recipe, independent-reference-validated) + Zbkb/Zbkx
+  (pack/brev8/zip/unzip, xperm8/4); rides the commit log via a shadow regfile.
+- ✅ **Zacas compare-and-swap** (T55, `cas_verifier`) — `amocas.w/d/q`
+  return-value / success-writes-swap / fail-leaves-unchanged, width-masked.
 
 **System integration**
 - ✅ **Performance counters** (T47, `perf_counter_verifier`) — minstret/mcycle
@@ -89,9 +108,24 @@ turning the AI coverage tier into a genuine closed loop.
   VS-stage→G-stage composition; VS fault = page-fault (12/13/15), G fault =
   guest-page-fault (20/21/23).
 
-**Still open:** APLIC + guest interrupt files (AIA depth); full interleaved
-two-stage page-table walk (H depth); out-of-order/scoreboard microarchitecture;
-power/CDC (AGENT_J foundation) and DFT/formal-property tiers.
+**Still open (next candidates, in rough priority):**
+1. **AES / SM4 S-box core** — `aes64es/esm/ds/dsm` + key-schedule and `sm4ed/ks`;
+   the heavier crypto piece, must be validated against FIPS-197 / GB-T test
+   vectors (needs the S-box + GF(2⁸) MixColumns).
+2. **AIA depth** — MSI-mode APLIC (forward-to-IMSIC), domain hierarchy, guest
+   interrupt files (VGEIN) linking to the H-extension.
+3. **H depth** — full *interleaved* two-stage page-table walk (each guest PTE
+   fetch itself G-stage-translated) over a host-physical memory image.
+4. **Value-level OOO rename** — committed value == in-order golden (catches a
+   rename delivering the wrong physical register's value).
+5. **Sscofpmf** — HW perf-counter overflow → LCOFI interrupt.
+6. **Power / CDC** (AGENT_J foundation) and **DFT / formal-property** tiers —
+   these need RTL structural signals, not just the commit log.
+
+**Engineering note (test suite):** `tests/test_agents.py` was split — the
+newest classes now live in `tests/test_extended_agents.py` (ADR-001 action #5)
+so no single module exceeds the workspace mount's file-serving cap. Run the
+whole directory: `pytest tests/ --import-mode=importlib -p no:cacheprovider -q`.
 
 ---
 
