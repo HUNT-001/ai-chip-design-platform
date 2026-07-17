@@ -807,9 +807,11 @@ class CompareStats:
             self.first_divergence_step = m.step
 
     def to_dict(self) -> Dict[str, Any]:
-        d = asdict(self)
-        d["mismatch_by_type"] = dict(self.mismatch_by_type)
-        return d
+        # NB: dataclasses.asdict() cannot reconstruct a defaultdict field on
+        # Python 3.10 (its ctor reads the first positional arg as a factory),
+        # so build the dict from the instance and coerce defaultdicts to dict.
+        return {k: (dict(v) if isinstance(v, defaultdict) else v)
+                for k, v in vars(self).items()}
 
 
 @dataclass

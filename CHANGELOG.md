@@ -4,6 +4,134 @@ All notable changes to AVA — Autonomic Verification Agent are documented here.
 
 ---
 
+## [2.48.0] — 2026-07-09
+
+### Added
+- **T59 — Vector SHA-2 Checker** (`AGENT_H/vsha_verifier.py`, Zvknha/Zvknhb).
+  Golden reference for the RISC-V *vector* SHA-2 instructions:
+  - `vsha2ms.vv` — message-schedule expansion (4 new words per element group,
+    `Wt = σ₁(W[t-2]) + W[t-7] + σ₀(W[t-15]) + W[t-16]`).
+  - `vsha2ch.vv` / `vsha2cl.vv` — two-round hash compression; `cl` consumes the
+    low two `vs1` words, `ch` the high two (round constant is pre-added in
+    software per the spec, so the golden takes the already-`+K` words).
+  - **SEW-selected algorithm**: SEW=32 → SHA-256, SEW=64 → SHA-512.
+  - **Validated end-to-end against `hashlib`** — composing a full multi-block
+    SHA-256 and a SHA-512 purely from `vsha2ms` + `vsha2c` reproduces the exact
+    published digests (`ba7816bf…`, `ddaf35a1…`), proving both the arithmetic
+    **and** the element-group layout.
+  - **vsha_result** (HIGH). Additive `vsha_trace.jsonl` (4-word groups, `sew`).
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_vsha`,
+  `run_from_manifest` → `vsha_report.json`).
+- 6 pytest cases (`tests/test_extended_agents.py::TestVSHAVerifier`, incl. the
+  hashlib full-hash validations for SHA-256/512 and the cl/ch word-selection).
+  Second vector-crypto agent (Zvk).
+
+---
+
+## [2.47.0] — 2026-07-09
+
+### Added
+- **T58 — Vector AES Checker** (`AGENT_H/vaes_verifier.py`, Zvkned). Golden
+  reference for the RISC-V *vector* AES round instructions — `vaesef`/`vaesem`
+  (encrypt final/middle), `vaesdf`/`vaesdm` (decrypt), `vaesz` (round-key XOR) —
+  each on **128-bit element groups** (one full AES state per group):
+  - Full-128 ShiftRows + SubBytes + MixColumns, **reusing the FIPS-197-validated
+    scalar AES core** (`aes_verifier` S-box / GF(2⁸) MixColumns).
+  - Encrypt round validated against the **FIPS-197 round vector** (key 0:
+    `193de3be… → 046681e5…`); the decrypt round is the standard inverse cipher
+    (AddRoundKey → InvMixColumns → InvShiftRows → InvSubBytes) and **round-trips**
+    every encrypt round (tested).
+  - **vaes_result** (HIGH) — computed group ≠ reported group. Additive
+    `vaes_trace.jsonl` (128-bit values as 32-hex strings).
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_vaes`,
+  `run_from_manifest` → `vaes_report.json`).
+- 4 pytest cases (`tests/test_extended_agents.py::TestVAESVerifier`, incl. the
+  FIPS-197 vector + decrypt round-trip) + 7 standalone. First **vector-crypto**
+  agent (Zvk).
+
+---
+
+## [2.46.0] — 2026-07-09
+
+### Added
+- **T57 — SM4 Scalar Cryptography Checker** (`AGENT_H/sm4_verifier.py`). Golden
+  reference for the RISC-V SM4 instructions (Zksed) — `sm4ed` (cipher round) and
+  `sm4ks` (key-schedule round) — the Chinese national block cipher (GB/T
+  32907-2016):
+  - Standard 256-entry SM4 S-box + the two linear transforms
+    (`L = x⊕x⋘2⊕x⋘10⊕x⋘18⊕x⋘24`, `L' = x⊕x⋘13⊕x⋘23`); byte-select `bs`,
+    rotate-by-`8·bs`, XOR into `rs1`.
+  - **Validated against the GB/T 32907 test vector** — the test suite composes
+    the module's `sm4ed`/`sm4ks` into a full SM4-128 encryption and checks the
+    published ciphertext `681edf34d206965e86b3e94f536e4246` exactly; plus S-box
+    permutation and the T-function composition property. Not self-referential.
+  - **sm4_result** (HIGH) — committed `rd` ≠ golden. Source operands via the
+    shadow register file; rides the standard commit log.
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_sm4`, runs on
+  `rtl_log`, writes `sm4_report.json`).
+- 4 pytest cases (`tests/test_extended_agents.py::TestSM4Verifier`, incl. the
+  GB/T vector) + 6 standalone. **Crypto coverage is now complete for the scalar
+  suite: AES + SHA-256/512 + SM3 + SM4 + Zbkb/Zbkx.**
+
+### Fixed
+- **AGENT_D bug-report serialization** (`compare_commitlogs.py`) — `to_dict`
+  used `dataclasses.asdict()`, which crashes on the `CompareStats.mismatch_by_type`
+  **defaultdict** field on Python 3.10 ("first argument must be callable or
+  None"), breaking every bug-report emission. Rebuilt `to_dict` from `vars()`
+  with defaultdict→dict coercion (found by the base-agent health check; verified
+  by a standalone repro).
+
+---
+
+## [2.45.0] — 2026-07-09
+
+### Added
+- **AGENT_A semantic analyzer** (`AGENT_A/semantic_analyzer.py`) — fills the one
+  base-pipeline gap: AGENT_A previously held only the v2.1.0 schemas +
+  `interfaces.md` (the `SemanticMap` logic lived inside the orchestrator). Now a
+  real Phase-1 module:
+  - **Schema validation** (stdlib-only, no `jsonschema`) — `validate_record`
+    checks commit-log records (required `schema_version`/`seq`/`pc`/`disasm`,
+    integer `seq`, 0x-hex `pc`, object `regs`/`csrs`, array `mem_reads`/
+    `mem_writes` with `addr`, `trap.cause`); `validate_manifest` checks the run
+    manifest (required fields, `status` enum, schema version).
+  - **DUT extraction** — `extract_dut` parses Verilog/SystemVerilog for the
+    module name, ports (direction + width, incl. comma-separated port lists),
+    and clock/reset pins.
+  - `SemanticAnalyzer.analyze()` + `run_from_manifest` → `semantic_report.json`;
+    exported from `AGENT_A/__init__.py`.
+- 4 pytest cases (`tests/test_extended_agents.py::TestSemanticAnalyzer`) + 9
+  standalone.
+
+---
+
+## [2.44.0] — 2026-07-09
+
+### Added
+- **T56 — AES Scalar Cryptography Checker** (`AGENT_H/aes_verifier.py`). Golden
+  reference for the RV64 AES instructions (Zkne/Zknd): `aes64es`/`aes64esm`
+  (encrypt round, final/middle), `aes64ds`/`aes64dsm` (decrypt), `aes64im`
+  (inverse MixColumns for key schedule), `aes64ks2`.
+  - Full AES core: 256-entry S-box + inverse, GF(2⁸) `xtime`/`gmul`,
+    forward/inverse **MixColumns**, and the RV64 **ShiftRows** byte layout
+    (low-8-byte selection `[0,5,10,15,4,9,14,3]`; the round's high half is the
+    same instruction with operands swapped).
+  - **Validated against FIPS-197** — the test suite checks `aes64esm` reproduces
+    the Appendix B round-1 SubBytes→ShiftRows→MixColumns output
+    (`046681e5…2806264c`) exactly, `aes64es` matches the published
+    ShiftRows+SubBytes, MixColumns matches §4.3 (`db 13 53 45 → 8e 4d a1 bc`),
+    and decrypt/`aes64im` invert their forward transforms. The golden is
+    provably correct, **not** self-referential.
+  - **aes_result** (HIGH) — committed `rd` ≠ golden. Source operands via the
+    shadow register file; rides the standard commit log.
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_aes`, runs on
+  `rtl_log`, writes `aes_report.json` when AES ops present).
+- 4 pytest cases (`tests/test_extended_agents.py::TestAESVerifier`, incl. the
+  FIPS-197 vector) + 9 standalone. Crypto coverage now: **AES + SHA-256/512 +
+  SM3 + Zbkb/Zbkx**.
+
+---
+
 ## [2.43.0] — 2026-07-09
 
 ### Added
