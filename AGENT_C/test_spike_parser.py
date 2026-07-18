@@ -2,10 +2,11 @@
 """
 tests/test_spike_parser.py
 ==========================
-Unit tests for sim/spike_parser.py — AVA schema v2.0.0.
+Unit tests for sim/spike_parser.py — AVA schema v2.1.0.
 
-All field names use the v2.0.0 wire names:
+All field names use the v2.1.0 wire names:
   src (not source), regs (not reg_writes), csrs (not csr_writes), mem (not mem_access)
+regs and csrs are name-keyed dicts, e.g. regs={"x5": "0x..."}, csrs={"mstatus": "0x..."}.
 
 Run: python tests/test_spike_parser.py
 """
@@ -78,13 +79,13 @@ class TestHelpers(unittest.TestCase):
     def test_reg_a0(self):      self.assertEqual(_reg_idx("a0"), 10)
     def test_reg_s11(self):     self.assertEqual(_reg_idx("s11"), 27)
     def test_reg_invalid(self): self.assertIsNone(_reg_idx("pc"))
-    def test_schema_version(self): self.assertEqual(SCHEMA_VERSION, "2.0.0")
+    def test_schema_version(self): self.assertEqual(SCHEMA_VERSION, "2.1.0")
 
 
 # ── Schema v2.0.0 mandatory fields ───────────────────────────────────────────
 
 class TestSchemaV2Mandatory(unittest.TestCase):
-    """Every record must carry the new mandatory v2.0.0 fields."""
+    """Every record must carry the new mandatory v2.1.0 fields."""
 
     REQUIRED = {"schema_version", "seq", "pc", "instr", "src", "hart", "fpregs"}
 
@@ -92,7 +93,7 @@ class TestSchemaV2Mandatory(unittest.TestCase):
         for i, r in enumerate(_parse(text, fmt=fmt)):
             missing = self.REQUIRED - r.keys()
             self.assertFalse(missing, f"Record {i} missing: {missing}")
-            self.assertEqual(r["schema_version"], "2.0.0",
+            self.assertEqual(r["schema_version"], "2.1.0",
                              f"Record {i} wrong schema_version")
             self.assertEqual(r["src"], "iss", f"Record {i} wrong src")
             self.assertEqual(r["hart"], 0, f"Record {i} wrong hart")
@@ -117,7 +118,7 @@ class TestSrcField(unittest.TestCase):
     def test_source_absent(self):
         """Old 'source' key must NOT appear in output."""
         r = _parse(FMT_B_BASIC, "B")[0]
-        self.assertNotIn("source", r, "'source' key should not exist in v2.0.0 output")
+        self.assertNotIn("source", r, "'source' key should not exist in v2.1.0 output")
 
     def test_src_custom_value(self):
         records = parse_spike_log(FMT_B_BASIC, source="rtl", fmt="B")
@@ -134,31 +135,29 @@ class TestRegsField(unittest.TestCase):
     def test_reg_writes_absent(self):
         """Old 'reg_writes' key must NOT appear."""
         r = _parse(FMT_B_BASIC, "B")[0]
-        self.assertNotIn("reg_writes", r, "'reg_writes' must not exist in v2.0.0")
+        self.assertNotIn("reg_writes", r, "'reg_writes' must not exist in v2.1.0")
 
     def test_regs_preserves_values(self):
         """Values must NOT be dropped — Agent D needs them for reg mismatch detection."""
         r = _parse(FMT_B_BASIC, "B")[0]
-        regs = r["regs"]
+        regs = r["regs"]                              # v2.1.0: name-keyed dict
         self.assertEqual(len(regs), 1)
-        self.assertEqual(regs[0]["rd"], 5)
-        self.assertEqual(regs[0]["value"], "0x80000000",
+        self.assertEqual(regs["x5"], "0x80000000",
                          "reg value must be preserved (not dropped to index-only)")
 
     def test_regs_structure(self):
-        """regs items must be {rd: int, value: str}."""
+        """regs must be a dict of {name: value_str}, e.g. {"x5": "0x..."}."""
         for r in _parse(FMT_B_BASIC, "B"):
-            for rw in r.get("regs", []):
-                self.assertIn("rd", rw)
-                self.assertIn("value", rw)
-                self.assertIsInstance(rw["rd"], int)
-                self.assertIsInstance(rw["value"], str)
+            regs = r.get("regs", {})
+            self.assertIsInstance(regs, dict)
+            for name, value in regs.items():
+                self.assertRegex(name, r"^x\d+$")
+                self.assertIsInstance(value, str)
 
     def test_x0_suppressed(self):
         """x0 writes must not appear in regs (x0 is always 0)."""
         for r in _parse(FMT_B_BASIC, "B"):
-            for rw in r.get("regs", []):
-                self.assertNotEqual(rw["rd"], 0)
+            self.assertNotIn("x0", r.get("regs", {}))
 
     def test_fmt_a_no_regs(self):
         """FORMAT A has no writeback data — regs must be absent."""
@@ -175,14 +174,12 @@ class TestCsrsField(unittest.TestCase):
 
     def test_csr_writes_absent(self):
         r = _parse(FMT_B_CSR, "B")[0]
-        self.assertNotIn("csr_writes", r, "'csr_writes' must not exist in v2.0.0")
+        self.assertNotIn("csr_writes", r, "'csr_writes' must not exist in v2.1.0")
 
     def test_csrs_values_preserved(self):
-        csrs = _parse(FMT_B_CSR, "B")[0]["csrs"]
+        csrs = _parse(FMT_B_CSR, "B")[0]["csrs"]     # v2.1.0: name-keyed dict
         self.assertEqual(len(csrs), 1)
-        self.assertEqual(csrs[0]["addr"], "0x300")
-        self.assertEqual(csrs[0]["value"], "0x00001800")
-        self.assertEqual(csrs[0].get("name"), "mstatus")
+        self.assertEqual(csrs["mstatus"], "0x00001800")
 
 
 # ── mem field (renamed from 'mem_access') ────────────────────────────────────
@@ -221,11 +218,10 @@ class TestFormatBBasic(unittest.TestCase):
 
     def test_x5_reg(self):
         rgs = self.R[0]["regs"]
-        self.assertEqual(rgs[0]["rd"], 5)
-        self.assertEqual(rgs[0]["value"], "0x80000000")
+        self.assertEqual(rgs["x5"], "0x80000000")
 
     def test_a1_reg(self):
-        self.assertEqual(self.R[1]["regs"][0]["rd"], 11)
+        self.assertIn("x11", self.R[1]["regs"])
 
     def test_mem_present(self):
         self.assertIn("mem", self.R[2])
@@ -238,7 +234,7 @@ class TestFormatBDisasmThenWB(unittest.TestCase):
     def setUp(self): self.R = _parse(FMT_B_DISASM_THEN_WB, fmt="B")
     def test_count(self):  self.assertEqual(len(self.R), 2)
     def test_disasm(self): self.assertIn("auipc", self.R[0].get("disasm", ""))
-    def test_regs(self):   self.assertEqual(self.R[0]["regs"][0]["rd"], 5)
+    def test_regs(self):   self.assertIn("x5", self.R[0]["regs"])
 
 
 # ── FORMAT B CSR ──────────────────────────────────────────────────────────────
@@ -248,9 +244,7 @@ class TestFormatBCSR(unittest.TestCase):
     def test_count(self): self.assertEqual(len(self.R), 2)
     def test_csrs(self):
         csrs = self.R[0]["csrs"]
-        self.assertEqual(csrs[0]["addr"], "0x300")
-        self.assertEqual(csrs[0]["value"], "0x00001800")
-        self.assertEqual(csrs[0].get("name"), "mstatus")
+        self.assertEqual(csrs["mstatus"], "0x00001800")
 
 
 # ── FORMAT B trap ─────────────────────────────────────────────────────────────
@@ -273,7 +267,7 @@ class TestFormatBInline(unittest.TestCase):
     def test_disasm_clean(self):
         self.assertIn("auipc", self.R[0].get("disasm", ""))
         self.assertNotIn("0x80000000", self.R[0].get("disasm", ""))
-    def test_regs(self): self.assertEqual(self.R[0]["regs"][0]["rd"], 5)
+    def test_regs(self): self.assertIn("x5", self.R[0]["regs"])
 
 
 # ── Privilege decode ──────────────────────────────────────────────────────────
@@ -315,7 +309,7 @@ class TestFullSchemaConformance(unittest.TestCase):
             self.assertRegex(r["instr"], self.INSTR_RE)
             self.assertIn(r["src"], ("rtl","iss","formal"))
             self.assertEqual(r["seq"], i)
-            self.assertEqual(r["schema_version"], "2.0.0")
+            self.assertEqual(r["schema_version"], "2.1.0")
             self.assertNotIn("source",     r, "old key 'source' leaked")
             self.assertNotIn("reg_writes", r, "old key 'reg_writes' leaked")
             self.assertNotIn("csr_writes", r, "old key 'csr_writes' leaked")
