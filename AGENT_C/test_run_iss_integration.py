@@ -86,7 +86,7 @@ def assert_v2_commitlog(tc: unittest.TestCase, path: Path) -> list:
             missing = V2_REQUIRED - r.keys()
             tc.assertFalse(missing, f"Line {i} missing: {missing}")
             # New mandatory values
-            tc.assertEqual(r["schema_version"], "2.0.0", f"Line {i} schema_version")
+            tc.assertEqual(r["schema_version"], "2.1.0", f"Line {i} schema_version")
             tc.assertEqual(r["hart"], 0, f"Line {i} hart")
             tc.assertIsNone(r["fpregs"], f"Line {i} fpregs")
             tc.assertEqual(r["src"], "iss", f"Line {i} src")
@@ -124,12 +124,11 @@ class TestWriteCommitlog(unittest.TestCase):
             self.assertEqual(count, 3)
 
     def test_regs_have_values(self):
-        """regs must carry {rd, value} — not just index."""
+        """regs must carry {name: value} — not just index (v2.1.0 dict form)."""
         records = self._run(FIXTURE_B, "B", EXPECTED_B)
         auipc = records[0]
         self.assertIn("regs", auipc)
-        self.assertEqual(auipc["regs"][0]["rd"], 5)
-        self.assertEqual(auipc["regs"][0]["value"], "0x80000000",
+        self.assertEqual(auipc["regs"]["x5"], "0x80000000",
                          "reg value must be preserved — Agent D needs it")
 
     def test_mem_renamed(self):
@@ -190,7 +189,7 @@ class TestValidateCommitlog(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / "bad.jsonl"
             p.write_text(json.dumps({
-                "schema_version": "2.0.0",
+                "schema_version": "2.1.0",
                 "seq": 0, "pc": "0x80000000", "instr": "0x00000013",
                 # src absent
                 "hart": 0, "fpregs": None,
@@ -202,7 +201,7 @@ class TestValidateCommitlog(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / "bad.jsonl"
             p.write_text(json.dumps({
-                "schema_version": "2.0.0",
+                "schema_version": "2.1.0",
                 "seq": 0, "pc": "BADHEX", "instr": "0x00000013",
                 "src": "iss", "hart": 0, "fpregs": None,
             }) + "\n")
