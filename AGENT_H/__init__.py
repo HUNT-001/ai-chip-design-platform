@@ -12,6 +12,13 @@ Quick imports::
 """
 
 from .agent_h_intent       import IntentChecker
+from .aes_verifier         import AESVerifier, aes_golden, aes64ks1i
+from .sm4_verifier         import SM4Verifier, sm4_golden
+from .vaes_verifier        import VAESVerifier, vaes_round
+from .vsha_verifier        import VSHAVerifier, vsha2ms_golden, vsha2c_golden
+from .vsm3_verifier        import VSM3Verifier, vsm3me_golden, vsm3c_golden
+from .vaeskf_verifier      import VAESKFVerifier, vaeskf1_golden, vaeskf2_golden
+from .vsm4_verifier        import VSM4Verifier, vsm4r_golden, vsm4k_golden
 from .aia_verifier         import AIAVerifier, IMSICModel, APLICModel
 from .atomics_verifier     import AtomicsVerifier, amo_compute, decode_atomic
 from .bitmanip_verifier    import BitmanipVerifier, decode_bitmanip
@@ -73,7 +80,12 @@ __all__ = [
     "ConfidenceScorer", "ContractRunner",
     "CoverageCollector", "classify_value", "CoherenceVerifier",
     "CSRVerifier", "decode_csr", "csr_is_readonly",
-    "CryptoVerifier", "crypto_golden",
+    "CryptoVerifier", "crypto_golden", "AESVerifier", "aes_golden", "aes64ks1i",
+    "SM4Verifier", "sm4_golden", "VAESVerifier", "vaes_round",
+    "VSHAVerifier", "vsha2ms_golden", "vsha2c_golden",
+    "VSM3Verifier", "vsm3me_golden", "vsm3c_golden",
+    "VAESKFVerifier", "vaeskf1_golden", "vaeskf2_golden",
+    "VSM4Verifier", "vsm4r_golden", "vsm4k_golden",
     "FPVerifier", "decode_fp", "fclass_mask",
     "get_adapter", "DUTClass", "register_adapter",
     "DigitalTwin", "EconomicsEngine", "BugExplainer",
