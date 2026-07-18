@@ -922,6 +922,322 @@ class TestVSHAVerifier:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# T60 — Vector SM3 Checker (Zvksh, GB/T-32905-validated)
+# ─────────────────────────────────────────────────────────────────────────────
+
+_SM3_IV = [0x7380166f, 0x4914b2b9, 0x172442d7, 0xda8a0600,
+           0xa96f30bc, 0x163138aa, 0xe38dee4d, 0xb0fb0e4e]
+
+
+class TestVSM3Verifier:
+    def _sm3_via_ops(self, msg):
+        """Full SM3 composed purely from the two goldens — proves the round
+        math, the byte-swaps and the rolled packing against GB/T 32905."""
+        from AGENT_H.vsm3_verifier import vsm3me_golden, vsm3c_golden, _rev8
+
+        def r(x):
+            return _rev8(x)
+        ml = len(msg) * 8
+        m = msg + b"\x80" + b"\x00" * ((56 - len(msg) - 1) % 64) + \
+            ml.to_bytes(8, "big")
+        V = list(_SM3_IV)
+        for off in range(0, len(m), 64):
+            blk = m[off:off + 64]
+            Wl = [int.from_bytes(blk[4 * i:4 * i + 4], "big") for i in range(16)]
+            reg = [r(x) for x in Wl]
+            while len(reg) < 68:
+                base = len(reg) - 16
+                reg += vsm3me_golden(reg[base:base + 8], reg[base + 8:base + 16])
+            state = [r(V[i]) for i in range(8)]           # {H..A} el7=H..el0=A
+            for rnds in range(32):
+                j = 2 * rnds
+                vs2 = [reg[j], reg[j + 1], 0, 0, reg[j + 4], reg[j + 5], 0, 0]
+                state = vsm3c_golden(state, vs2, rnds)
+            s = [r(state[i]) for i in range(8)]
+            V = [(V[i] ^ s[i]) & 0xFFFFFFFF for i in range(8)]
+        return b"".join(x.to_bytes(4, "big") for x in V).hex()
+
+    def test_gbt_vectors(self):
+        assert self._sm3_via_ops(b"abc") == \
+            "66c7f0f462eeedd9d1f2d46bdc10e4e24167c4875cf2f7a2297da02b8f4ba8e0"
+        assert self._sm3_via_ops(b"abcd" * 16) == \
+            "debe9ff92275b8a138604889c18e5a4d6fdb70e5387e5765293dcba39c0c5732"
+        # empty string SM3 (known digest)
+        assert self._sm3_via_ops(b"") == \
+            "1ab21d8355cfa17f8e61194831e81a8f22bec8c728fefb747ed035eb5082aa2b"
+
+    def test_message_expansion_recurrence(self):
+        from AGENT_H.vsm3_verifier import vsm3me_golden, _rev8, _p1, _rol
+        vs1 = [_rev8(i + 1) for i in range(8)]        # logical W0..W7 = 1..8
+        vs2 = [_rev8(i + 9) for i in range(8)]        # logical W8..W15 = 9..16
+        got = [_rev8(x) for x in vsm3me_golden(vs1, vs2)]   # logical W16..W23
+        W = list(range(1, 17))
+        for j in range(16, 24):
+            W.append(_p1(W[j - 16] ^ W[j - 9] ^ _rol(W[j - 3], 15))
+                     ^ _rol(W[j - 13], 7) ^ W[j - 6])
+            W[-1] &= 0xFFFFFFFF
+        assert got == W[16:24]
+
+    def test_verifier_clean_and_bug(self):
+        from AGENT_H.vsm3_verifier import VSM3Verifier, vsm3me_golden
+        vs1 = list(range(1, 9))
+        vs2 = list(range(9, 17))
+        res = vsm3me_golden(vs1, vs2)
+        good = {"op": "vsm3me", "vs1": vs1, "vs2": vs2, "result": res}
+        r = VSM3Verifier([good]).run()
+        assert r["pass"] and r["metrics"]["checked"] == 1 and r["vsm3_active"]
+        bad = {"op": "vsm3me", "vs1": vs1, "vs2": vs2, "result": [0] * 8}
+        rb = VSM3Verifier([bad]).run()
+        assert not rb["pass"]
+        assert any(v["check"] == "vsm3_result" for v in rb["violations"])
+        # vsm3c good/bad
+        from AGENT_H.vsm3_verifier import vsm3c_golden
+        vd = list(range(1, 9))
+        vc = [0x11, 0x22, 0, 0, 0x44, 0x55, 0, 0]
+        cres = vsm3c_golden(vd, vc, 3)
+        assert VSM3Verifier([{"op": "vsm3c", "rnds": 3, "vd": vd,
+                              "vs2": vc, "result": cres}]).run()["pass"]
+        # non-vsm3 ignored; malformed tolerated
+        n = VSM3Verifier([{"op": "vadd.vv"}]).run()
+        assert n["pass"] and n["vsm3_active"] is False
+        for evs in ([], [None, 5], [{}], [{"op": "vsm3me"}]):
+            assert VSM3Verifier(evs).run()["pass"]
+
+    def test_rnds_selects_round_group(self):
+        # different round groups must yield different compression output
+        from AGENT_H.vsm3_verifier import vsm3c_golden
+        vd = list(range(1, 9))
+        vs2 = [0x10, 0x20, 0, 0, 0x30, 0x40, 0, 0]
+        assert vsm3c_golden(vd, vs2, 0) != vsm3c_golden(vd, vs2, 8)  # <16 vs >=16
+
+    def test_manifest(self, tmp_path):
+        from AGENT_H.vsm3_verifier import run_from_manifest
+        evs = [{"op": "vsm3me", "vs1": list(range(1, 9)),
+                "vs2": list(range(9, 17)), "result": [0] * 8}]
+        (tmp_path / "vsm3_trace.jsonl").write_text(
+            "\n".join(json.dumps(x) for x in evs))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "outputs": {"vsm3_trace": "vsm3_trace.jsonl"}}
+        mp = tmp_path / "run_manifest.json"
+        mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 1
+        assert (tmp_path / "vsm3_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T62 — Vector SM4 Checker (Zvksed, GB/T-32907-validated)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestVSM4Verifier:
+    def _sm4_encrypt(self, key_words, pt_words):
+        """Full SM4 block encryption composed from vsm4k + vsm4r goldens."""
+        from AGENT_H.vsm4_verifier import vsm4r_golden, vsm4k_golden, FK
+        K = [(key_words[i] ^ FK[i]) & 0xFFFFFFFF for i in range(4)]
+        rks = []
+        cur = list(K)
+        for rnd in range(8):
+            cur = vsm4k_golden(cur, rnd)
+            rks += cur
+        X = list(pt_words)
+        cur = list(pt_words)
+        for grp in range(8):
+            cur = vsm4r_golden(cur, rks[4 * grp:4 * grp + 4])
+            X += cur
+        return [X[35], X[34], X[33], X[32]]           # R (reverse) transform
+
+    @staticmethod
+    def _w(hexstr):
+        return [int(hexstr[i:i + 8], 16) for i in range(0, 32, 8)]
+
+    def test_gbt_encrypt_vector(self):
+        key = self._w("0123456789abcdeffedcba9876543210")
+        pt = self._w("0123456789abcdeffedcba9876543210")
+        ct = self._sm4_encrypt(key, pt)
+        assert "".join("%08x" % w for w in ct) == \
+            "681edf34d206965e86b3e94f536e4246"
+
+    def test_decrypt_round_trips(self):
+        """SM4 decryption = encryption with round keys reversed; must invert."""
+        from AGENT_H.vsm4_verifier import vsm4r_golden, vsm4k_golden, FK
+        key = self._w("0123456789abcdeffedcba9876543210")
+        pt = self._w("0011223344556677889900aabbccddee")
+        K = [(key[i] ^ FK[i]) & 0xFFFFFFFF for i in range(4)]
+        rks = []
+        cur = list(K)
+        for rnd in range(8):
+            cur = vsm4k_golden(cur, rnd)
+            rks += cur
+
+        def crypt(block, keys):
+            cur = list(block)
+            X = list(block)
+            # feed round keys in groups of 4 (already ordered as given)
+            for g in range(8):
+                cur = vsm4r_golden(cur, keys[4 * g:4 * g + 4])
+                X += cur
+            return [X[35], X[34], X[33], X[32]]
+        ct = crypt(pt, rks)
+        dec = crypt(ct, list(reversed(rks)))
+        assert dec == pt
+
+    def test_verifier_clean_and_bug(self):
+        from AGENT_H.vsm4_verifier import VSM4Verifier, vsm4r_golden, vsm4k_golden
+        vd = [0x01234567, 0x89abcdef, 0xfedcba98, 0x76543210]
+        vs2 = [0x11111111, 0x22222222, 0x33333333, 0x44444444]
+        good_r = {"op": "vsm4r", "vd": vd, "vs2": vs2,
+                  "result": vsm4r_golden(vd, vs2)}
+        r = VSM4Verifier([good_r]).run()
+        assert r["pass"] and r["metrics"]["checked"] == 1 and r["vsm4_active"]
+        bad = {"op": "vsm4r", "vd": vd, "vs2": vs2, "result": [0, 0, 0, 0]}
+        rb = VSM4Verifier([bad]).run()
+        assert not rb["pass"]
+        assert any(v["check"] == "vsm4_result" for v in rb["violations"])
+        good_k = {"op": "vsm4k", "rnd": 0, "vs2": vs2,
+                  "result": vsm4k_golden(vs2, 0)}
+        assert VSM4Verifier([good_k]).run()["pass"]
+        # non-vsm4 ignored; malformed tolerated
+        n = VSM4Verifier([{"op": "vaesem"}]).run()
+        assert n["pass"] and n["vsm4_active"] is False
+        for evs in ([], [None, 5], [{}], [{"op": "vsm4r", "vs2": vs2}]):
+            assert VSM4Verifier(evs).run()["pass"]
+
+    def test_rnd_selects_constants(self):
+        from AGENT_H.vsm4_verifier import vsm4k_golden
+        vs2 = [1, 2, 3, 4]
+        assert vsm4k_golden(vs2, 0) != vsm4k_golden(vs2, 1)   # different CK group
+        assert vsm4k_golden(vs2, 0) == vsm4k_golden(vs2, 8)   # uimm[2:0] masks
+
+    def test_manifest(self, tmp_path):
+        from AGENT_H.vsm4_verifier import run_from_manifest
+        evs = [{"op": "vsm4r", "vd": [1, 2, 3, 4], "vs2": [5, 6, 7, 8],
+                "result": [0, 0, 0, 0]}]
+        (tmp_path / "vsm4_trace.jsonl").write_text(
+            "\n".join(json.dumps(x) for x in evs))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "outputs": {"vsm4_trace": "vsm4_trace.jsonl"}}
+        mp = tmp_path / "run_manifest.json"
+        mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 1
+        assert (tmp_path / "vsm4_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T61 — AES Key-Schedule Checkers (FIPS-197-validated): scalar aes64ks1i +
+#        vector vaeskf1 / vaeskf2
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _bswap32(x):
+    return int.from_bytes((x & 0xFFFFFFFF).to_bytes(4, "big")[::-1], "big")
+
+
+class TestAESKeySchedule:
+    def test_aes64ks1i_scalar_full_aes128(self):
+        """Scalar aes64ks1i + aes64ks2 must reproduce the FIPS-197 AES-128
+        expanded key (words 4..43)."""
+        from AGENT_H.aes_verifier import aes64ks1i, aes64ks2
+        fips = [0x2b7e1516, 0x28aed2a6, 0xabf71588, 0x09cf4f3c]
+        s = [_bswap32(x) for x in fips]                    # sail byte order
+        rk0 = (s[1] << 32) | s[0]
+        rk1 = (s[3] << 32) | s[2]
+        words = list(fips)
+        for rnd in range(10):
+            ks = aes64ks1i(rk1, rnd)
+            rk0 = aes64ks2(ks, rk0)
+            rk1 = aes64ks2(rk0, rk1)
+            words += [_bswap32(rk0 & 0xFFFFFFFF), _bswap32((rk0 >> 32) & 0xFFFFFFFF),
+                      _bswap32(rk1 & 0xFFFFFFFF), _bswap32((rk1 >> 32) & 0xFFFFFFFF)]
+        assert words[4] == 0xa0fafe17 and words[5] == 0x88542cb1
+        assert words[7] == 0x2a6c7605 and words[43] == 0xb6630ca6
+        # rnum out of range -> None
+        assert aes64ks1i(0, 0xB) is None
+
+    def test_vaeskf1_full_aes128(self):
+        from AGENT_H.vaeskf_verifier import vaeskf1_golden
+        fips = [0x2b7e1516, 0x28aed2a6, 0xabf71588, 0x09cf4f3c]
+        rk = [_bswap32(x) for x in fips]
+        words = list(fips)
+        for rnd in range(1, 11):
+            rk = vaeskf1_golden(rk, rnd)
+            words += [_bswap32(x) for x in rk]
+        assert words[4] == 0xa0fafe17 and words[43] == 0xb6630ca6
+
+    def test_vaeskf2_full_aes256(self):
+        from AGENT_H.vaeskf_verifier import vaeskf2_golden
+
+        def _sub(x):
+            from AGENT_H.aes_verifier import AES_SBOX
+            return sum(AES_SBOX[(x >> (8 * i)) & 0xFF] << (8 * i) for i in range(4))
+
+        def _rotbe(x):
+            return ((x << 8) | (x >> 24)) & 0xFFFFFFFF
+        rcon = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40]
+        import random
+        random.seed(7)
+        key = [random.getrandbits(32) for _ in range(8)]
+        # textbook Nk=8 reference expansion (big-endian words)
+        ref = list(key)
+        for i in range(8, 60):
+            t = ref[i - 1]
+            if i % 8 == 0:
+                t = (_sub(_rotbe(t)) ^ (rcon[i // 8 - 1] << 24)) & 0xFFFFFFFF
+            elif i % 8 == 4:
+                t = _sub(t)
+            ref.append((ref[i - 8] ^ t) & 0xFFFFFFFF)
+        # drive vaeskf2 in sail byte order
+        gp = [_bswap32(x) for x in key[0:4]]
+        gc = [_bswap32(x) for x in key[4:8]]
+        got = list(key)
+        for rnd in range(2, 15):
+            nxt = vaeskf2_golden(gc, gp, rnd)
+            got += [_bswap32(x) for x in nxt]
+            gp, gc = gc, nxt
+        assert got == ref
+
+    def test_immediate_projection(self):
+        # out-of-range rnd values are projected (uimm[3] inverted), never crash
+        from AGENT_H.vaeskf_verifier import vaeskf1_golden, vaeskf2_golden
+        assert vaeskf1_golden([1, 2, 3, 4], 0) == vaeskf1_golden([1, 2, 3, 4], 8)
+        assert vaeskf1_golden([1, 2, 3, 4], 11) == vaeskf1_golden([1, 2, 3, 4], 3)
+        assert vaeskf2_golden([1, 2, 3, 4], [5, 6, 7, 8], 0) == \
+            vaeskf2_golden([1, 2, 3, 4], [5, 6, 7, 8], 8)
+
+    def test_verifier_clean_and_bug(self):
+        from AGENT_H.vaeskf_verifier import VAESKFVerifier, vaeskf1_golden, \
+            vaeskf2_golden
+        vs2 = [0x11111111, 0x22222222, 0x33333333, 0x44444444]
+        good1 = {"op": "vaeskf1", "rnd": 1, "vs2": vs2,
+                 "result": vaeskf1_golden(vs2, 1)}
+        r = VAESKFVerifier([good1]).run()
+        assert r["pass"] and r["metrics"]["checked"] == 1 and r["vaeskf_active"]
+        bad = {"op": "vaeskf1", "rnd": 1, "vs2": vs2, "result": [0, 0, 0, 0]}
+        rb = VAESKFVerifier([bad]).run()
+        assert not rb["pass"]
+        assert any(v["check"] == "vaeskf_result" for v in rb["violations"])
+        vd = [0xaa, 0xbb, 0xcc, 0xdd]
+        good2 = {"op": "vaeskf2", "rnd": 2, "vs2": vs2, "vd": vd,
+                 "result": vaeskf2_golden(vs2, vd, 2)}
+        assert VAESKFVerifier([good2]).run()["pass"]
+        # non-key-sched ignored; malformed tolerated
+        n = VAESKFVerifier([{"op": "vaesem"}]).run()
+        assert n["pass"] and n["vaeskf_active"] is False
+        for evs in ([], [None, 5], [{}], [{"op": "vaeskf2", "vs2": vs2}]):
+            assert VAESKFVerifier(evs).run()["pass"]
+
+    def test_manifest(self, tmp_path):
+        from AGENT_H.vaeskf_verifier import run_from_manifest
+        evs = [{"op": "vaeskf1", "rnd": 1,
+                "vs2": [1, 2, 3, 4], "result": [0, 0, 0, 0]}]
+        (tmp_path / "vaeskf_trace.jsonl").write_text(
+            "\n".join(json.dumps(x) for x in evs))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "outputs": {"vaeskf_trace": "vaeskf_trace.jsonl"}}
+        mp = tmp_path / "run_manifest.json"
+        mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 1
+        assert (tmp_path / "vaeskf_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # T57 — SM4 Scalar Cryptography Checker (GB/T-32907-validated)
 # ─────────────────────────────────────────────────────────────────────────────
 
