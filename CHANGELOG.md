@@ -4,6 +4,89 @@ All notable changes to AVA — Autonomic Verification Agent are documented here.
 
 ---
 
+## [2.51.0] — 2026-07-09
+
+### Added
+- **T62 — Vector SM4 Checker** (`AGENT_H/vsm4_verifier.py`, Zvksed). Golden
+  reference for the RISC-V *vector* SM4 block-cipher instructions:
+  - `vsm4r.[vv,vs]` — four SM4 cipher rounds (cipher linear `L`, S-box subword).
+  - `vsm4k.vi` — four SM4 key-expansion rounds, round-key group from the `rnd`
+    immediate (`uimm[2:0]`), with the CK round-constant table + key linear `L'`.
+  - 128-bit / 4-word groups; reuses the scalar SM4 S-box (`sm4_verifier`).
+  - **Validated end-to-end against GB/T 32907** — composing a full key schedule
+    + 32-round encryption reproduces the published ciphertext
+    `681edf34…536e4246`; decryption (round keys reversed) round-trips.
+  - **vsm4_result** (HIGH). Additive `vsm4_trace.jsonl` (4-word groups).
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_vsm4`,
+  `run_from_manifest` → `vsm4_report.json`).
+- 5 pytest cases (`tests/test_extended_agents.py::TestVSM4Verifier`). Completes
+  the vector-crypto suite: Zvkned (AES) + Zvknh (SHA-2) + Zvksh (SM3) + Zvksed
+  (SM4). Full repo sweep: **880 passed, 7 skipped**.
+
+---
+
+## [2.50.1] — 2026-07-09
+
+### Fixed
+- **AGENT_C schema consolidation** — the ISS commit-log path was on schema
+  v2.1.0 (name-keyed `regs`/`csrs` dicts) but `run_iss.validate_commitlog` still
+  hard-coded a `"2.0.0"` schema check, and `AGENT_C/test_spike_parser.py` /
+  `test_run_iss_integration.py` still asserted the old v2.0.0 list-of-`{rd,value}`
+  shape. Pointed the validator at the imported `SCHEMA_VERSION` constant (so it
+  can't drift again) and migrated the stale assertions to the v2.1.0 dict form.
+- Full repository test sweep now green: **875 passed, 7 skipped** across
+  `tests/` + `AGENT_C/` + `AGENT_D/` + `AGENT_E/` (was 33 failing in AGENT_C).
+  AGENT_E's compliance-report `schemaversion` (2.0.0) is a separate, internally
+  consistent versioning and was intentionally left unchanged.
+
+---
+
+## [2.50.0] — 2026-07-09
+
+### Added
+- **T61 — AES Key-Schedule Checkers** (Zkne/Zvkned, FIPS-197-validated).
+  - **Scalar `aes64ks1i`** added to `AGENT_H/aes_verifier.py` (RV64 key-schedule
+    instruction 1: `rs1[63:32]` → RotWord/SubWord/Rcon, `(tmp^rc)@(tmp^rc)`;
+    `rnum` immediate 0x0–0xA). Rides the commit log with the shadow regfile,
+    alongside the existing `aes64ks2`.
+  - **New `AGENT_H/vaeskf_verifier.py`** — vector forward key schedule
+    `vaeskf1.vi` (AES-128) and `vaeskf2.vi` (AES-256) on 128-bit / 4-word
+    groups, transcribing the authoritative sail incl. the out-of-range
+    immediate projection. **vaeskf_result** (HIGH), additive
+    `vaeskf_trace.jsonl`.
+  - **Validation**: iterating `aes64ks1i`+`aes64ks2` reproduces the full FIPS-197
+    AES-128 expanded key (`a0fafe17…b6630ca6`); `vaeskf1` likewise; `vaeskf2`
+    reproduces a full AES-256 (Nk=8) expansion vs a textbook reference.
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_vaeskf`,
+  `run_from_manifest` → `vaeskf_report.json`).
+- 7 pytest cases (`TestAESKeySchedule`, `AESVerifier` `aes64ks1i` path).
+  Closes the last crypto key-schedule gap.
+
+---
+
+## [2.49.0] — 2026-07-09
+
+### Added
+- **T60 — Vector SM3 Checker** (`AGENT_H/vsm3_verifier.py`, Zvksh). Golden
+  reference for the RISC-V *vector* SM3 hash instructions:
+  - `vsm3me.vv` — SM3 message expansion (8 new schedule words per 256-bit group,
+    `ZVKSH_W` = P1-based recurrence).
+  - `vsm3c.vi` — SM3 compression, **two rounds** per instruction selected by the
+    `rnds` immediate; transcribes the authoritative sail (per-round `SS1/SS2/
+    TT1/TT2`, `FFj/GGj/Tj`, the `rev8` big/little-endian swaps, and the rolled
+    `{G1,G2,E1,E2,C1,C2,A1,A2}` output packing).
+  - **Validated end-to-end against GB/T 32905-2016** — composing full SM3 from
+    `vsm3me` + `vsm3c` reproduces `"abc"` → `66c7f0f4…8f4ba8e0`, `"abcd"×16` →
+    `debe9ff9…9c0c5732`, and the empty-string digest, proving the round math,
+    byte-swaps, and element-group packing together.
+  - **vsm3_result** (HIGH). Additive `vsm3_trace.jsonl` (8-word groups).
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_vsm3`,
+  `run_from_manifest` → `vsm3_report.json`).
+- 5 pytest cases (`tests/test_extended_agents.py::TestVSM3Verifier`). Completes
+  the vector-crypto tier (Zvkned + Zvknh + Zvksh).
+
+---
+
 ## [2.48.0] — 2026-07-09
 
 ### Added
