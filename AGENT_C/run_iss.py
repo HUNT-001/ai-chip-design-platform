@@ -46,7 +46,7 @@ End-to-end example (legacy mode)
 
 Definition of done
 ------------------
-* iss.commitlog.jsonl created with schema_version=2.0.0 records
+* iss.commitlog.jsonl created with schema_version=2.1.0 records
 * For the same ELF as the RTL runner the instruction count matches
   (verify: wc -l iss.commitlog.jsonl == wc -l rtl.commitlog.jsonl)
 """
@@ -345,13 +345,14 @@ def validate_commitlog(path: Path, sample_size: int = 200) -> List[str]:
                     errors.append(f"Line {i}: JSON parse error: {exc}")
                     continue
 
-                # Mandatory v2.0.0 fields
+                # Mandatory v2.1.0 fields
                 for fld in ("schema_version", "seq", "pc", "instr", "src", "hart"):
                     if fld not in rec:
                         errors.append(f"Line {i}: missing '{fld}'")
 
-                if "schema_version" in rec and rec["schema_version"] != "2.0.0":
-                    errors.append(f"Line {i}: schema_version='{rec['schema_version']}' expected '2.0.0'")
+                if "schema_version" in rec and rec["schema_version"] != SCHEMA_VERSION:
+                    errors.append(f"Line {i}: schema_version='{rec['schema_version']}' "
+                                  f"expected '{SCHEMA_VERSION}'")
                 if "pc" in rec and not _PC_RE.match(str(rec["pc"])):
                     errors.append(f"Line {i}: invalid pc='{rec['pc']}'")
                 if "instr" in rec and not _INSTR_RE.match(str(rec["instr"])):
