@@ -105,6 +105,9 @@ _aes       = _try_import("AGENT_H.aes_verifier",         "AESVerifier")
 _sm4       = _try_import("AGENT_H.sm4_verifier",         "SM4Verifier")
 _vaes      = _try_import("AGENT_H.vaes_verifier",        "VAESVerifier")
 _vsha      = _try_import("AGENT_H.vsha_verifier",        "VSHAVerifier")
+_vsm3      = _try_import("AGENT_H.vsm3_verifier",        "VSM3Verifier")
+_vaeskf    = _try_import("AGENT_H.vaeskf_verifier",      "VAESKFVerifier")
+_vsm4      = _try_import("AGENT_H.vsm4_verifier",        "VSM4Verifier")
 _cache     = _try_import("AGENT_H.cache_verifier",        "CacheVerifier")
 _bus       = _try_import("AGENT_H.bus_verifier",          "BusVerifier")
 _faultinj  = _try_import("AGENT_H.fault_injector",        "FaultCampaign")
@@ -124,7 +127,7 @@ EXTENDED_AGENTS_AVAILABLE = any([
     _bitmanip, _privilege, _vm, _tlb, _pipeline, _branchp, _cache, _bus,
     _faultinj, _rv64, _svmmu, _rv64atom, _peripheral, _security, _selfevolve,
     _vector, _covcoll, _stimgen, _coherence, _memmodel, _interrupt, _perfcnt,
-    _debug, _reset, _hyp, _aia, _ooo, _lsq, _crypto, _cas, _aes, _sm4, _vaes, _vsha,
+    _debug, _reset, _hyp, _aia, _ooo, _lsq, _crypto, _cas, _aes, _sm4, _vaes, _vsha, _vsm3, _vaeskf, _vsm4,
 ])
 
 # ── Agent F: real Verilator coverage backend ──────────────────────────────────
@@ -2486,6 +2489,69 @@ endclass
                                     vr.get("total_violations", 0), vr.get("band"))
             except Exception as exc:
                 logger.warning("  Vector-SHA-2 verifier failed: %s", exc)
+
+        # -- Vector SM3 checker (Zvksh, GB/T-32905-validated) — gated on a vsm3 trace
+        if _vsm3:
+            try:
+                rc = _vsm3.run_from_manifest(str(mpath)) \
+                    if hasattr(_vsm3, "run_from_manifest") else 0
+                vp = run_dir / "vsm3_report.json"
+                if vp.exists():
+                    with open(vp) as f:
+                        vr = json.load(f)
+                    if vr.get("status") != "skipped":
+                        reports["vsm3"] = {
+                            "metrics": vr.get("metrics", {}),
+                            "violations": vr.get("total_violations", 0),
+                            "band": vr.get("band", "CLEAN"),
+                            "pass": vr.get("pass", True),
+                        }
+                        logger.info("  Vector SM3: %d violations, band=%s",
+                                    vr.get("total_violations", 0), vr.get("band"))
+            except Exception as exc:
+                logger.warning("  Vector-SM3 verifier failed: %s", exc)
+
+        # -- Vector AES key-schedule checker (Zvkned, FIPS-197-validated) — gated on trace
+        if _vaeskf:
+            try:
+                rc = _vaeskf.run_from_manifest(str(mpath)) \
+                    if hasattr(_vaeskf, "run_from_manifest") else 0
+                vp = run_dir / "vaeskf_report.json"
+                if vp.exists():
+                    with open(vp) as f:
+                        vr = json.load(f)
+                    if vr.get("status") != "skipped":
+                        reports["vaeskf"] = {
+                            "metrics": vr.get("metrics", {}),
+                            "violations": vr.get("total_violations", 0),
+                            "band": vr.get("band", "CLEAN"),
+                            "pass": vr.get("pass", True),
+                        }
+                        logger.info("  Vector AES key-sched: %d violations, band=%s",
+                                    vr.get("total_violations", 0), vr.get("band"))
+            except Exception as exc:
+                logger.warning("  Vector-AES-keysched verifier failed: %s", exc)
+
+        # -- Vector SM4 checker (Zvksed, GB/T-32907-validated) — gated on a vsm4 trace
+        if _vsm4:
+            try:
+                rc = _vsm4.run_from_manifest(str(mpath)) \
+                    if hasattr(_vsm4, "run_from_manifest") else 0
+                vp = run_dir / "vsm4_report.json"
+                if vp.exists():
+                    with open(vp) as f:
+                        vr = json.load(f)
+                    if vr.get("status") != "skipped":
+                        reports["vsm4"] = {
+                            "metrics": vr.get("metrics", {}),
+                            "violations": vr.get("total_violations", 0),
+                            "band": vr.get("band", "CLEAN"),
+                            "pass": vr.get("pass", True),
+                        }
+                        logger.info("  Vector SM4: %d violations, band=%s",
+                                    vr.get("total_violations", 0), vr.get("band"))
+            except Exception as exc:
+                logger.warning("  Vector-SM4 verifier failed: %s", exc)
 
         # -- Zacas compare-and-swap checker — gated on a CAS trace
         if _cas:
