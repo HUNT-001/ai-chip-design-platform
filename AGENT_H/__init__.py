@@ -19,6 +19,52 @@ from .vsha_verifier        import VSHAVerifier, vsha2ms_golden, vsha2c_golden
 from .vsm3_verifier        import VSM3Verifier, vsm3me_golden, vsm3c_golden
 from .vaeskf_verifier      import VAESKFVerifier, vaeskf1_golden, vaeskf2_golden
 from .vsm4_verifier        import VSM4Verifier, vsm4r_golden, vsm4k_golden
+from .vghash_verifier      import VGHASHVerifier, vgmul_golden, vghsh_golden
+from .power_verifier       import PowerVerifier
+from .verification_twin    import (
+    VerificationTwin, live_status, replay, replay_failure, what_if,
+    fit_coverage_curve, forecast_closure, predict_regression,
+    tapeout_readiness, silicon_sync,
+)
+from .rtl_graph            import (
+    RTLGraphAnalyzer, Module as RTLModule, Port as RTLPort, FSM as RTLFSM,
+    parse_module, extract_fsms, embed as rtl_embed, similarity as rtl_similarity,
+    find_clones, find_comb_loops, graph_depth,
+)
+from .formal_engine        import (
+    Expr, Var, Not, And, Or, Implies, Iff, Xor, Const, big_and, big_or,
+    CNF, to_cnf, solve, satisfiable, is_tautology, unsat_core,
+    TransitionSystem, bmc_safety, bmc_liveness, reachable, deadlock_free,
+    mutual_exclusion, equivalence as formal_equivalence, check_all,
+)
+from .formal_analysis      import (
+    FormalAnalysis, cover_property, unreachable_states, cone_of_influence,
+    proof_coverage, detect_vacuity, minimize_counterexample,
+    explain_counterexample, proof_core, mine_assertions, rank_properties,
+)
+from .failure_analytics    import (
+    FailureAnalytics, canonical_signature, fingerprint, cluster_failures,
+    deduplicate, prioritise, classify_trends, jaccard, stack_similarity,
+)
+from .bug_intelligence     import (
+    BugIntelligence, localize, ochiai, tarantula, predict_severity,
+    predict_lifetime, predict_reopen, find_duplicates, classify_root_cause,
+)
+from .regression_intelligence import (
+    RegressionIntelligence, impacted_tests, prioritise_tests, select_tests,
+    schedule, regression_health, flakiness, incremental_plan, cost_report,
+)
+from .dashboard            import (
+    DashboardBuilder, write_dashboards, sparkline, heatmap, sankey, scorecard,
+)
+from .rtl_basics_verifier  import RTLBasicsVerifier, FSMModel, FIFOModel, MemModel
+from .soc_peripheral_verifier import SoCPeripheralVerifier
+from .interconnect_verifier   import InterconnectVerifier
+from .advanced_link_verifier  import AdvancedLinkVerifier, find_cycle as adv_find_cycle
+from .cdc_verifier         import CDCVerifier
+from .equivalence_verifier import (
+    EquivalenceVerifier, comb_equivalent, best_latency_offset,
+)
 from .aia_verifier         import AIAVerifier, IMSICModel, APLICModel
 from .atomics_verifier     import AtomicsVerifier, amo_compute, decode_atomic
 from .bitmanip_verifier    import BitmanipVerifier, decode_bitmanip
@@ -86,6 +132,38 @@ __all__ = [
     "VSM3Verifier", "vsm3me_golden", "vsm3c_golden",
     "VAESKFVerifier", "vaeskf1_golden", "vaeskf2_golden",
     "VSM4Verifier", "vsm4r_golden", "vsm4k_golden",
+    "VGHASHVerifier", "vgmul_golden", "vghsh_golden",
+    "PowerVerifier", "CDCVerifier",
+    "VerificationTwin", "live_status", "replay", "replay_failure", "what_if",
+    "fit_coverage_curve", "forecast_closure", "predict_regression",
+    "tapeout_readiness", "silicon_sync",
+    "RTLGraphAnalyzer", "RTLModule", "RTLPort", "RTLFSM", "parse_module",
+    "extract_fsms", "rtl_embed", "rtl_similarity", "find_clones",
+    "find_comb_loops", "graph_depth",
+    "Expr", "Var", "Not", "And", "Or", "Implies", "Iff", "Xor", "Const",
+    "big_and", "big_or", "CNF", "to_cnf", "solve", "satisfiable",
+    "is_tautology", "unsat_core", "TransitionSystem", "bmc_safety",
+    "bmc_liveness", "reachable", "deadlock_free", "mutual_exclusion",
+    "formal_equivalence", "check_all",
+    "FormalAnalysis", "cover_property", "unreachable_states",
+    "cone_of_influence", "proof_coverage", "detect_vacuity",
+    "minimize_counterexample", "explain_counterexample", "proof_core",
+    "mine_assertions", "rank_properties",
+    "FailureAnalytics", "canonical_signature", "fingerprint",
+    "cluster_failures", "deduplicate", "prioritise", "classify_trends",
+    "jaccard", "stack_similarity",
+    "BugIntelligence", "localize", "ochiai", "tarantula", "predict_severity",
+    "predict_lifetime", "predict_reopen", "find_duplicates",
+    "classify_root_cause",
+    "RegressionIntelligence", "impacted_tests", "prioritise_tests",
+    "select_tests", "schedule", "regression_health", "flakiness",
+    "incremental_plan", "cost_report",
+    "DashboardBuilder", "write_dashboards", "sparkline", "heatmap", "sankey",
+    "scorecard",
+    "RTLBasicsVerifier", "FSMModel", "FIFOModel", "MemModel",
+    "SoCPeripheralVerifier", "InterconnectVerifier",
+    "AdvancedLinkVerifier", "adv_find_cycle",
+    "EquivalenceVerifier", "comb_equivalent", "best_latency_offset",
     "FPVerifier", "decode_fp", "fclass_mask",
     "get_adapter", "DUTClass", "register_adapter",
     "DigitalTwin", "EconomicsEngine", "BugExplainer",
