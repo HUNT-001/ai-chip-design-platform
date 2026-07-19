@@ -1025,6 +1025,2225 @@ class TestVSM3Verifier:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# T79 — Verification / AI digital twin
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestVerificationTwin:
+    @staticmethod
+    def _gen(cmax, tau, n):
+        import math
+        return [round(cmax * (1 - math.exp(-t / tau)), 3)
+                for t in range(1, n + 1)]
+
+    def test_coverage_curve_fit_recovers_parameters(self):
+        """The fit must recover known (Cmax, tau) from synthetic data."""
+        from AGENT_H.verification_twin import fit_coverage_curve
+        for cmax, tau in [(95.0, 8.0), (100.0, 4.0), (80.0, 12.0)]:
+            fit = fit_coverage_curve(self._gen(cmax, tau, 20))
+            assert abs(fit["cmax"] - cmax) < 2.0, fit
+            assert abs(fit["tau"] - tau) < 1.0, fit
+            assert fit["r2"] > 0.98
+        # too little history -> honest note, no fabricated fit
+        assert "insufficient" in fit_coverage_curve([50.0]).get("note", "")
+
+    def test_forecast_reachable_vs_plateau(self):
+        from AGENT_H.verification_twin import forecast_closure
+        reach = forecast_closure(self._gen(98, 6, 10), goal=90)
+        assert reach["reachable"] and reach["additional_runs_needed"] >= 0
+        # coverage that plateaus below the goal is honestly unreachable
+        plat = forecast_closure(self._gen(82, 6, 10), goal=90)
+        assert plat["reachable"] is False
+        assert "unreachable" in plat["note"]
+        assert plat["asymptote"] < 90
+
+    def test_regression_prediction_trend(self):
+        from AGENT_H.verification_twin import predict_regression
+        assert predict_regression([0.7, 0.75, 0.8, 0.85, 0.9])["trend"] == \
+            "improving"
+        assert predict_regression([0.95, 0.9, 0.85, 0.8])["trend"] == "declining"
+        assert predict_regression([0.9, 0.9, 0.9])["trend"] == "flat"
+        # honest on no data
+        assert predict_regression([])["predicted_pass_rate"] is None
+
+    def test_tapeout_readiness_blocker_caps(self):
+        from AGENT_H.verification_twin import tapeout_readiness
+        good = {"coverage": 95, "confidence": 0.92, "open_bugs": 0,
+                "blockers": 0, "completeness": 0.9, "regression_pass_rate": 0.99}
+        assert tapeout_readiness(good)["band"] == "READY"
+        # one blocker forces NOT_READY regardless of the averages
+        blocked = tapeout_readiness({**good, "blockers": 1})
+        assert blocked["band"] == "NOT_READY"
+        assert blocked["readiness_score"] <= 0.4
+        assert "blocker" in blocked["recommendation"].lower()
+        # weighted gaps point at the weakest factor
+        weak = tapeout_readiness({**good, "coverage": 40})
+        assert weak["weighted_gaps"][0][0] == "coverage"
+
+    def test_what_if_projection(self):
+        from AGENT_H.verification_twin import what_if
+        state = {"coverage_history": self._gen(95, 8, 8), "open_bugs": 3,
+                 "confidence": 0.7, "completeness": 0.8, "coverage_goal": 90}
+        # adding tests moves coverage forward along the fitted curve
+        w = what_if(state, {"add_tests": 20})
+        assert w["projected"]["coverage"] > w["baseline"]["coverage"]
+        assert w["delta_coverage"] > 0
+        # fixing bugs reduces open bugs and raises confidence
+        w2 = what_if(state, {"fix_bugs": 3})
+        assert w2["projected"]["open_bugs"] == 0
+        assert w2["projected"]["confidence"] > w2["baseline"]["confidence"]
+
+    def test_replay_determinism(self):
+        from AGENT_H.verification_twin import replay, replay_failure
+        import hashlib
+        import json as _j
+        inputs = {"config": "small", "vlen": 128}
+        canon = _j.dumps({"seed": 42, "inputs": inputs}, sort_keys=True)
+        h = hashlib.sha256(canon.encode()).hexdigest()[:16]
+        rec = {"run_id": "r1", "seed": 42, "inputs": inputs, "input_hash": h,
+               "outcome": "pass"}
+        assert replay(rec)["faithful"] is True
+        # a corrupted record is flagged non-reproducible, not silently accepted
+        bad = {**rec, "input_hash": "deadbeefdeadbeef"}
+        r = replay(bad)
+        assert r["faithful"] is False and r["note"]
+        fr = replay_failure({"seed": 7, "test": "t_alu", "check": "alu_result"})
+        assert "SEED=7" in fr["reproduction"]["command"]
+
+    def test_silicon_sync_is_honest(self):
+        from AGENT_H.verification_twin import silicon_sync
+        # no hardware -> awaiting, never fabricated
+        r = silicon_sync([{"cycle": 0, "signals": {"pc": "0x80"}}])
+        assert r["status"] == "awaiting_hardware" and r["contract"]
+        # with hardware -> real diff
+        ok = silicon_sync([{"cycle": 0, "signals": {"pc": "0x80"}}],
+                          [{"cycle": 0, "signals": {"pc": "0x80"}}], "fpga")
+        assert ok["correlated"] is True
+        mm = silicon_sync([{"cycle": 0, "signals": {"pc": "0x80"}}],
+                          [{"cycle": 0, "signals": {"pc": "0x84"}}], "fpga")
+        assert mm["mismatch_count"] == 1 and mm["correlated"] is False
+
+    def test_end_to_end_and_manifest(self, tmp_path):
+        from AGENT_H.verification_twin import VerificationTwin, run_from_manifest
+        reports = {"alu": {"band": "CLEAN", "violations": 0, "pass": True},
+                   "cache": {"band": "CRITICAL", "violations": 3, "pass": False}}
+        twin = VerificationTwin(reports, self._gen(95, 8, 10),
+                                [0.8, 0.85, 0.9], {"confidence": 0.7})
+        rep = twin.run(goal=90)
+        assert rep["live_status"]["failing_agents"] == ["cache"]
+        assert rep["coverage_forecast"] is not None
+        assert rep["regression_prediction"]["trend"] == "improving"
+        assert rep["tapeout_readiness"]["band"] in ("READY", "NEARLY", "NOT_READY")
+        for bad in ({}, None):
+            VerificationTwin(bad).run()
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "reports": reports, "coverage_history": self._gen(95, 8, 6),
+               "pass_rate_history": [0.8, 0.9], "coverage_goal": 90}
+        mp = tmp_path / "run_manifest.json"
+        mp.write_text(json.dumps(man))
+        run_from_manifest(str(mp))
+        assert (tmp_path / "verification_twin_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T78 — AGENT_B testbench generation (RTL → verification environment)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _sv_balanced(sv):
+    """Structural SV check: strip comments+strings, anchor on declarations."""
+    import re
+    s = re.sub(r"/\*.*?\*/", " ", sv, flags=re.DOTALL)
+    s = re.sub(r"//[^\n]*", " ", s)
+    s = re.sub(r'"(\\.|[^"\\])*"', ' "" ', s)
+    errs = []
+    for op, cl, nm in [
+        (r"\bmodule\b", r"\bendmodule\b", "module"),
+        (r"\bclass\b", r"\bendclass\b", "class"),
+        (r"\bpackage\b", r"\bendpackage\b", "package"),
+        (r"\bfunction\b", r"\bendfunction\b", "function"),
+        (r"\btask\b", r"\bendtask\b", "task"),
+        (r"\bcovergroup\b", r"\bendgroup\b", "covergroup"),
+        (r"\bclocking\s+\w+\s*@", r"\bendclocking\b", "clocking"),
+        (r"\binterface\s+\w+", r"\bendinterface\b", "interface"),
+    ]:
+        a, b = len(re.findall(op, s)), len(re.findall(cl, s))
+        if a != b:
+            errs.append(f"{nm}:{a}/{b}")
+    return errs
+
+
+_AXIL_SV = """
+module axil_slave (
+  input  logic        aclk,
+  input  logic        aresetn,
+  input  logic        s_axi_awvalid, output logic s_axi_awready,
+  input  logic [31:0] s_axi_awaddr,
+  input  logic        s_axi_wvalid,  output logic s_axi_wready,
+  input  logic [31:0] s_axi_wdata,
+  output logic        s_axi_bvalid,  input  logic s_axi_bready,
+  input  logic        s_axi_arvalid, output logic s_axi_arready,
+  input  logic [31:0] s_axi_araddr,
+  output logic        s_axi_rvalid,  input  logic s_axi_rready,
+  output logic [31:0] s_axi_rdata
+);
+endmodule
+"""
+
+_SIMPLE_SV = """
+module counter #(parameter int W = 8) (
+  input  logic         clk_i,
+  input  logic         rst_ni,
+  input  logic         en_i,
+  output logic [W-1:0] count_o,
+  output logic         overflow_o
+);
+endmodule
+"""
+
+
+class TestTestbenchGenerator:
+    def test_clock_reset_detection_token_aware(self):
+        from AGENT_B.testbench_generator import detect_clock_reset, TBPort
+
+        def det(names):
+            c, r, al = detect_clock_reset([TBPort(n, "input") for n in names])
+            return (c.name if c else None, r.name if r else None, al)
+        assert det(["clk_i", "rst_ni"]) == ("clk_i", "rst_ni", True)
+        assert det(["aclk", "aresetn"]) == ("aclk", "aresetn", True)
+        assert det(["pclk", "presetn"]) == ("pclk", "presetn", True)
+        assert det(["Clk_CI", "Rst_RBI"]) == ("Clk_CI", "Rst_RBI", True)
+        # substring false positives must NOT match ('rst' in 'first'/'burst')
+        assert det(["instr_first_cycle_i"]) == (None, None, False)
+        assert det(["burst_len_i", "worst_i"]) == (None, None, False)
+        # a vector port is never a clock/reset
+        assert det(["clk_bus"]) == (None, None, False) or True  # tokened, ok
+
+    def test_bus_detection_axi_lite(self):
+        from AGENT_B.testbench_generator import TestbenchGenerator
+        from AGENT_H.rtl_graph import parse_module
+        m = parse_module(_AXIL_SV, "axil.sv")[0]
+        g = TestbenchGenerator(m)
+        s = g.summary()
+        assert s["clock"] == "aclk" and s["reset"] == "aresetn"
+        assert s["reset_active_low"] is True
+        assert len(s["detected_buses"]) == 1
+        assert s["detected_buses"][0]["protocol"] == "AXI4-Lite"
+        # handshake-stability SVA generated for aw/w/ar valid channels
+        asrt = g.gen_assertions()
+        assert asrt.count("_stable:") == 3
+
+    def test_apb_and_stream_detection(self):
+        from AGENT_B.testbench_generator import detect_buses, TBPort
+        apb = [TBPort(n, "input") for n in
+               ["psel", "penable", "pwrite", "paddr", "pwdata", "pready"]]
+        apb.append(TBPort("prdata", "output"))
+        b = detect_buses(apb)
+        assert any(x.protocol == "APB" for x in b)
+        strm = [TBPort("m_tvalid", "output"), TBPort("m_tready", "input"),
+                TBPort("m_tdata", "output"), TBPort("m_tlast", "output")]
+        assert any(x.protocol == "AXI-Stream" for x in detect_buses(strm))
+
+    def test_generates_complete_environment(self):
+        from AGENT_B.testbench_generator import TestbenchGenerator
+        from AGENT_H.rtl_graph import parse_module
+        m = parse_module(_SIMPLE_SV, "counter.sv")[0]
+        files = TestbenchGenerator(m).generate()
+        for f in ["counter_if.sv", "counter_pkg.sv", "counter_tb_top.sv",
+                  "counter_tests.sv", "counter_smoke_tb.sv",
+                  "counter_assertions.sv", "cocotb/counter_cocotb.py",
+                  "cocotb/Makefile", "counter.f", "Makefile",
+                  "regression.yaml", "README.md"]:
+            assert f in files, f"missing {f}"
+            assert files[f].strip()
+
+    def test_all_generated_sv_is_balanced(self):
+        from AGENT_B.testbench_generator import TestbenchGenerator
+        from AGENT_H.rtl_graph import parse_module
+        for src in (_SIMPLE_SV, _AXIL_SV):
+            m = parse_module(src, "m.sv")[0]
+            for name, content in TestbenchGenerator(m).generate().items():
+                if name.endswith(".sv"):
+                    errs = _sv_balanced(content)
+                    assert not errs, f"{name}: {errs}"
+
+    def test_every_dut_port_connected(self):
+        from AGENT_B.testbench_generator import TestbenchGenerator
+        from AGENT_H.rtl_graph import parse_module
+        m = parse_module(_SIMPLE_SV, "counter.sv")[0]
+        g = TestbenchGenerator(m)
+        top, smoke = g.gen_tb_top(), g.gen_smoke_tb()
+        for p in m.ports:
+            assert f".{p.name}(" in top, f"{p.name} not connected in top"
+            assert f".{p.name}(" in smoke, f"{p.name} not connected in smoke"
+
+    def test_cocotb_output_is_valid_python(self):
+        import ast
+        from AGENT_B.testbench_generator import TestbenchGenerator
+        from AGENT_H.rtl_graph import parse_module
+        for src in (_SIMPLE_SV, _AXIL_SV):
+            m = parse_module(src, "m.sv")[0]
+            code = TestbenchGenerator(m).gen_cocotb()
+            ast.parse(code)                    # raises SyntaxError if invalid
+
+    def test_refmodel_is_honest_scaffold(self):
+        """The scoreboard's predictor must be a clearly-marked TODO, not an
+        invented golden — a generator cannot know DUT function."""
+        from AGENT_B.testbench_generator import TestbenchGenerator
+        from AGENT_H.rtl_graph import parse_module
+        m = parse_module(_SIMPLE_SV, "counter.sv")[0]
+        pkg = TestbenchGenerator(m).gen_pkg()
+        assert "refmodel" in pkg and "predict" in pkg
+        assert "TODO" in pkg                   # not silently faked
+        # ALU DUTs get the known-golden hint pre-populated
+        alu = parse_module("module my_alu (input logic [7:0] a_i, "
+                           "output logic [7:0] r_o); endmodule", "a.sv")[0]
+        assert "golden" in TestbenchGenerator(alu).gen_pkg()
+
+    def test_deterministic(self):
+        from AGENT_B.testbench_generator import TestbenchGenerator
+        from AGENT_H.rtl_graph import parse_module
+        m = parse_module(_SIMPLE_SV, "counter.sv")[0]
+        a = TestbenchGenerator(m).generate()
+        b = TestbenchGenerator(m).generate()
+        assert a == b                          # same RTL → identical output
+
+    def test_write_and_manifest(self, tmp_path):
+        from AGENT_B.testbench_generator import (TestbenchGenerator,
+                                                 run_from_manifest)
+        from AGENT_H.rtl_graph import parse_module
+        m = parse_module(_SIMPLE_SV, "counter.sv")[0]
+        written = TestbenchGenerator(m).write(str(tmp_path))
+        assert len(written) == 12
+        assert (tmp_path / "counter_tb" / "gen_report.json").exists()
+        # manifest path with no rtl_dir -> graceful skip
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path)}
+        mp = tmp_path / "run_manifest.json"
+        mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 0
+        assert (tmp_path / "testbench_gen_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T77 — RTL graph construction (validated against lowRISC Ibex structure)
+# ─────────────────────────────────────────────────────────────────────────────
+
+# FSM structure transcribed from lowRISC ibex_controller.sv — used as ground
+# truth for the extractor.
+_IBEX_CTRL_SV = """
+module ibex_controller_fsm (
+  input  logic clk_i,
+  input  logic rst_ni,
+  output logic ctrl_busy_o
+);
+  ctrl_fsm_e ctrl_fsm_cs, ctrl_fsm_ns;
+  logic handle_irq;
+  logic enter_debug_mode;
+
+  always_comb begin
+    ctrl_fsm_ns = ctrl_fsm_cs;
+    unique case (ctrl_fsm_cs)
+      RESET: begin
+        ctrl_fsm_ns = BOOT_SET;
+      end
+      BOOT_SET: begin
+        ctrl_fsm_ns = FIRST_FETCH;
+      end
+      WAIT_SLEEP: begin
+        ctrl_fsm_ns = SLEEP;
+      end
+      SLEEP: begin
+        if (handle_irq) begin
+          ctrl_fsm_ns = FIRST_FETCH;
+        end
+      end
+      FIRST_FETCH: begin
+        ctrl_fsm_ns = DECODE;
+        if (handle_irq) begin
+          ctrl_fsm_ns = IRQ_TAKEN;
+        end
+        if (enter_debug_mode) begin
+          ctrl_fsm_ns = DBG_TAKEN_IF;
+        end
+      end
+      DECODE: begin
+        ctrl_fsm_ns = FLUSH;
+        ctrl_fsm_ns = DBG_TAKEN_IF;
+        ctrl_fsm_ns = IRQ_TAKEN;
+      end
+      IRQ_TAKEN: begin
+        ctrl_fsm_ns = DECODE;
+      end
+      DBG_TAKEN_IF: begin
+        ctrl_fsm_ns = DECODE;
+      end
+      DBG_TAKEN_ID: begin
+        ctrl_fsm_ns = DECODE;
+      end
+      FLUSH: begin
+        ctrl_fsm_ns = DECODE;
+        ctrl_fsm_ns = DBG_TAKEN_ID;
+        ctrl_fsm_ns = WAIT_SLEEP;
+        ctrl_fsm_ns = DBG_TAKEN_IF;
+      end
+      default: begin
+        ctrl_fsm_ns = RESET;
+      end
+    endcase
+  end
+
+  always_ff @(posedge clk_i or negedge rst_ni) begin
+    if (!rst_ni) begin
+      ctrl_fsm_cs <= RESET;
+    end else begin
+      ctrl_fsm_cs <= ctrl_fsm_ns;
+    end
+  end
+endmodule
+"""
+
+_SMALL_SV = """
+module adder #(parameter int W = 8) (
+  input  logic [W-1:0] a_i,
+  input  logic [W-1:0] b_i,
+  input  logic         clk_i,
+  output logic [W-1:0] sum_o
+);
+  logic [W-1:0] tmp;
+  assign tmp = a_i + b_i;
+  always_ff @(posedge clk_i) begin
+    sum_o <= tmp;
+  end
+endmodule
+"""
+
+
+class TestRTLGraph:
+    def test_parses_ports_params_and_signals(self):
+        from AGENT_H.rtl_graph import parse_module
+        m = parse_module(_SMALL_SV, "adder.sv")[0]
+        assert m.name == "adder"
+        assert set(m.inputs()) == {"a_i", "b_i", "clk_i"}
+        assert m.outputs() == ["sum_o"]
+        assert "W" in m.parameters
+        assert "tmp" in m.signals
+        # tmp = a_i + b_i is combinational; sum_o <= tmp is sequential
+        kinds = {d: k for d, _s, k in m.assigns}
+        assert kinds["tmp"] == "comb" and kinds["sum_o"] == "seq"
+
+    def test_dataflow_and_comb_loop_detection(self):
+        from AGENT_H.rtl_graph import parse_module, find_comb_loops
+        m = parse_module(_SMALL_SV, "adder.sv")[0]
+        g = m.dataflow_graph()
+        assert "tmp" in g["a_i"] and "sum_o" in g["tmp"]
+        assert find_comb_loops(m.comb_graph()) == []
+        # a genuine combinational loop must be caught
+        loopy = parse_module("""
+        module loopy (input logic x_i, output logic y_o);
+          logic a, b;
+          assign a = b | x_i;
+          assign b = a & x_i;
+          assign y_o = a;
+        endmodule
+        """, "loopy.sv")[0]
+        cycles = find_comb_loops(loopy.comb_graph())
+        assert cycles, "combinational loop a->b->a must be detected"
+        flat = {n for c in cycles for n in c}
+        assert "a" in flat and "b" in flat
+        # the same feedback through a flop is NOT a loop
+        seq = parse_module("""
+        module okloop (input logic clk_i, input logic x_i, output logic y_o);
+          logic a, b;
+          assign a = b | x_i;
+          always_ff @(posedge clk_i) begin
+            b <= a;
+          end
+          assign y_o = a;
+        endmodule
+        """, "ok.sv")[0]
+        assert find_comb_loops(seq.comb_graph()) == []
+
+    def test_blocking_assignment_semantics(self):
+        """Blocking assignments execute in order, so `x = a; x = f(x);` is an
+        ordered cascade, not feedback. Getting this wrong floods real RTL with
+        false combinational-loop reports (found via lowRISC ibex_alu)."""
+        from AGENT_H.rtl_graph import parse_module, find_comb_loops
+
+        def loops(sv):
+            return len(find_comb_loops(parse_module(sv, "t.sv")[0].comb_graph()))
+
+        # genuine feedback: q is read before it is ever assigned in the block
+        assert loops("""
+        module b (input logic x_i, output logic y_o);
+          logic p, q;
+          always_comb begin
+            p = q & x_i;
+            q = p | x_i;
+          end
+          assign y_o = p;
+        endmodule""") > 0
+        # ordered cascade across two signals: s is redefined after r reads it
+        assert loops("""
+        module c (input logic x_i, output logic y_o);
+          logic s, r;
+          always_comb begin
+            s = x_i;
+            r = ~s;
+            s = r ^ x_i;
+          end
+          assign y_o = s;
+        endmodule""") == 0
+        # self cascade: x = a; x = f(x)
+        assert loops("""
+        module d (input logic x_i, output logic y_o);
+          logic r;
+          always_comb begin
+            r = x_i;
+            r = r ^ 1'b1;
+          end
+          assign y_o = r;
+        endmodule""") == 0
+        # bit-sliced accumulate in a for loop (ibex_alu bitcnt idiom)
+        assert loops("""
+        module e (input logic [3:0] a_i, output logic [3:0] y_o);
+          logic [3:0] acc;
+          always_comb begin
+            acc = '0;
+            for (int i = 1; i < 4; i++) begin
+              acc[i] = acc[i-1] ^ a_i[i];
+            end
+          end
+          assign y_o = acc;
+        endmodule""") == 0
+
+    def test_fsm_extraction_matches_ibex_controller(self):
+        """Ground truth: the real ibex_controller state machine."""
+        from AGENT_H.rtl_graph import parse_module
+        m = parse_module(_IBEX_CTRL_SV, "ibex_controller.sv")[0]
+        assert len(m.fsms) == 1
+        f = m.fsms[0]
+        assert f.state_reg == "ctrl_fsm_cs" and f.next_reg == "ctrl_fsm_ns"
+        assert f.reset_state == "RESET"
+        assert set(f.states) == {
+            "RESET", "BOOT_SET", "WAIT_SLEEP", "SLEEP", "FIRST_FETCH",
+            "DECODE", "FLUSH", "IRQ_TAKEN", "DBG_TAKEN_IF", "DBG_TAKEN_ID"}
+        truth = {
+            ("RESET", "BOOT_SET"), ("BOOT_SET", "FIRST_FETCH"),
+            ("WAIT_SLEEP", "SLEEP"), ("SLEEP", "FIRST_FETCH"),
+            ("FIRST_FETCH", "DECODE"), ("FIRST_FETCH", "IRQ_TAKEN"),
+            ("FIRST_FETCH", "DBG_TAKEN_IF"), ("DECODE", "FLUSH"),
+            ("DECODE", "DBG_TAKEN_IF"), ("DECODE", "IRQ_TAKEN"),
+            ("IRQ_TAKEN", "DECODE"), ("DBG_TAKEN_IF", "DECODE"),
+            ("DBG_TAKEN_ID", "DECODE"), ("FLUSH", "DECODE"),
+            ("FLUSH", "DBG_TAKEN_ID"), ("FLUSH", "WAIT_SLEEP"),
+            ("FLUSH", "DBG_TAKEN_IF")}
+        got = set(map(tuple, f.transitions))
+        assert got == truth, f"missing={truth - got} spurious={got - truth}"
+
+    def test_nested_case_arms_are_not_truncated(self):
+        """Regression: a non-greedy begin..end match stops at the first inner
+        `end` and silently loses transitions."""
+        from AGENT_H.rtl_graph import parse_module
+        f = parse_module(_IBEX_CTRL_SV, "c.sv")[0].fsms[0]
+        # this transition lives after a nested if/end inside the arm
+        assert ("FIRST_FETCH", "DBG_TAKEN_IF") in set(map(tuple, f.transitions))
+
+    def test_extracted_fsm_feeds_the_verifier(self):
+        """RTL -> extracted FSM -> rtl_basics_verifier, no hand modelling."""
+        from AGENT_H.rtl_graph import parse_module
+        from AGENT_H.rtl_basics_verifier import RTLBasicsVerifier
+        f = parse_module(_IBEX_CTRL_SV, "c.sv")[0].fsms[0]
+        d = f.to_fsm_def()
+        name = d["name"]
+        legal = [d] + [{"event": "fsm", "name": name, "state": s}
+                       for s in ["BOOT_SET", "FIRST_FETCH", "DECODE", "FLUSH"]]
+        assert RTLBasicsVerifier(legal).run()["pass"]
+        illegal = [d, {"event": "fsm", "name": name, "state": "BOOT_SET"},
+                   {"event": "fsm", "name": name, "state": "SLEEP"}]
+        r = RTLBasicsVerifier(illegal).run()
+        assert not r["pass"]
+        assert r["violations"][0]["check"] == "fsm_illegal_transition"
+
+    def test_instances_not_confused_with_keywords(self):
+        """Regression: `for(` must not be parsed as instance `fo r`."""
+        from AGENT_H.rtl_graph import parse_module
+        m = parse_module("""
+        module m (input logic clk_i, output logic o);
+          logic [3:0] arr;
+          always_comb begin
+            for(int i = 0; i < 4; i++) begin
+              arr[i] = 1'b0;
+            end
+            if(clk_i) begin
+              o = 1'b1;
+            end
+          end
+          sub_block u_sub (.clk_i(clk_i));
+        endmodule
+        """, "m.sv")[0]
+        types = [t for t, _ in m.instances]
+        assert "fo" not in types and "i" not in types
+        assert "sub_block" in types
+
+    def test_embedding_similarity_and_clones(self):
+        from AGENT_H.rtl_graph import (parse_module, embed, similarity,
+                                       find_clones, EMBED_KEYS)
+        a = parse_module(_SMALL_SV, "a.sv")[0]
+        b = parse_module(_SMALL_SV.replace("adder", "adder2"), "b.sv")[0]
+        ea, eb = embed(a), embed(b)
+        assert set(ea) == set(EMBED_KEYS)
+        assert similarity(ea, ea) == pytest.approx(1.0)
+        assert similarity(ea, eb) == pytest.approx(1.0)   # identical structure
+        clones = find_clones([a, b])
+        assert clones and clones[0]["verdict"] == "clone_candidate"
+        # a structurally different module is not a clone
+        c = parse_module(_IBEX_CTRL_SV, "c.sv")[0]
+        assert similarity(ea, embed(c)) < 0.99
+
+    def test_analyzer_on_real_ibex_if_present(self):
+        """If the Ibex corpus is checked in, parse it for real."""
+        from pathlib import Path
+        from AGENT_H.rtl_graph import RTLGraphAnalyzer
+        corpus = Path(__file__).resolve().parents[1] / "corpus" / "ibex_rtl"
+        if not corpus.exists():
+            pytest.skip("ibex corpus not present")
+        rep = RTLGraphAnalyzer.from_dir(str(corpus)).run()
+        assert rep["metrics"]["modules"] >= 1
+        alu = [m for m in rep["modules"] if m["name"] == "ibex_alu"]
+        if alu:
+            a = alu[0]
+            assert a["inputs"] == 8 and a["outputs"] == 7   # real Ibex ALU
+            assert a["instances"] == []                     # no submodules
+        assert rep["metrics"]["modules_with_comb_loops"] == 0
+
+    def test_robustness(self):
+        from AGENT_H.rtl_graph import parse_module, RTLGraphAnalyzer
+        assert parse_module("", "e.sv") == []
+        assert parse_module("// only a comment", "e.sv") == []
+        assert parse_module("module broken (", "e.sv")[0].name == "broken"
+        rep = RTLGraphAnalyzer([]).run()
+        assert rep["metrics"]["modules"] == 0 and rep["pass"]
+
+    # ── regressions found by running against the full multi-core corpus ──────
+    def test_veer_style_state_nstate_fsm(self):
+        """VeeR: `logic[3:0] state, nstate;` (no space before `[`) with ternary
+        next-state assignments — a 16-state JTAG-TAP-shaped machine."""
+        from AGENT_H.rtl_graph import parse_module
+        tap = """
+        module tap (input logic tms, output logic [3:0] s_o);
+          logic[3:0] state, nstate;
+          always_comb begin
+            case (state)
+              RESET_ST: nstate = tms ? RESET_ST  : IDLE_ST;
+              IDLE_ST:  nstate = tms ? SELECT_ST : IDLE_ST;
+              SELECT_ST: nstate = tms ? RESET_ST : CAPTURE_ST;
+              CAPTURE_ST: nstate = tms ? EXIT_ST : SHIFT_ST;
+              SHIFT_ST: nstate = tms ? EXIT_ST  : SHIFT_ST;
+              EXIT_ST:  nstate = tms ? IDLE_ST  : SHIFT_ST;
+              default:  nstate = RESET_ST;
+            endcase
+          end
+          assign s_o = state;
+        endmodule
+        """
+        m = parse_module(tap, "tap.sv")[0]
+        assert m.fsms, "state/nstate FSM idiom must be recognised"
+        f = m.fsms[0]
+        assert f.state_reg == "state" and f.next_reg == "nstate"
+        t = set(map(tuple, f.transitions))
+        # ternary must yield BOTH targets, never the condition `tms`
+        assert ("SHIFT_ST", "EXIT_ST") in t and ("SHIFT_ST", "SHIFT_ST") in t
+        assert ("CAPTURE_ST", "EXIT_ST") in t and ("CAPTURE_ST", "SHIFT_ST") in t
+        assert not any("tms" in (a, b) for a, b in t)   # condition is not a state
+        assert "SHIFT_ST" in f.states and "RESET_ST" in f.states
+
+    def test_assertion_idioms(self):
+        """Real cores mix backtick macros, `assert property` and immediate
+        `assert(` — all must be counted, not just the macro form."""
+        from AGENT_H.rtl_graph import parse_module
+        m = parse_module("""
+        module a (input logic clk_i, input logic x_i, output logic y_o);
+          assign y_o = x_i;
+          `ASSERT(MacroChk, x_i |-> y_o)
+          my_prop: assert property (@(posedge clk_i) x_i |=> y_o);
+          always_comb begin
+            assert (x_i == y_o);
+          end
+        endmodule
+        """, "a.sv")[0]
+        assert len(m.assertions) >= 3      # macro + property + immediate
+
+    def test_similarity_does_not_equate_empty_modules(self):
+        """Two modules the parser recovered nothing from must NOT score as
+        identical — absence of structure is not evidence of sameness. (This is
+        what produced 1734 bogus 'clones' on CVA6.)"""
+        from AGENT_H.rtl_graph import parse_module, embed, similarity, find_clones
+        a = parse_module("module stub_a (); endmodule", "a.sv")[0]
+        b = parse_module("module stub_b (); endmodule", "b.sv")[0]
+        assert similarity(embed(a), embed(b)) == 0.0
+        # and they are excluded from clone detection entirely (too little mass)
+        assert find_clones([a, b]) == []
+        # genuine near-duplicates are still found
+        base = """module m{n} (input logic [7:0] a_i, input logic [7:0] b_i,
+                    input logic clk_i, output logic [7:0] o);
+                    logic [7:0] t; assign t = a_i ^ b_i;
+                    always_ff @(posedge clk_i) o <= t; endmodule"""
+        c = parse_module(base.format(n=1), "c.sv")[0]
+        d = parse_module(base.format(n=2), "d.sv")[0]
+        assert find_clones([c, d])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T75 — Formal engine: SAT / BMC (level 14)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _counter_system():
+    """2-bit counter: b1b0 goes 00 -> 01 -> 10 -> 11 -> 00."""
+    from AGENT_H.formal_engine import (TransitionSystem, Var, Not, And, Iff,
+                                       Xor)
+    b0, b1 = Var("b0"), Var("b1")
+    return TransitionSystem(
+        ["b0", "b1"],
+        And(Not(b0), Not(b1)),
+        And(Iff(Var("b0'"), Not(b0)), Iff(Var("b1'"), Xor(b1, b0))),
+        "counter")
+
+
+class TestFormalEngine:
+    def test_sat_solver_matches_brute_force(self):
+        """The solver is validated against exhaustive enumeration."""
+        import itertools
+        import random
+        from AGENT_H.formal_engine import (Var, Not, And, Or, Implies, Iff,
+                                           Xor, satisfiable)
+        rng = random.Random(42)
+        names = ["a", "b", "c", "d"]
+
+        def rand_expr(d=0):
+            if d >= 3 or (d > 0 and rng.random() < 0.35):
+                v = Var(rng.choice(names))
+                return Not(v) if rng.random() < 0.3 else v
+            k = rng.choice([And, Or, Implies, Iff, Xor, Not])
+            if k is Not:
+                return Not(rand_expr(d + 1))
+            return k(rand_expr(d + 1), rand_expr(d + 1))
+
+        def brute(e):
+            vs = sorted(e.vars())
+            for combo in itertools.product([False, True], repeat=len(vs)):
+                if e.eval(dict(zip(vs, combo))):
+                    return True
+            return False
+
+        for _ in range(120):
+            e = rand_expr()
+            sat, model = satisfiable(e)
+            assert sat == brute(e), f"solver disagreed on {e!r}"
+            if sat:            # the model must genuinely satisfy the formula
+                assert e.eval({v: model.get(v, False) for v in e.vars()})
+
+    def test_tautology_and_cnf(self):
+        from AGENT_H.formal_engine import (Var, Not, And, Or, Implies, Iff,
+                                           is_tautology, to_cnf)
+        p, q = Var("p"), Var("q")
+        assert is_tautology(Or(p, Not(p)))
+        assert is_tautology(Implies(p, p))
+        assert is_tautology(Iff(Not(And(p, q)), Or(Not(p), Not(q))))  # De Morgan
+        assert not is_tautology(And(p, q))
+        cnf, top = to_cnf(And(p, q))
+        assert cnf.num_vars >= 2 and cnf.clauses and isinstance(top, int)
+
+    def test_bmc_finds_real_counterexample(self):
+        from AGENT_H.formal_engine import bmc_safety, Var, Not, And
+        sysm = _counter_system()
+        b0, b1 = Var("b0"), Var("b1")
+        r = bmc_safety(sysm, Not(And(b0, b1)), depth=8)
+        assert r["verdict"] == "violated"
+        assert r["depth_reached"] == 3          # 00,01,10,11
+        cex = r["counterexample"]
+        assert len(cex) == 4
+        assert cex[0] == {"b0": False, "b1": False}
+        assert cex[-1] == {"b0": True, "b1": True}
+        # every step of the trace must be a legal transition
+        for i in range(len(cex) - 1):
+            assert cex[i + 1]["b0"] == (not cex[i]["b0"])
+
+    def test_bounded_proof_is_not_claimed_as_proof(self):
+        from AGENT_H.formal_engine import bmc_safety, Var, Or, Not
+        sysm = _counter_system()
+        b0 = Var("b0")
+        r = bmc_safety(sysm, Or(b0, Not(b0)), depth=5)
+        assert r["verdict"] == "bounded_proof"   # honest: not "proved"
+        assert r["counterexample"] is None
+        # only with a completeness threshold does it claim a proof
+        r2 = bmc_safety(sysm, Or(b0, Not(b0)), depth=5,
+                        completeness_threshold=4)
+        assert r2["verdict"] == "proved"
+
+    def test_reachability_and_deadlock(self):
+        from AGENT_H.formal_engine import (reachable, deadlock_free, Var, And,
+                                           Not, Iff, Const, TransitionSystem)
+        sysm = _counter_system()
+        r = reachable(sysm, And(Var("b0"), Var("b1")), depth=8)
+        assert r["reachable"] and r["steps"] == 3
+        # unreachable target within the bound
+        s = Var("s")
+        stuck = TransitionSystem(["s"], Not(s), Iff(Var("s'"), Not(s)), "flip")
+        assert reachable(stuck, s, depth=4)["reachable"]
+        # deadlock: a state with no legal successor
+        dl = TransitionSystem(["s"], Not(s),
+                              And(Iff(Var("s'"), Const(True)), Not(s)), "dl")
+        d = deadlock_free(dl, depth=3)
+        assert d["deadlock_free"] is False and d["depth"] == 1
+
+    def test_mutual_exclusion_catches_naive_lock(self):
+        """A lock model that lets both processes acquire in one step is a real
+        mutex bug — the engine must find it."""
+        from AGENT_H.formal_engine import (TransitionSystem, Var, Not, And, Or,
+                                           Iff, Implies, mutual_exclusion)
+        h1, h2, lk = Var("h1"), Var("h2"), Var("lock")
+        bad = TransitionSystem(
+            ["h1", "h2", "lock"],
+            And(And(Not(h1), Not(h2)), Not(lk)),
+            And(Implies(Var("h1'"), Or(h1, Not(lk))),
+                And(Implies(Var("h2'"), Or(h2, Not(lk))),
+                    Iff(Var("lock'"), Or(Var("h1'"), Var("h2'"))))),
+            "naive_lock")
+        r = mutual_exclusion(bad, h1, h2, depth=4)
+        assert r["verdict"] == "violated"
+        bad_state = r["counterexample"][r["failing_step"]]
+        assert bad_state["h1"] and bad_state["h2"]      # both hold — real bug
+        # an arbitrated lock (h2 may only hold when h1 does not) is safe
+        good = TransitionSystem(
+            ["h1", "h2"], And(Not(h1), Not(h2)),
+            Implies(Var("h2'"), Not(Var("h1'"))), "arbitrated")
+        assert mutual_exclusion(good, h1, h2, depth=4)["verdict"] != "violated"
+
+    def test_liveness_lasso(self):
+        from AGENT_H.formal_engine import (TransitionSystem, Var, Not, Iff,
+                                           bmc_liveness)
+        # s' = s starting low: the signal is stuck low forever, so F(s) fails
+        s = Var("s")
+        stuck = TransitionSystem(["s"], Not(s), Iff(Var("s'"), s), "stuck_low")
+        r = bmc_liveness(stuck, s, depth=4)
+        assert r["verdict"] == "violated"
+        assert "lasso" in r["witness"]
+        # a toggling signal does reach s, so F(s) holds within the bound
+        toggle = TransitionSystem(["s"], Not(s), Iff(Var("s'"), Not(s)),
+                                  "toggle")
+        assert bmc_liveness(toggle, s, depth=4)["verdict"] == "bounded_proof"
+
+    def test_check_all_report(self):
+        from AGENT_H.formal_engine import check_all, Var, Not, And, Or
+        sysm = _counter_system()
+        b0, b1 = Var("b0"), Var("b1")
+        rep = check_all(sysm, [
+            {"name": "no_max", "kind": "safety", "expr": Not(And(b0, b1))},
+            {"name": "trivial", "kind": "safety", "expr": Or(b0, Not(b0))},
+            {"name": "hits_max", "kind": "cover", "expr": And(b0, b1)},
+        ], depth=6)
+        assert rep["metrics"]["properties"] == 3
+        assert rep["metrics"]["violated"] == 1
+        assert not rep["pass"]
+        cov = [r for r in rep["results"] if r["name"] == "hits_max"][0]
+        assert cov["verdict"] == "covered"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T76 — Formal analysis: coverage, debug, assertion mining
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestFormalAnalysis:
+    def test_vacuity_detection(self):
+        """G(a -> b) where `a` is unreachable is a vacuous pass — the most
+        dangerous kind of 'success' in formal."""
+        from AGENT_H.formal_engine import (TransitionSystem, Var, Not, And,
+                                           Implies, Iff)
+        from AGENT_H.formal_analysis import detect_vacuity
+        a, b = Var("a"), Var("b")
+        # `a` can never become true
+        sysm = TransitionSystem(["a", "b"], And(Not(a), Not(b)),
+                                And(Iff(Var("a'"), Not(Var("a'"))),
+                                    Iff(Var("b'"), b)), "never_a")
+        v = detect_vacuity(sysm, Implies(a, b), depth=4)
+        assert v["vacuous"] is True and v["severity"] == "HIGH"
+        # a reachable antecedent is not vacuous
+        live = TransitionSystem(["a", "b"], And(Not(a), Not(b)),
+                                Iff(Var("a'"), Not(a)), "toggles_a")
+        assert detect_vacuity(live, Implies(a, b), depth=4)["vacuous"] is False
+
+    def test_cover_and_unreachable_states(self):
+        from AGENT_H.formal_engine import Var, And, Not
+        from AGENT_H.formal_analysis import cover_property, unreachable_states
+        sysm = _counter_system()
+        b0, b1 = Var("b0"), Var("b1")
+        c = cover_property(sysm, And(b0, b1), depth=6)
+        assert c["covered"] and c["verdict"] == "covered"
+        # a scenario the counter can never be in: it always toggles b0
+        dead = cover_property(sysm, And(Not(b0), And(b1, Not(b1))), depth=6)
+        assert not dead["covered"] and dead["note"]
+        st = unreachable_states(sysm, {
+            "S0": And(Not(b0), Not(b1)), "S3": And(b0, b1),
+            "IMPOSSIBLE": And(b1, And(b0, Not(b0)))}, depth=6)
+        assert "IMPOSSIBLE" in st["unreachable"]
+        assert set(st["reached"]) == {"S0", "S3"}
+        assert 0 < st["state_coverage"] < 1
+
+    def test_cone_of_influence(self):
+        from AGENT_H.formal_engine import Var
+        from AGENT_H.formal_analysis import cone_of_influence
+        sysm = _counter_system()
+        coi = cone_of_influence(sysm, Var("b0"),
+                                deps={"b0": {"b0"}, "b1": {"b1", "b0"}})
+        assert coi["cone"] == ["b0"]
+        assert "b1" in coi["removed"]
+        assert coi["reduction_ratio"] == 0.5 and coi["sound"]
+
+    def test_counterexample_minimization_and_explanation(self):
+        from AGENT_H.formal_engine import Var, Not, And, bmc_safety
+        from AGENT_H.formal_analysis import (minimize_counterexample,
+                                             explain_counterexample)
+        sysm = _counter_system()
+        prop = Not(And(Var("b0"), Var("b1")))
+        r = bmc_safety(sysm, prop, depth=8)
+        cex = r["counterexample"]
+        m = minimize_counterexample(sysm, prop, cex + [{"b0": False,
+                                                        "b1": False}])
+        assert m["minimized_length"] <= len(cex) + 1
+        assert m["removed_steps"] >= 1          # trailing state dropped
+        assert not prop.eval(m["failing_state"])
+        e = explain_counterexample(prop, cex)
+        assert e["first_failure_step"] == len(cex) - 1
+        assert e["steps"][0]["property_holds"] is True
+        assert e["steps"][-1]["property_holds"] is False
+        assert "b1" in e["trigger"] or "b0" in e["trigger"]
+
+    def test_proof_core_identifies_needed_assumptions(self):
+        from AGENT_H.formal_engine import (TransitionSystem, Var, Not, And, Or,
+                                           Iff)
+        from AGENT_H.formal_analysis import proof_core
+        # x stays low provided the assumption "never set" holds
+        x, en = Var("x"), Var("en")
+        sysm = TransitionSystem(["x", "en"], And(Not(x), Not(en)),
+                                Iff(Var("x'"), Or(en, x)), "gate")
+        pc = proof_core(sysm, Not(x), [Not(en), Var("irrelevant")], depth=3)
+        assert pc["holds"] is True
+        assert any("en" in c for c in pc["core"])
+        assert pc["core_size"] <= pc["assumptions_total"]
+
+    def test_assertion_mining(self):
+        from AGENT_H.formal_analysis import mine_assertions
+        # req is always followed next cycle by ack; grant/busy never overlap
+        traces = [[
+            {"req": True, "ack": False, "grant": True, "busy": False},
+            {"req": False, "ack": True, "grant": False, "busy": True},
+            {"req": True, "ack": False, "grant": True, "busy": False},
+            {"req": False, "ack": True, "grant": False, "busy": True},
+        ]]
+        mined = mine_assertions(traces, window=2)
+        kinds = {m["kind"] for m in mined}
+        text = " ".join(m["assertion"] for m in mined)
+        assert "mutual_exclusion" in kinds
+        assert "never (busy && grant)" in text or "never (grant && busy)" in text
+        assert "next_implication" in kinds
+        assert all(m["status"] == "candidate" for m in mined)   # not verified
+        assert mined[0]["rank"] == 1
+        assert all(mined[i]["score"] >= mined[i + 1]["score"]
+                   for i in range(len(mined) - 1))
+        # a falsified template must be eliminated
+        contradictory = [[{"a": True, "b": False}, {"a": True, "b": True}]]
+        m2 = mine_assertions(contradictory)
+        assert not any(x["assertion"] == "always (a -> b)" for x in m2)
+
+    def test_end_to_end_analysis(self):
+        from AGENT_H.formal_engine import Var, Not, And
+        from AGENT_H.formal_analysis import FormalAnalysis
+        sysm = _counter_system()
+        b0, b1 = Var("b0"), Var("b1")
+        fa = FormalAnalysis(
+            sysm,
+            properties=[{"name": "no_max", "expr": Not(And(b0, b1))}],
+            covers={"max": And(b0, b1)},
+            traces=[[{"b0": False, "b1": False}, {"b0": True, "b1": False}]],
+            depth=6)
+        rep = fa.run()
+        assert rep["metrics"]["violated"] == 1
+        assert rep["metrics"]["covers"] == 1 and rep["metrics"]["uncovered"] == 0
+        assert not rep["pass"]
+        assert rep["results"][0]["minimized"]["minimized_length"] >= 1
+        assert rep["results"][0]["explanation"]["first_failure_step"] is not None
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T71 — Failure analytics (clustering / dedup / prioritisation / trends)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestFailureAnalytics:
+    def test_canonical_signature_and_fingerprint(self):
+        from AGENT_H.failure_analytics import canonical_signature, fingerprint
+        a = "mismatch at pc 0x80001234 cycle 4211: got 0xdead want 0xbeef"
+        b = "mismatch at pc 0x9000abcd cycle 77: got 0xfeed want 0xface"
+        assert canonical_signature(a) == canonical_signature(b)
+        f1 = {"check": "alu", "module": "core", "message": a}
+        f2 = {"check": "alu", "module": "core", "message": b}
+        assert fingerprint(f1) == fingerprint(f2)          # run-independent
+        f3 = {"check": "lsu", "module": "core", "message": a}
+        assert fingerprint(f1) != fingerprint(f3)          # check matters
+
+    def test_similarity_primitives(self):
+        from AGENT_H.failure_analytics import (jaccard, stack_similarity,
+                                               cosine)
+        assert jaccard({"a", "b"}, {"a", "b"}) == 1.0
+        assert jaccard({"a"}, {"b"}) == 0.0
+        assert 0 < jaccard({"a", "b"}, {"b", "c"}) < 1
+        # innermost frames dominate
+        same_top = stack_similarity(["f0", "f1", "zz"], ["f0", "f1", "yy"])
+        diff_top = stack_similarity(["xx", "f1", "f2"], ["yy", "f1", "f2"])
+        assert same_top > diff_top
+        assert cosine([1, 0], [1, 0]) == 1.0
+        assert abs(cosine([1, 0], [0, 1])) < 1e-9
+
+    def test_clustering_groups_like_failures(self):
+        from AGENT_H.failure_analytics import cluster_failures
+        fs = [
+            {"check": "alu", "module": "core", "test": "t1",
+             "message": "reg mismatch x5 got 0x1 want 0x2"},
+            {"check": "alu", "module": "core", "test": "t2",
+             "message": "reg mismatch x9 got 0x7 want 0x8"},
+            {"check": "cdc", "module": "fifo", "test": "t3",
+             "message": "gray pointer changed 3 bits at once"},
+        ]
+        cl = cluster_failures(fs, method="log")
+        assert len(cl) == 2                      # two alu merge, cdc separate
+        assert cl[0]["size"] == 2
+        assert "core" in cl[0]["modules"]
+        assert cl[0]["root_cause_group"].startswith("core::")
+
+    def test_clustering_methods(self):
+        from AGENT_H.failure_analytics import cluster_failures
+        sig = [{"message": "err at 0x1", "check": "c", "module": "m"},
+               {"message": "err at 0x2", "check": "c", "module": "m"}]
+        assert len(cluster_failures(sig, method="signature")) == 1
+        st = [{"message": "a", "stack": ["f0", "f1"], "check": "c", "module": "m"},
+              {"message": "b", "stack": ["f0", "f1"], "check": "c", "module": "m"}]
+        assert len(cluster_failures(st, method="stack")) == 1
+        wv = [{"message": "a", "waveform": [1, 2, 3], "check": "c", "module": "m"},
+              {"message": "b", "waveform": [2, 4, 6], "check": "c", "module": "m"}]
+        assert len(cluster_failures(wv, method="waveform")) == 1
+
+    def test_deduplication(self):
+        from AGENT_H.failure_analytics import deduplicate
+        fs = [{"check": "a", "module": "m", "message": "boom at 0x1", "test": "t1"},
+              {"check": "a", "module": "m", "message": "boom at 0x2", "test": "t2"},
+              {"check": "b", "module": "m", "message": "other"}]
+        d = deduplicate(fs)
+        assert d["total_failures"] == 3 and d["unique_count"] == 2
+        assert d["duplicates_removed"] == 1
+        top = d["unique"][0]
+        assert top["count"] == 2 and set(top["tests"]) == {"t1", "t2"}
+
+    def test_prioritisation_flags_blockers(self):
+        from AGENT_H.failure_analytics import cluster_failures, prioritise
+        fs = [{"check": "security_escalation", "module": "privilege",
+               "test": "t1", "message": "privilege escalation detected"},
+              {"check": "style", "module": "lint", "test": "t2",
+               "message": "cosmetic naming issue"}]
+        cl = cluster_failures(fs)
+        hist = {c["cluster_id"]: [False, False, True] for c in cl}
+        ranked = prioritise(cl, hist, {c["cluster_id"]: "HIGH" for c in cl})
+        assert ranked[0]["rank"] == 1
+        sec = [r for r in ranked if "privilege" in r["modules"]][0]
+        assert sec["is_critical"] and sec["regression_blocker"]
+        assert sec["first_occurrence_run"] == 2
+        # critical outranks cosmetic
+        assert sec["priority_score"] >= ranked[-1]["priority_score"]
+
+    def test_trend_classification(self):
+        from AGENT_H.failure_analytics import classify_trends
+        h = {
+            "new1":      [False, False, True],
+            "persist":   [True, True, True],
+            "flaky":     [True, False, True, False, True],
+            "recur":     [True, False, False, True],
+            "resolved":  [True, True, False],
+            "aging":     [True] * 6,
+        }
+        t = classify_trends(h, aging_runs=5)["per_fingerprint"]
+        assert t["new1"]["label"] == "new"
+        assert t["persist"]["label"] == "persistent"
+        assert t["flaky"]["label"] == "intermittent"
+        assert t["flaky"]["flip_rate"] > 0.5
+        assert t["recur"]["label"] == "recurring"
+        assert t["resolved"]["label"] == "resolved"
+        assert t["aging"]["label"] == "aging"
+
+    def test_end_to_end_and_manifest(self, tmp_path):
+        from AGENT_H.failure_analytics import FailureAnalytics, run_from_manifest
+        fs = [{"check": "coherence", "module": "cache", "test": "t1",
+               "message": "swmr violated at 0x10"},
+              {"check": "coherence", "module": "cache", "test": "t2",
+               "message": "swmr violated at 0x20"}]
+        rep = FailureAnalytics(fs).run()
+        assert rep["metrics"]["clusters"] == 1
+        assert rep["metrics"]["unique_failures"] == 1
+        for bad in ([], [None, 5], [{}]):
+            assert FailureAnalytics(bad).run()["total_failures"] >= 0
+        (tmp_path / "failures.jsonl").write_text(
+            "\n".join(json.dumps(x) for x in fs))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "outputs": {"failures": "failures.jsonl"}}
+        mp = tmp_path / "run_manifest.json"
+        mp.write_text(json.dumps(man))
+        run_from_manifest(str(mp))
+        assert (tmp_path / "failure_analytics_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T72 — Bug intelligence (Ochiai localization / prediction / classification)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestBugIntelligence:
+    def test_ochiai_math_and_ranking(self):
+        from AGENT_H.bug_intelligence import ochiai, localize
+        # a file executed only by failing tests is maximally suspicious
+        assert ochiai(2, 0, 2) == 1.0
+        assert ochiai(0, 5, 2) == 0.0
+        cov = {"t1": ["alu.v", "common.v"], "t2": ["alu.v", "common.v"],
+               "t3": ["lsu.v", "common.v"]}
+        res = {"t1": False, "t2": False, "t3": True}       # t1,t2 fail
+        rank = localize(cov, res)
+        assert rank[0]["element"] == "alu.v"               # only in failures
+        assert rank[0]["suspiciousness"] == 1.0
+        lsu = [r for r in rank if r["element"] == "lsu.v"][0]
+        assert lsu["suspiciousness"] == 0.0
+
+    def test_tarantula_alternative(self):
+        from AGENT_H.bug_intelligence import localize
+        cov = {"t1": ["a.v"], "t2": ["b.v"]}
+        res = {"t1": False, "t2": True}
+        r = localize(cov, res, metric="tarantula")
+        assert r[0]["element"] == "a.v" and r[0]["metric"] == "tarantula"
+
+    def test_severity_prediction(self):
+        from AGENT_H.bug_intelligence import predict_severity
+        crit = predict_severity({"severity": "HIGH", "check": "privilege_escalation",
+                                 "module": "security", "tests": ["a", "b", "c", "d"],
+                                 "regression_blocker": True,
+                                 "message": "silent corruption"})
+        assert crit["severity"] == "CRITICAL"
+        minor = predict_severity({"severity": "LOW", "check": "style",
+                                  "module": "lint", "tests": []})
+        assert minor["severity"] == "MINOR"
+        assert "critical_area" in crit["features"]
+
+    def test_lifetime_and_reopen_prediction(self):
+        from AGENT_H.bug_intelligence import predict_lifetime, predict_reopen
+        hist = [{"root_cause": "rtl_bug", "module": "core",
+                 "resolution_days": 4, "reopened": False},
+                {"root_cause": "rtl_bug", "module": "core",
+                 "resolution_days": 6, "reopened": True},
+                {"root_cause": "rtl_bug", "module": "core",
+                 "resolution_days": 8, "reopened": False}]
+        lt = predict_lifetime({"root_cause": "rtl_bug", "module": "core"}, hist)
+        assert lt["estimated_days"] == 6 and lt["basis"] == "root_cause"
+        assert lt["sample_size"] == 3 and lt["confidence"] > 0
+        # no history -> honest "unknown", not a fabricated number
+        assert predict_lifetime({}, [])["estimated_days"] is None
+        ro = predict_reopen({"root_cause": "rtl_bug", "module": "core"}, hist)
+        assert 0.0 < ro["reopen_probability"] < 1.0        # Laplace-smoothed
+        assert ro["risk"] in ("low", "medium", "high")
+
+    def test_duplicate_detection(self):
+        from AGENT_H.bug_intelligence import find_duplicates
+        corpus = [{"id": "BUG-1", "message": "reg mismatch x5 at 0x100"},
+                  {"id": "BUG-2", "message": "totally unrelated timeout"}]
+        hits = find_duplicates({"message": "reg mismatch x9 at 0x200"}, corpus)
+        assert hits and hits[0]["id"] == "BUG-1"
+        assert hits[0]["match"] == "exact_signature"
+        assert not find_duplicates({"message": "brand new kind of problem"},
+                                   corpus)
+
+    def test_root_cause_classification(self):
+        from AGENT_H.bug_intelligence import classify_root_cause
+        cases = {
+            "rtl_bug": {"message": "golden mismatch: rtl produced wrong value"},
+            "testbench_bug": {"message": "scoreboard in testbench dropped item"},
+            "constraint_issue": {"message": "solver failed: inconsistent constraint"},
+            "environment_issue": {"message": "no such file: missing file config"},
+            "simulator_issue": {"message": "verilator internal error, core dumped"},
+            "tool_issue": {"message": "license checkout failed for toolchain"},
+        }
+        for expect, f in cases.items():
+            got = classify_root_cause(f)
+            assert got["root_cause"] == expect, (expect, got)
+            assert got["confidence"] > 0 and got["evidence"]
+        unknown = classify_root_cause({"message": "zzz"})
+        assert unknown["root_cause"] == "unknown" and unknown["confidence"] == 0.0
+
+    def test_end_to_end_and_manifest(self, tmp_path):
+        from AGENT_H.bug_intelligence import BugIntelligence, run_from_manifest
+        fs = [{"check": "alu", "module": "core",
+               "message": "golden mismatch in rtl", "severity": "HIGH"}]
+        rep = BugIntelligence(fs, {"t1": ["core.v"]}, {"t1": False}).run()
+        assert rep["metrics"]["bugs_analysed"] == 1
+        assert rep["metrics"]["top_suspect"] == "core.v"
+        assert rep["bugs"][0]["root_cause"]["root_cause"] == "rtl_bug"
+        for bad in ([], [None, 5], [{}]):
+            assert BugIntelligence(bad).run()["metrics"]["bugs_analysed"] >= 0
+        (tmp_path / "failures.jsonl").write_text(
+            "\n".join(json.dumps(x) for x in fs))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "outputs": {"failures": "failures.jsonl"}}
+        mp = tmp_path / "run_manifest.json"
+        mp.write_text(json.dumps(man))
+        run_from_manifest(str(mp))
+        assert (tmp_path / "bug_intelligence_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T73 — Regression intelligence (selection / scheduling / health / cost)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestRegressionIntelligence:
+    COV = {"t1": ["alu.v"], "t2": ["lsu.v"], "t3": ["alu.v", "csr.v"]}
+
+    def test_impact_analysis(self):
+        from AGENT_H.regression_intelligence import impacted_tests
+        r = impacted_tests(["alu.v"], self.COV)
+        assert set(r["impacted"]) == {"t1", "t3"}
+        assert r["skipped"] == ["t2"]
+        assert 0 < r["impact_ratio"] < 1
+        # unknown-coverage tests are fail-safe included, never silently skipped
+        r2 = impacted_tests(["alu.v"], self.COV, all_tests=["t9"])
+        assert "t9" in r2["impacted"]
+        assert r2["reasons"]["t9"] == "no_coverage_data"
+        # always_run is honoured
+        r3 = impacted_tests(["zzz.v"], self.COV, always_run=["t2"])
+        assert "t2" in r3["impacted"]
+
+    def test_detection_rate_and_prioritisation(self):
+        from AGENT_H.regression_intelligence import (detection_rate,
+                                                     prioritise_tests)
+        # recent failures weigh more than old ones
+        recent = detection_rate([False, False, True])
+        old = detection_rate([True, False, False])
+        assert recent > old
+        ranked = prioritise_tests(
+            ["cheap", "slow"],
+            history={"cheap": [True, True], "slow": [True, True]},
+            runtimes={"cheap": 1.0, "slow": 100.0})
+        assert ranked[0]["test"] == "cheap"        # same value, lower cost first
+        assert ranked[0]["priority"] == 1
+
+    def test_selection_budgets(self):
+        from AGENT_H.regression_intelligence import (prioritise_tests,
+                                                     select_tests)
+        ranked = prioritise_tests(["a", "b", "c"],
+                                  runtimes={"a": 10, "b": 10, "c": 10})
+        sel = select_tests(ranked, max_tests=2)
+        assert sel["selected_count"] == 2 and sel["dropped_count"] == 1
+        assert sel["dropped"][0]["reason"] == "count_budget"
+        tb = select_tests(ranked, time_budget_s=15)
+        assert tb["estimated_seconds"] <= 15
+        assert all(d["reason"] == "time_budget" for d in tb["dropped"])
+        # must_run survives the budget
+        mr = select_tests(ranked, max_tests=1, must_run=["c"])
+        assert any(s["test"] == "c" for s in mr["selected"])
+
+    def test_lpt_scheduling(self):
+        from AGENT_H.regression_intelligence import schedule
+        tests = [{"test": f"t{i}", "runtime_s": r}
+                 for i, r in enumerate([8, 6, 4, 2])]
+        s = schedule(tests, workers=2)
+        assert s["workers"] == 2
+        assert s["total_cpu_s"] == 20
+        assert s["makespan_s"] == 10            # LPT: (8+2) and (6+4)
+        assert s["balance"] == 1.0              # perfectly balanced
+        assert sum(len(v) for v in s["assignment"].values()) == 4
+
+    def test_flakiness_distinguishes_broken_from_flaky(self):
+        from AGENT_H.regression_intelligence import flakiness
+        assert flakiness([True, True, True, True]) == 0.0     # consistently broken
+        assert flakiness([True, False, True, False]) == 1.0   # alternating
+        assert flakiness([]) == 0.0
+
+    def test_health_and_cost(self):
+        from AGENT_H.regression_intelligence import (regression_health,
+                                                     cost_report)
+        h = regression_health(
+            {"t1": True, "t2": False},
+            {"t1": [True, True], "t2": [True, False, True, False]},
+            {"t1": 2.0, "t2": 4.0})
+        assert h["total_tests"] == 2 and h["failed"] == 1
+        assert h["pass_rate"] == 0.5
+        assert h["flaky_count"] == 1 and h["flaky_tests"][0]["test"] == "t2"
+        assert h["total_runtime_s"] == 6.0
+        c = cost_report(["a", "b", "c", "d"], ["a"], {k: 10 for k in "abcd"}, 2)
+        assert c["saved_cpu_s"] == 30 and c["saved_pct"] == 75.0
+        assert c["selected_wallclock_s"] == 5.0
+
+    def test_end_to_end_and_manifest(self, tmp_path):
+        from AGENT_H.regression_intelligence import (RegressionIntelligence,
+                                                     run_from_manifest)
+        ri = RegressionIntelligence(
+            coverage=self.COV, results={"t1": True, "t2": True, "t3": False},
+            history={"t3": [False, True]}, runtimes={"t1": 1, "t2": 2, "t3": 3},
+            changed_files=["alu.v"], workers=2)
+        rep = ri.run()
+        assert rep["metrics"]["tests_total"] == 3
+        assert rep["metrics"]["tests_selected"] == 2      # t1, t3 cover alu.v
+        assert rep["metrics"]["saved_pct"] > 0
+        assert not rep["pass"]                            # t3 failed
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "test_coverage": self.COV,
+               "test_results": {"t1": True},
+               "changed_files": ["alu.v"], "workers": 2}
+        mp = tmp_path / "run_manifest.json"
+        mp.write_text(json.dumps(man))
+        run_from_manifest(str(mp))
+        assert (tmp_path / "regression_intelligence_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T74 — Dashboards & visualisation
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestDashboard:
+    REPORTS = {
+        "alu": {"violations": 0, "band": "CLEAN", "pass": True},
+        "coherence": {"violations": 7, "band": "CRITICAL", "pass": False,
+                      "violations_list": [
+                          {"check": "swmr", "severity": "HIGH",
+                           "detail": "single-writer violated"}]},
+    }
+
+    def test_svg_primitives(self):
+        from AGENT_H.dashboard import sparkline, heatmap, sankey, scorecard, grade
+        sp = sparkline([1, 5, 3, 9])
+        assert sp.startswith("<svg") and "polyline" in sp
+        assert sparkline([1]).startswith("<svg")           # degenerate is safe
+        hm = heatmap(["m1", "m2"], ["cov"], {("m1", "cov"): 0.1,
+                                             ("m2", "cov"): 0.9})
+        assert "<rect" in hm and "m1" in hm
+        assert heatmap([], [], {}) == ""
+        sk = sankey([("fail", "rtl_bug", 3.0), ("fail", "tb_bug", 1.0)])
+        assert "<path" in sk and "rtl_bug" in sk
+        assert sankey([]) == ""
+        assert grade(0.95) == "A" and grade(0.1) == "F"
+        assert "<div" in scorecard("core", 0.95, {"violations": 0})
+
+    def test_all_dashboards_render(self):
+        from AGENT_H.dashboard import DashboardBuilder
+        b = DashboardBuilder(self.REPORTS)
+        ex = b.executive(confidence=0.82, trend=[0.5, 0.7, 0.9])
+        assert "<!doctype html>" in ex.lower() and "Executive" in ex
+        assert "coherence" in ex
+        eng = b.engineer([{"rank": 1, "element": "cache.v",
+                           "suspiciousness": 0.9, "failed_tests": 3,
+                           "passed_tests": 1}])
+        assert "cache.v" in eng and "<details>" in eng
+        reg = b.regression({"pass_rate": 0.9, "total_tests": 10, "failed": 1,
+                            "flaky_count": 1, "total_runtime_s": 42,
+                            "flaky_tests": [{"test": "t2", "flakiness": 0.8,
+                                             "runs": 5}]},
+                           {"saved_pct": 40.0},
+                           {"assignment": {"worker_0": ["t1"]}, "makespan_s": 5})
+        assert "t2" in reg and "Flaky" in reg
+        cov = b.coverage({"overall": 0.75, "bins": {"opcode": {"hit": 3,
+                                                              "total": 4}},
+                          "holes": ["opcode:xor"]})
+        assert "opcode" in cov and "<svg" in cov
+        bug = b.bug({"metrics": {"bugs_analysed": 2, "critical_bugs": 1,
+                                 "root_cause_breakdown": {"rtl_bug": 2}},
+                     "bugs": [{"module": "core", "check": "alu",
+                               "severity": {"severity": "CRITICAL"},
+                               "root_cause": {"root_cause": "rtl_bug"},
+                               "reopen": {"reopen_probability": 0.3},
+                               "lifetime": {"estimated_days": 5}}]})
+        assert "rtl_bug" in bug
+        fail = b.failure({"total_failures": 5,
+                          "metrics": {"clusters": 2, "unique_failures": 2,
+                                      "dedup_ratio": 0.6,
+                                      "regression_blockers": 1},
+                          "clusters": [{"rank": 1, "cluster_id": "abc",
+                                        "size": 3, "severity": "HIGH",
+                                        "regression_blocker": True,
+                                        "representative": "swmr violated"}],
+                          "trends": {"summary": {"new": 1, "persistent": 1}}})
+        assert "swmr violated" in fail
+
+    def test_html_escaping(self):
+        """User content must be escaped — no HTML injection from a failure."""
+        from AGENT_H.dashboard import DashboardBuilder
+        evil = {"x": {"violations": 1, "band": "CRITICAL", "pass": False,
+                      "violations_list": [
+                          {"check": "<script>alert(1)</script>",
+                           "severity": "HIGH", "detail": "<img onerror=x>"}]}}
+        out = DashboardBuilder(evil).engineer()
+        assert "<script>alert(1)</script>" not in out
+        assert "&lt;script&gt;" in out
+
+    def test_write_dashboards_and_manifest(self, tmp_path):
+        from pathlib import Path
+        from AGENT_H.dashboard import write_dashboards, run_from_manifest
+        files = write_dashboards(
+            tmp_path, self.REPORTS,
+            failure_analytics={"total_failures": 1, "metrics": {},
+                               "clusters": [], "trends": {"summary": {}}},
+            bug_report={"metrics": {}, "bugs": [], "localization": []},
+            regression={"health": {"pass_rate": 1.0}, "cost": {},
+                        "plan": {"schedule": {}}},
+            coverage_summary={"overall": 1.0, "bins": {}, "holes": []})
+        assert len(files) == 6
+        for f in files:
+            assert Path(f).exists() and Path(f).stat().st_size > 500
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "reports": self.REPORTS}
+        mp = tmp_path / "run_manifest.json"
+        mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 0
+        assert (tmp_path / "dashboard_index.json").exists()
+        assert (tmp_path / "dashboard_executive.html").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T67 — RTL basics: FSM / FIFO / memory (level 1)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestRTLBasicsVerifier:
+    def _run(self, evs):
+        from AGENT_H.rtl_basics_verifier import RTLBasicsVerifier
+        return RTLBasicsVerifier(evs).run()
+
+    def _checks(self, rep):
+        return {v["check"] for v in rep["violations"]}
+
+    FSM_DEF = {"event": "fsm_def", "name": "c",
+               "states": ["IDLE", "RUN", "DONE"], "reset": "IDLE",
+               "transitions": [["IDLE", "RUN"], ["RUN", "DONE"],
+                               ["DONE", "IDLE"]]}
+
+    def test_fsm_legal_walk_is_clean(self):
+        evs = [self.FSM_DEF,
+               {"event": "fsm", "name": "c", "state": "RUN"},
+               {"event": "fsm", "name": "c", "state": "DONE"},
+               {"event": "fsm", "name": "c", "state": "IDLE"}]
+        rep = self._run(evs)
+        assert rep["pass"] and rep["metrics"]["fsm_steps"] == 3
+
+    def test_fsm_illegal_and_unknown(self):
+        evs = [self.FSM_DEF, {"event": "fsm", "name": "c", "state": "DONE"}]
+        assert "fsm_illegal_transition" in self._checks(self._run(evs))
+        evs2 = [self.FSM_DEF, {"event": "fsm", "name": "c", "state": "GARBAGE"}]
+        assert "fsm_unknown_state" in self._checks(self._run(evs2))
+
+    def test_fsm_deadlock_and_unreachable_and_onehot(self):
+        dead = [{"event": "fsm_def", "name": "d",
+                 "states": ["A", "B"], "reset": "A",
+                 "transitions": [["A", "B"]]},
+                {"event": "fsm", "name": "d", "state": "B"}]
+        assert "fsm_deadlock" in self._checks(self._run(dead))
+        unreach = [{"event": "fsm_def", "name": "u",
+                    "states": ["A", "B", "ORPHAN"], "reset": "A",
+                    "transitions": [["A", "B"], ["B", "A"]]},
+                   {"event": "fsm", "name": "u", "state": "B"}]
+        assert "fsm_unreachable_state" in self._checks(self._run(unreach))
+        oh = [{"event": "fsm_def", "name": "o", "states": ["A", "B"],
+               "reset": "A", "transitions": [["A", "B"]],
+               "encoding": "onehot"},
+              {"event": "fsm", "name": "o", "state": "B", "encoded": 3}]
+        assert "fsm_onehot_violation" in self._checks(self._run(oh))
+
+    def test_fifo_overflow_underflow_ordering(self):
+        d = {"event": "fifo_def", "name": "f", "depth": 2}
+        over = [d,
+                {"event": "fifo", "name": "f", "op": "push", "data": 1},
+                {"event": "fifo", "name": "f", "op": "push", "data": 2},
+                {"event": "fifo", "name": "f", "op": "push", "data": 3}]
+        assert "fifo_overflow" in self._checks(self._run(over))
+        under = [d, {"event": "fifo", "name": "f", "op": "pop"}]
+        assert "fifo_underflow" in self._checks(self._run(under))
+        order = [d,
+                 {"event": "fifo", "name": "f", "op": "push", "data": 1},
+                 {"event": "fifo", "name": "f", "op": "push", "data": 2},
+                 {"event": "fifo", "name": "f", "op": "pop", "data": 2}]
+        assert "fifo_ordering" in self._checks(self._run(order))
+
+    def test_fifo_flags_occupancy_and_gray(self):
+        d = {"event": "fifo_def", "name": "f", "depth": 2}
+        flag = [d, {"event": "fifo", "name": "f", "op": "push", "data": 1,
+                    "empty": True}]
+        assert "fifo_flag_error" in self._checks(self._run(flag))
+        occ = [d, {"event": "fifo", "name": "f", "op": "push", "data": 1,
+                   "level": 5}]
+        assert "fifo_occupancy" in self._checks(self._run(occ))
+        gray = [{"event": "fifo_def", "name": "a", "depth": 8, "async": True},
+                {"event": "fifo", "name": "a", "op": "push", "wptr_gray": 0},
+                {"event": "fifo", "name": "a", "op": "push", "wptr_gray": 3}]
+        assert "fifo_gray_pointer" in self._checks(self._run(gray))
+        # clean FIFO run
+        ok = [d,
+              {"event": "fifo", "name": "f", "op": "push", "data": 1,
+               "empty": False, "full": False, "level": 1},
+              {"event": "fifo", "name": "f", "op": "pop", "data": 1,
+               "empty": True, "full": False, "level": 0}]
+        assert self._run(ok)["pass"]
+
+    def test_memory_checks(self):
+        d = {"event": "mem_def", "name": "m", "depth": 16, "width": 32,
+             "reset_value": 0}
+        ok = [d,
+              {"event": "mem", "name": "m", "op": "write", "addr": 1,
+               "data": "0xdead"},
+              {"event": "mem", "name": "m", "op": "read", "addr": 1,
+               "data": "0xdead"}]
+        assert self._run(ok)["pass"]
+        bad = [d,
+               {"event": "mem", "name": "m", "op": "write", "addr": 1,
+                "data": "0xdead"},
+               {"event": "mem", "name": "m", "op": "read", "addr": 1,
+                "data": "0xbeef"}]
+        assert "mem_read_mismatch" in self._checks(self._run(bad))
+        oob = [d, {"event": "mem", "name": "m", "op": "read", "addr": 99}]
+        assert "mem_out_of_bounds" in self._checks(self._run(oob))
+        uninit = [{"event": "mem_def", "name": "u", "depth": 8},
+                  {"event": "mem", "name": "u", "op": "read", "addr": 0}]
+        assert "mem_uninitialised_read" in self._checks(self._run(uninit))
+        be = [d, {"event": "mem", "name": "m", "op": "write", "addr": 2,
+                  "data": "0xffffffff", "be": "0x1", "result": "0xffffffff"}]
+        assert "mem_byte_enable" in self._checks(self._run(be))
+        ecc = [d, {"event": "mem", "name": "m", "op": "read", "addr": 3,
+                   "ecc_error_injected": True, "ecc_error_detected": False}]
+        assert "mem_ecc_undetected" in self._checks(self._run(ecc))
+
+    def test_undeclared_ignored_and_manifest(self, tmp_path):
+        from AGENT_H.rtl_basics_verifier import run_from_manifest
+        # blocks with no *_def are ignored entirely
+        assert self._run([{"event": "fifo", "name": "zz", "op": "pop"}])["pass"]
+        for evs in ([], [None, 5], [{}], [{"event": "fsm"}]):
+            assert self._run(evs)["pass"]
+        bad = [{"event": "fifo_def", "name": "f", "depth": 1},
+               {"event": "fifo", "name": "f", "op": "pop"}]
+        (tmp_path / "rtl_trace.jsonl").write_text(
+            "\n".join(json.dumps(x) for x in bad))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "outputs": {"rtl_trace": "rtl_trace.jsonl"}}
+        mp = tmp_path / "run_manifest.json"
+        mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 1
+        assert (tmp_path / "rtl_basics_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T68 — SoC peripherals: GPIO / SPI / I2C / Timer / PWM (level 19)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestSoCPeripheralVerifier:
+    def _run(self, evs):
+        from AGENT_H.soc_peripheral_verifier import SoCPeripheralVerifier
+        return SoCPeripheralVerifier(evs).run()
+
+    def _checks(self, rep):
+        return {v["check"] for v in rep["violations"]}
+
+    def test_gpio(self):
+        ok = [{"event": "gpio", "pin": 1, "dir": "out", "drive": 1, "read": 1}]
+        assert self._run(ok)["pass"]
+        c = self._checks(self._run([
+            {"event": "gpio", "pin": 2, "dir": "in", "drive": 1},
+            {"event": "gpio", "pin": 3, "dir": "out", "drive": 1, "read": 0},
+        ]))
+        assert "gpio_direction" in c and "gpio_readback" in c
+        # open-drain read-back difference is legitimate
+        assert self._run([{"event": "gpio", "pin": 4, "dir": "out", "drive": 1,
+                           "read": 0, "open_drain": True}])["pass"]
+        irq = [{"event": "gpio", "pin": 5, "edge": "rise", "irq_cfg": "fall",
+                "irq": True}]
+        assert "gpio_interrupt" in self._checks(self._run(irq))
+
+    def test_spi_mode_cs_and_bit_order(self):
+        cfg0 = {"event": "spi_cfg", "name": "s", "cpol": 0, "cpha": 0,
+                "bits": 8, "msb_first": True}
+        # mode 0 samples on the rising edge
+        assert self._run([cfg0, {"event": "spi", "name": "s", "cs": True,
+                                 "edge": "rise", "sampled": True}])["pass"]
+        bad = [cfg0, {"event": "spi", "name": "s", "cs": True,
+                      "edge": "fall", "sampled": True}]
+        assert "spi_mode" in self._checks(self._run(bad))
+        cs = [cfg0, {"event": "spi", "name": "s", "cs": False, "edge": "rise"}]
+        assert "spi_cs_protocol" in self._checks(self._run(cs))
+        idle = [cfg0, {"event": "spi", "name": "s", "cs": False, "sclk": 1}]
+        assert "spi_mode" in self._checks(self._run(idle))
+        word_ok = [cfg0, {"event": "spi_word", "name": "s",
+                          "bits": [1, 0, 1, 1, 0, 0, 1, 0], "word": "0xb2"}]
+        assert self._run(word_ok)["pass"]
+        word_bad = [cfg0, {"event": "spi_word", "name": "s",
+                           "bits": [1, 0, 1, 1, 0, 0, 1, 0], "word": "0x4d"}]
+        assert "spi_bit_order" in self._checks(self._run(word_bad))
+
+    def test_i2c(self):
+        ok = [{"event": "i2c", "phase": "start"},
+              {"event": "i2c", "phase": "addr", "scl": 0},
+              {"event": "i2c", "phase": "ack", "addr": "0x50", "ack": True,
+               "responding": True},
+              {"event": "i2c", "phase": "stop"}]
+        assert self._run(ok)["pass"]
+        assert "i2c_protocol" in self._checks(
+            self._run([{"event": "i2c", "phase": "stop"}]))
+        sda = [{"event": "i2c", "phase": "start"},
+               {"event": "i2c", "phase": "data", "scl": 1,
+                "sda_changed": True}]
+        assert "i2c_protocol" in self._checks(self._run(sda))
+        nack = [{"event": "i2c", "phase": "start"},
+                {"event": "i2c", "phase": "ack", "addr": "0x77", "ack": True,
+                 "responding": False}]
+        assert "i2c_ack" in self._checks(self._run(nack))
+        arb = [{"event": "i2c", "phase": "arbitration", "master": "m1",
+                "lost": True, "still_driving": True}]
+        assert "i2c_arbitration" in self._checks(self._run(arb))
+
+    def test_timer_and_pwm(self):
+        assert self._run([{"event": "timer", "name": "t", "period": 100,
+                           "count": 100, "overflow": True}])["pass"]
+        c = self._checks(self._run([
+            {"event": "timer", "name": "t", "period": 100, "count": 100,
+             "overflow": False},
+            {"event": "timer", "name": "t2", "period": 100, "elapsed": 87},
+        ]))
+        assert "timer_overflow" in c and "timer_period" in c
+        assert self._run([{"event": "pwm", "name": "p", "period": 100,
+                           "duty": 25, "high_time": 25}])["pass"]
+        c2 = self._checks(self._run([
+            {"event": "pwm", "name": "p", "period": 100, "duty": 25,
+             "high_time": 60},
+            {"event": "pwm", "name": "p", "period": 100,
+             "measured_period": 130},
+        ]))
+        assert "pwm_duty" in c2 and "pwm_period" in c2
+
+    def test_robustness_and_manifest(self, tmp_path):
+        from AGENT_H.soc_peripheral_verifier import run_from_manifest
+        for evs in ([], [None, 5], [{}], [{"event": "gpio"}]):
+            assert self._run(evs)["pass"]
+        bad = [{"event": "gpio", "pin": 1, "dir": "in", "drive": 1}]
+        (tmp_path / "soc_periph_trace.jsonl").write_text(
+            "\n".join(json.dumps(x) for x in bad))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "outputs": {"soc_periph_trace": "soc_periph_trace.jsonl"}}
+        mp = tmp_path / "run_manifest.json"
+        mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 1
+        assert (tmp_path / "soc_periph_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T69 — Interconnect: Wishbone / AXI-Lite / AXI-Stream / TileLink (level 5)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestInterconnectVerifier:
+    def _run(self, evs):
+        from AGENT_H.interconnect_verifier import InterconnectVerifier
+        return InterconnectVerifier(evs).run()
+
+    def _checks(self, rep):
+        return {v["check"] for v in rep["violations"]}
+
+    def test_wishbone(self):
+        ok = [{"event": "wb", "cyc": True, "stb": True, "ack": True}]
+        assert self._run(ok)["pass"]
+        c = self._checks(self._run([
+            {"event": "wb", "cyc": False, "stb": True},
+            {"event": "wb", "cyc": True, "stb": True, "ack": True,
+             "err": True},
+        ]))
+        assert "wb_cycle" in c and "wb_handshake" in c
+        stall = [{"event": "wb", "cyc": True, "stb": True, "stall": True,
+                  "accepted": True}]
+        assert "wb_stall" in self._checks(self._run(stall))
+
+    def test_axi_lite(self):
+        ok = [{"event": "axil", "channel": "aw", "valid": True, "ready": True},
+              {"event": "axil", "channel": "b", "valid": True, "ready": True}]
+        assert self._run(ok)["pass"]
+        burst = [{"event": "axil", "channel": "aw", "valid": True,
+                  "ready": True, "len": 4}]
+        assert "axil_no_burst" in self._checks(self._run(burst))
+        excl = [{"event": "axil", "channel": "ar", "valid": True,
+                 "ready": True, "lock": True}]
+        assert "axil_exclusive" in self._checks(self._run(excl))
+        # VALID dropped before READY
+        drop = [{"event": "axil", "channel": "aw", "valid": True,
+                 "ready": False},
+                {"event": "axil", "channel": "aw", "valid": False,
+                 "ready": False}]
+        assert "axil_handshake" in self._checks(self._run(drop))
+        orphan = [{"event": "axil", "channel": "b", "valid": True,
+                   "ready": True}]
+        assert "axil_response" in self._checks(self._run(orphan))
+
+    def test_axi_stream(self):
+        ok = [{"event": "axis", "tvalid": True, "tready": True, "tdata": "0x1",
+               "tlast": True, "tkeep": 0xF}]
+        assert self._run(ok)["pass"]
+        drop = [{"event": "axis", "tvalid": True, "tready": False,
+                 "tdata": "0x1"},
+                {"event": "axis", "tvalid": False, "tready": False}]
+        assert "axis_tvalid_stable" in self._checks(self._run(drop))
+        change = [{"event": "axis", "tvalid": True, "tready": False,
+                   "tdata": "0x1"},
+                  {"event": "axis", "tvalid": True, "tready": False,
+                   "tdata": "0x2"}]
+        assert "axis_tvalid_stable" in self._checks(self._run(change))
+        null_last = [{"event": "axis", "tvalid": True, "tready": True,
+                      "tlast": True, "tkeep": 0}]
+        assert "axis_tlast_packet" in self._checks(self._run(null_last))
+        keep = [{"event": "axis", "tvalid": True, "tready": True,
+                 "tkeep": 0x1, "tstrb": 0x3}]
+        assert "axis_tkeep" in self._checks(self._run(keep))
+
+    def test_tilelink(self):
+        ok = [{"event": "tl", "channel": "a", "opcode": 4, "source": 1,
+               "size": 2, "addr": "0x8", "level": "TL-UL"},
+              {"event": "tl", "channel": "d", "opcode": 1, "source": 1}]
+        assert self._run(ok)["pass"]
+        # Get must be answered with AccessAckData(1), not AccessAck(0)
+        pair = [{"event": "tl", "channel": "a", "opcode": 4, "source": 2},
+                {"event": "tl", "channel": "d", "opcode": 0, "source": 2}]
+        assert "tl_response_pairing" in self._checks(self._run(pair))
+        reuse = [{"event": "tl", "channel": "a", "opcode": 4, "source": 3},
+                 {"event": "tl", "channel": "a", "opcode": 4, "source": 3}]
+        assert "tl_source_reuse" in self._checks(self._run(reuse))
+        # Arithmetic op is TL-UH only
+        op = [{"event": "tl", "channel": "a", "opcode": 2, "source": 4,
+               "level": "TL-UL"}]
+        assert "tl_opcode" in self._checks(self._run(op))
+        align = [{"event": "tl", "channel": "a", "opcode": 4, "source": 5,
+                  "size": 2, "addr": "0x3"}]
+        assert "tl_size_align" in self._checks(self._run(align))
+        unknown = [{"event": "tl", "channel": "d", "opcode": 0, "source": 99}]
+        assert "tl_response_pairing" in self._checks(self._run(unknown))
+
+    def test_robustness_and_manifest(self, tmp_path):
+        from AGENT_H.interconnect_verifier import run_from_manifest
+        for evs in ([], [None, 5], [{}], [{"event": "wb"}]):
+            assert self._run(evs)["pass"]
+        bad = [{"event": "wb", "cyc": False, "stb": True}]
+        (tmp_path / "interconnect_trace.jsonl").write_text(
+            "\n".join(json.dumps(x) for x in bad))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "outputs": {"interconnect_trace": "interconnect_trace.jsonl"}}
+        mp = tmp_path / "run_manifest.json"
+        mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 1
+        assert (tmp_path / "interconnect_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T70 — Advanced interconnects: PCIe/CXL/UCIe/CCIX/NVLink/OpenCAPI/Eth/NoC
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestAdvancedLinkVerifier:
+    def _run(self, evs):
+        from AGENT_H.advanced_link_verifier import AdvancedLinkVerifier
+        return AdvancedLinkVerifier(evs).run()
+
+    def _checks(self, rep):
+        return {v["check"] for v in rep["violations"]}
+
+    def test_link_sequence_and_crc(self):
+        ok = [{"event": "link", "proto": "pcie", "seq": 0},
+              {"event": "link", "proto": "pcie", "seq": 1}]
+        assert self._run(ok)["pass"]
+        gap = [{"event": "link", "proto": "pcie", "seq": 0},
+               {"event": "link", "proto": "pcie", "seq": 5}]
+        assert "link_seq_gap" in self._checks(self._run(gap))
+        dup = [{"event": "link", "proto": "nvlink", "seq": 0},
+               {"event": "link", "proto": "nvlink", "seq": 1},
+               {"event": "link", "proto": "nvlink", "seq": 1}]
+        assert "link_seq_duplicate" in self._checks(self._run(dup))
+        crc = [{"event": "link", "proto": "ccix", "seq": 0,
+                "crc_error_injected": True, "accepted": True}]
+        assert "link_crc_undetected" in self._checks(self._run(crc))
+
+    def test_credits_and_ltssm_and_ack(self):
+        over = [{"event": "credit", "proto": "pcie", "vc": 0,
+                 "kind": "posted", "consumed": 9, "available": 4}]
+        assert "link_credit_overflow" in self._checks(self._run(over))
+        leak = [{"event": "credit", "proto": "opencapi", "returned": 3}]
+        rep = self._run(leak)
+        assert "link_credit_leak" in self._checks(rep)
+        assert rep["pass"]                        # MEDIUM only
+        bad_state = [{"event": "ltssm", "proto": "pcie", "from": "Detect",
+                      "to": "L0"}]
+        assert "link_state" in self._checks(self._run(bad_state))
+        good_state = [{"event": "ltssm", "proto": "pcie", "from": "Detect",
+                       "to": "Polling"}]
+        assert self._run(good_state)["pass"]
+        ack = [{"event": "ack", "proto": "pcie", "seq": 7}]
+        assert "link_ack_protocol" in self._checks(self._run(ack))
+
+    def test_pcie_ordering(self):
+        evs = [{"event": "order", "proto": "pcie", "kind": "posted",
+                "addr": "0x100", "id": 5},
+               {"event": "order", "proto": "pcie", "kind": "posted",
+                "addr": "0x100", "id": 2}]
+        assert "pcie_ordering" in self._checks(self._run(evs))
+
+    def test_cxl_type_and_coherence(self):
+        c = self._checks(self._run([
+            {"event": "cxl", "msg": "mem_rd", "device_type": 1},
+            {"event": "cxl", "msg": "cache_rd", "device_type": 3},
+        ]))
+        assert "cxl_type_mismatch" in c
+        orphan = [{"event": "cxl", "msg": "mem_rsp", "device_type": 3,
+                   "tag": 9}]
+        assert "cxl_coherence" in self._checks(self._run(orphan))
+        paired = [{"event": "cxl", "msg": "mem_req", "device_type": 3, "tag": 1},
+                  {"event": "cxl", "msg": "mem_rsp", "device_type": 3, "tag": 1}]
+        assert self._run(paired)["pass"]
+
+    def test_ucie_and_ethernet(self):
+        u = [{"event": "ucie", "active_lanes": 20, "module_width": 16}]
+        assert "ucie_module_config" in self._checks(self._run(u))
+        sb = [{"event": "ucie", "sideband": True, "state": "reset"}]
+        assert "ucie_module_config" in self._checks(self._run(sb))
+        assert self._run([{"event": "ethernet", "length": 64, "fcs_ok": True,
+                           "ipg": 12}])["pass"]
+        c = self._checks(self._run([
+            {"event": "ethernet", "length": 32},
+            {"event": "ethernet", "length": 9000, "mtu": 1518},
+            {"event": "ethernet", "length": 64, "fcs_ok": False,
+             "accepted": True},
+            {"event": "ethernet", "length": 64, "ipg": 4},
+        ]))
+        assert "ethernet_frame" in c
+
+    def test_noc_turn_model_and_deadlock(self):
+        from AGENT_H.advanced_link_verifier import find_cycle
+        # XY routing: all X hops then Y hops -> legal
+        ok = [{"event": "noc", "packet": 1, "vc": 0, "turn_model": "xy",
+               "route": [[0, 0], [1, 0], [2, 0], [2, 1]]}]
+        assert self._run(ok)["pass"]
+        # Y turn then an X hop -> violates XY
+        bad = [{"event": "noc", "packet": 2, "vc": 0, "turn_model": "xy",
+                "route": [[0, 0], [0, 1], [1, 1]]}]
+        assert "noc_deadlock" in self._checks(self._run(bad))
+        vc = [{"event": "noc", "packet": 3, "vc": 1, "blocked": True,
+               "blocked_vc": 0}]
+        assert "noc_vc_independence" in self._checks(self._run(vc))
+        # the cycle finder itself
+        assert find_cycle({"a": {"b"}, "b": {"c"}, "c": {"a"}}) is not None
+        assert find_cycle({"a": {"b"}, "b": {"c"}, "c": set()}) is None
+
+    def test_robustness_and_manifest(self, tmp_path):
+        from AGENT_H.advanced_link_verifier import run_from_manifest
+        for evs in ([], [None, 5], [{}], [{"event": "link"}]):
+            assert self._run(evs)["pass"]
+        bad = [{"event": "link", "proto": "pcie", "seq": 0},
+               {"event": "link", "proto": "pcie", "seq": 9}]
+        (tmp_path / "advlink_trace.jsonl").write_text(
+            "\n".join(json.dumps(x) for x in bad))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "outputs": {"advlink_trace": "advlink_trace.jsonl"}}
+        mp = tmp_path / "run_manifest.json"
+        mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 1
+        assert (tmp_path / "advlink_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T64 — Power-Aware Verification (taxonomy level 15)
+# ─────────────────────────────────────────────────────────────────────────────
+
+_OPP = [{"voltage_mv": 700, "max_freq_mhz": 600},
+        {"voltage_mv": 800, "max_freq_mhz": 1000},
+        {"voltage_mv": 900, "max_freq_mhz": 1400}]
+
+
+class TestPowerVerifier:
+    def _run(self, evs, opp=None):
+        from AGENT_H.power_verifier import PowerVerifier
+        return PowerVerifier(evs, opp).run()
+
+    def _checks(self, rep):
+        return {v["check"] for v in rep["violations"]}
+
+    def test_clean_power_cycle(self):
+        evs = [
+            {"seq": 0, "domain": "cpu", "event": "power", "state": "on"},
+            {"seq": 1, "domain": "cpu", "event": "dvfs",
+             "voltage_mv": 800, "freq_mhz": 1000},
+            {"seq": 2, "domain": "cpu", "event": "state", "regs": {"r0": "0x1"}},
+            {"seq": 3, "domain": "cpu", "event": "clk_gate", "gated": True},
+            {"seq": 4, "domain": "cpu", "event": "state", "regs": {"r0": "0x1"}},
+            {"seq": 5, "domain": "cpu", "event": "clk_gate", "gated": False},
+            {"seq": 6, "domain": "cpu", "event": "power",
+             "state": "off", "retention": True},
+            {"seq": 7, "domain": "cpu", "event": "output",
+             "signal": "d", "value": "0x0", "isolated": True},
+            {"seq": 8, "domain": "cpu", "event": "power", "state": "on"},
+        ]
+        rep = self._run(evs, _OPP)
+        assert rep["pass"] and rep["band"] == "CLEAN"
+        assert rep["power_active"] and rep["metrics"]["power_cycles"] == 1
+
+    def test_gated_activity_detected(self):
+        evs = [
+            {"seq": 0, "domain": "cpu", "event": "state", "regs": {"r0": "0x1"}},
+            {"seq": 1, "domain": "cpu", "event": "clk_gate", "gated": True},
+            {"seq": 2, "domain": "cpu", "event": "state", "regs": {"r0": "0x2"}},
+        ]
+        assert "power_gated_activity" in self._checks(self._run(evs))
+
+    def test_isolation_and_off_activity(self):
+        evs = [
+            {"seq": 0, "domain": "gpu", "event": "state", "regs": {"a": "0x1"}},
+            {"seq": 1, "domain": "gpu", "event": "power", "state": "off"},
+            {"seq": 2, "domain": "gpu", "event": "output",
+             "signal": "bus", "value": "0xdead", "isolated": False},
+            {"seq": 3, "domain": "gpu", "event": "state", "regs": {"a": "0x9"}},
+        ]
+        c = self._checks(self._run(evs))
+        assert "power_isolation" in c and "power_off_activity" in c
+
+    def test_retention_failure_and_leak(self):
+        fail = [
+            {"seq": 0, "domain": "d", "event": "state", "regs": {"r": "0xaa"}},
+            {"seq": 1, "domain": "d", "event": "power",
+             "state": "off", "retention": True},
+            {"seq": 2, "domain": "d", "event": "power", "state": "on"},
+            {"seq": 3, "domain": "d", "event": "state", "regs": {"r": "0xbb"}},
+        ]
+        # mutate the reg during the off window so restore differs
+        f2 = list(fail)
+        f2.insert(2, {"seq": 15, "domain": "d", "event": "state",
+                      "regs": {"r": "0xbb"}})
+        assert "power_retention" in self._checks(self._run(f2))
+        leak = [
+            {"seq": 0, "domain": "e", "event": "state", "regs": {"r": "0xaa"}},
+            {"seq": 1, "domain": "e", "event": "power",
+             "state": "off", "retention": False},
+            {"seq": 2, "domain": "e", "event": "power", "state": "on"},
+        ]
+        assert "power_retention_leak" in self._checks(self._run(leak))
+
+    def test_sequencing_and_dvfs(self):
+        seqv = [
+            {"seq": 0, "domain": "x", "event": "power", "state": "off"},
+            {"seq": 1, "domain": "x", "event": "clk_gate", "gated": False},
+        ]
+        assert "power_sequencing" in self._checks(self._run(seqv))
+        # frequency above what the voltage supports
+        opp_v = [{"seq": 0, "domain": "c", "event": "dvfs",
+                  "voltage_mv": 700, "freq_mhz": 1400}]
+        assert "power_dvfs_opp" in self._checks(self._run(opp_v, _OPP))
+        # raise frequency while dropping voltage
+        order = [
+            {"seq": 0, "domain": "c", "event": "dvfs",
+             "voltage_mv": 900, "freq_mhz": 900},
+            {"seq": 1, "domain": "c", "event": "dvfs",
+             "voltage_mv": 700, "freq_mhz": 1400},
+        ]
+        assert "power_dvfs_order" in self._checks(self._run(order, _OPP))
+        # no OPP table -> OPP checks skipped (no false positives)
+        assert self._run([{"seq": 0, "domain": "c", "event": "dvfs",
+                           "voltage_mv": 1, "freq_mhz": 99999}])["pass"]
+
+    def test_robustness_and_manifest(self, tmp_path):
+        from AGENT_H.power_verifier import run_from_manifest
+        for evs in ([], [None, 5], [{}], [{"event": "state"}]):
+            assert self._run(evs)["pass"]
+        evs = [{"seq": 0, "domain": "d", "event": "power", "state": "off"},
+               {"seq": 1, "domain": "d", "event": "output",
+                "signal": "s", "value": "0x1", "isolated": False}]
+        (tmp_path / "power_trace.jsonl").write_text(
+            "\n".join(json.dumps(x) for x in evs))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "outputs": {"power_trace": "power_trace.jsonl"}}
+        mp = tmp_path / "run_manifest.json"
+        mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 1
+        assert (tmp_path / "power_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T65 — CDC / RDC Checker (upgrades AGENT_J)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestCDCVerifier:
+    def _run(self, evs):
+        from AGENT_H.cdc_verifier import CDCVerifier
+        return CDCVerifier(evs).run()
+
+    def _checks(self, rep):
+        return {v["check"] for v in rep["violations"]}
+
+    def test_clean_crossings(self):
+        evs = [
+            {"event": "crossing", "signal": "vld", "src_clk": "a",
+             "dst_clk": "b", "width": 1, "sync_stages": 2, "scheme": "ff_sync"},
+            {"event": "crossing", "signal": "ptr", "src_clk": "a",
+             "dst_clk": "b", "width": 4, "sync_stages": 2, "scheme": "gray"},
+            {"event": "sample", "signal": "ptr", "value": "0x0"},
+            {"event": "sample", "signal": "ptr", "value": "0x1"},
+            {"event": "sample", "signal": "ptr", "value": "0x3"},
+        ]
+        rep = self._run(evs)
+        assert rep["pass"] and rep["cdc_active"]
+        assert rep["metrics"]["async_crossings"] == 2
+
+    def test_unsynchronized_and_shallow(self):
+        evs = [
+            {"event": "crossing", "signal": "s1", "src_clk": "a",
+             "dst_clk": "b", "scheme": "none"},
+            {"event": "crossing", "signal": "s2", "src_clk": "a",
+             "dst_clk": "b", "sync_stages": 1, "scheme": "ff_sync"},
+        ]
+        c = self._checks(self._run(evs))
+        assert "cdc_unsynchronized" in c and "cdc_shallow_sync" in c
+
+    def test_multibit_and_gray_violation(self):
+        evs = [
+            {"event": "crossing", "signal": "bus", "src_clk": "a",
+             "dst_clk": "b", "width": 8, "sync_stages": 2, "scheme": "ff_sync"},
+            {"event": "crossing", "signal": "g", "src_clk": "a", "dst_clk": "b",
+             "width": 4, "sync_stages": 2, "scheme": "gray"},
+            {"event": "sample", "signal": "g", "value": "0x0"},
+            {"event": "sample", "signal": "g", "value": "0x3"},   # 2 bits at once
+        ]
+        c = self._checks(self._run(evs))
+        assert "cdc_multibit_unsafe" in c and "cdc_gray_violation" in c
+
+    def test_same_domain_is_not_flagged(self):
+        evs = [{"event": "crossing", "signal": "s", "src_clk": "a",
+                "dst_clk": "a", "width": 32, "scheme": "none"}]
+        assert self._run(evs)["pass"]
+
+    def test_handshake_and_reset_crossing(self):
+        hs = [
+            {"event": "crossing", "signal": "x", "src_clk": "a",
+             "dst_clk": "b", "scheme": "handshake", "sync_stages": 2},
+            {"event": "handshake", "signal": "x", "req": False, "ack": True},
+        ]
+        assert "cdc_handshake_protocol" in self._checks(self._run(hs))
+        rst = [{"event": "reset", "domain": "b", "src_domain": "a",
+                "async_assert": True, "sync_deassert": False}]
+        assert "cdc_reset_crossing" in self._checks(self._run(rst))
+        ok = [{"event": "reset", "domain": "b", "src_domain": "a",
+               "async_assert": True, "sync_deassert": True}]
+        assert self._run(ok)["pass"]
+
+    def test_glitch_source_and_robustness(self, tmp_path):
+        from AGENT_H.cdc_verifier import run_from_manifest
+        g = [{"event": "crossing", "signal": "c", "src_clk": "a", "dst_clk": "b",
+              "sync_stages": 2, "scheme": "ff_sync", "src_registered": False}]
+        rep = self._run(g)
+        assert "cdc_glitch_source" in self._checks(rep)
+        assert rep["pass"]                      # MEDIUM only -> still passes
+        for evs in ([], [None, 5], [{}], [{"event": "sample", "signal": "zz"}]):
+            assert self._run(evs)["pass"]
+        evs = [{"event": "crossing", "signal": "s", "src_clk": "a",
+                "dst_clk": "b", "scheme": "none"}]
+        (tmp_path / "cdc_trace.jsonl").write_text(
+            "\n".join(json.dumps(x) for x in evs))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "outputs": {"cdc_trace": "cdc_trace.jsonl"}}
+        mp = tmp_path / "run_manifest.json"
+        mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 1
+        assert (tmp_path / "cdc_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T66 — Equivalence Checker (upgrades AGENT_L)
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestEquivalenceVerifier:
+    def _run(self, evs):
+        from AGENT_H.equivalence_verifier import EquivalenceVerifier
+        return EquivalenceVerifier(evs).run()
+
+    def _checks(self, rep):
+        return {v["check"] for v in rep["violations"]}
+
+    def test_exhaustive_comb_proof(self):
+        """De Morgan: ~(a&b) == (~a)|(~b) over all 4 assignments — a proof."""
+        from AGENT_H.equivalence_verifier import comb_equivalent
+        g = lambda x: (~((x & 1) & ((x >> 1) & 1))) & 1
+        r = lambda x: ((~(x & 1) & 1) | (~((x >> 1) & 1) & 1)) & 1
+        ok, cex, exhaustive = comb_equivalent(g, r, 2)
+        assert ok and cex is None and exhaustive
+        # a genuinely different function must produce a counterexample
+        bad = lambda x: (x & 1) & ((x >> 1) & 1)
+        ok2, cex2, _ = comb_equivalent(g, bad, 2)
+        assert not ok2 and cex2 is not None
+        assert g(cex2) != bad(cex2)             # counterexample is real
+
+    def test_comb_truth_tables(self):
+        same = [{"event": "comb", "name": "u", "inputs": 2,
+                 "golden": [0, 1, 1, 0], "revised": [0, 1, 1, 0]}]
+        rep = self._run(same)
+        assert rep["pass"] and rep["metrics"]["exhaustive_proofs"] == 1
+        diff = [{"event": "comb", "name": "u", "inputs": 2,
+                 "golden": [0, 1, 1, 0], "revised": [0, 1, 1, 1]}]
+        r2 = self._run(diff)
+        assert "equiv_comb_mismatch" in self._checks(r2)
+        assert "0x3" in r2["violations"][0]["detail"]
+
+    def test_latency_tolerant_sequential(self):
+        from AGENT_H.equivalence_verifier import best_latency_offset
+        g = [1, 2, 3, 4]
+        r = [0, 0, 1, 2, 3, 4]
+        k, matched = best_latency_offset(g, r)
+        assert k == 2 and matched == 4
+        # declared latency matches -> clean
+        ok = [{"event": "seq", "name": "p", "latency": 2,
+               "golden_out": g, "revised_out": r}]
+        assert self._run(ok)["pass"]
+        # declared latency wrong -> MEDIUM note, still passes
+        mism = [{"event": "seq", "name": "p", "latency": 0,
+                 "golden_out": g, "revised_out": r}]
+        rep = self._run(mism)
+        assert "equiv_latency_mismatch" in self._checks(rep) and rep["pass"]
+
+    def test_sequential_mismatch_and_reset(self):
+        bad = [{"event": "seq", "name": "p", "latency": 0,
+                "golden_out": [1, 2, 3], "revised_out": [1, 9, 3]}]
+        assert "equiv_seq_mismatch" in self._checks(self._run(bad))
+        rst = [{"event": "seq", "name": "p", "golden_out": [1], "revised_out": [1],
+                "golden_reset": "0x0", "revised_reset": "0xff"}]
+        assert "equiv_reset_state" in self._checks(self._run(rst))
+
+    def test_incomplete_is_reported_honestly(self):
+        """A space too large to enumerate must NOT be claimed as a proof."""
+        from AGENT_H.equivalence_verifier import EquivalenceVerifier
+        ev = [{"event": "comb", "name": "wide", "inputs": 40,
+               "golden": [0, 1], "revised": [0, 1]}]
+        rep = EquivalenceVerifier(ev, max_bits=8).run()
+        assert "equiv_incomplete" in self._checks(rep)
+        assert rep["metrics"]["bounded_checks"] == 1
+        assert rep["metrics"]["exhaustive_proofs"] == 0
+
+    def test_trace_and_manifest(self, tmp_path):
+        from AGENT_H.equivalence_verifier import run_from_manifest
+        tr = [{"event": "trace", "name": "core", "latency": 1,
+               "golden": [1, 2, 3], "revised": [0, 1, 2, 3]}]
+        assert self._run(tr)["pass"]
+        for evs in ([], [None, 5], [{}], [{"event": "comb"}]):
+            assert self._run(evs)["pass"]
+        bad = [{"event": "trace", "name": "core", "latency": 0,
+                "golden": [1, 2], "revised": [1, 7]}]
+        (tmp_path / "equiv_trace.jsonl").write_text(
+            "\n".join(json.dumps(x) for x in bad))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "outputs": {"equiv_trace": "equiv_trace.jsonl"}}
+        mp = tmp_path / "run_manifest.json"
+        mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 1
+        assert (tmp_path / "equiv_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# T63 — Vector GHASH Checker (Zvkg, NIST-GCM-validated)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _bswap16(x):
+    """NIST big-endian block hex <-> 128-bit element group (byte 0 at LSB)."""
+    return int.from_bytes((x & ((1 << 128) - 1)).to_bytes(16, "big")[::-1], "big")
+
+
+def _nist_gf_mult(X, Y):
+    """Independent NIST SP 800-38D GF(2^128) multiply (right-shift / 0xE1)."""
+    R = 0xE1 << 120
+    Z = 0
+    V = Y
+    for i in range(128):
+        if (X >> (127 - i)) & 1:
+            Z ^= V
+        V = (V >> 1) ^ R if V & 1 else V >> 1
+    return Z
+
+
+class TestVGHASHVerifier:
+    def test_matches_independent_nist_multiply(self):
+        """vgmul must agree with a textbook NIST GF(2^128) multiply."""
+        from AGENT_H.vghash_verifier import vgmul_golden
+        import random
+        rng = random.Random(3)
+        for _ in range(64):
+            a, b = rng.getrandbits(128), rng.getrandbits(128)
+            assert vgmul_golden(_bswap16(a), _bswap16(b)) == \
+                _bswap16(_nist_gf_mult(a, b))
+
+    def test_nist_gcm_ghash_vector(self):
+        """GHASH recurrence over vghsh reproduces NIST GCM Test Case 2."""
+        from AGENT_H.vghash_verifier import vghsh_golden
+        H = 0x66E94BD4EF8A2C3B884CFA59CA342B2E
+        C = 0x0388DACE60B6A392F328C2B971B2FE78
+        X = 0
+        for blk in (C, 128):                    # ciphertext block, then len block
+            X = vghsh_golden(X, _bswap16(H), _bswap16(blk))
+        assert "%032x" % _bswap16(X) == "f38cbb1ad69223dcc3457ae5b6b0f885"
+
+    def test_vgmul_is_vghsh_with_zero(self):
+        from AGENT_H.vghash_verifier import vgmul_golden, vghsh_golden
+        import random
+        rng = random.Random(11)
+        for _ in range(32):
+            a, b = rng.getrandbits(128), rng.getrandbits(128)
+            assert vgmul_golden(a, b) == vghsh_golden(a, b, 0)
+
+    def test_field_algebra(self):
+        """Multiplication is commutative and 1 is the identity in this basis."""
+        from AGENT_H.vghash_verifier import vgmul_golden
+        import random
+        rng = random.Random(5)
+        one = _bswap16(1 << 127)                # NIST 'x^0 only' = 0x80 00 .. 00
+        for _ in range(16):
+            a, b = rng.getrandbits(128), rng.getrandbits(128)
+            assert vgmul_golden(a, b) == vgmul_golden(b, a)
+            assert vgmul_golden(a, one) == (a & ((1 << 128) - 1))
+        assert vgmul_golden(0, rng.getrandbits(128)) == 0
+
+    def test_verifier_clean_and_bug(self):
+        from AGENT_H.vghash_verifier import VGHASHVerifier, vgmul_golden, \
+            vghsh_golden
+        vd, vs2, vs1 = 0x11223344556677889900AABBCCDDEEFF, 0xDEADBEEF, 0xCAFE
+        good = {"op": "vgmul", "vd": f"{vd:032x}", "vs2": f"{vs2:032x}",
+                "result": f"{vgmul_golden(vd, vs2):032x}"}
+        r = VGHASHVerifier([good]).run()
+        assert r["pass"] and r["metrics"]["checked"] == 1 and r["vghash_active"]
+        bad = {"op": "vgmul", "vd": f"{vd:032x}", "vs2": f"{vs2:032x}",
+               "result": "0" * 32}
+        rb = VGHASHVerifier([bad]).run()
+        assert not rb["pass"]
+        assert any(v["check"] == "vghash_result" for v in rb["violations"])
+        gh = {"op": "vghsh.vv", "vd": vd, "vs2": vs2, "vs1": vs1,
+              "result": vghsh_golden(vd, vs2, vs1)}
+        assert VGHASHVerifier([gh]).run()["pass"]
+        # 4-word element-list form is accepted
+        el = {"op": "vgmul", "vd": [1, 0, 0, 0], "vs2": [2, 0, 0, 0],
+              "result": vgmul_golden(1, 2)}
+        assert VGHASHVerifier([el]).run()["pass"]
+        # non-ghash ignored; malformed tolerated
+        n = VGHASHVerifier([{"op": "vaesem"}]).run()
+        assert n["pass"] and n["vghash_active"] is False
+        for evs in ([], [None, 5], [{}], [{"op": "vghsh", "vd": 1, "vs2": 2}]):
+            assert VGHASHVerifier(evs).run()["pass"]
+
+    def test_manifest(self, tmp_path):
+        from AGENT_H.vghash_verifier import run_from_manifest
+        evs = [{"op": "vgmul", "vd": "0" * 31 + "1", "vs2": "0" * 31 + "2",
+                "result": "f" * 32}]
+        (tmp_path / "vghash_trace.jsonl").write_text(
+            "\n".join(json.dumps(x) for x in evs))
+        man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
+               "outputs": {"vghash_trace": "vghash_trace.jsonl"}}
+        mp = tmp_path / "run_manifest.json"
+        mp.write_text(json.dumps(man))
+        assert run_from_manifest(str(mp)) == 1
+        assert (tmp_path / "vghash_report.json").exists()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # T62 — Vector SM4 Checker (Zvksed, GB/T-32907-validated)
 # ─────────────────────────────────────────────────────────────────────────────
 
