@@ -108,6 +108,21 @@ _vsha      = _try_import("AGENT_H.vsha_verifier",        "VSHAVerifier")
 _vsm3      = _try_import("AGENT_H.vsm3_verifier",        "VSM3Verifier")
 _vaeskf    = _try_import("AGENT_H.vaeskf_verifier",      "VAESKFVerifier")
 _vsm4      = _try_import("AGENT_H.vsm4_verifier",        "VSM4Verifier")
+_vghash    = _try_import("AGENT_H.vghash_verifier",      "VGHASHVerifier")
+_power     = _try_import("AGENT_H.power_verifier",       "PowerVerifier")
+_cdc       = _try_import("AGENT_H.cdc_verifier",         "CDCVerifier")
+_equiv     = _try_import("AGENT_H.equivalence_verifier", "EquivalenceVerifier")
+_rtlbasics = _try_import("AGENT_H.rtl_basics_verifier",  "RTLBasicsVerifier")
+_socper    = _try_import("AGENT_H.soc_peripheral_verifier", "SoCPeripheralVerifier")
+_intercon  = _try_import("AGENT_H.interconnect_verifier", "InterconnectVerifier")
+_advlink   = _try_import("AGENT_H.advanced_link_verifier", "AdvancedLinkVerifier")
+_failanal  = _try_import("AGENT_H.failure_analytics",    "FailureAnalytics")
+_bugintel  = _try_import("AGENT_H.bug_intelligence",     "BugIntelligence")
+_regintel  = _try_import("AGENT_H.regression_intelligence", "RegressionIntelligence")
+_dashboard = _try_import("AGENT_H.dashboard",            "DashboardBuilder")
+_rtlgraph  = _try_import("AGENT_H.rtl_graph",            "RTLGraphAnalyzer")
+_tbgen     = _try_import("AGENT_B.testbench_generator",  "TestbenchGenerator")
+_vtwin     = _try_import("AGENT_H.verification_twin",    "VerificationTwin")
 _cache     = _try_import("AGENT_H.cache_verifier",        "CacheVerifier")
 _bus       = _try_import("AGENT_H.bus_verifier",          "BusVerifier")
 _faultinj  = _try_import("AGENT_H.fault_injector",        "FaultCampaign")
@@ -127,7 +142,9 @@ EXTENDED_AGENTS_AVAILABLE = any([
     _bitmanip, _privilege, _vm, _tlb, _pipeline, _branchp, _cache, _bus,
     _faultinj, _rv64, _svmmu, _rv64atom, _peripheral, _security, _selfevolve,
     _vector, _covcoll, _stimgen, _coherence, _memmodel, _interrupt, _perfcnt,
-    _debug, _reset, _hyp, _aia, _ooo, _lsq, _crypto, _cas, _aes, _sm4, _vaes, _vsha, _vsm3, _vaeskf, _vsm4,
+    _debug, _reset, _hyp, _aia, _ooo, _lsq, _crypto, _cas, _aes, _sm4, _vaes, _vsha, _vsm3, _vaeskf, _vsm4, _vghash, _power, _cdc, _equiv,
+    _rtlbasics, _socper, _intercon, _advlink,
+    _failanal, _bugintel, _regintel, _dashboard, _rtlgraph, _tbgen, _vtwin,
 ])
 
 # ── Agent F: real Verilator coverage backend ──────────────────────────────────
@@ -2553,6 +2570,65 @@ endclass
             except Exception as exc:
                 logger.warning("  Vector-SM4 verifier failed: %s", exc)
 
+        # -- Vector GHASH checker (Zvkg, NIST-GCM-validated) — gated on a vghash trace
+        if _vghash:
+            try:
+                rc = _vghash.run_from_manifest(str(mpath)) \
+                    if hasattr(_vghash, "run_from_manifest") else 0
+                vp = run_dir / "vghash_report.json"
+                if vp.exists():
+                    with open(vp) as f:
+                        vr = json.load(f)
+                    if vr.get("status") != "skipped":
+                        reports["vghash"] = {
+                            "metrics": vr.get("metrics", {}),
+                            "violations": vr.get("total_violations", 0),
+                            "band": vr.get("band", "CLEAN"),
+                            "pass": vr.get("pass", True),
+                        }
+                        logger.info("  Vector GHASH: %d violations, band=%s",
+                                    vr.get("total_violations", 0), vr.get("band"))
+            except Exception as exc:
+                logger.warning("  Vector-GHASH verifier failed: %s", exc)
+
+        # -- Power-aware / CDC / equivalence checkers — each gated on its trace
+        for _mod, _label, _rep_name, _key in (
+            (_power, "Power-aware", "power_report.json", "power"),
+            (_cdc, "CDC/RDC", "cdc_report.json", "cdc"),
+            (_equiv, "Equivalence", "equiv_report.json", "equiv"),
+            (_rtlbasics, "RTL basics (FSM/FIFO/mem)", "rtl_basics_report.json",
+             "rtl_basics"),
+            (_socper, "SoC peripherals", "soc_periph_report.json", "soc_periph"),
+            (_intercon, "Interconnect", "interconnect_report.json", "interconnect"),
+            (_advlink, "Advanced links", "advlink_report.json", "advlink"),
+            (_failanal, "Failure analytics",
+             "failure_analytics_report.json", "failure_analytics"),
+            (_bugintel, "Bug intelligence",
+             "bug_intelligence_report.json", "bug_intelligence"),
+            (_regintel, "Regression intelligence",
+             "regression_intelligence_report.json", "regression_intelligence"),
+        ):
+            if not _mod:
+                continue
+            try:
+                rc = _mod.run_from_manifest(str(mpath)) \
+                    if hasattr(_mod, "run_from_manifest") else 0
+                _p = run_dir / _rep_name
+                if _p.exists():
+                    with open(_p) as f:
+                        _r = json.load(f)
+                    if _r.get("status") != "skipped":
+                        reports[_key] = {
+                            "metrics": _r.get("metrics", {}),
+                            "violations": _r.get("total_violations", 0),
+                            "band": _r.get("band", "CLEAN"),
+                            "pass": _r.get("pass", True),
+                        }
+                        logger.info("  %s: %d violations, band=%s", _label,
+                                    _r.get("total_violations", 0), _r.get("band"))
+            except Exception as exc:
+                logger.warning("  %s verifier failed: %s", _label, exc)
+
         # -- Zacas compare-and-swap checker — gated on a CAS trace
         if _cas:
             try:
@@ -3069,6 +3145,118 @@ endclass
                                     st.get("seeds_self_validated", 0))
             except Exception as exc:
                 logger.warning("  Stimulus generator failed: %s", exc)
+
+        # -- RTL graph analysis + FSM extraction — gated on an rtl_dir --------
+        # Runs the structural parser over a source tree, emits a report, and
+        # feeds every *extracted* FSM into the RTL-basics checker so real RTL
+        # can be checked for illegal transitions with no hand-written model.
+        if _rtlgraph:
+            try:
+                rtl_dir = None
+                try:
+                    with open(mpath) as f:
+                        rtl_dir = json.load(f).get("rtl_dir")
+                except (json.JSONDecodeError, OSError):
+                    pass
+                if rtl_dir and Path(rtl_dir).exists():
+                    from AGENT_H.rtl_graph import RTLGraphAnalyzer as _RGA
+                    gr = _RGA.from_dir(str(rtl_dir)).run()
+                    (run_dir / "rtl_graph_report.json").write_text(
+                        json.dumps(gr, indent=2, default=str), encoding="utf-8")
+                    reports["rtl_graph"] = {
+                        "metrics": gr.get("metrics", {}),
+                        "fsm_defs": len(gr.get("fsm_defs", [])),
+                        "pass": gr.get("pass", True),
+                    }
+                    logger.info("  RTL graph: %d modules, %d FSMs, %d clone pairs",
+                                gr["metrics"]["modules"], gr["metrics"]["fsms_found"],
+                                gr["metrics"]["clone_pairs"])
+            except Exception as exc:
+                logger.warning("  RTL graph analysis failed: %s", exc)
+
+        # -- AGENT_B testbench generation — gated on an rtl_dir --------------
+        if _tbgen:
+            try:
+                rtl_dir = None
+                try:
+                    with open(mpath) as f:
+                        _mj = json.load(f)
+                        rtl_dir = _mj.get("rtl_dir")
+                        _targets = _mj.get("tb_targets")
+                except (json.JSONDecodeError, OSError):
+                    _targets = None
+                if rtl_dir and Path(rtl_dir).exists():
+                    from AGENT_H.rtl_graph import RTLGraphAnalyzer as _RGA2
+                    from AGENT_B.testbench_generator import TestbenchGenerator as _TBG
+                    out = run_dir / "generated_tb"
+                    gen = 0
+                    for _m in _RGA2.from_dir(str(rtl_dir)).modules:
+                        if _targets and _m.name not in _targets:
+                            continue
+                        if not _m.ports:
+                            continue
+                        _TBG(_m).write(str(out))
+                        gen += 1
+                    if gen:
+                        reports["testbench_gen"] = {"modules": gen, "pass": True}
+                        logger.info("  AGENT_B: generated %d testbench env(s)", gen)
+            except Exception as exc:
+                logger.warning("  Testbench generation failed: %s", exc)
+
+        # -- Verification digital twin: live status + forecast + readiness ---
+        if _vtwin:
+            try:
+                from AGENT_H.verification_twin import VerificationTwin as _VT
+                _mj2 = {}
+                try:
+                    with open(mpath) as f:
+                        _mj2 = json.load(f)
+                except (json.JSONDecodeError, OSError):
+                    pass
+                tw = _VT(reports, _mj2.get("coverage_history"),
+                         _mj2.get("pass_rate_history"),
+                         _mj2.get("twin_state")).run(
+                             float(_mj2.get("coverage_goal", 90.0)))
+                (run_dir / "verification_twin_report.json").write_text(
+                    json.dumps(tw, indent=2, default=str), encoding="utf-8")
+                reports["verification_twin"] = {
+                    "readiness": tw["tapeout_readiness"]["band"],
+                    "health": tw["live_status"]["overall_health"],
+                    "pass": tw.get("pass", True),
+                }
+                logger.info("  Verification twin: readiness=%s health=%.2f",
+                            tw["tapeout_readiness"]["band"],
+                            tw["live_status"]["overall_health"])
+            except Exception as exc:
+                logger.warning("  Verification twin failed: %s", exc)
+
+        # -- Dashboards (runs last: needs every other report) ----------------
+        if _dashboard:
+            try:
+                from AGENT_H.dashboard import write_dashboards as _wd
+
+                def _rd(nm):
+                    p = run_dir / nm
+                    if not p.exists():
+                        return None
+                    try:
+                        with open(p) as f:
+                            return json.load(f)
+                    except (json.JSONDecodeError, OSError):
+                        return None
+
+                files = _wd(
+                    run_dir, reports,
+                    _rd("failure_analytics_report.json"),
+                    _rd("bug_intelligence_report.json"),
+                    _rd("regression_intelligence_report.json"),
+                    _rd("coverage_summary.json"),
+                )
+                if files:
+                    reports["dashboard"] = {"files": files, "pass": True}
+                    logger.info("  Dashboards: %d file(s) written", len(files))
+            except Exception as exc:
+                logger.warning("  Dashboard generation failed: %s", exc)
 
         # Update manifest status
         try:
