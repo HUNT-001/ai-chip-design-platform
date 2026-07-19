@@ -4,6 +4,322 @@ All notable changes to AVA — Autonomic Verification Agent are documented here.
 
 ---
 
+## [2.60.0] — 2026-07-19
+
+### Added — batch 4, part 4: verification / AI digital twin
+- **T79 — Verification digital twin** (`AGENT_H/verification_twin.py`). The
+  status/forecast/readiness layer on top of the run reports and campaign
+  history (distinct from the micro-ISS `digital_twin.py`):
+  - **Live status** — per-module verification state + overall health band.
+  - **Deterministic replay** — reproduces a recorded run's verdict from its
+    stored inputs and **flags non-reproducible runs** (an environment that
+    can't replay its own record is itself a finding); plus failure-replay with
+    a concrete `make TEST=… SEED=…` reproduction.
+  - **What-if projection** — add-tests / fix-bugs / add-agents levers projected
+    against the fitted coverage curve.
+  - **Coverage-closure forecasting** — fits ``cov(t)=Cmax·(1−e^(−t/τ))`` (Cmax
+    searched, τ by linear regression on ``ln(Cmax−cov)``), inverts it to
+    predict runs-to-goal, and **honestly reports "unreachable" when the
+    asymptote is below the goal** — coverage that plateaus low will never close,
+    and an optimistic number would mislead. Validated to recover known
+    (Cmax, τ) from synthetic data at R²≈1.0.
+  - **Regression-outcome prediction** (linear trend + residual-based
+    confidence) and a transparent **tape-out readiness** rubric where a single
+    open **blocker caps readiness to NOT_READY** regardless of the averages.
+  - **Silicon-twin sync adapters** (FPGA/emulator/post-silicon) that diff
+    externally-supplied hardware samples against the RTL reference and return
+    ``awaiting_hardware`` — never fabricated silicon data — when none is given.
+  - Wired into `ava_patched.py` → `verification_twin_report.json`.
+- 8 pytest cases (`TestVerificationTwin`). Full repo sweep: **999 passed,
+  8 skipped**.
+
+---
+
+## [2.59.0] — 2026-07-19
+
+### Added — batch 4, part 3: AGENT_B RTL→verification-environment synthesis
+- **T78 — Testbench generator** (`AGENT_B/testbench_generator.py`). Consumes a
+  parsed `rtl_graph` module (port list, params, hierarchy) and emits a
+  **complete, structurally-compilable** verification environment:
+  - **Interface** with driver/monitor clocking blocks; **UVM** package —
+    item, driver, monitor, sequencer, agent, scoreboard, functional-coverage
+    subscriber, env, random + smoke sequences; **tb_top** with clock/reset gen,
+    DUT connect (every port wired) and config-db/virtual-interface plumbing;
+    base + smoke + constrained-random **tests**.
+  - **Plain-SV self-checking smoke TB** (no UVM; iverilog/verilator) and a
+    **cocotb** Python test + Makefile.
+  - **SVA assertion package** (post-reset known-value + detected-handshake
+    stability), filelist, UVM Makefile, `regression.yaml`, README.
+  - **Token-aware clock/reset detection** (handles `clk_i`/`rst_ni`,
+    `aclk`/`aresetn`, PULP `Clk_CI`/`Rst_RBI`; rejects the `first`/`burst`
+    substring traps) and **bus-protocol detection** (AXI4-Lite/APB/Wishbone/
+    AXI-Stream/TileLink) driving protocol-legal stimulus + handshake SVA.
+  - **Honest scoreboard**: the reference-model `predict()` is a clearly-marked
+    scaffold (a generator cannot infer DUT function), pre-populated with a hint
+    to AVA's existing golden when the DUT class is recognised (ALU/FIFO/FSM/bus).
+  - Deterministic (same RTL → byte-identical output).
+- **Validated on real RTL**: generates a full 12-file, 575-line environment from
+  cv32e40p_alu and ibex_alu (`AGENT_B/examples/`); every generated `.sv` passes
+  a structural balance check, every DUT port is connected, and the cocotb output
+  Python-compiles. Wired into `ava_patched.py` (gated on `rtl_dir`/`tb_targets`).
+- 10 pytest cases (`TestTestbenchGenerator`). Full repo sweep: **991 passed,
+  8 skipped**.
+
+### Known limitation
+- Detection works on **flat port lists**. Modules that expose buses via
+  SystemVerilog **interface ports / structs** (e.g. many CVA6 AXI modules) are
+  parsed but their protocol is not auto-classified — the env still generates,
+  just without bus-specific stimulus/SVA. Documented in
+  `docs/DATA_AND_HARDWARE_REQUIREMENTS.md`.
+
+---
+
+## [2.58.0] — 2026-07-19
+
+### Hardened — RTL parser validated across a 9-repo, 1,795-file corpus
+Ran `rtl_graph` over a real multi-core corpus (Ibex, CVA6, cv32e40p, VeeR EH1,
+BlackParrot, RSD, core-v-verif, riscv-dv) checked into `corpus/`. Running it at
+scale exposed four bugs that Ibex-only testing never would have — each is now
+fixed and pinned with a regression test:
+- **Assertion idioms** — only backtick macros (`` `ASSERT ``) were counted, so
+  CVA6 reported **0** assertions when it has **572**. Now also matches
+  `assert/assume/cover property` and immediate `assert(`.
+- **`state`/`nstate` FSM idiom + abutted width** — VeeR declares
+  `logic[3:0] state, nstate;` (no space before `[`) and uses ternary next-state
+  assignments. The signal-declaration regex missed the abutted bracket and the
+  FSM idiom family was too narrow, so VeeR's 16-state JTAG TAP was invisible.
+  Now extracted exactly: **16 states, 32 transitions**.
+- **Ternary / nested-`case` transitions** — `ns = c ? A : B;` yielded the bogus
+  edge `ns -> c` (the condition) instead of the two real targets, and a
+  non-greedy `begin…end` truncated arms at the first inner `end`. Replaced with
+  a sequential case-arm scanner that resolves next-state assignments to the
+  *known-state* identifiers on the RHS. cv32e40p's controller/debug/mult FSMs
+  (6/3/5 states) now extract correctly.
+- **Empty-module similarity** — modules the parser recovered nothing from got
+  all-zero feature vectors that cosine scored as **identical**, producing 1,734
+  bogus "clones" on CVA6. `similarity` now returns 0 when either side has no
+  structural features, and `find_clones` skips modules below a structural-mass
+  floor. CVA6 clone pairs dropped 1734 → 436, all now genuine (VeeR's 820
+  RAM-macro clone pairs are a real parametrized-memory family).
+- 4 new regression tests (`TestRTLGraph`). Full repo sweep: **981 passed,
+  8 skipped**. New `corpus/` with `docs/CORPUS_SCOREBOARD.md`.
+- `rtl_graph` wired into `ava_patched.py` (gated on a `rtl_dir`), emitting
+  `rtl_graph_report.json` and feeding extracted FSMs to `rtl_basics_verifier`.
+
+---
+
+## [2.57.0] — 2026-07-18
+
+### Added — batch 4, part 2: RTL graph layer (validated on lowRISC Ibex)
+- **T77 — RTL graph construction** (`AGENT_H/rtl_graph.py`). The foundation for
+  GNN-style analysis, module similarity and testbench generation — built and
+  validated against **real lowRISC Ibex RTL** (`corpus/ibex_rtl/`), not toy
+  examples:
+  - Structural SystemVerilog parser: modules, parameters, ports (direction /
+    width / type), internal signals, continuous assignments, procedural blocks,
+    submodule instances, assertion sites. Explicitly **not** an elaborator;
+    unhandled constructs are reported in `parse_warnings`.
+  - **Dataflow / combinational / hierarchy graphs**, with `find_comb_loops`,
+    `graph_depth`, and structural `embed()` → `similarity()` → `find_clones()`
+    (unsupervised — no training data needed).
+  - **FSM extraction** recovering states, transitions and the reset state from
+    the two-process idiom, emitting `rtl_basics_verifier`'s `fsm_def` directly:
+    real RTL → extracted FSM → illegal-transition/deadlock checking with no
+    hand-written model.
+  - Validated against the **ibex_controller** state machine: all 10 states and
+    **17/17 transitions** recovered exactly, zero missing, zero spurious.
+
+### Fixed — three parser bugs that only real RTL exposed
+- **Instance regex backtracking** — `for(` was parsed as an instance of type
+  `fo` named `r` (34 phantom instances in `ibex_alu`). Instantiation now
+  requires mandatory whitespace between type and instance name.
+- **Truncated case arms** — a non-greedy `begin … end` match stopped at the
+  first *inner* `end`, silently dropping transitions after a nested `if`
+  (lost `FIRST_FETCH -> DBG_TAKEN_IF`). Replaced with balanced-depth scanning.
+- **False combinational loops** — the dataflow graph ignored statement order,
+  so the ubiquitous blocking-assignment cascade (`x = a; x = f(x);`) and
+  bit-sliced `for` accumulate looked like feedback (7 false loops in
+  `ibex_alu`). Procedural blocks are now resolved with **versioned (SSA)
+  semantics**: each output is reduced to the *entry* values it depends on, so a
+  signal depending on its own entry value is genuine feedback and an ordered
+  cascade is not. Verified on five semantic cases plus real Ibex: **0 false
+  positives, genuine loops still caught.**
+- 10 pytest cases. Full repo sweep: **979 passed, 7 skipped**.
+
+---
+
+## [2.56.0] — 2026-07-18
+
+### Added — batch 4, part 1: formal verification core (level 14)
+- **T75 — Formal engine** (`AGENT_H/formal_engine.py`). A real, self-contained
+  decision procedure — no SAT binary, no EDA licence:
+  - Boolean expression AST (`Var/Not/And/Or/Implies/Iff/Xor/Const`) with
+    structural property construction.
+  - **Tseitin CNF encoding** (linear size, no distribution blow-up).
+  - **DPLL SAT solver** with unit propagation, pure-literal elimination and an
+    activity heuristic, plus deletion-based **unsat-core** extraction.
+  - Symbolic `TransitionSystem` (init + primed/unprimed transition relation)
+    with k-step unrolling.
+  - **Bounded model checking**: `bmc_safety`, `bmc_liveness` (lasso witness),
+    `reachable`, `deadlock_free`, `mutual_exclusion`, sequential `equivalence` —
+    each producing a concrete, replayable **counterexample trace**.
+  - **Verdicts are honest**: `violated` (real counterexample), `bounded_proof`
+    (no counterexample up to depth k — the default), and `proved` *only* when a
+    completeness threshold is supplied. BMC is refutation-complete, not a proof
+    method, and the API says so.
+  - The solver is **validated against exhaustive brute force** on randomly
+    generated formulas in the test-suite, and every returned model is checked to
+    actually satisfy its formula.
+- **T76 — Formal analysis** (`AGENT_H/formal_analysis.py`):
+  - **Coverage** — `cover_property` (reachability of a scenario; an uncovered
+    cover means dead stimulus), `unreachable_states`, sound
+    `cone_of_influence` reduction with ratio, and `proof_coverage` (which state
+    variables any proven property actually constrains).
+  - **Debug** — `detect_vacuity` (a `G(a→b)` whose antecedent is unreachable is
+    a vacuous pass, flagged HIGH), delta-debugging `minimize_counterexample`,
+    causal `explain_counterexample`, and `proof_core` (minimal assumption set
+    the proof depends on, via unsat core).
+  - **Assertion mining** — Daikon-style `mine_assertions`: propose templates
+    (constant, implication, mutual exclusion, one-hot, `|=>` next-cycle,
+    bounded `|-> ##[0:k]` response), then eliminate every template falsified by
+    an observed sample. Survivors are ranked by support × specificity and
+    explicitly labelled `candidate` — observed behaviour is not verified intent.
+- 15 pytest cases. Full repo sweep: **969 passed, 7 skipped**.
+
+---
+
+## [2.55.0] — 2026-07-18
+
+### Added — roadmap gap-closing batch 3 of 4 (analytics & intelligence)
+- **T71 — Failure analytics** (`AGENT_H/failure_analytics.py`). Canonical
+  signatures (hex/num/path/time/indexed-identifier normalisation) + stable
+  `fingerprint()`; **clustering** by four signals (exact signature, token
+  **Jaccard** log similarity, weighted **stack-trace** overlap where innermost
+  frames dominate, **waveform cosine**) via single-link agglomeration;
+  **deduplication** with occurrence counts and dedup ratio; **prioritisation**
+  (severity × blast radius × recency, critical-area detection, regression-blocker
+  flag, first-occurrence run); **trend classification** — new / persistent /
+  intermittent / aging / recurring / resolved with a flip rate.
+- **T72 — Bug intelligence** (`AGENT_H/bug_intelligence.py`). **Ochiai
+  spectrum-based fault localization** (plus Tarantula) ranking RTL files by
+  suspiciousness from pass/fail spectra; severity prediction with interpretable
+  features; **lifetime prediction from historical medians** (returns `None` +
+  zero confidence rather than inventing a number when there is no history);
+  **Laplace-smoothed reopen probability**; duplicate-bug detection reusing the
+  shared canonical signature; and six-way **root-cause classification**
+  (rtl / testbench / constraint / environment / simulator / tool) with evidence
+  and an honest `unknown` fallback.
+- **T73 — Regression intelligence** (`AGENT_H/regression_intelligence.py`).
+  Test-impact analysis (fail-safe: tests with no coverage data are always
+  included, never silently skipped); recency-weighted detection rate;
+  value/cost prioritisation; budgeted selection that reports **what it dropped
+  and why**; **LPT scheduling** (4/3-approximation for makespan) with balance;
+  health monitoring where **flakiness = result-flip rate**, so consistently
+  failing tests read as broken rather than flaky; incremental plans and a
+  measurable CPU/wall-clock cost report.
+- **T74 — Dashboards** (`AGENT_H/dashboard.py`). Six standalone HTML views —
+  executive, engineer, regression, coverage, bug, failure — with inline SVG
+  `sparkline`, `heatmap`, `sankey` and module health `scorecard` (A–F), plus
+  native `<details>` drill-down. No JS libraries, no CDN, all content
+  HTML-escaped (injection-tested). Generated at the end of the extended
+  pipeline once every other report exists.
+- All wired into `ava_patched.py`. 26 pytest cases.
+  Full repo sweep: **954 passed, 7 skipped**.
+
+---
+
+## [2.54.0] — 2026-07-18
+
+### Added — roadmap gap-closing batch 2 of 4 (interconnect levels 1–3)
+- **T67 — RTL basics: FSM / FIFO / memory** (`AGENT_H/rtl_basics_verifier.py`,
+  level 1). Reference models for the three blocks every design contains:
+  FSM (`fsm_illegal_transition`, `fsm_unknown_state`, `fsm_deadlock`,
+  `fsm_unreachable_state` via reachability from reset, `fsm_onehot_violation`);
+  FIFO (`fifo_overflow`/`underflow`/`ordering`/`flag_error`/`occupancy`/
+  `gray_pointer`); memory (`mem_read_mismatch` against a shadow memory,
+  `mem_out_of_bounds`, `mem_uninitialised_read`, `mem_byte_enable`,
+  `mem_port_collision`, `mem_ecc_undetected`). Blocks with no `*_def`
+  declaration are ignored — never a false positive.
+- **T68 — SoC peripherals** (`AGENT_H/soc_peripheral_verifier.py`, level 19):
+  **GPIO** (direction, read-back, interrupt condition), **SPI** (CPOL/CPHA
+  sampling edge, CS protocol, MSB/LSB bit order), **I²C** (START/STOP framing,
+  SDA-stable-while-SCL-high, ACK/NACK, arbitration), **Timer** (period,
+  overflow flag) and **PWM** (duty, period, with tolerance). Complements the
+  existing DMA/UART/CRYPTO checkers in `peripheral_verifier`.
+- **T69 — Interconnects** (`AGENT_H/interconnect_verifier.py`, level 5):
+  **Wishbone** (handshake, cycle, pipelined stall), **AXI4-Lite**
+  (VALID-stable-until-READY, no-burst/no-exclusive subset rules, response
+  pairing), **AXI-Stream** (TVALID stability, payload stability, TLAST/packet
+  length, TKEEP/TSTRB reserved combinations), **TileLink** (TL-UL/TL-UH opcode
+  legality, source-id reuse in flight, A/D response pairing, size/alignment).
+  Extends `bus_verifier` (AXI4/AHB/APB).
+- **T70 — Advanced interconnects** (`AGENT_H/advanced_link_verifier.py`,
+  level 3): shared link-layer checks for **PCIe / CXL / UCIe / CCIX / NVLink /
+  OpenCAPI** (sequence gap/duplicate, CRC-FEC undetected error, flow-control
+  credit overflow/leak, ACK-NAK/replay, LTSSM state legality) plus
+  protocol-specific **PCIe ordering**, **CXL** device-type and coherence
+  pairing, **UCIe** module/lane config, **Ethernet MAC** (runt/giant/FCS/IPG)
+  and **NoC** (XY turn-model violations + cyclic channel-dependency deadlock
+  via a graph cycle finder).
+  *Scope is stated honestly in the module docstring: these are link/transaction
+  layer invariants, not a PCIe-SIG/CXL compliance suite, and no PHY modelling.*
+- All four wired into `ava_patched.py::_run_extended_pipeline`.
+- 24 pytest cases. Full repo sweep: **928 passed, 7 skipped**.
+
+---
+
+## [2.53.0] — 2026-07-18
+
+### Added — roadmap gap-closing batch 1 of 4
+- **T64 — Power-Aware Verification** (`AGENT_H/power_verifier.py`) — **opens
+  taxonomy level 15, previously entirely unstarted.** A power-domain state
+  machine checking UPF/CPF-style intent: `power_gated_activity` (state changed
+  under a gated clock), `power_off_activity`, `power_isolation` (un-clamped
+  output from a collapsed rail), `power_retention` / `power_retention_leak`,
+  `power_sequencing`, `power_dvfs_opp` (operating-point legality) and
+  `power_dvfs_order` (unsafe V/F transition ordering). Additive
+  `power_trace.jsonl`; OPP checks skip cleanly with no table.
+- **T65 — CDC / RDC Checker** (`AGENT_H/cdc_verifier.py`, upgrades AGENT_J from
+  🟡) — structural crossing rules: `cdc_unsynchronized`, `cdc_shallow_sync`
+  (< 2 flop stages), `cdc_multibit_unsafe` (wide bus through plain FF sync),
+  `cdc_gray_violation` (>1 bit changed on a declared gray bus),
+  `cdc_handshake_protocol` (four-phase req/ack), `cdc_reset_crossing`
+  (removal/recovery), `cdc_glitch_source`. Same-domain signals are never
+  flagged. Additive `cdc_trace.jsonl`.
+- **T66 — Equivalence Checker** (`AGENT_H/equivalence_verifier.py`, upgrades
+  AGENT_L from 🟡) — three engines: **exhaustive** combinational equivalence
+  (a genuine proof over ≤2²⁰ assignments, with concrete counterexamples),
+  latency-tolerant **sequential** comparison (finds the retiming offset instead
+  of reporting spurious mismatches), and I/O-trace equivalence. Reports
+  `equiv_incomplete` honestly when the input space is too large to enumerate
+  rather than claiming a proof.
+- All three wired into `ava_patched.py::_run_extended_pipeline`.
+- 18 pytest cases. Full repo sweep: **904 passed, 7 skipped**.
+
+---
+
+## [2.52.0] — 2026-07-09
+
+### Added
+- **T63 — Vector GHASH Checker** (`AGENT_H/vghash_verifier.py`, Zvkg). Golden
+  reference for the GF(2¹²⁸) primitives behind AES-GCM authentication:
+  - `vgmul.vv` — GHASH multiply `vd ← vd ⊗ vs2`.
+  - `vghsh.vv` — GHASH add-multiply `vd ← (vd ⊕ vs1) ⊗ vs2`.
+  - Carry-less multiply mod `x¹²⁸+x⁷+x²+x+1` with the spec's `brev8`
+    within-byte reversal and shift/`0x87` reduction; 128-bit / 4-word groups.
+  - **Validated two independent ways**: (1) agreement with a textbook **NIST
+    SP 800-38D** GF(2¹²⁸) multiply on random operands, and (2) the GHASH
+    recurrence reproduces **NIST GCM Test Case 2** (`f38cbb1a…b6b0f885`).
+    Also asserts `vgmul == vghsh(vs1=0)`, commutativity and identity.
+  - **vghash_result** (HIGH). Additive `vghash_trace.jsonl` (32-hex or 4-word).
+- Wired into `ava_patched.py::_run_extended_pipeline` (`_vghash`,
+  `run_from_manifest` → `vghash_report.json`).
+- 6 pytest cases (`tests/test_extended_agents.py::TestVGHASHVerifier`).
+  Completes the Zvk vector-crypto family (Zvkned/Zvknh/Zvksh/Zvksed/**Zvkg**).
+  Full repo sweep: **886 passed, 7 skipped**.
+
+---
+
 ## [2.51.0] — 2026-07-09
 
 ### Added
