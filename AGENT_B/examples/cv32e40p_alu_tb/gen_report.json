@@ -1,0 +1,28 @@
+{
+  "schema_version": "2.1.0",
+  "agent": "testbench_generator",
+  "dut": "cv32e40p_alu",
+  "clock": "clk",
+  "reset": "rst_n",
+  "reset_active_low": true,
+  "ports": 18,
+  "inputs": 13,
+  "outputs": 3,
+  "parameters": [],
+  "detected_buses": [],
+  "files": [
+    "cv32e40p_alu_if.sv",
+    "cv32e40p_alu_pkg.sv",
+    "cv32e40p_alu_tb_top.sv",
+    "cv32e40p_alu_tests.sv",
+    "cv32e40p_alu_smoke_tb.sv",
+    "cv32e40p_alu_assertions.sv",
+    "cv32e40p_alu_cocotb.py",
+    "Makefile",
+    "cv32e40p_alu.f",
+    "Makefile",
+    "regression.yaml",
+    "README.md"
+  ],
+  "generated_at": "2026-07-19T16:55:18.449102+00:00"
+}

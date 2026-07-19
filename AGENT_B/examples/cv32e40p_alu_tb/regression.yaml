@@ -1,0 +1,19 @@
+schema_version: "2.1.0"
+dut: "cv32e40p_alu"
+tests:
+  - name: "cv32e40p_alu_smoke_test"
+    seed: 1
+    tags: ["smoke"]
+  - name: "cv32e40p_alu_random_test"
+    seed: 1
+    tags: ["random"]
+  - name: "cv32e40p_alu_random_test"
+    seed: 2
+    tags: ["random"]
+  - name: "cv32e40p_alu_random_test"
+    seed: 3
+    tags: ["random"]
+coverage:
+  functional: "cv32e40p_alu_coverage"
+  goal_pct: 90
+sim_default: "xcelium"
