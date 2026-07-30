@@ -1,4 +1,4 @@
-// Verilator self-checking testbench for the Phase-3 ALU DUT.
+// Self-checking testbench (for Verilator) for the Phase-3 ALU DUT.
 // Drives random vectors, compares against an in-TB golden, and prints ONE
 // machine-parseable result line the SimChannel adapter reads:
 //     SIM_RESULT PASS n=<N> fails=0
@@ -13,11 +13,13 @@
 `define NVEC 20000
 `endif
 
+// Randomization is seeded at run time via Verilator's +verilator+seed+<N>
+// plusarg (see SimChannel), so distinct runs are independent samples without
+// relying on an argument form of $urandom that Verilator does not support.
 module tb_alu;
   logic [2:0]  op;
   logic [31:0] a, b, y, g;
   int          fails = 0;
-  int          seed  = 1;
 
   alu #(.INJECT_BUG(`INJECT_BUG)) dut (.op_i(op), .a_i(a), .b_i(b), .y_o(y));
 
@@ -37,7 +39,6 @@ module tb_alu;
   endfunction
 
   initial begin
-    if ($value$plusargs("seed=%d", seed)) void'($urandom(seed));
     for (int i = 0; i < `NVEC; i++) begin
       op = $urandom() % 8;
       a  = $urandom();
