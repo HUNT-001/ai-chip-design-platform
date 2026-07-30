@@ -81,6 +81,21 @@ sim run), not by raw vector count — correlated stimulus must not inflate
 confidence (attack-sheet item 3.2). Coverage-weighted effective-N is the next
 refinement.
 
+## Soundness note (why the formal channel is careful)
+
+A full **deductive** warrant (which drives `R` to 0) is granted ONLY for an
+*unbounded* formal result — `sby` in `mode prove` (k-induction) or `live`. A
+plain bounded model check (`mode bmc`) that passes is recorded as
+`bounded_pass`: strong inductive-style evidence over a finite horizon, but **not**
+a proof, so it does not discharge risk to zero. This matters the moment the DUT
+has state (real cores do): a bounded pass on sequential logic must never
+masquerade as a proof. The ALU slice uses `mode prove`, so its clean property
+earns a genuine unbounded proof.
+
+Witnesses are **tamper-evident**: each real artifact path carries a
+`#sha256:<hash>` of its contents, so the Phase-2 reputation layer can re-verify
+that a cited proof/trace/log has not changed.
+
 ## Pointing this at real Ibex (the next config change, not a rewrite)
 
 The pipeline is DUT-agnostic. To verify `corpus/ibex_rtl/ibex_alu.sv` instead of
