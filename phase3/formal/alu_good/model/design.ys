@@ -1,0 +1,10 @@
+# running in alu_good/src/
+read -sv alu.sv
+read -sv alu_fv.sv
+chparam -set INJECT_BUG 0 alu_fv
+prep -top alu_fv
+
+hierarchy -smtcheck
+rename -witness
+write_jny -no-connections ../model/design.json
+write_rtlil ../model/design.il

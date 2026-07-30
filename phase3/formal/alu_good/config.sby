@@ -1,0 +1,25 @@
+# SymbiYosys formal job for the Phase-3 ALU golden-equivalence property.
+# Two tasks:
+#   good  -> INJECT_BUG=0, the property should be PROVED (expect pass)
+#   buggy -> INJECT_BUG=1, the property should FAIL with a concrete
+#            counterexample (expect fail) — the DEAD_BEEF ADD off-by-one.
+# The engineer's evidence adapter runs both and turns each verdict into a
+# typed VSA judgment (deductive proof vs. counterexample).
+
+[options]
+mode prove
+depth 2
+expect pass
+
+[engines]
+smtbmc z3
+
+[script]
+read -sv alu.sv
+read -sv alu_fv.sv
+chparam -set INJECT_BUG 0 alu_fv
+prep -top alu_fv
+
+[files]
+../rtl/alu.sv
+alu_fv.sv
