@@ -25,14 +25,16 @@ from workers import Worker
 
 
 class VOE:
-    def __init__(self, tasks, budget=40.0, mock=False):
+    def __init__(self, tasks, budget=40.0, mock=False, formal=None, sim=None):
         self.k = load_kernel()
         self.board = TaskBoard(tasks)
         self.ks = self.k.KnowledgeState()
         self.bus = JudgmentBus(self.k, self.ks)
         self.ledger = ResourceLedger(budget=budget)
         self.rep = ReputationService()
-        formal, sim = FormalChannel(mock=mock), SimChannel(mock=mock)
+        # default channels = toy ALU; pass custom channels for other DUTs (e.g. ibex).
+        formal = formal if formal is not None else FormalChannel(mock=mock)
+        sim = sim if sim is not None else SimChannel(mock=mock)
         self.workers = [
             Worker("skeptic",  "skeptic",  self.k, formal, sim),
             Worker("explorer", "explorer", self.k, formal, sim),
