@@ -10,8 +10,11 @@
 good
 buggy
 
+# mode prove = k-induction => an UNBOUNDED proof, not a bounded check. The
+# adapter only grants a full deductive warrant when the job is unbounded; a
+# plain `mode bmc` pass is recorded as bounded evidence, never as a proof.
 [options]
-mode bmc
+mode prove
 depth 2
 good:  expect pass
 buggy: expect fail
