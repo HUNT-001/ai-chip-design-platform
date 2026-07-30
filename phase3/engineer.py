@@ -67,6 +67,7 @@ class Engineer:
         self.ks = self.k.KnowledgeState()
         self.formal = FormalChannel(mock=mock)
         self.sim = SimChannel(mock=mock)
+        self.formal_done = set()   # props whose formal attempt gave no proof/cex
         self.log = []
 
     # -- conservative n_eff: +1 effective sample per distinct-seed run --------
@@ -86,7 +87,7 @@ class Engineer:
 
     def _formal_step(self, p: Prop):
         ev = self.formal.prove(p.formal_task)
-        if ev.status == "proved":
+        if ev.status == "proved":                     # unbounded proof -> deductive
             j = self.k.Judgment(p.phi, self.k.Warrant.DEDUCTIVE,
                                  {"n_eff": self.ks.n_eff(p.phi)}, witness=ev.witness)
             self.ks.believe(j)
@@ -95,11 +96,18 @@ class Engineer:
                                  {"n_eff": self.ks.n_eff(p.phi), "counterexample": True},
                                  witness=ev.witness)
             self.ks.believe(j)
+        elif ev.status == "bounded_pass":             # strong but NOT a proof
+            # record as bounded inductive evidence; does NOT discharge risk to 0.
+            j = self.k.Judgment(p.phi, self.k.Warrant.INDUCTIVE,
+                                 {"n_eff": self.ks.n_eff(p.phi) + 1}, witness=ev.witness)
+            self.ks.believe(j)
+            self.formal_done.add(p.phi)               # no further formal escalation
         return ev
 
     def _candidates(self):
         return [p for p in self.props
-                if not self.ks.proven(p.phi) and not self.ks.disproven(p.phi)]
+                if not self.ks.proven(p.phi) and not self.ks.disproven(p.phi)
+                and p.phi not in self.formal_done]
 
     def _pick(self, cands):
         # planner = argmax kernel utility (exploit + explore - cost)
@@ -120,6 +128,10 @@ class Engineer:
                 ev = self._sim_step(p, seed); seed += 1; action = "sim"
             else:
                 ev = self._formal_step(p); action = "formal"
+            if ev.status == "error":
+                print(f"  step {step:2d}  {action:6s} {p.phi:16s} -> ERROR: {ev.detail}")
+                print("  aborting: a real evidence channel failed (fix the toolchain issue above).")
+                break
             curR, laws = k.check_laws(ks, w, prev, "update")
             ok = all(v for _, v in laws)
             self.log.append((step, action, p.phi, ev.status, curR, ok))
