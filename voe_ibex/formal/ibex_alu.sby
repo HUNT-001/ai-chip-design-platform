@@ -1,0 +1,41 @@
+# Formal jobs for the REAL ibex_alu (RV32BNone). Four per-op-class proofs over
+# the unmodified corpus RTL (expect pass) and one bug-finding job over a
+# narrowly-mutated copy (expect a counterexample). mode prove = k-induction =>
+# a genuine unbounded proof, which the evidence adapter records as deductive.
+
+[tasks]
+prove_add
+prove_logic
+prove_shift
+prove_cmp
+bug_logic
+
+[options]
+mode prove
+depth 2
+prove_add:   expect pass
+prove_logic: expect pass
+prove_shift: expect pass
+prove_cmp:   expect pass
+bug_logic:   expect fail
+
+[engines]
+smtbmc z3
+
+[script]
+prove_add:   verilog_defines -DCLASS_ADD
+prove_logic: verilog_defines -DCLASS_LOGIC
+prove_shift: verilog_defines -DCLASS_SHIFT
+prove_cmp:   verilog_defines -DCLASS_CMP
+bug_logic:   verilog_defines -DCLASS_LOGIC -DDUT=ibex_alu_mut
+read_verilog -sv ibex_pkg.sv
+read_verilog -sv ibex_alu.sv
+bug_logic:   read_verilog -sv ibex_alu_mut.sv
+read_verilog -sv ibex_alu_fv.sv
+prep -top ibex_alu_fv
+
+[files]
+../rtl/ibex_pkg.sv
+../rtl/ibex_alu.sv
+../rtl/ibex_alu_mut.sv
+ibex_alu_fv.sv
