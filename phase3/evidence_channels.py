@@ -77,14 +77,15 @@ class FormalChannel:
         """Run one sby task. Returns proved (deductive) only for unbounded modes;
         a bounded pass is 'bounded_pass' (strong but not a proof)."""
         unbounded = self.mode in self._UNBOUNDED_MODES
+        is_bug_task = any(s in task.lower() for s in ("bug", "buggy", "mut"))
         if self.mock:
-            if task.startswith("good"):
+            if not is_bug_task:
                 st = "proved" if unbounded else "bounded_pass"
                 return Evidence("formal", st, witness=f"<mock>/{task}/PASS",
                                 detail=f"mode={self.mode}: no cex ({'unbounded proof' if unbounded else 'bounded'})")
             return Evidence("formal", "counterexample",
                             witness=f"<mock>/{task}/engine_0/trace.vcd",
-                            detail="cex: op=0 a=deadbeef (ADD off-by-one)")
+                            detail="cex: mutated logic op on a narrow input")
         try:
             p = subprocess.run(["sby", "-f", os.path.basename(self.sby_file), task],
                                cwd=self.dir, capture_output=True, text=True, timeout=600)
@@ -111,8 +112,14 @@ class FormalChannel:
 # Simulation channel                                                          #
 # --------------------------------------------------------------------------- #
 class SimChannel:
-    def __init__(self, rtl: str = RTL, tb: str = TB, mock: bool = False, workroot: str | None = None):
-        self.rtl, self.tb = rtl, tb
+    def __init__(self, rtl: str = RTL, tb: str = TB, mock: bool = False, workroot: str | None = None,
+                 sources=None, top: str = "tb_alu", defines_for=None):
+        # Backward compatible: default = toy ALU (rtl, tb). For multi-file DUTs
+        # (e.g. real ibex_alu: pkg + core + mutant + tb) pass `sources`, `top`,
+        # and `defines_for(inject_bug)->[defines]`.
+        self.sources = sources if sources is not None else [rtl, tb]
+        self.top = top
+        self.defines_for = defines_for or (lambda bug: (["INJECT_BUG=1"] if bug else []))
         self.mock = mock or not _have("verilator")
         self.workroot = workroot or tempfile.mkdtemp(prefix="phase3_sim_")
         self._built: dict[bool, str] = {}
@@ -123,10 +130,10 @@ class SimChannel:
             return "<mock-binary>", ""
         mdir = os.path.join(self.workroot, "buggy" if inject_bug else "good")
         os.makedirs(mdir, exist_ok=True)
+        defs = [f"-D{d}" for d in self.defines_for(inject_bug)]
         cmd = ["verilator", "--binary", "--timing", "-Wno-fatal",
-               "--top-module", "tb_alu", "-Mdir", mdir,
-               f"-DNVEC={nvec}"] + (["-DINJECT_BUG=1"] if inject_bug else []) + \
-              [self.rtl, self.tb, "-o", "Vtb"]
+               "--top-module", self.top, "-Mdir", mdir,
+               f"-DNVEC={nvec}"] + defs + list(self.sources) + ["-o", "Vtb"]
         try:
             p = subprocess.run(cmd, capture_output=True, text=True, timeout=900)
         except (subprocess.TimeoutExpired, FileNotFoundError) as e:
