@@ -1,0 +1,15 @@
+initial
+assume (= [$auto$async2sync.cc:107:execute$56] false)
+assume (= [$auto$async2sync.cc:116:execute$60] true)
+
+state 0
+assume (= [a] #xdeadbeef)
+assume (= [b] #x9f4d4cf0)
+assume (= [clk] false)
+assume (= [op] #b000)
+
+state 1
+assume (= [a] #xdeadbeef)
+assume (= [b] #x21524102)
+assume (= [clk] false)
+assume (= [op] #b000)

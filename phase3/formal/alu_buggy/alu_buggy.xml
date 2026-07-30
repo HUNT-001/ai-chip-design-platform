@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+<testsuite timestamp="2026-07-30T23:29:38" hostname="TANPAN" package="alu" id="0" name="buggy" tests="1" errors="0" failures="1" time="0" skipped="0">
+<properties>
+<property name="os" value="Linux"/>
+<property name="expect" value="FAIL"/>
+<property name="status" value="FAIL"/>
+</properties>
+<testcase classname="buggy" name="build execution" time="0">
+</testcase>
+<testcase classname="buggy" name="Property ASSERT in alu_fv at alu_fv.sv:35.25-35.40" time="0" type="ASSERT" location="alu_fv.sv:35.25-35.40" id="_witness_.check_assert_alu_fv_sv_35_21" tracefile="engine_0/trace.vcd">
+<failure type="ASSERT" message="Property ASSERT in alu_fv at alu_fv.sv:35.25-35.40 failed. Trace file: engine_0/trace.vcd" />
+</testcase>
+<system-out>SBY 23:29:37 [alu_buggy] Removing directory '/mnt/e/ai-chip-design-platform/phase3/formal/alu_buggy'.
+SBY 23:29:37 [alu_buggy] Copy '/mnt/e/ai-chip-design-platform/phase3/formal/../rtl/alu.sv' to '/mnt/e/ai-chip-design-platform/phase3/formal/alu_buggy/src/alu.sv'.
+SBY 23:29:37 [alu_buggy] Copy '/mnt/e/ai-chip-design-platform/phase3/formal/alu_fv.sv' to '/mnt/e/ai-chip-design-platform/phase3/formal/alu_buggy/src/alu_fv.sv'.
+SBY 23:29:37 [alu_buggy] engine_0: smtbmc z3
+SBY 23:29:37 [alu_buggy] base: starting process &quot;cd alu_buggy/src; yosys -ql ../model/design.log ../model/design.ys&quot;
+SBY 23:29:37 [alu_buggy] base: finished (returncode=0)
+SBY 23:29:37 [alu_buggy] prep: starting process &quot;cd alu_buggy/model; yosys -ql design_prep.log design_prep.ys&quot;
+SBY 23:29:38 [alu_buggy] prep: finished (returncode=0)
+SBY 23:29:38 [alu_buggy] smt2: starting process &quot;cd alu_buggy/model; yosys -ql design_smt2.log design_smt2.ys&quot;
+SBY 23:29:38 [alu_buggy] smt2: finished (returncode=0)
+SBY 23:29:38 [alu_buggy] engine_0.basecase: starting process &quot;cd alu_buggy; yosys-smtbmc -s z3 --presat --noprogress -t 2  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2&quot;
+SBY 23:29:38 [alu_buggy] engine_0.induction: starting process &quot;cd alu_buggy; yosys-smtbmc -s z3 --presat -i --noprogress -t 2  --append 0 --dump-vcd engine_0/trace_induct.vcd --dump-yw engine_0/trace_induct.yw --dump-vlogtb engine_0/trace_induct_tb.v --dump-smtc engine_0/trace_induct.smtc model/design_smt2.smt2&quot;
+SBY 23:29:38 [alu_buggy] engine_0.basecase: ##   0:00:00  Solver: z3
+SBY 23:29:38 [alu_buggy] engine_0.induction: ##   0:00:00  Solver: z3
+SBY 23:29:38 [alu_buggy] engine_0.induction: ##   0:00:00  Trying induction in step 2..
+SBY 23:29:38 [alu_buggy] engine_0.basecase: ##   0:00:00  Checking assumptions in step 0..
+SBY 23:29:38 [alu_buggy] engine_0.induction: ##   0:00:00  Trying induction in step 1..
+SBY 23:29:38 [alu_buggy] engine_0.basecase: ##   0:00:00  Checking assertions in step 0..
+SBY 23:29:38 [alu_buggy] engine_0.basecase: ##   0:00:00  Checking assumptions in step 1..
+SBY 23:29:38 [alu_buggy] engine_0.basecase: ##   0:00:00  Checking assertions in step 1..
+SBY 23:29:38 [alu_buggy] engine_0.basecase: ##   0:00:00  BMC failed!
+SBY 23:29:38 [alu_buggy] engine_0.basecase: ##   0:00:00  Assert failed in alu_fv: alu_fv.sv:35.25-35.40 (_witness_.check_assert_alu_fv_sv_35_21)
+SBY 23:29:38 [alu_buggy] engine_0.basecase: ##   0:00:00  Writing trace to VCD file: engine_0/trace.vcd
+SBY 23:29:38 [alu_buggy] engine_0.basecase: ##   0:00:00  Writing trace to Verilog testbench: engine_0/trace_tb.v
+SBY 23:29:38 [alu_buggy] engine_0.basecase: ##   0:00:00  Writing trace to constraints file: engine_0/trace.smtc
+SBY 23:29:38 [alu_buggy] engine_0.basecase: ##   0:00:00  Writing trace to Yosys witness file: engine_0/trace.yw
+SBY 23:29:38 [alu_buggy] engine_0.basecase: ##   0:00:00  Status: failed
+SBY 23:29:38 [alu_buggy] engine_0.induction: ##   0:00:00  Trying induction in step 0..
+SBY 23:29:38 [alu_buggy] engine_0.induction: ##   0:00:00  Temporal induction failed!
+SBY 23:29:38 [alu_buggy] engine_0.induction: ##   0:00:00  Assert failed in alu_fv: alu_fv.sv:35.25-35.40 (_witness_.check_assert_alu_fv_sv_35_21)
+SBY 23:29:38 [alu_buggy] engine_0.induction: ##   0:00:00  Writing trace to VCD file: engine_0/trace_induct.vcd
+SBY 23:29:38 [alu_buggy] engine_0.induction: ##   0:00:00  Writing trace to Verilog testbench: engine_0/trace_induct_tb.v
+SBY 23:29:38 [alu_buggy] engine_0.induction: ##   0:00:00  Writing trace to constraints file: engine_0/trace_induct.smtc
+SBY 23:29:38 [alu_buggy] engine_0.induction: ##   0:00:00  Writing trace to Yosys witness file: engine_0/trace_induct.yw
+SBY 23:29:38 [alu_buggy] engine_0.induction: ##   0:00:00  Status: failed
+SBY 23:29:38 [alu_buggy] engine_0.induction: finished (returncode=1)
+SBY 23:29:38 [alu_buggy] engine_0.induction: Status returned by engine for induction: FAIL
+SBY 23:29:38 [alu_buggy] engine_0.basecase: finished (returncode=1)
+SBY 23:29:38 [alu_buggy] engine_0.basecase: Status returned by engine for basecase: FAIL
+SBY 23:29:38 [alu_buggy] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY 23:29:38 [alu_buggy] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY 23:29:38 [alu_buggy] summary: engine_0 (smtbmc z3) returned FAIL for basecase
+SBY 23:29:38 [alu_buggy] summary: engine_0 (smtbmc z3) returned FAIL for induction
+SBY 23:29:38 [alu_buggy] summary: counterexample trace [basecase]: alu_buggy/engine_0/trace.vcd
+SBY 23:29:38 [alu_buggy] summary:   failed assertion alu_fv._witness_.check_assert_alu_fv_sv_35_21 at alu_fv.sv:35.25-35.40 step 1
+SBY 23:29:38 [alu_buggy] summary: counterexample trace [induction]: alu_buggy/engine_0/trace_induct.vcd
+SBY 23:29:38 [alu_buggy] summary:   failed assertion alu_fv._witness_.check_assert_alu_fv_sv_35_21 at alu_fv.sv:35.25-35.40
+SBY 23:29:38 [alu_buggy] DONE (FAIL, rc=0)
+</system-out>
+<system-err>
+</system-err>
+</testsuite>
+</testsuites>

@@ -1,0 +1,11 @@
+##   0:00:00  Solver: z3
+##   0:00:00  Trying induction in step 2..
+##   0:00:00  Trying induction in step 1..
+##   0:00:00  Trying induction in step 0..
+##   0:00:00  Temporal induction failed!
+##   0:00:00  Assert failed in alu_fv: alu_fv.sv:35.25-35.40 (_witness_.check_assert_alu_fv_sv_35_21)
+##   0:00:00  Writing trace to VCD file: engine_0/trace_induct.vcd
+##   0:00:00  Writing trace to Verilog testbench: engine_0/trace_induct_tb.v
+##   0:00:00  Writing trace to constraints file: engine_0/trace_induct.smtc
+##   0:00:00  Writing trace to Yosys witness file: engine_0/trace_induct.yw
+##   0:00:00  Status: failed
