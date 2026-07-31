@@ -58,11 +58,15 @@ class FormalChannel:
     # labeling it "proved" would over-certify sequential logic (soundness bug).
     _UNBOUNDED_MODES = {"prove", "live"}
 
-    def __init__(self, sby_file: str = SBY, mock: bool = False):
+    def __init__(self, sby_file: str = SBY, mock: bool = False, combinational: bool = False):
+        # combinational=True declares the DUT has no state, so a bmc pass at
+        # depth>=1 is COMPLETE (exhaustive over inputs) and counts as a full
+        # deductive proof. For sequential DUTs leave it False (bmc stays bounded).
         self.sby_file = sby_file
         self.dir = os.path.dirname(sby_file)
         self.mock = mock or not _have("sby")
         self.mode = self._read_mode(sby_file)
+        self.combinational = combinational
 
     @staticmethod
     def _read_mode(sby_file: str) -> str:
@@ -76,7 +80,10 @@ class FormalChannel:
     def prove(self, task: str) -> Evidence:
         """Run one sby task. Returns proved (deductive) only for unbounded modes;
         a bounded pass is 'bounded_pass' (strong but not a proof)."""
-        unbounded = self.mode in self._UNBOUNDED_MODES
+        # A pass is a full proof if the mode is unbounded (k-induction/live) OR
+        # the design is combinational (bmc depth>=1 is then exhaustive).
+        unbounded = (self.mode in self._UNBOUNDED_MODES) or \
+                    (self.mode == "bmc" and self.combinational)
         is_bug_task = any(s in task.lower() for s in ("bug", "buggy", "mut"))
         if self.mock:
             if not is_bug_task:
@@ -94,6 +101,12 @@ class FormalChannel:
             return Evidence("formal", "error", witness="", detail=str(e))
         base = os.path.splitext(os.path.basename(self.sby_file))[0]
         work = os.path.join(self.dir, f"{base}_{task}")
+        flog = os.path.join(self.dir, f"sby_{task}.log")
+        try:
+            with open(flog, "w") as f:
+                f.write("$ sby -f %s %s\n\n%s" % (os.path.basename(self.sby_file), task, out))
+        except OSError:
+            pass
         if re.search(r"DONE \(PASS", out):
             status = "proved" if unbounded else "bounded_pass"
             detail = ("unbounded proof (k-induction)" if unbounded
@@ -105,7 +118,10 @@ class FormalChannel:
             w = trace if os.path.exists(trace) else os.path.join(work, "status")
             return Evidence("formal", "counterexample", witness=_stamp(w),
                             detail="assertion falsified — counterexample trace", raw=out)
-        return Evidence("formal", "error", witness="", detail="unparsed sby output", raw=out)
+        errln = [l for l in out.splitlines() if "ERROR" in l or "syntax error" in l.lower()]
+        tail = " | ".join((errln or out.strip().splitlines())[-4:])
+        return Evidence("formal", "error", witness=flog,
+                        detail=f"sby did not reach a verdict (see {flog}): {tail}", raw=out)
 
 
 # --------------------------------------------------------------------------- #
