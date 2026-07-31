@@ -1,0 +1,32 @@
+SBY 15:01:08 [ibex_alu_prove_shift] Removing directory '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_prove_shift'.
+SBY 15:01:08 [ibex_alu_prove_shift] Copy '/mnt/e/ai-chip-design-platform/voe_ibex/formal/gen/ibex_alu.v' to '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_prove_shift/src/ibex_alu.v'.
+SBY 15:01:08 [ibex_alu_prove_shift] Copy '/mnt/e/ai-chip-design-platform/voe_ibex/formal/gen/ibex_alu_mut.v' to '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_prove_shift/src/ibex_alu_mut.v'.
+SBY 15:01:08 [ibex_alu_prove_shift] Copy '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_fv.v' to '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_prove_shift/src/ibex_alu_fv.v'.
+SBY 15:01:08 [ibex_alu_prove_shift] engine_0: smtbmc z3
+SBY 15:01:08 [ibex_alu_prove_shift] base: starting process "cd ibex_alu_prove_shift/src; yosys -ql ../model/design.log ../model/design.ys"
+SBY 15:01:08 [ibex_alu_prove_shift] base: finished (returncode=0)
+SBY 15:01:08 [ibex_alu_prove_shift] prep: starting process "cd ibex_alu_prove_shift/model; yosys -ql design_prep.log design_prep.ys"
+SBY 15:01:08 [ibex_alu_prove_shift] prep: finished (returncode=0)
+SBY 15:01:08 [ibex_alu_prove_shift] smt2: starting process "cd ibex_alu_prove_shift/model; yosys -ql design_smt2.log design_smt2.ys"
+SBY 15:01:08 [ibex_alu_prove_shift] smt2: finished (returncode=0)
+SBY 15:01:08 [ibex_alu_prove_shift] engine_0: starting process "cd ibex_alu_prove_shift; yosys-smtbmc -s z3 --presat --noprogress -t 2  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2"
+SBY 15:01:08 [ibex_alu_prove_shift] engine_0: ##   0:00:00  Solver: z3
+SBY 15:01:08 [ibex_alu_prove_shift] engine_0: ##   0:00:00  Checking assumptions in step 0..
+SBY 15:01:08 [ibex_alu_prove_shift] engine_0: ##   0:00:00  Checking assertions in step 0..
+SBY 15:01:08 [ibex_alu_prove_shift] engine_0: ##   0:00:00  Checking assumptions in step 1..
+SBY 15:01:08 [ibex_alu_prove_shift] engine_0: ##   0:00:00  Checking assertions in step 1..
+SBY 15:01:08 [ibex_alu_prove_shift] engine_0: ##   0:00:00  BMC failed!
+SBY 15:01:08 [ibex_alu_prove_shift] engine_0: ##   0:00:00  Assert failed in ibex_alu_fv: ibex_alu_fv.v:71.5-71.29 (_witness_.check_assert_ibex_alu_fv_v_71_89)
+SBY 15:01:08 [ibex_alu_prove_shift] engine_0: ##   0:00:00  Writing trace to VCD file: engine_0/trace.vcd
+SBY 15:01:08 [ibex_alu_prove_shift] engine_0: ##   0:00:00  Writing trace to Verilog testbench: engine_0/trace_tb.v
+SBY 15:01:08 [ibex_alu_prove_shift] engine_0: ##   0:00:00  Writing trace to constraints file: engine_0/trace.smtc
+SBY 15:01:08 [ibex_alu_prove_shift] engine_0: ##   0:00:00  Writing trace to Yosys witness file: engine_0/trace.yw
+SBY 15:01:08 [ibex_alu_prove_shift] engine_0: ##   0:00:00  Status: failed
+SBY 15:01:08 [ibex_alu_prove_shift] engine_0: finished (returncode=1)
+SBY 15:01:08 [ibex_alu_prove_shift] engine_0: Status returned by engine: FAIL
+SBY 15:01:08 [ibex_alu_prove_shift] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY 15:01:08 [ibex_alu_prove_shift] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY 15:01:08 [ibex_alu_prove_shift] summary: engine_0 (smtbmc z3) returned FAIL
+SBY 15:01:08 [ibex_alu_prove_shift] summary: counterexample trace: ibex_alu_prove_shift/engine_0/trace.vcd
+SBY 15:01:08 [ibex_alu_prove_shift] summary:   failed assertion ibex_alu_fv._witness_.check_assert_ibex_alu_fv_v_71_89 at ibex_alu_fv.v:71.5-71.29 step 1
+SBY 15:01:08 [ibex_alu_prove_shift] DONE (FAIL, rc=2)

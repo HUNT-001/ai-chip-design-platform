@@ -1,0 +1,17 @@
+initial
+assume (= [$auto$async2sync.cc:107:execute$163] false)
+assume (= [$auto$async2sync.cc:116:execute$167] true)
+assume (= (select [dut.$auto$proc_rom.cc:155:do_switch$92] #b001000) #b0)
+assume (= (select [dut.$auto$proc_rom.cc:155:do_switch$92] #b001001) #b0)
+
+state 0
+assume (= [a] #xffffffff)
+assume (= [b] #xe6de4830)
+assume (= [clk] false)
+assume (= [op] #b0001000)
+
+state 1
+assume (= [a] #x7fffffff)
+assume (= [b] #x7fffffff)
+assume (= [clk] false)
+assume (= [op] #b0001001)
