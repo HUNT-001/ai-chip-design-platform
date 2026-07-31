@@ -1,0 +1,25 @@
+SBY 15:01:07 [ibex_alu_prove_logic] Removing directory '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_prove_logic'.
+SBY 15:01:07 [ibex_alu_prove_logic] Copy '/mnt/e/ai-chip-design-platform/voe_ibex/formal/gen/ibex_alu.v' to '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_prove_logic/src/ibex_alu.v'.
+SBY 15:01:07 [ibex_alu_prove_logic] Copy '/mnt/e/ai-chip-design-platform/voe_ibex/formal/gen/ibex_alu_mut.v' to '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_prove_logic/src/ibex_alu_mut.v'.
+SBY 15:01:07 [ibex_alu_prove_logic] Copy '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_fv.v' to '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_prove_logic/src/ibex_alu_fv.v'.
+SBY 15:01:07 [ibex_alu_prove_logic] engine_0: smtbmc z3
+SBY 15:01:07 [ibex_alu_prove_logic] base: starting process "cd ibex_alu_prove_logic/src; yosys -ql ../model/design.log ../model/design.ys"
+SBY 15:01:07 [ibex_alu_prove_logic] base: finished (returncode=0)
+SBY 15:01:07 [ibex_alu_prove_logic] prep: starting process "cd ibex_alu_prove_logic/model; yosys -ql design_prep.log design_prep.ys"
+SBY 15:01:07 [ibex_alu_prove_logic] prep: finished (returncode=0)
+SBY 15:01:07 [ibex_alu_prove_logic] smt2: starting process "cd ibex_alu_prove_logic/model; yosys -ql design_smt2.log design_smt2.ys"
+SBY 15:01:07 [ibex_alu_prove_logic] smt2: finished (returncode=0)
+SBY 15:01:07 [ibex_alu_prove_logic] engine_0: starting process "cd ibex_alu_prove_logic; yosys-smtbmc -s z3 --presat --noprogress -t 2  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2"
+SBY 15:01:07 [ibex_alu_prove_logic] engine_0: ##   0:00:00  Solver: z3
+SBY 15:01:07 [ibex_alu_prove_logic] engine_0: ##   0:00:00  Checking assumptions in step 0..
+SBY 15:01:07 [ibex_alu_prove_logic] engine_0: ##   0:00:00  Checking assertions in step 0..
+SBY 15:01:07 [ibex_alu_prove_logic] engine_0: ##   0:00:00  Checking assumptions in step 1..
+SBY 15:01:07 [ibex_alu_prove_logic] engine_0: ##   0:00:00  Checking assertions in step 1..
+SBY 15:01:07 [ibex_alu_prove_logic] engine_0: ##   0:00:00  Status: passed
+SBY 15:01:07 [ibex_alu_prove_logic] engine_0: finished (returncode=0)
+SBY 15:01:08 [ibex_alu_prove_logic] engine_0: Status returned by engine: pass
+SBY 15:01:08 [ibex_alu_prove_logic] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY 15:01:08 [ibex_alu_prove_logic] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY 15:01:08 [ibex_alu_prove_logic] summary: engine_0 (smtbmc z3) returned pass
+SBY 15:01:08 [ibex_alu_prove_logic] summary: engine_0 did not produce any traces
+SBY 15:01:08 [ibex_alu_prove_logic] DONE (PASS, rc=0)
