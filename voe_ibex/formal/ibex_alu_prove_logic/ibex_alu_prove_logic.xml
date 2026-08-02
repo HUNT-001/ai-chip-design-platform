@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <testsuites>
-<testsuite timestamp="2026-07-31T15:01:08" hostname="TANPAN" package="ibex_alu" id="0" name="prove_logic" tests="1" errors="0" failures="0" time="0" skipped="0">
+<testsuite timestamp="2026-08-01T02:41:11" hostname="TANPAN" package="ibex_alu" id="0" name="prove_logic" tests="1" errors="0" failures="0" time="0" skipped="0">
 <properties>
 <property name="os" value="Linux"/>
 <property name="expect" value="PASS"/>
@@ -10,31 +10,31 @@
 </testcase>
 <testcase classname="prove_logic" name="Property ASSERT in ibex_alu_fv at ibex_alu_fv.v:61.5-61.29" time="0" type="ASSERT" location="ibex_alu_fv.v:61.5-61.29" id="_witness_.check_assert_ibex_alu_fv_v_61_89">
 </testcase>
-<system-out>SBY 15:01:07 [ibex_alu_prove_logic] Removing directory '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_prove_logic'.
-SBY 15:01:07 [ibex_alu_prove_logic] Copy '/mnt/e/ai-chip-design-platform/voe_ibex/formal/gen/ibex_alu.v' to '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_prove_logic/src/ibex_alu.v'.
-SBY 15:01:07 [ibex_alu_prove_logic] Copy '/mnt/e/ai-chip-design-platform/voe_ibex/formal/gen/ibex_alu_mut.v' to '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_prove_logic/src/ibex_alu_mut.v'.
-SBY 15:01:07 [ibex_alu_prove_logic] Copy '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_fv.v' to '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_prove_logic/src/ibex_alu_fv.v'.
-SBY 15:01:07 [ibex_alu_prove_logic] engine_0: smtbmc z3
-SBY 15:01:07 [ibex_alu_prove_logic] base: starting process &quot;cd ibex_alu_prove_logic/src; yosys -ql ../model/design.log ../model/design.ys&quot;
-SBY 15:01:07 [ibex_alu_prove_logic] base: finished (returncode=0)
-SBY 15:01:07 [ibex_alu_prove_logic] prep: starting process &quot;cd ibex_alu_prove_logic/model; yosys -ql design_prep.log design_prep.ys&quot;
-SBY 15:01:07 [ibex_alu_prove_logic] prep: finished (returncode=0)
-SBY 15:01:07 [ibex_alu_prove_logic] smt2: starting process &quot;cd ibex_alu_prove_logic/model; yosys -ql design_smt2.log design_smt2.ys&quot;
-SBY 15:01:07 [ibex_alu_prove_logic] smt2: finished (returncode=0)
-SBY 15:01:07 [ibex_alu_prove_logic] engine_0: starting process &quot;cd ibex_alu_prove_logic; yosys-smtbmc -s z3 --presat --noprogress -t 2  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2&quot;
-SBY 15:01:07 [ibex_alu_prove_logic] engine_0: ##   0:00:00  Solver: z3
-SBY 15:01:07 [ibex_alu_prove_logic] engine_0: ##   0:00:00  Checking assumptions in step 0..
-SBY 15:01:07 [ibex_alu_prove_logic] engine_0: ##   0:00:00  Checking assertions in step 0..
-SBY 15:01:07 [ibex_alu_prove_logic] engine_0: ##   0:00:00  Checking assumptions in step 1..
-SBY 15:01:07 [ibex_alu_prove_logic] engine_0: ##   0:00:00  Checking assertions in step 1..
-SBY 15:01:07 [ibex_alu_prove_logic] engine_0: ##   0:00:00  Status: passed
-SBY 15:01:07 [ibex_alu_prove_logic] engine_0: finished (returncode=0)
-SBY 15:01:08 [ibex_alu_prove_logic] engine_0: Status returned by engine: pass
-SBY 15:01:08 [ibex_alu_prove_logic] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:00 (0)
-SBY 15:01:08 [ibex_alu_prove_logic] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
-SBY 15:01:08 [ibex_alu_prove_logic] summary: engine_0 (smtbmc z3) returned pass
-SBY 15:01:08 [ibex_alu_prove_logic] summary: engine_0 did not produce any traces
-SBY 15:01:08 [ibex_alu_prove_logic] DONE (PASS, rc=0)
+<system-out>SBY  2:41:10 [ibex_alu_prove_logic] Removing directory '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_prove_logic'.
+SBY  2:41:10 [ibex_alu_prove_logic] Copy '/mnt/e/ai-chip-design-platform/voe_ibex/formal/gen/ibex_alu.v' to '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_prove_logic/src/ibex_alu.v'.
+SBY  2:41:10 [ibex_alu_prove_logic] Copy '/mnt/e/ai-chip-design-platform/voe_ibex/formal/gen/ibex_alu_mut.v' to '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_prove_logic/src/ibex_alu_mut.v'.
+SBY  2:41:10 [ibex_alu_prove_logic] Copy '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_fv.v' to '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_prove_logic/src/ibex_alu_fv.v'.
+SBY  2:41:11 [ibex_alu_prove_logic] engine_0: smtbmc z3
+SBY  2:41:11 [ibex_alu_prove_logic] base: starting process &quot;cd ibex_alu_prove_logic/src; yosys -ql ../model/design.log ../model/design.ys&quot;
+SBY  2:41:11 [ibex_alu_prove_logic] base: finished (returncode=0)
+SBY  2:41:11 [ibex_alu_prove_logic] prep: starting process &quot;cd ibex_alu_prove_logic/model; yosys -ql design_prep.log design_prep.ys&quot;
+SBY  2:41:11 [ibex_alu_prove_logic] prep: finished (returncode=0)
+SBY  2:41:11 [ibex_alu_prove_logic] smt2: starting process &quot;cd ibex_alu_prove_logic/model; yosys -ql design_smt2.log design_smt2.ys&quot;
+SBY  2:41:11 [ibex_alu_prove_logic] smt2: finished (returncode=0)
+SBY  2:41:11 [ibex_alu_prove_logic] engine_0: starting process &quot;cd ibex_alu_prove_logic; yosys-smtbmc -s z3 --presat --noprogress -t 2  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2&quot;
+SBY  2:41:11 [ibex_alu_prove_logic] engine_0: ##   0:00:00  Solver: z3
+SBY  2:41:11 [ibex_alu_prove_logic] engine_0: ##   0:00:00  Checking assumptions in step 0..
+SBY  2:41:11 [ibex_alu_prove_logic] engine_0: ##   0:00:00  Checking assertions in step 0..
+SBY  2:41:11 [ibex_alu_prove_logic] engine_0: ##   0:00:00  Checking assumptions in step 1..
+SBY  2:41:11 [ibex_alu_prove_logic] engine_0: ##   0:00:00  Checking assertions in step 1..
+SBY  2:41:11 [ibex_alu_prove_logic] engine_0: ##   0:00:00  Status: passed
+SBY  2:41:11 [ibex_alu_prove_logic] engine_0: finished (returncode=0)
+SBY  2:41:11 [ibex_alu_prove_logic] engine_0: Status returned by engine: pass
+SBY  2:41:11 [ibex_alu_prove_logic] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY  2:41:11 [ibex_alu_prove_logic] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY  2:41:11 [ibex_alu_prove_logic] summary: engine_0 (smtbmc z3) returned pass
+SBY  2:41:11 [ibex_alu_prove_logic] summary: engine_0 did not produce any traces
+SBY  2:41:11 [ibex_alu_prove_logic] DONE (PASS, rc=0)
 </system-out>
 <system-err>
 </system-err>
