@@ -1413,7 +1413,7 @@ module \ibex_alu_mut
   connect \sv2v_tmp_BA5F8 1'0
   connect \xperm_result 0
 end
-attribute \src "ibex_alu_fv.v:11.1-98.10"
+attribute \src "ibex_alu_fv.v:11.1-106.10"
 attribute \top 1
 attribute \keep 1
 module \ibex_alu_fv
