@@ -8,14 +8,14 @@ module testbench(input clock, output reg genclock);
 `endif
   reg genclock = 1;
   reg [31:0] cycle = 0;
-  wire [0:0] PI_clk = clock;
-  reg [6:0] PI_op;
   reg [31:0] PI_b;
+  reg [6:0] PI_op;
+  wire [0:0] PI_clk = clock;
   reg [31:0] PI_a;
   ibex_alu_fv UUT (
-    .clk(PI_clk),
-    .op(PI_op),
     .b(PI_b),
+    .op(PI_op),
+    .clk(PI_clk),
     .a(PI_a)
   );
 `ifndef VERILATOR
@@ -41,15 +41,15 @@ module testbench(input clock, output reg genclock);
     UUT.dut.$auto$proc_rom.\cc:155:do_switch$95 [6'b000100] = 1'b0;
 
     // state 0
-    PI_op = 7'b0000010;
     PI_b = 32'b00000000000011011100111000101001;
+    PI_op = 7'b0000010;
     PI_a = 32'b11001010111111101111000000001101;
   end
   always @(posedge clock) begin
     // state 1
     if (cycle == 0) begin
-      PI_op <= 7'b0000100;
       PI_b <= 32'b00000001101000000000011010000011;
+      PI_op <= 7'b0000100;
       PI_a <= 32'b10101000000101010100011101010111;
     end
 
