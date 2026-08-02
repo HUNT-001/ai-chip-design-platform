@@ -63,9 +63,17 @@ module ibex_alu_fv (
 `endif
 
 `ifdef CLASS_SHIFT
-  always @(*) g_res = (op == ALU_SLL) ? (a << b[4:0]) :
-                      (op == ALU_SRL) ? (a >> b[4:0]) :
-                                        ($signed(a) >>> b[4:0]);
+  // NOTE (real bug found by formal): this MUST be if/else, not a ternary chain.
+  // In a Verilog conditional expression, if any operand is unsigned the whole
+  // expression is unsigned and that propagates into the branches — which
+  // silently demoted `$signed(a) >>> amt` to a LOGICAL shift. Formal caught it
+  // with SRA, a=0xFFFFFFFF, amt=16: Ibex 0xFFFFFFFF vs golden 0x0000FFFF.
+  // Separate assignments keep each RHS's own signedness.
+  always @(*) begin
+    if      (op == ALU_SLL) g_res = a << b[4:0];
+    else if (op == ALU_SRL) g_res = a >> b[4:0];
+    else                    g_res = $signed(a) >>> b[4:0];
+  end
   always @(posedge clk) begin
     assume (op == ALU_SLL || op == ALU_SRL || op == ALU_SRA);
     assert (result == g_res);
