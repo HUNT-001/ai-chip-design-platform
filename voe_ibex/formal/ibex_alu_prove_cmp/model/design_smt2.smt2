@@ -413,23 +413,23 @@
 (declare-fun |ibex_alu_fv_h dut| (|ibex_alu_fv_s|) |ibex_alu_s|)
 ; yosys-smt2-wire cmp 1
 (define-fun |ibex_alu_fv_n cmp| ((state |ibex_alu_fv_s|)) Bool (|ibex_alu_fv#7| state))
-(define-fun |ibex_alu_fv#10| ((state |ibex_alu_fv_s|)) Bool (= (|ibex_alu_fv#4| state) (|ibex_alu_fv#5| state))) ; $eq$ibex_alu_fv.v:78$75_Y
-(define-fun |ibex_alu_fv#11| ((state |ibex_alu_fv_s|)) Bool (distinct (|ibex_alu_fv#4| state) (|ibex_alu_fv#5| state))) ; $ne$ibex_alu_fv.v:79$76_Y
-(define-fun |ibex_alu_fv#12| ((state |ibex_alu_fv_s|)) Bool (bvslt (|ibex_alu_fv#4| state) (|ibex_alu_fv#5| state))) ; $lt$ibex_alu_fv.v:80$77_Y
-(define-fun |ibex_alu_fv#13| ((state |ibex_alu_fv_s|)) Bool (bvult (|ibex_alu_fv#4| state) (|ibex_alu_fv#5| state))) ; $lt$ibex_alu_fv.v:82$79_Y
-(define-fun |ibex_alu_fv#14| ((state |ibex_alu_fv_s|)) Bool (bvsge (|ibex_alu_fv#4| state) (|ibex_alu_fv#5| state))) ; $ge$ibex_alu_fv.v:84$81_Y
-(define-fun |ibex_alu_fv#15| ((state |ibex_alu_fv_s|)) Bool (bvuge (|ibex_alu_fv#4| state) (|ibex_alu_fv#5| state))) ; $ge$ibex_alu_fv.v:85$82_Y
+(define-fun |ibex_alu_fv#10| ((state |ibex_alu_fv_s|)) Bool (= (|ibex_alu_fv#4| state) (|ibex_alu_fv#5| state))) ; $eq$ibex_alu_fv.v:101$104_Y
+(define-fun |ibex_alu_fv#11| ((state |ibex_alu_fv_s|)) Bool (distinct (|ibex_alu_fv#4| state) (|ibex_alu_fv#5| state))) ; $ne$ibex_alu_fv.v:87$76_Y
+(define-fun |ibex_alu_fv#12| ((state |ibex_alu_fv_s|)) Bool (bvslt (|ibex_alu_fv#4| state) (|ibex_alu_fv#5| state))) ; $lt$ibex_alu_fv.v:88$77_Y
+(define-fun |ibex_alu_fv#13| ((state |ibex_alu_fv_s|)) Bool (bvult (|ibex_alu_fv#4| state) (|ibex_alu_fv#5| state))) ; $lt$ibex_alu_fv.v:90$79_Y
+(define-fun |ibex_alu_fv#14| ((state |ibex_alu_fv_s|)) Bool (bvsge (|ibex_alu_fv#4| state) (|ibex_alu_fv#5| state))) ; $ge$ibex_alu_fv.v:92$81_Y
+(define-fun |ibex_alu_fv#15| ((state |ibex_alu_fv_s|)) Bool (bvuge (|ibex_alu_fv#4| state) (|ibex_alu_fv#5| state))) ; $ge$ibex_alu_fv.v:93$82_Y
 (declare-fun |ibex_alu_fv#16| (|ibex_alu_fv_s|) (_ BitVec 7)) ; \op
-(define-fun |ibex_alu_fv#17| ((state |ibex_alu_fv_s|)) Bool (= (|ibex_alu_fv#16| state) #b0011101)) ; $eq$ibex_alu_fv.v:90$86_Y
-(define-fun |ibex_alu_fv#18| ((state |ibex_alu_fv_s|)) Bool (= (|ibex_alu_fv#16| state) #b0011110)) ; $eq$ibex_alu_fv.v:90$87_Y
-(define-fun |ibex_alu_fv#19| ((state |ibex_alu_fv_s|)) Bool (= (|ibex_alu_fv#16| state) #b0011001)) ; $eq$ibex_alu_fv.v:90$89_Y
-(define-fun |ibex_alu_fv#20| ((state |ibex_alu_fv_s|)) Bool (= (|ibex_alu_fv#16| state) #b0101011)) ; $eq$ibex_alu_fv.v:91$97_Y
+(define-fun |ibex_alu_fv#17| ((state |ibex_alu_fv_s|)) Bool (= (|ibex_alu_fv#16| state) #b0011101)) ; $eq$ibex_alu_fv.v:98$86_Y
+(define-fun |ibex_alu_fv#18| ((state |ibex_alu_fv_s|)) Bool (= (|ibex_alu_fv#16| state) #b0011110)) ; $eq$ibex_alu_fv.v:98$87_Y
+(define-fun |ibex_alu_fv#19| ((state |ibex_alu_fv_s|)) Bool (= (|ibex_alu_fv#16| state) #b0011001)) ; $eq$ibex_alu_fv.v:98$89_Y
+(define-fun |ibex_alu_fv#20| ((state |ibex_alu_fv_s|)) Bool (= (|ibex_alu_fv#16| state) #b0101011)) ; $eq$ibex_alu_fv.v:99$97_Y
 (define-fun |ibex_alu_fv#21| ((state |ibex_alu_fv_s|)) Bool (or  (|ibex_alu_fv#19| state) (|ibex_alu_fv#20| state))) ; $auto$opt_reduce.cc:135:opt_pmux$183
-(define-fun |ibex_alu_fv#22| ((state |ibex_alu_fv_s|)) Bool (= (|ibex_alu_fv#16| state) #b0011010)) ; $eq$ibex_alu_fv.v:90$91_Y
-(define-fun |ibex_alu_fv#23| ((state |ibex_alu_fv_s|)) Bool (= (|ibex_alu_fv#16| state) #b0101100)) ; $eq$ibex_alu_fv.v:91$99_Y
+(define-fun |ibex_alu_fv#22| ((state |ibex_alu_fv_s|)) Bool (= (|ibex_alu_fv#16| state) #b0011010)) ; $eq$ibex_alu_fv.v:98$91_Y
+(define-fun |ibex_alu_fv#23| ((state |ibex_alu_fv_s|)) Bool (= (|ibex_alu_fv#16| state) #b0101100)) ; $eq$ibex_alu_fv.v:99$99_Y
 (define-fun |ibex_alu_fv#24| ((state |ibex_alu_fv_s|)) Bool (or  (|ibex_alu_fv#22| state) (|ibex_alu_fv#23| state))) ; $auto$opt_reduce.cc:135:opt_pmux$185
-(define-fun |ibex_alu_fv#25| ((state |ibex_alu_fv_s|)) Bool (= (|ibex_alu_fv#16| state) #b0011011)) ; $eq$ibex_alu_fv.v:91$93_Y
-(define-fun |ibex_alu_fv#26| ((state |ibex_alu_fv_s|)) Bool (= (|ibex_alu_fv#16| state) #b0011100)) ; $eq$ibex_alu_fv.v:91$95_Y
+(define-fun |ibex_alu_fv#25| ((state |ibex_alu_fv_s|)) Bool (= (|ibex_alu_fv#16| state) #b0011011)) ; $eq$ibex_alu_fv.v:99$93_Y
+(define-fun |ibex_alu_fv#26| ((state |ibex_alu_fv_s|)) Bool (= (|ibex_alu_fv#16| state) #b0011100)) ; $eq$ibex_alu_fv.v:99$95_Y
 (define-fun |ibex_alu_fv#27| ((state |ibex_alu_fv_s|)) (_ BitVec 1) (ite (|ibex_alu_fv#26| state) (ite (|ibex_alu_fv#15| state) #b1 #b0) (ite (|ibex_alu_fv#25| state) (ite (|ibex_alu_fv#14| state) #b1 #b0) (ite (|ibex_alu_fv#24| state) (ite (|ibex_alu_fv#13| state) #b1 #b0) (ite (|ibex_alu_fv#21| state) (ite (|ibex_alu_fv#12| state) #b1 #b0) (ite (|ibex_alu_fv#18| state) (ite (|ibex_alu_fv#11| state) #b1 #b0) (ite (|ibex_alu_fv#17| state) (ite (|ibex_alu_fv#10| state) #b1 #b0) (ite (|ibex_alu_fv#10| state) #b1 #b0)))))))) ; \g_cmp
 ; yosys-smt2-wire g_cmp 1
 (define-fun |ibex_alu_fv_n g_cmp| ((state |ibex_alu_fv_s|)) Bool (= ((_ extract 0 0) (|ibex_alu_fv#27| state)) #b1))
@@ -444,24 +444,24 @@
 (define-fun |ibex_alu_fv#28| ((state |ibex_alu_fv_s|)) (_ BitVec 1) (bvnot (ite (|ibex_alu_fv#6| state) #b1 #b0))) ; $auto$rtlil.cc:3255:Not$241
 ; yosys-smt2-assume 0 $auto$formalff.cc:987:execute$242
 (define-fun |ibex_alu_fv_u 0| ((state |ibex_alu_fv_s|)) Bool (or (= ((_ extract 0 0) (|ibex_alu_fv#28| state)) #b1) (not true))) ; $auto$formalff.cc:987:execute$242
-; yosys-smt2-assert 0 _witness_.check_assert_ibex_alu_fv_v_92_101 ibex_alu_fv.v:92.5-92.29
-(define-fun |ibex_alu_fv_a 0| ((state |ibex_alu_fv_s|)) Bool (or (= ((_ extract 0 0) (|ibex_alu_fv#1| state)) #b1) (not (= ((_ extract 0 0) (|ibex_alu_fv#3| state)) #b1)))) ; _witness_.check_assert_ibex_alu_fv_v_92_101
-; yosys-smt2-assert 1 _witness_.check_assert_ibex_alu_fv_v_93_103 ibex_alu_fv.v:93.5-93.32
-(define-fun |ibex_alu_fv_a 1| ((state |ibex_alu_fv_s|)) Bool (or (= ((_ extract 0 0) (|ibex_alu_fv#2| state)) #b1) (not (= ((_ extract 0 0) (|ibex_alu_fv#3| state)) #b1)))) ; _witness_.check_assert_ibex_alu_fv_v_93_103
-; yosys-smt2-assert 2 _witness_.check_assert_ibex_alu_fv_v_94_106 ibex_alu_fv.v:94.5-94.38
-(define-fun |ibex_alu_fv_a 2| ((state |ibex_alu_fv_s|)) Bool (or (= ((_ extract 0 0) (|ibex_alu_fv#0| state)) #b1) (not (= ((_ extract 0 0) (|ibex_alu_fv#3| state)) #b1)))) ; _witness_.check_assert_ibex_alu_fv_v_94_106
-(define-fun |ibex_alu_fv#29| ((state |ibex_alu_fv_s|)) Bool (or  (|ibex_alu_fv#17| state) false  (|ibex_alu_fv#18| state) false)) ; $logic_or$ibex_alu_fv.v:90$88_Y
-(define-fun |ibex_alu_fv#30| ((state |ibex_alu_fv_s|)) Bool (or  (|ibex_alu_fv#29| state) false  (|ibex_alu_fv#19| state) false)) ; $logic_or$ibex_alu_fv.v:90$90_Y
-(define-fun |ibex_alu_fv#31| ((state |ibex_alu_fv_s|)) Bool (or  (|ibex_alu_fv#30| state) false  (|ibex_alu_fv#22| state) false)) ; $logic_or$ibex_alu_fv.v:90$92_Y
-(define-fun |ibex_alu_fv#32| ((state |ibex_alu_fv_s|)) Bool (or  (|ibex_alu_fv#31| state) false  (|ibex_alu_fv#25| state) false)) ; $logic_or$ibex_alu_fv.v:90$94_Y
-(define-fun |ibex_alu_fv#33| ((state |ibex_alu_fv_s|)) Bool (or  (|ibex_alu_fv#32| state) false  (|ibex_alu_fv#26| state) false)) ; $logic_or$ibex_alu_fv.v:90$96_Y
-(define-fun |ibex_alu_fv#34| ((state |ibex_alu_fv_s|)) Bool (or  (|ibex_alu_fv#33| state) false  (|ibex_alu_fv#20| state) false)) ; $logic_or$ibex_alu_fv.v:90$98_Y
-(define-fun |ibex_alu_fv#35| ((state |ibex_alu_fv_s|)) Bool (or  (|ibex_alu_fv#34| state) false  (|ibex_alu_fv#23| state) false)) ; $logic_or$ibex_alu_fv.v:90$100_Y
-; yosys-smt2-assume 1 _witness_.check_assume_ibex_alu_fv_v_90_85 ibex_alu_fv.v:90.5-91.79
-(define-fun |ibex_alu_fv_u 1| ((state |ibex_alu_fv_s|)) Bool (or (|ibex_alu_fv#35| state) (not true))) ; _witness_.check_assume_ibex_alu_fv_v_90_85
-(define-fun |ibex_alu_fv#36| ((state |ibex_alu_fv_s|)) Bool (= (ite (|ibex_alu_fv#8| state) #b1 #b0) (ite (|ibex_alu_fv#10| state) #b1 #b0))) ; $eq$ibex_alu_fv.v:93$105_Y
-(define-fun |ibex_alu_fv#37| ((state |ibex_alu_fv_s|)) Bool (= (ite (|ibex_alu_fv#7| state) #b1 #b0) (|ibex_alu_fv#27| state))) ; $eq$ibex_alu_fv.v:92$102_Y
-(define-fun |ibex_alu_fv#38| ((state |ibex_alu_fv_s|)) Bool (= (|ibex_alu_fv#9| state) (concat #b0000000000000000000000000000000 (|ibex_alu_fv#27| state)))) ; $eq$ibex_alu_fv.v:94$107_Y
+; yosys-smt2-assert 0 _witness_.check_assert_ibex_alu_fv_v_100_101 ibex_alu_fv.v:100.5-100.29
+(define-fun |ibex_alu_fv_a 0| ((state |ibex_alu_fv_s|)) Bool (or (= ((_ extract 0 0) (|ibex_alu_fv#1| state)) #b1) (not (= ((_ extract 0 0) (|ibex_alu_fv#3| state)) #b1)))) ; _witness_.check_assert_ibex_alu_fv_v_100_101
+; yosys-smt2-assert 1 _witness_.check_assert_ibex_alu_fv_v_101_103 ibex_alu_fv.v:101.5-101.32
+(define-fun |ibex_alu_fv_a 1| ((state |ibex_alu_fv_s|)) Bool (or (= ((_ extract 0 0) (|ibex_alu_fv#2| state)) #b1) (not (= ((_ extract 0 0) (|ibex_alu_fv#3| state)) #b1)))) ; _witness_.check_assert_ibex_alu_fv_v_101_103
+; yosys-smt2-assert 2 _witness_.check_assert_ibex_alu_fv_v_102_106 ibex_alu_fv.v:102.5-102.38
+(define-fun |ibex_alu_fv_a 2| ((state |ibex_alu_fv_s|)) Bool (or (= ((_ extract 0 0) (|ibex_alu_fv#0| state)) #b1) (not (= ((_ extract 0 0) (|ibex_alu_fv#3| state)) #b1)))) ; _witness_.check_assert_ibex_alu_fv_v_102_106
+(define-fun |ibex_alu_fv#29| ((state |ibex_alu_fv_s|)) Bool (or  (|ibex_alu_fv#17| state) false  (|ibex_alu_fv#18| state) false)) ; $logic_or$ibex_alu_fv.v:98$88_Y
+(define-fun |ibex_alu_fv#30| ((state |ibex_alu_fv_s|)) Bool (or  (|ibex_alu_fv#29| state) false  (|ibex_alu_fv#19| state) false)) ; $logic_or$ibex_alu_fv.v:98$90_Y
+(define-fun |ibex_alu_fv#31| ((state |ibex_alu_fv_s|)) Bool (or  (|ibex_alu_fv#30| state) false  (|ibex_alu_fv#22| state) false)) ; $logic_or$ibex_alu_fv.v:98$92_Y
+(define-fun |ibex_alu_fv#32| ((state |ibex_alu_fv_s|)) Bool (or  (|ibex_alu_fv#31| state) false  (|ibex_alu_fv#25| state) false)) ; $logic_or$ibex_alu_fv.v:98$94_Y
+(define-fun |ibex_alu_fv#33| ((state |ibex_alu_fv_s|)) Bool (or  (|ibex_alu_fv#32| state) false  (|ibex_alu_fv#26| state) false)) ; $logic_or$ibex_alu_fv.v:98$96_Y
+(define-fun |ibex_alu_fv#34| ((state |ibex_alu_fv_s|)) Bool (or  (|ibex_alu_fv#33| state) false  (|ibex_alu_fv#20| state) false)) ; $logic_or$ibex_alu_fv.v:98$98_Y
+(define-fun |ibex_alu_fv#35| ((state |ibex_alu_fv_s|)) Bool (or  (|ibex_alu_fv#34| state) false  (|ibex_alu_fv#23| state) false)) ; $logic_or$ibex_alu_fv.v:98$100_Y
+; yosys-smt2-assume 1 _witness_.check_assume_ibex_alu_fv_v_98_85 ibex_alu_fv.v:98.5-99.79
+(define-fun |ibex_alu_fv_u 1| ((state |ibex_alu_fv_s|)) Bool (or (|ibex_alu_fv#35| state) (not true))) ; _witness_.check_assume_ibex_alu_fv_v_98_85
+(define-fun |ibex_alu_fv#36| ((state |ibex_alu_fv_s|)) Bool (= (ite (|ibex_alu_fv#8| state) #b1 #b0) (ite (|ibex_alu_fv#10| state) #b1 #b0))) ; $eq$ibex_alu_fv.v:101$105_Y
+(define-fun |ibex_alu_fv#37| ((state |ibex_alu_fv_s|)) Bool (= (ite (|ibex_alu_fv#7| state) #b1 #b0) (|ibex_alu_fv#27| state))) ; $eq$ibex_alu_fv.v:100$102_Y
+(define-fun |ibex_alu_fv#38| ((state |ibex_alu_fv_s|)) Bool (= (|ibex_alu_fv#9| state) (concat #b0000000000000000000000000000000 (|ibex_alu_fv#27| state)))) ; $eq$ibex_alu_fv.v:102$107_Y
 (define-fun |ibex_alu_fv_a| ((state |ibex_alu_fv_s|)) Bool (and
   (|ibex_alu_fv_a 0| state)
   (|ibex_alu_fv_a 1| state)
