@@ -192,8 +192,10 @@ The board scaled to a **byte-identical copy** of `corpus/ibex_rtl/ibex_alu.sv`
 
 - Verilator built and simulated the real Ibex ALU; 20,000 random vectors per run
   matched an independent RV32I golden.
-- SymbiYosys + Z3 **proved** `ibex_alu.add`, `ibex_alu.logic`, `ibex_alu.cmp`
-  equivalent to the golden over the entire input space (`DONE (PASS)`).
+- SymbiYosys + Z3 **proved** all four clean properties — `ibex_alu.add`,
+  `ibex_alu.logic`, `ibex_alu.shift`, `ibex_alu.cmp` — equivalent to the golden
+  over the entire input space (`DONE (PASS)`), with `bug_logic` simultaneously
+  returning `DONE (FAIL)` so the passes are known to be non-vacuous.
 - The mutant returned a **real counterexample** (`DONE (FAIL)`, `trace.vcd`),
   refuting the explorer's four passing simulations.
 - All kernel laws held at every step; `R` reached 0.000.
