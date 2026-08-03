@@ -17,7 +17,7 @@ sys.path.insert(0, HERE)
 sys.path.insert(0, os.path.join(HERE, "..", "phase3"))
 
 from engineer import load_kernel                       # frozen-kernel importer
-from evidence_channels import FormalChannel, SimChannel
+from evidence_channels import FormalChannel, SimChannel, audit_knowledge
 from board import TaskBoard, ResourceLedger
 from bus import JudgmentBus
 from reputation import ReputationService
@@ -35,6 +35,7 @@ class VOE:
         # default channels = toy ALU; pass custom channels for other DUTs (e.g. ibex).
         formal = formal if formal is not None else FormalChannel(mock=mock)
         sim = sim if sim is not None else SimChannel(mock=mock)
+        self.formal = formal
         self.workers = [
             Worker("skeptic",  "skeptic",  self.k, formal, sim),
             Worker("explorer", "explorer", self.k, formal, sim),
@@ -61,6 +62,13 @@ class VOE:
                       f" -> ERROR: {ev.detail}")
                 break
             self.ledger.charge(pick.worker.name, pick.method)
+            if j is None:
+                # No warranted judgment (e.g. the vacuity gate refused to
+                # certify a PASS). Work was paid for; nothing is believed.
+                print(f"  step {step:2d}  {pick.worker.name:8s} {pick.method:6s} {pick.phi:16s}"
+                      f" -> {ev.status:14s} R={k.R(ks,w):.3f} spent={self.ledger.spent:.0f}"
+                      f"  NOT CERTIFIED: {ev.detail}")
+                continue
             Rbefore = k.R(ks, w)
             merge = self.bus.publish(pick.worker.name, j)
             Rafter = k.R(ks, w)
@@ -85,6 +93,14 @@ class VOE:
         resid  = [phi for phi in self.board.tasks
                   if not ks.proven(phi) and not ks.disproven(phi)]
         print(f"\n  final R = {k.R(ks, w):.3f}   budget spent = {self.ledger.spent:.0f}/{self.ledger.budget:.0f}")
+        # Trust preconditions: a green board means nothing unless the assertions
+        # were binding (vacuity gate) and the cited artifacts are unchanged.
+        armed, why = self.formal.gate_status()
+        print(f"  vacuity gate: {'ARMED' if armed else 'NOT ARMED'} — {why}")
+        ok, rows = audit_knowledge(ks)
+        bad = [(p, r) for p, o, r in rows if not o]
+        print(f"  witness audit: {'all verified' if ok else str(len(bad)) + ' unverified'}"
+              + ("" if ok else f" ({bad[0][0]}: {bad[0][1]})"))
         print(f"  signed off (witnessed proof): {signed}")
         print(f"  bugs found: {bugs}")
         print(f"  residual (undischarged): {resid}")
