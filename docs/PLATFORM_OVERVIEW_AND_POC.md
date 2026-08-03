@@ -247,6 +247,44 @@ trustworthy.** This is the platform's own thesis (Wit-1: no unjustified
 knowledge) validated against itself, and it is a stronger result than a clean
 first run would have been.
 
+### The gate is now a system invariant, not a habit
+
+All three incidents were caught because a human wrote a known-bad job and chose
+to check it first. That does not scale. The gate is now enforced in code:
+
+- `FormalChannel(..., negative_control="bug_logic")` names a **known-bad task
+  that must FAIL**. It is run once, cached, and required before any deductive
+  warrant is issued.
+- If the control passes, errors, or is not declared, a formal PASS is downgraded
+  to **`gate_failed`** — the run is reported, the budget is charged, and
+  **nothing is believed**. Risk is not discharged.
+- The VOE prints `vacuity gate: ARMED / NOT ARMED` with the reason in every
+  report, so a board can never look green without stating why it is credible.
+
+This closes the specific failure mode that a misspelled class define
+(`CLASS_SHFT`) yields a harness with zero assertions and a board that "proves"
+everything.
+
+### Provenance is verified, not merely stamped
+
+`verify_witness()` re-hashes each cited artifact and compares it to the recorded
+`#sha256:` stamp; `audit_knowledge()` runs it across the whole knowledge state
+and the VOE reports the result. Missing, altered, unstamped and mock witnesses
+are all reported as **unverified** rather than silently accepted — a stamp that
+nothing checks is decoration.
+
+### Regression suite
+
+`tests/test_voe_kernel.py` — 23 pure-Python tests (no EDA tools) covering kernel
+law enforcement, warrant typing (bounded vs proved vs combinational-complete),
+the vacuity gate in all four states, witness tampering detection, bus confluence
+and warrant precedence, miscalibration penalties, ledger budgeting, and worker
+integration. Full repository: **727 passed, 1 skipped**.
+
+Writing it immediately caught a real orchestrator bug: a gate-blocked action
+returns no judgment, and the VOE crashed publishing `None`. Now it charges for
+the work, reports `NOT CERTIFIED`, and continues.
+
 ---
 
 ## 6. Repository map (new work)
@@ -255,7 +293,8 @@ first run would have been.
 |---|---|
 | `docs/vsa_reference.py` | The frozen kernel: `Judgment`, `KnowledgeState`, `R`, `width`, `X`, `utility`, `check_laws`. |
 | `docs/VSA_v1.0.md`, `VSA_ALGEBRA.md`, `VSA_ATTACK_SHEET.md`, `VSA_KERNEL_FREEZE_AND_ROADMAP.md` | Theory, algebra, falsification targets by dependency tier, freeze decision + phase plan. |
-| `phase3/evidence_channels.py` | `FormalChannel` (sby, warrant-correct), `SimChannel` (Verilator, multi-file capable), sha256 witness stamping, `--mock`. |
+| `phase3/evidence_channels.py` | `FormalChannel` (sby, warrant-correct, **vacuity gate**), `SimChannel` (Verilator, multi-file capable), witness stamping + `verify_witness`/`audit_knowledge`, `--mock`. |
+| `tests/test_voe_kernel.py` | 23 regression tests for the kernel-adjacent layers (laws, gate, provenance, bus, reputation, ledger). |
 | `phase3/engineer.py` | One autonomous engineer on the frozen kernel. |
 | `voe/board.py · bus.py · reputation.py · workers.py · voe.py` | Task board + ledger, judgment bus, reputation, archetypes, scheduler. |
 | `voe_ibex/rtl · formal · sim · run_voe_ibex.py` | Real Ibex ALU slice: vendored pkg, byte-identical DUT, mutant, harness, sby jobs, TB, board. |
