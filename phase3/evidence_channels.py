@@ -28,15 +28,57 @@ def _have(tool: str) -> bool:
     return shutil.which(tool) is not None
 
 
-def _stamp(path: str) -> str:
-    """Make a witness tamper-evident: append a short content hash of the real
-    artifact. The reputation layer (Phase 2) can re-verify provenance from this."""
+def _hash_file(path: str) -> str | None:
     try:
         with open(path, "rb") as f:
-            h = hashlib.sha256(f.read()).hexdigest()[:16]
-        return f"{path}#sha256:{h}"
+            return hashlib.sha256(f.read()).hexdigest()[:16]
     except OSError:
-        return path
+        return None
+
+
+def _stamp(path: str) -> str:
+    """Make a witness tamper-evident: append a short content hash of the real
+    artifact. Verified later by verify_witness() — a stamp nothing checks is
+    decorative, so provenance is only real once it is re-validated."""
+    h = _hash_file(path)
+    return f"{path}#sha256:{h}" if h else path
+
+
+def verify_witness(witness: str):
+    """Re-hash a stamped witness and compare. Returns (ok, reason).
+
+    ok=True   artifact exists and its content still matches the recorded hash
+    ok=False  artifact missing, altered, or (for a real run) never stamped
+    Mock witnesses ("<mock>/...") are reported as unverifiable, not as valid.
+    """
+    if not witness:
+        return False, "no witness"
+    if witness.startswith("<mock>"):
+        return False, "mock witness (not a real artifact)"
+    if "#sha256:" not in witness:
+        return False, "unstamped witness — provenance cannot be checked"
+    path, recorded = witness.rsplit("#sha256:", 1)
+    if not os.path.exists(path):
+        return False, f"artifact missing: {path}"
+    actual = _hash_file(path)
+    if actual is None:
+        return False, f"artifact unreadable: {path}"
+    if actual != recorded:
+        return False, f"CONTENT CHANGED since the judgment was recorded: {path}"
+    return True, "verified"
+
+
+def audit_knowledge(ks):
+    """Verify every witness in a KnowledgeState. Returns (all_ok, [(phi, ok, reason)]).
+
+    This is what makes the evidence chain auditable: a claim is only as good as
+    the artifact it cites still being the artifact that was cited.
+    """
+    rows = []
+    for phi, j in ks.K.items():
+        ok, why = verify_witness(j.witness)
+        rows.append((phi, ok, why))
+    return all(r[1] for r in rows), rows
 
 
 @dataclass
@@ -58,15 +100,24 @@ class FormalChannel:
     # labeling it "proved" would over-certify sequential logic (soundness bug).
     _UNBOUNDED_MODES = {"prove", "live"}
 
-    def __init__(self, sby_file: str = SBY, mock: bool = False, combinational: bool = False):
+    def __init__(self, sby_file: str = SBY, mock: bool = False, combinational: bool = False,
+                 negative_control: str | None = None):
         # combinational=True declares the DUT has no state, so a bmc pass at
         # depth>=1 is COMPLETE (exhaustive over inputs) and counts as a full
         # deductive proof. For sequential DUTs leave it False (bmc stays bounded).
+        #
+        # negative_control names an sby task that is KNOWN-BAD and MUST fail. It
+        # is the vacuity gate (see _gate_ok). Without a passing gate this channel
+        # will not issue a deductive proof, because a green formal result means
+        # nothing if the assertions are not actually binding.
         self.sby_file = sby_file
         self.dir = os.path.dirname(sby_file)
         self.mock = mock or not _have("sby")
         self.mode = self._read_mode(sby_file)
         self.combinational = combinational
+        self.negative_control = negative_control
+        self._gate_state = None          # None=unchecked, True=armed, False=broken
+        self._gate_reason = ""
 
     @staticmethod
     def _read_mode(sby_file: str) -> str:
@@ -77,9 +128,56 @@ class FormalChannel:
         except OSError:
             return "bmc"
 
+    # ---------------------------------------------------------------- gate ---
+    def _gate_ok(self):
+        """The vacuity gate. Runs the declared known-bad task ONCE and requires it
+        to FAIL. If it passes (or none is declared) the assertions are not
+        binding — every 'proof' from this setup would be vacuous — so no
+        deductive warrant may be issued.
+
+        This is the automated form of the discipline that caught three real
+        vacuity incidents during bring-up (sv2v stripping assertions; clocked
+        assertions never evaluated at depth 1; a misspelled class define leaves
+        a harness with zero assertions). Those were caught by a human choosing
+        to look. Here the system refuses to certify instead.
+        """
+        if self._gate_state is not None:
+            return self._gate_state
+        if not self.negative_control:
+            self._gate_state, self._gate_reason = False, \
+                "no negative_control declared — cannot show assertions are binding"
+            return False
+        ev = self._run_task(self.negative_control)
+        if ev.status == "counterexample":
+            self._gate_state, self._gate_reason = True, \
+                f"negative control '{self.negative_control}' failed as required"
+        elif ev.status == "error":
+            self._gate_state, self._gate_reason = False, \
+                f"negative control '{self.negative_control}' errored: {ev.detail}"
+        else:
+            self._gate_state, self._gate_reason = False, \
+                (f"negative control '{self.negative_control}' PASSED but must fail — "
+                 f"assertions are not binding; proofs from this setup are vacuous")
+        return self._gate_state
+
+    def gate_status(self):
+        """(armed: bool, reason: str) — for reporting/audit."""
+        ok = self._gate_ok()
+        return ok, self._gate_reason
+
     def prove(self, task: str) -> Evidence:
-        """Run one sby task. Returns proved (deductive) only for unbounded modes;
-        a bounded pass is 'bounded_pass' (strong but not a proof)."""
+        """Run one sby task, then apply the vacuity gate: a formal PASS is only
+        recorded as a deductive proof if the declared negative control fails."""
+        ev = self._run_task(task)
+        if ev.status in ("proved", "bounded_pass") and not self._gate_ok():
+            # Downgrade: the run passed, but we cannot show the check was real.
+            return Evidence("formal", "gate_failed", witness=ev.witness,
+                            detail=f"PASS not certifiable — {self._gate_reason}",
+                            raw=ev.raw)
+        return ev
+
+    def _run_task(self, task: str) -> Evidence:
+        """Raw sby invocation + verdict parsing (no gate applied)."""
         # A pass is a full proof if the mode is unbounded (k-induction/live) OR
         # the design is combinational (bmc depth>=1 is then exhaustive).
         unbounded = (self.mode in self._UNBOUNDED_MODES) or \
