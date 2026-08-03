@@ -91,6 +91,11 @@ class Worker:
             j = self.k.Judgment(phi, self.k.Warrant.INDUCTIVE,
                                 {"n_eff": ks.n_eff(phi) + 1}, witness=ev.witness)
             self.skip.add(phi)               # bounded formal won't discharge; stop escalating
+        elif ev.status == "gate_failed":
+            # Vacuity gate not armed: the run passed but cannot be certified.
+            # Record NOTHING (no warrant is justified) and stop re-attacking.
+            self.skip.add(phi)
+            return ev, None
         else:
             return ev, None
         return ev, j
