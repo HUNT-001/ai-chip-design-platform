@@ -65,7 +65,8 @@ class Engineer:
         self.spec = {p.phi: p for p in self.props}
         self.weights = {p.phi: p.weight for p in self.props}
         self.ks = self.k.KnowledgeState()
-        self.formal = FormalChannel(mock=mock)
+        # 'buggy' is the known-bad sby task = this board's vacuity gate.
+        self.formal = FormalChannel(mock=mock, negative_control="buggy")
         self.sim = SimChannel(mock=mock)
         self.formal_done = set()   # props whose formal attempt gave no proof/cex
         self.log = []
@@ -102,6 +103,8 @@ class Engineer:
                                  {"n_eff": self.ks.n_eff(p.phi) + 1}, witness=ev.witness)
             self.ks.believe(j)
             self.formal_done.add(p.phi)               # no further formal escalation
+        elif ev.status == "gate_failed":              # vacuity gate not armed
+            self.formal_done.add(p.phi)               # record nothing; don't retry
         return ev
 
     def _candidates(self):
