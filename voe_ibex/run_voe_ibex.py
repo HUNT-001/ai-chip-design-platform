@@ -45,8 +45,11 @@ TASKS = [
 
 def main():
     mock = "--mock" in sys.argv or "--real" not in sys.argv
-    # ibex_alu is combinational -> a bmc-depth-1 pass is a complete deductive proof.
-    formal = FormalChannel(sby_file=IBEX_SBY, mock=mock, combinational=True)
+    # ibex_alu is combinational -> a bmc pass that evaluates the asserts is complete.
+    # negative_control: 'bug_logic' is known-bad and MUST fail; if it ever passes,
+    # the assertions are not binding and no proof from this setup is certifiable.
+    formal = FormalChannel(sby_file=IBEX_SBY, mock=mock, combinational=True,
+                           negative_control="bug_logic")
     sim = SimChannel(mock=mock, sources=IBEX_SRC, top="tb_ibex_alu",
                      defines_for=lambda bug: ["DUT=ibex_alu_mut"] if bug else ["DUT=ibex_alu"])
     print("=== Phase-2 VOE on REAL ibex_alu (2 engineers) ===")
