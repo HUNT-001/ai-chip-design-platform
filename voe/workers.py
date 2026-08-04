@@ -29,9 +29,10 @@ class Proposal:
 
 
 class Worker:
-    def __init__(self, name, archetype, kern, formal, sim, nvec=20000):
+    def __init__(self, name, archetype, kern, formal, sim, nvec=20000, static=None):
         self.name, self.archetype = name, archetype
         self.k, self.formal, self.sim = kern, formal, sim
+        self.static = static                  # optional structural channel
         self.nvec = nvec
         self.skip = set()                     # props this worker won't re-attack
         self._seed = (abs(hash(name)) % 1000) + 1
@@ -44,10 +45,17 @@ class Worker:
     def propose(self, ks, board, ledger):
         from board import ACTION_COST
         weights = board.weights()
-        cands = [t for t in board.open_tasks(ks) if t.phi not in self.skip]
+        # only bid on obligations something can actually be run against
+        cands = [t for t in board.actionable(ks) if t.phi not in self.skip]
         if not cands:
             return None
-        phi = max(cands, key=lambda t: self.k.utility(ks, weights, t.phi)[0]).phi
+        best = max(cands, key=lambda t: self.k.utility(ks, weights, t.phi)[0])
+        phi = best.phi
+        if best.kind == "structural" and self.static is not None:
+            if not ledger.can_afford("static"):
+                return None
+            return Proposal(self, phi, "static",
+                            self.k.utility(ks, weights, phi)[0], ACTION_COST["static"])
         n = ks.n_eff(phi)
         if self.archetype == "skeptic":
             method = "formal" if ledger.can_afford("formal") else "sim"
@@ -66,6 +74,18 @@ class Worker:
     # ---- action: gather real evidence, return a witnessed judgment -----------
     def execute(self, ks, board, phi, method):
         t = board.get(phi)
+        if method == "static":
+            ev = self.static.check("comb_loops")
+            if ev.status == "proved":         # exhaustive over the parsed netlist
+                j = self.k.Judgment(phi, self.k.Warrant.DEDUCTIVE,
+                                    {"n_eff": ks.n_eff(phi)}, witness=ev.witness)
+            elif ev.status == "counterexample":
+                j = self.k.Judgment(phi, self.k.Warrant.INDUCTIVE,
+                                    {"n_eff": ks.n_eff(phi), "counterexample": True},
+                                    witness=ev.witness)
+            else:
+                return ev, None
+            return ev, j
         if method == "sim":
             ev = self.sim.run(inject_bug=t.inject_bug, seed=self._seed_next(), nvec=self.nvec)
             if ev.status == "pass":
