@@ -22,10 +22,12 @@ from board import TaskBoard, ResourceLedger
 from bus import JudgmentBus
 from reputation import ReputationService
 from workers import Worker
+from specialists import unowned_properties
 
 
 class VOE:
-    def __init__(self, tasks, budget=40.0, mock=False, formal=None, sim=None):
+    def __init__(self, tasks, budget=40.0, mock=False, formal=None, sim=None,
+                 workers=None):
         self.k = load_kernel()
         self.board = TaskBoard(tasks)
         self.ks = self.k.KnowledgeState()
@@ -36,7 +38,9 @@ class VOE:
         formal = formal if formal is not None else FormalChannel(mock=mock)
         sim = sim if sim is not None else SimChannel(mock=mock)
         self.formal = formal
-        self.workers = [
+        # Default roster = two generalist archetypes. Pass `workers` for a
+        # Phase-4 organisation of specialists (property-class owners).
+        self.workers = workers if workers is not None else [
             Worker("skeptic",  "skeptic",  self.k, formal, sim),
             Worker("explorer", "explorer", self.k, formal, sim),
         ]
@@ -49,7 +53,13 @@ class VOE:
         k, ks, w = self.k, self.ks, self.board.weights()
         prev = k.R(ks, w)
         print(f"  tasks={len(self.board.tasks)}  workers={[x.name for x in self.workers]}"
-              f"  budget={self.ledger.budget}  initial R={prev:.3f}\n")
+              f"  budget={self.ledger.budget}  initial R={prev:.3f}")
+        orphans = unowned_properties(self.board, self.workers)
+        if orphans:
+            # An obligation nobody owns is the classic way a property quietly
+            # never gets verified. Surface it before any work starts.
+            print(f"  ** COVERAGE GAP — no specialist owns: {orphans}")
+        print()
         for step in range(1, max_steps + 1):
             proposals = [p for p in (wk.propose(ks, self.board, self.ledger) for wk in self.workers) if p]
             proposals = [p for p in proposals if self.ledger.can_afford(p.method)]
@@ -104,6 +114,9 @@ class VOE:
         print(f"  signed off (witnessed proof): {signed}")
         print(f"  bugs found: {bugs}")
         print(f"  residual (undischarged): {resid}")
+        orphans = unowned_properties(self.board, self.workers)
+        if orphans:
+            print(f"  unowned (no specialist — NOT verified by anyone): {orphans}")
         print("  reputation (from evidence only):")
         for name, r in self.rep.report([x.name for x in self.workers], self.ledger, self.bus).items():
             print(f"    {name:8s} rep={r['reputation']:.3f}  proofs={r['proofs']} bugs={r['bugs']}"
