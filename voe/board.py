@@ -12,11 +12,23 @@ from dataclasses import dataclass, field
 
 @dataclass
 class Task:
-    phi: str                 # the property / obligation identifier
-    weight: float            # criticality weight (feeds R)
-    formal_task: str         # sby task that adjudicates it
-    inject_bug: bool         # which DUT variant it concerns
-    signed_off: bool = False # true only when discharged by witnessed evidence
+    phi: str                        # the property / obligation identifier
+    weight: float                   # criticality weight (feeds R)
+    formal_task: str | None = None  # sby task that adjudicates it (None = no harness)
+    inject_bug: bool = False        # which DUT variant it concerns
+    signed_off: bool = False        # true only when discharged by witnessed evidence
+    kind: str = "functional"        # "functional" | "structural"
+    note: str = ""                  # provenance / why it exists
+
+    def has_evidence_path(self) -> bool:
+        """Can this obligation actually be discharged with what we have?
+
+        An auto-derived obligation may be perfectly real and still have no
+        checker yet. Naming a property is not checking it — such obligations
+        stay on the board contributing risk, and are reported as *declared,
+        unverifiable* rather than quietly dropped.
+        """
+        return self.kind == "structural" or self.formal_task is not None
 
 
 class TaskBoard:
@@ -31,12 +43,21 @@ class TaskBoard:
         return [t for t in self.tasks.values()
                 if not ks.proven(t.phi) and not ks.disproven(t.phi)]
 
+    def actionable(self, ks):
+        """Open obligations that something can actually be run against."""
+        return [t for t in self.open_tasks(ks) if t.has_evidence_path()]
+
+    def unverifiable(self, ks):
+        """Open obligations with NO checker — real work that nobody can do yet."""
+        return [t.phi for t in self.open_tasks(ks) if not t.has_evidence_path()]
+
     def get(self, phi):
         return self.tasks[phi]
 
 
-# Per-method costs (arbitrary units; formal is dearer than a sim run).
-ACTION_COST = {"sim": 1.0, "formal": 4.0}
+# Per-method costs (arbitrary units; formal is dearer than a sim run, static
+# structural analysis is cheapest — it parses rather than executes or solves).
+ACTION_COST = {"sim": 1.0, "formal": 4.0, "static": 0.5}
 
 
 @dataclass
