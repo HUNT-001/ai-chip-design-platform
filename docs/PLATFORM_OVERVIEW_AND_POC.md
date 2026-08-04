@@ -230,6 +230,78 @@ Throughout, the board **refused to sign the property off** — it stayed under
 
 ---
 
+### PoC-D: a specialised organisation (`voe_ibex/run_voe_specialists.py`)
+
+Phase 4. Four domain specialists replace the generalist pair, each **owning a
+region of the failure space** plus that domain's schemas (`M_s`), crossed with
+cognitive archetypes:
+
+| Specialist | Owns | Archetype | Semantic memory highlights |
+|---|---|---|---|
+| `arith` | `.add` | explorer | carry/borrow, signed overflow — cheap to sample |
+| `bitwise` | `.logic`, `.logic[mut]` | skeptic | operand-negate mux; narrow input-specific corruption |
+| `shift` | `.shift` | skeptic | **the signedness-demotion bug found on this DUT**; formal-first |
+| `compare` | `.cmp` | explorer | signed/unsigned GTE boundary; equality via adder |
+
+Result on the real Ibex ALU: same four proofs and the same mutant catch, closed
+in **28 budget units instead of 40** (−30%). The gain is attributable: the shift
+specialist's memory says checker bugs in this domain are invisible to sampling,
+so it went straight to proof — one step at cost 4, where the generalists spent 8
+sampling first. **Expertise showed up as measurably cheaper risk reduction.**
+
+Two invariants are enforced, not assumed:
+
+- **Ownership.** A specialist never bids outside its class and *raises* if asked
+  to execute outside it. Any property nobody owns is reported as a
+  `** COVERAGE GAP` before work starts and again in the final report — and it
+  stays in residual risk, so `R` cannot reach zero while an obligation is
+  unowned. (Verified by adding an `ibex_alu.mul` task nobody owns.)
+- **Memory cannot certify** (attack sheet 2.3). `M_s` changes *what is tried* —
+  method, ordering, effort — and has **no path to `R`**. A specialist with fifty
+  recorded failure modes and `difficulty = 0.0` computes exactly the same
+  residual risk as one that knows nothing. Domain experience makes an engineer
+  faster, never more certain without evidence.
+
+### PoC-E: the board derived from the RTL (`voe_ibex/run_voe_generated.py`)
+
+Every earlier board was hand-written — a human chose the properties, so whatever
+the human forgot was invisible. This one reads `ibex_alu.sv` with the
+corpus-hardened parser and enumerates what the *design* implies: one obligation
+per output port, plus structural checks.
+
+```
+module ibex_alu (15 ports, 7 outputs, 0 FSMs, 0 RTL assertions)
+generated 8 obligations — 2/7 outputs have a checker, 5 have NONE
+
+final R = 16.000   (NOT zero — and that is the correct answer)
+signed off : struct.comb_loops · out.comparison_result_o · out.is_equal_result_o
+residual   : out.result_o · out.adder_result_o · out.adder_result_ext_o
+             out.imd_val_d_o · out.imd_val_we_o
+```
+
+**The finding.** PoC-C/D showed a green board — four proofs, `R = 0.000` — which
+reads as "the Ibex ALU is verified". The generated board shows that claim was
+narrower than it looked: **five of seven real outputs have no checker at all**,
+and `result_o` is proved only for 4 op classes out of ~60 opcodes, so it is
+deliberately left unbound rather than counted as covered. Nothing regressed —
+what changed is that the gap is now *stated* instead of being absent from the
+board.
+
+This is the design rule that makes it work: **naming a property is not checking
+it.** Unbound obligations are emitted as *declared but unverifiable*, keep
+contributing residual risk, and are listed explicitly. Generating only the
+properties we can already check would have produced a board that is complete by
+construction — the exact failure mode this platform exists to prevent.
+
+**A third evidence channel, no kernel change.** `StaticChannel` runs real
+structural analysis via `AGENT_H.rtl_graph` (89 signals, 145 assigns on the real
+ALU) and proves combinational-loop freedom, emitting the same typed, stamped,
+hash-verified judgments as simulation and formal. Its warrant is deductive *with
+respect to the parsed structure* — a boundary recorded in the witness report
+itself, since it inherits parser fidelity and says nothing about post-synthesis
+silicon. Adding an entirely new *kind* of evidence required no kernel
+modification, which is the freeze claim exercised a third time.
+
 ## 5. The most valuable result: three caught vacuity incidents
 
 While bringing up PoC-C, the board showed a **perfect green `R = 0.000` with all
@@ -297,6 +369,8 @@ the work, reports `NOT CERTIFIED`, and continues.
 | `tests/test_voe_kernel.py` | 23 regression tests for the kernel-adjacent layers (laws, gate, provenance, bus, reputation, ledger). |
 | `phase3/engineer.py` | One autonomous engineer on the frozen kernel. |
 | `voe/board.py · bus.py · reputation.py · workers.py · voe.py` | Task board + ledger, judgment bus, reputation, archetypes, scheduler. |
+| `voe/specialists.py` | Phase 4: `PropertyClass` (owned failure region), `SemanticMemory` (`M_s`), `Specialist`, `unowned_properties`. |
+| `voe/obligations.py` | Phase 4b: derives obligations from real RTL; binds checkers; marks the rest declared-only. |
 | `voe_ibex/rtl · formal · sim · run_voe_ibex.py` | Real Ibex ALU slice: vendored pkg, byte-identical DUT, mutant, harness, sby jobs, TB, board. |
 | `install_toolchain.sh` | Reproducible Tier-A toolchain install (WSL2/Ubuntu). |
 
@@ -343,6 +417,15 @@ sby -f ibex_alu.sby bug_logic    # MUST be DONE (FAIL) — trustworthiness gate
 sby -f ibex_alu.sby prove_add    # DONE (PASS)
 cd ..        && python3 run_voe_ibex.py --real
 
+# PoC-D  specialised organisation (Phase 4)
+cd voe_ibex  && python3 run_voe_specialists.py --real
+
+# PoC-E  board derived from the RTL itself (Phase 4b)
+cd voe_ibex  && python3 run_voe_generated.py --real
+
+# regression suite (no EDA tools needed)
+pytest tests/test_voe_kernel.py --import-mode=importlib -q
+
 # every demo also runs tool-free:  --mock
 ```
 
@@ -353,5 +436,16 @@ cd ..        && python3 run_voe_ibex.py --real
 ## 9. Roadmap position
 
 Phase 1 (kernel) ✅ · Phase 2 (VOE) ✅ · Phase 3 (one engineer on real evidence) ✅
-· **next:** resolve §7.1, then Phase 4 — specialised engineers owning real
-property classes, scaling the board across Ibex and the wider corpus.
+· Phase 4 (specialised engineers owning real property classes) ✅ — all on the
+unchanged VSA v1.0 kernel; the freeze has held through every layer.
+
+Phase 4b (obligations derived from RTL + a third evidence channel) ✅.
+
+**Next — the gap the generated board just exposed:** five real Ibex outputs have
+no checker. Closing them means auto-*generating harnesses*, not just obligations
+(`AGENT_B/testbench_generator` already emits compilable environments from a
+parsed module). That converts declared-only obligations into dischargeable ones
+and is now the highest-value work, because the platform can finally see what it
+is missing. **Phase 5** (leads, review/sign-off authority via the witness gate,
+cross-specialist planning, conflict resolution by kernel merge) follows, and is
+worth more once the board is large.
