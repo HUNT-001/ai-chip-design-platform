@@ -14,12 +14,15 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "phase3"))
 sys.path.insert(0, os.path.join(ROOT, "voe"))
 
-from evidence_channels import (FormalChannel, SimChannel, Evidence,
+from evidence_channels import (FormalChannel, SimChannel, StaticChannel, Evidence,
                                verify_witness, audit_knowledge, _stamp)
+from obligations import generate_obligations
 from board import Task, TaskBoard, ResourceLedger, ACTION_COST
 from bus import JudgmentBus
 from reputation import ReputationService
 from workers import Worker
+from specialists import (PropertyClass, SemanticMemory, Specialist,
+                         unowned_properties)
 
 
 def load_kernel():
@@ -271,3 +274,154 @@ def test_archetypes_differ_in_method_choice():
     explorer = Worker("explorer", "explorer", K, fc, sc)
     assert skeptic.propose(ks, board, led).method == "formal"
     assert explorer.propose(ks, board, led).method == "sim"
+
+
+# --------------------------------------------------------------------------- #
+# Phase 4 — specialisation as state ownership                                 #
+# --------------------------------------------------------------------------- #
+def _spec(name, pattern, archetype="explorer", **mem):
+    fc = FormalChannel(mock=True, negative_control="bug")
+    return Specialist(name, archetype, K, fc, SimChannel(mock=True),
+                      PropertyClass(name, pattern),
+                      SemanticMemory(domain=name, **mem))
+
+
+def test_specialist_only_bids_inside_its_class():
+    ks = K.KnowledgeState()
+    board = TaskBoard([Task("dut.shift", 5.0, "t1", False),
+                       Task("dut.cmp", 5.0, "t2", False)])
+    led = ResourceLedger(budget=100)
+    sh = _spec("shift", r"\.shift$")
+    assert sh.propose(ks, board, led).phi == "dut.shift"     # never bids on cmp
+
+
+def test_specialist_refuses_to_execute_outside_its_class():
+    ks = K.KnowledgeState()
+    board = TaskBoard([Task("dut.cmp", 5.0, "t2", False)])
+    sh = _spec("shift", r"\.shift$")
+    with pytest.raises(ValueError, match="does not own"):
+        sh.execute(ks, board, "dut.cmp", "sim")
+
+
+def test_specialist_idle_when_class_is_empty():
+    ks = K.KnowledgeState()
+    board = TaskBoard([Task("dut.cmp", 5.0, "t2", False)])
+    assert _spec("shift", r"\.shift$").propose(ks, board, ResourceLedger(100)) is None
+
+
+def test_unowned_properties_are_surfaced():
+    board = TaskBoard([Task("dut.shift", 1.0, "t", False),
+                       Task("dut.mul", 1.0, "t", False)])     # nobody owns mul
+    org = [_spec("shift", r"\.shift$")]
+    assert unowned_properties(board, org) == ["dut.mul"]
+
+
+def test_memory_shapes_the_plan():
+    """M_s changes WHAT IS TRIED — a formal-first expert skips sampling."""
+    ks = K.KnowledgeState()
+    board = TaskBoard([Task("dut.shift", 5.0, "t", False)])
+    led = ResourceLedger(budget=100)
+    cautious = _spec("shift", r"\.shift$", preferred_method="formal",
+                     formal_first=True, difficulty=0.8)
+    casual = _spec("shift", r"\.shift$", preferred_method="sim", difficulty=0.2)
+    assert cautious.propose(ks, board, led).method == "formal"
+    assert casual.propose(ks, board, led).method == "sim"
+
+
+def test_memory_cannot_certify():
+    """Attack sheet 2.3: M_s must have NO path to residual risk.
+
+    A specialist with rich domain experience asserting the property is fine has
+    exactly the same risk as one that knows nothing — only witnessed evidence in
+    the canonical state moves R.
+    """
+    props = {"dut.shift": 5.0}
+    ks = K.KnowledgeState()
+    ks.believe(K.Judgment("dut.shift", K.Warrant.INDUCTIVE, {"n_eff": 2}, witness="w"))
+    baseline = K.R(ks, props)
+
+    expert = _spec("shift", r"\.shift$",
+                   known_failure_modes=["signedness demotion"] * 50,
+                   preferred_method="formal", difficulty=0.0,
+                   notes="I am certain this property holds")
+    novice = _spec("shift", r"\.shift$")
+    # Memory is attached to the workers; risk is a function of the state alone.
+    assert K.R(ks, props) == baseline
+    expert.memory.known_failure_modes.clear()
+    expert.memory.difficulty = 1.0
+    assert K.R(ks, props) == baseline
+    assert not ks.proven("dut.shift")        # experience never proves anything
+    assert baseline > 0                      # and never discharges risk
+
+
+# --------------------------------------------------------------------------- #
+# Phase 4b — obligations derived from RTL                                     #
+# --------------------------------------------------------------------------- #
+IBEX = os.path.join(ROOT, "voe_ibex", "rtl", "ibex_alu.sv")
+_needs_ibex = pytest.mark.skipif(not os.path.exists(IBEX), reason="ibex_alu.sv absent")
+
+
+@_needs_ibex
+def test_generator_enumerates_every_output_of_real_rtl():
+    tasks, s = generate_obligations(IBEX, module="ibex_alu")
+    assert s["module"] == "ibex_alu" and s["outputs"] == 7
+    # one obligation per output, plus the structural one
+    assert len(tasks) == s["outputs"] + 1
+    assert any(t.kind == "structural" for t in tasks)
+
+
+@_needs_ibex
+def test_unbound_obligations_have_no_evidence_path():
+    """Naming a property is not checking it: unbound => declared, not dischargeable."""
+    tasks, _ = generate_obligations(
+        IBEX, module="ibex_alu",
+        harness_map={"out.comparison_result_o": "prove_cmp"})
+    by = {t.phi: t for t in tasks}
+    assert by["ibex_alu.out.comparison_result_o"].has_evidence_path()
+    assert not by["ibex_alu.out.result_o"].has_evidence_path()
+    assert "NO CHECKER" in by["ibex_alu.out.result_o"].note
+
+
+@_needs_ibex
+def test_unverifiable_obligations_keep_contributing_risk():
+    """The board must not go green while real outputs have no checker."""
+    tasks, _ = generate_obligations(IBEX, module="ibex_alu")
+    board = TaskBoard(tasks)
+    ks = K.KnowledgeState()
+    # discharge everything that CAN be discharged
+    for t in board.actionable(ks):
+        ks.believe(K.Judgment(t.phi, K.Warrant.DEDUCTIVE, {"n_eff": 0}, witness="pf"))
+    assert K.R(ks, board.weights()) > 0            # residual risk remains
+    assert board.unverifiable(ks)                  # and it is named
+
+
+@_needs_ibex
+def test_static_channel_proves_no_comb_loops_on_real_ibex():
+    ev = StaticChannel(IBEX).check("comb_loops")
+    assert ev.status == "proved"
+    ok, _ = verify_witness(ev.witness)
+    assert ok                                      # real, hash-verified artifact
+
+
+def test_static_channel_reports_unsupported_property(tmp_path):
+    rtl = tmp_path / "m.sv"
+    rtl.write_text("module m(input a, output b); assign b = a; endmodule\n")
+    assert StaticChannel(str(rtl)).check("fsm_legality").status == "unsupported"
+
+
+def test_workers_ignore_obligations_with_no_checker():
+    ks = K.KnowledgeState()
+    board = TaskBoard([Task("m.out.x", 5.0)])       # no harness bound
+    w = Worker("w", "explorer", K, FormalChannel(mock=True), SimChannel(mock=True))
+    assert w.propose(ks, board, ResourceLedger(100)) is None
+    assert board.unverifiable(ks) == ["m.out.x"]
+
+
+def test_specialists_share_one_canonical_state():
+    """Different owners, one truth: a proof by one specialist settles the
+    property for the whole organisation (Struct-1 confluence)."""
+    ks = K.KnowledgeState(); bus = JudgmentBus(K, ks)
+    bus.publish("shift", K.Judgment("dut.shift", K.Warrant.DEDUCTIVE,
+                                    {"n_eff": 0}, witness="pf"))
+    board = TaskBoard([Task("dut.shift", 5.0, "t", False)])
+    assert board.open_tasks(ks) == []        # nobody re-verifies it
