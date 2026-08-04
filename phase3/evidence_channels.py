@@ -15,7 +15,7 @@ that random simulation does NOT hit the narrow DEAD_BEEF defect that formal
 catches immediately (Sem-1 in action).
 """
 from __future__ import annotations
-import os, re, shutil, subprocess, tempfile, hashlib
+import os, re, sys, shutil, subprocess, tempfile, hashlib
 from dataclasses import dataclass, field
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -294,8 +294,80 @@ class SimChannel:
                         detail=f"{fails} mismatches over {n} vectors")
 
 
+# --------------------------------------------------------------------------- #
+# Static channel — structural evidence from the RTL graph                     #
+# --------------------------------------------------------------------------- #
+class StaticChannel:
+    """Third evidence channel: sound structural analysis of the parsed RTL.
+
+    Uses AGENT_H.rtl_graph (hardened against a 9-repo corpus) to decide
+    structural properties — currently combinational-loop freedom. For the
+    property it checks this is a DEDUCTIVE result: the analysis is exhaustive
+    over the parsed netlist graph, not sampled.
+
+    Honest boundary: the warrant is deductive *with respect to the parsed
+    structure*. It inherits parser fidelity, so it is evidence about the design
+    as parsed, not about post-synthesis silicon. That limit is recorded in the
+    witness report rather than glossed.
+
+    Note this channel required NO kernel change — it emits the same typed
+    judgments as simulation and formal, which is the extensibility claim of the
+    frozen kernel being exercised a third time.
+    """
+
+    def __init__(self, rtl_path: str, workdir: str | None = None, mock: bool = False):
+        self.rtl_path = rtl_path
+        self.mock = mock
+        self.workdir = workdir or tempfile.mkdtemp(prefix="phase3_static_")
+
+    def _report(self, name: str, body: str) -> str:
+        os.makedirs(self.workdir, exist_ok=True)
+        p = os.path.join(self.workdir, f"static_{name}.txt")
+        with open(p, "w") as f:
+            f.write(body)
+        return _stamp(p)
+
+    def check(self, prop: str = "comb_loops") -> Evidence:
+        if self.mock:
+            return Evidence("static", "proved",
+                            witness=f"<mock>/static_{prop}.txt",
+                            detail="mock: no combinational loops")
+        try:
+            sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            from AGENT_H import rtl_graph as rg
+        except Exception as e:                       # graceful degradation
+            return Evidence("static", "error", witness="", detail=f"rtl_graph unavailable: {e}")
+        try:
+            with open(self.rtl_path) as f:
+                src = f.read()
+            mods = rg.parse_module(src, self.rtl_path)
+            if not mods:
+                return Evidence("static", "error", witness="", detail="no module parsed")
+            m = mods[0]
+            if prop != "comb_loops":
+                return Evidence("static", "unsupported", witness="",
+                                detail=f"no static analysis for '{prop}'")
+            loops = rg.find_comb_loops(m.comb_graph())
+        except Exception as e:
+            return Evidence("static", "error", witness="", detail=f"analysis failed: {e}")
+
+        head = (f"module: {m.name}\nsource: {self.rtl_path}\n"
+                f"signals: {len(m.signals)}  assigns: {len(m.assigns)}\n"
+                f"analysis: combinational-loop detection over the parsed netlist\n"
+                f"scope: deductive w.r.t. the PARSED structure (inherits parser fidelity)\n")
+        if loops:
+            body = head + f"result: {len(loops)} loop(s)\n" + \
+                   "\n".join(" -> ".join(c) for c in loops[:10])
+            return Evidence("static", "counterexample",
+                            witness=self._report(f"{m.name}_{prop}", body),
+                            detail=f"{len(loops)} combinational loop(s); first: "
+                                   f"{' -> '.join(loops[0][:4])}")
+        return Evidence("static", "proved",
+                        witness=self._report(f"{m.name}_{prop}", head + "result: no loops\n"),
+                        detail="no combinational loops over the parsed netlist")
+
+
 if __name__ == "__main__":
-    import sys
     mock = "--mock" in sys.argv
     print("tools:", {"sby": _have("sby"), "verilator": _have("verilator")}, "mock=" , mock)
     fc = FormalChannel(mock=mock)
