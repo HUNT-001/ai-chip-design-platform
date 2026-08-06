@@ -151,6 +151,13 @@ class FormalChannel:
         if ev.status == "counterexample":
             self._gate_state, self._gate_reason = True, \
                 f"negative control '{self.negative_control}' failed as required"
+        elif ev.status == "inconclusive":
+            # Cannot show the assertions bind, so nothing may be certified.
+            # Usually means the depth is too shallow for the base case to reach
+            # the control's violation.
+            self._gate_state, self._gate_reason = False, \
+                (f"negative control '{self.negative_control}' was INCONCLUSIVE — "
+                 f"cannot show the assertions bind (try greater depth)")
         elif ev.status == "error":
             self._gate_state, self._gate_reason = False, \
                 f"negative control '{self.negative_control}' errored: {ev.detail}"
@@ -216,6 +223,16 @@ class FormalChannel:
             w = trace if os.path.exists(trace) else os.path.join(work, "status")
             return Evidence("formal", "counterexample", witness=_stamp(w),
                             detail="assertion falsified — counterexample trace", raw=out)
+        if re.search(r"DONE \(UNKNOWN", out):
+            # k-induction did not decide: the base case is clean but the
+            # induction step failed. That is NOT a violation and NOT a proof —
+            # typically the property needs a strengthening invariant, or the
+            # depth is too shallow for the base case to reach a real violation.
+            return Evidence("formal", "inconclusive", witness=flog,
+                            detail="k-induction inconclusive (base case clean, "
+                                   "induction step failed) — property may need a "
+                                   "strengthening invariant, or greater depth",
+                            raw=out)
         errln = [l for l in out.splitlines() if "ERROR" in l or "syntax error" in l.lower()]
         tail = " | ".join((errln or out.strip().splitlines())[-4:])
         return Evidence("formal", "error", witness=flog,
@@ -227,16 +244,31 @@ class FormalChannel:
 # --------------------------------------------------------------------------- #
 class SimChannel:
     def __init__(self, rtl: str = RTL, tb: str = TB, mock: bool = False, workroot: str | None = None,
-                 sources=None, top: str = "tb_alu", defines_for=None):
+                 sources=None, top: str = "tb_alu", defines_for=None, covers=None):
+        # `covers`: regex (or callable) naming the properties this testbench
+        # ACTUALLY checks. A TB that only compares result_o must not have its
+        # pass credited as evidence for some other output — formal is
+        # property-specific by construction (one task per assertion set), but a
+        # single testbench is not, so the scope has to be declared.
+        # None = covers everything (correct for a TB written for one board).
         # Backward compatible: default = toy ALU (rtl, tb). For multi-file DUTs
         # (e.g. real ibex_alu: pkg + core + mutant + tb) pass `sources`, `top`,
         # and `defines_for(inject_bug)->[defines]`.
+        self._covers = covers
         self.sources = sources if sources is not None else [rtl, tb]
         self.top = top
         self.defines_for = defines_for or (lambda bug: (["INJECT_BUG=1"] if bug else []))
         self.mock = mock or not _have("verilator")
         self.workroot = workroot or tempfile.mkdtemp(prefix="phase3_sim_")
         self._built: dict[bool, str] = {}
+
+    def covers(self, phi: str) -> bool:
+        """Does this testbench actually check the named property?"""
+        if self._covers is None:
+            return True
+        if callable(self._covers):
+            return bool(self._covers(phi))
+        return re.search(self._covers, phi) is not None
 
     def build(self, inject_bug: bool = False, nvec: int = 20000):
         """Returns (binary_path, error_str). error_str is '' on success."""
