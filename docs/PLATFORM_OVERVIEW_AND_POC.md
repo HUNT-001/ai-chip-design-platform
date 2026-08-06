@@ -293,6 +293,31 @@ contributing residual risk, and are listed explicitly. Generating only the
 properties we can already check would have produced a board that is complete by
 construction — the exact failure mode this platform exists to prevent.
 
+**Closing the gap it found.** Four new formal classes were then written against
+exactly the outputs the board named, using semantics read off the RTL:
+
+| Output | Property proved |
+|---|---|
+| `result_o` | correct for **all 16 RV32I opcodes** (supersedes the four per-op-class proofs) |
+| `adder_result_o` | `a−b` for SUB/compare ops, `a+b` otherwise |
+| `adder_result_ext_o` | the raw 34-bit sum `{a,1} + (negate ? ~{b,0} : {b,0})` |
+| `imd_val_d_o`, `imd_val_we_o` | **tied off to zero for every opcode** under `RV32BNone` |
+
+Result: 7/7 outputs now have a checker and `R` falls 16.000 → 3.000. The
+remainder is deliberate — `result_o` is bound with an explicit **scope** ("all 16
+RV32I opcodes"), so the generator emits a declared-only remainder obligation for
+the RV32B opcode space this build does not implement. A checker covering part of
+an output can never be mistaken for one covering all of it.
+
+**A fourth soundness bug, caught by the same discipline.** The first run of the
+closed board showed `plumbing` earning simulation passes for `imd_val_d_o` — but
+`tb_ibex_alu` compares `result_o` and checks nothing else. Formal is
+property-specific by construction (one sby task per assertion set); a single
+shared testbench is not, so its pass was being credited to properties it never
+examined. `SimChannel` now declares a **coverage scope**, the planner will not
+choose simulation outside it, and `execute` refuses outright. Budget fell 44 → 28
+once the meaningless runs stopped.
+
 **A third evidence channel, no kernel change.** `StaticChannel` runs real
 structural analysis via `AGENT_H.rtl_graph` (89 signals, 145 assigns on the real
 ALU) and proves combinational-loop freedom, emitting the same typed, stamped,
@@ -301,6 +326,64 @@ respect to the parsed structure* — a boundary recorded in the witness report
 itself, since it inherits parser fidelity and says nothing about post-synthesis
 silicon. Adding an entirely new *kind* of evidence required no kernel
 modification, which is the freeze claim exercised a third time.
+
+### PoC-F: the first STATEFUL DUT (`voe_fifo/`) — bounded vs proved
+
+Real `cv32e40p_fifo` (byte-identical, `DEPTH=4`). Everything before this was
+combinational, where a bounded check with free inputs is already exhaustive. A
+FIFO has state, so the same tool result means something weaker. Same properties,
+same solver, two modes:
+
+```
+bounded   (mode bmc, depth 12)   R = 15.000 -> 14.250   proved = []      nothing closed
+unbounded (mode prove, k-induct) R = 15.000 ->  0.000   proved = all 3
+```
+
+The property carrying the point is `cnt_o <= DEPTH` — an inductive invariant
+(true after reset, preserved because a push is blocked while `full_o` holds).
+Twelve cycles of silence lowered risk but discharged nothing; only k-induction
+closed the obligations. This is the `bounded_pass` warrant, implemented during
+the first hardening pass on the argument that it *would* matter once we left
+combinational logic, finally exercised on real sequential RTL.
+
+**The gate failed CLOSED — the best behaviour observed so far.** On the first
+attempt `prove_cnt` was a genuine k-induction proof (it passed when run
+directly), yet the VOE refused to record it three times: the negative control
+returned `UNKNOWN`, so the gate could not confirm the assertions bind and
+withheld certification. A **false negative** — the system rejected a true claim.
+Every earlier failure mode produced false *positives* (green boards that meant
+nothing); this is the first time the machinery erred, and it erred toward
+refusing to certify. Root cause was ours: `depth 6` while the mutant's overflow
+first appears at step 7, so the base case never reached it. Fixed by depth 12,
+plus a distinct **`inconclusive`** status ("base case clean, induction step
+failed — may need a strengthening invariant") that no longer hides inside a
+generic error.
+
+### PoC-G: organisational foresight (`voe/impact.py`)
+
+Until this point the organisation was purely **reactive** — it could say what it
+knew, not what would stop being true if something moved. `ImpactGraph` records
+what every claim rests on (source files, hash-pinned; and named assumptions,
+which may be other properties) and propagates invalidation transitively.
+
+```
+event 1  someone edits ibex_alu.sv
+         -> 3 proofs retracted        risk 0.000 -> 15.000
+         laws under 'commit': hold          <- rising risk is LEGAL here
+         same rise labelled 'update': REJECTED
+event 2  the FIFO counter bound is withdrawn
+         -> subsystem.no_data_loss (direct)
+         -> soc.stream_integrity  (TRANSITIVE, two hops, never mentions a FIFO)
+            risk 15.000 -> 32.000
+```
+
+**This is not a new primitive — it discharges a debt the foundation already
+recorded.** Attack-sheet 3.1 states the requirement ("cross-commit safety ⟺ COI
+soundness: show a sound COI that still lets stale evidence certify a post-commit
+bug"), and Sem-2′ already reserved exactly one event class in which residual risk
+may legitimately *rise*: `commit`. Retraction is that event. The tests verify the
+claim rather than assert it: the same risk increase is accepted under `commit`
+and **rejected** under `update`, and the kernel exposes nothing new.
 
 ## 5. The most valuable result: three caught vacuity incidents
 
@@ -376,10 +459,15 @@ the work, reports `NOT CERTIFIED`, and continues.
 
 ## 7. Honest status & open items
 
-**Demonstrated:** real dual-channel evidence (sim + formal) driving a formal
-epistemic kernel; warrant-correct risk accounting; multi-agent confluent merge;
-evidence-derived reputation; law checking at every step; a real proof and a real
-counterexample on the actual Ibex ALU; three self-caught vacuity failures.
+**Demonstrated:** three real evidence channels (simulation, formal, static)
+driving a formal epistemic kernel; warrant-correct risk accounting; multi-agent
+confluent merge; evidence-derived reputation; law checking at every step;
+specialisation as state ownership; obligations derived from the RTL itself; and
+**every output of the real lowRISC `ibex_alu` formally proved** — `result_o`
+across all 16 RV32I opcodes, both adder outputs, both comparison outputs, the
+`imd_val_*` tie-offs, and combinational-loop freedom — with the vacuity gate
+armed and all witnesses hash-verified. Four soundness failures were caught by the
+system's own negative controls rather than by inspection.
 
 Plus one **real reference-model bug found and fixed** (§4, PoC-C): a Verilog
 signedness demotion that turned an arithmetic shift into a logical one, invisible
