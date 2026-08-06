@@ -4,7 +4,7 @@
 ##   0:00:00  Checking assumptions in step 1..
 ##   0:00:00  Checking assertions in step 1..
 ##   0:00:00  BMC failed!
-##   0:00:00  Assert failed in ibex_alu_fv: ibex_alu_fv.v:61.5-61.29 (_witness_.check_assert_ibex_alu_fv_v_61_92)
+##   0:00:00  Assert failed in ibex_alu_fv: ibex_alu_fv.v:77.5-77.29 (_witness_.check_assert_ibex_alu_fv_v_77_140)
 ##   0:00:00  Writing trace to VCD file: engine_0/trace.vcd
 ##   0:00:00  Writing trace to Verilog testbench: engine_0/trace_tb.v
 ##   0:00:00  Writing trace to constraints file: engine_0/trace.smtc
