@@ -106,7 +106,8 @@ class Specialist(Worker):
 
         # Semantic memory + archetype decide the METHOD only.
         explore_budget = 2 if self.memory.difficulty > 0.6 else 4
-        if self.memory.formal_first or self.archetype == "skeptic":
+        can_sim = self.sim.covers(phi)      # only sample what the TB checks
+        if self.memory.formal_first or self.archetype == "skeptic" or not can_sim:
             method = "formal" if ledger.can_afford("formal") else "sim"
         elif self.memory.preferred_method == "formal" and n >= 1:
             method = "formal" if ledger.can_afford("formal") else "sim"
