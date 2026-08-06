@@ -14,6 +14,10 @@ prove_add
 prove_logic
 prove_shift
 prove_cmp
+prove_result
+prove_adder
+prove_adder_ext
+prove_imd
 bug_logic
 
 # ibex_alu is purely combinational (no clock/flops), so a bmc pass that actually
@@ -26,26 +30,38 @@ bug_logic
 [options]
 mode bmc
 depth 2
-prove_add:   expect pass
-prove_logic: expect pass
-prove_shift: expect pass
-prove_cmp:   expect pass
-bug_logic:   expect fail
+prove_add:       expect pass
+prove_logic:     expect pass
+prove_shift:     expect pass
+prove_cmp:       expect pass
+prove_result:    expect pass
+prove_adder:     expect pass
+prove_adder_ext: expect pass
+prove_imd:       expect pass
+bug_logic:       expect fail
 
 [engines]
 smtbmc z3
 
 [script]
-prove_add:   verilog_defines -DCLASS_ADD
-prove_logic: verilog_defines -DCLASS_LOGIC
-prove_shift: verilog_defines -DCLASS_SHIFT
-prove_cmp:   verilog_defines -DCLASS_CMP
-bug_logic:   verilog_defines -DCLASS_LOGIC -DDUT=ibex_alu_mut
-prove_add:   read_verilog ibex_alu.v
-prove_logic: read_verilog ibex_alu.v
-prove_shift: read_verilog ibex_alu.v
-prove_cmp:   read_verilog ibex_alu.v
-bug_logic:   read_verilog ibex_alu_mut.v
+prove_add:       verilog_defines -DCLASS_ADD
+prove_logic:     verilog_defines -DCLASS_LOGIC
+prove_shift:     verilog_defines -DCLASS_SHIFT
+prove_cmp:       verilog_defines -DCLASS_CMP
+prove_result:    verilog_defines -DCLASS_RESULT
+prove_adder:     verilog_defines -DCLASS_ADDER
+prove_adder_ext: verilog_defines -DCLASS_ADDER_EXT
+prove_imd:       verilog_defines -DCLASS_IMD
+bug_logic:       verilog_defines -DCLASS_LOGIC -DDUT=ibex_alu_mut
+prove_add:       read_verilog ibex_alu.v
+prove_logic:     read_verilog ibex_alu.v
+prove_shift:     read_verilog ibex_alu.v
+prove_cmp:       read_verilog ibex_alu.v
+prove_result:    read_verilog ibex_alu.v
+prove_adder:     read_verilog ibex_alu.v
+prove_adder_ext: read_verilog ibex_alu.v
+prove_imd:       read_verilog ibex_alu.v
+bug_logic:       read_verilog ibex_alu_mut.v
 read_verilog -sv ibex_alu_fv.v
 prep -top ibex_alu_fv
 
