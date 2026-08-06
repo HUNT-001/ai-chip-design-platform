@@ -16,6 +16,8 @@ judgment which the VOE publishes to the bus for adjudication (Fire-1).
 from __future__ import annotations
 from dataclasses import dataclass
 
+from evidence_channels import Evidence
+
 EXPLORE_BUDGET = 4      # explorer's sim appetite before it considers formal
 
 
@@ -57,7 +59,8 @@ class Worker:
             return Proposal(self, phi, "static",
                             self.k.utility(ks, weights, phi)[0], ACTION_COST["static"])
         n = ks.n_eff(phi)
-        if self.archetype == "skeptic":
+        can_sim = self.sim.covers(phi)      # only sample what the TB checks
+        if self.archetype == "skeptic" or not can_sim:
             method = "formal" if ledger.can_afford("formal") else "sim"
         else:  # explorer
             if n < EXPLORE_BUDGET and ledger.can_afford("sim"):
@@ -87,6 +90,10 @@ class Worker:
                 return ev, None
             return ev, j
         if method == "sim":
+            # Guard: never credit a testbench pass to a property it does not check.
+            if not self.sim.covers(phi):
+                return Evidence("sim", "unsupported", witness="",
+                                detail=f"testbench does not check {phi}"), None
             ev = self.sim.run(inject_bug=t.inject_bug, seed=self._seed_next(), nvec=self.nvec)
             if ev.status == "pass":
                 j = self.k.Judgment(phi, self.k.Warrant.INDUCTIVE,
@@ -114,6 +121,11 @@ class Worker:
         elif ev.status == "gate_failed":
             # Vacuity gate not armed: the run passed but cannot be certified.
             # Record NOTHING (no warrant is justified) and stop re-attacking.
+            self.skip.add(phi)
+            return ev, None
+        elif ev.status == "inconclusive":
+            # k-induction neither proved nor refuted it. No warrant is
+            # justified; the property likely needs a strengthening invariant.
             self.skip.add(phi)
             return ev, None
         else:
