@@ -409,12 +409,171 @@ def test_static_channel_reports_unsupported_property(tmp_path):
     assert StaticChannel(str(rtl)).check("fsm_legality").status == "unsupported"
 
 
+def test_sim_pass_is_never_credited_to_an_unchecked_property():
+    """A testbench that only compares result_o must not have its pass counted as
+    evidence for some other output. Formal is property-specific by construction;
+    one shared TB is not, so its scope is declared and enforced."""
+    sc = SimChannel(mock=True, covers=r"\.out\.result_o$")
+    assert sc.covers("m.out.result_o") and not sc.covers("m.out.imd_val_d_o")
+
+    ks = K.KnowledgeState()
+    board = TaskBoard([Task("m.out.imd_val_d_o", 5.0, formal_task="prove_imd")])
+    w = Worker("w", "explorer", K, FormalChannel(mock=True, negative_control="bug"), sc)
+    ev, j = w.execute(ks, board, "m.out.imd_val_d_o", "sim")
+    assert ev.status == "unsupported" and j is None
+    assert "m.out.imd_val_d_o" not in ks.K
+    # and the planner does not even choose sim for it
+    assert w.propose(ks, board, ResourceLedger(100)).method == "formal"
+
+
+def test_bounded_evidence_never_discharges_a_sequential_obligation(tmp_path):
+    """The stateful case: a bmc pass on a design WITH state lowers residual risk
+    but must never close the obligation — the property could still break one
+    cycle past the horizon. Only an unbounded proof discharges it."""
+    from voe import VOE
+    bmc = tmp_path / "b.sby";   bmc.write_text("[options]\nmode bmc\ndepth 12\n")
+    prv = tmp_path / "p.sby";   prv.write_text("[options]\nmode prove\ndepth 6\n")
+    tasks = [Task("fifo.cnt_bound", 6.0, formal_task="cnt")]
+
+    def campaign(sby):
+        fc = FormalChannel(str(sby), mock=True, combinational=False,
+                           negative_control="bug_cnt")
+        v = VOE([Task(**vars(t)) for t in tasks], budget=40.0, mock=True,
+                formal=fc, sim=SimChannel(mock=True, covers=lambda p: False))
+        with contextlib.redirect_stdout(io.StringIO()):
+            v.run(max_steps=10)
+        return v
+
+    b, p = campaign(bmc), campaign(prv)
+    assert not b.ks.proven("fifo.cnt_bound")          # bounded: NOT a proof
+    assert b.k.R(b.ks, b.board.weights()) > 0         # risk remains
+    assert p.ks.proven("fifo.cnt_bound")              # k-induction: proved
+    assert p.k.R(p.ks, p.board.weights()) == 0
+
+
+def test_inconclusive_negative_control_disarms_the_gate(monkeypatch):
+    """If the known-bad job is INCONCLUSIVE we cannot show the assertions bind,
+    so nothing may be certified — fail closed, never open. (This happened for
+    real: a prove-mode depth too shallow for the base case to reach the mutant's
+    violation reported UNKNOWN, and the gate correctly blocked three true proofs.)"""
+    fc = FormalChannel(mock=True, negative_control="ctl")
+    monkeypatch.setattr(fc, "_run_task",
+                        lambda t: Evidence("formal", "inconclusive", witness="w")
+                        if t == "ctl" else Evidence("formal", "proved", witness="w"))
+    assert fc.prove("prove_x").status == "gate_failed"
+    armed, why = fc.gate_status()
+    assert not armed and "INCONCLUSIVE" in why
+
+
+def test_inconclusive_result_records_nothing():
+    ks = K.KnowledgeState()
+    board = TaskBoard([Task("p", 5.0, formal_task="t")])
+    fc = FormalChannel(mock=True, negative_control="bug")
+    w = Worker("w", "skeptic", K, fc, SimChannel(mock=True))
+    import evidence_channels as ec
+    fc._run_task = lambda t: ec.Evidence("formal", "inconclusive", witness="w")
+    fc._gate_state, fc._gate_reason = True, "armed"
+    ev, j = w.execute(ks, board, "p", "formal")
+    assert ev.status == "inconclusive" and j is None
+    assert "p" not in ks.K and "p" in w.skip
+
+
+def test_partial_coverage_emits_a_declared_remainder():
+    """Binding a checker that covers only part of an output must not let the
+    whole output count as covered."""
+    tasks, _ = generate_obligations(
+        IBEX, module="ibex_alu",
+        harness_map={"out.result_o": {"task": "prove_result",
+                                      "scope": "RV32I", "uncovered": "rv32b"}})
+    by = {t.phi: t for t in tasks}
+    assert by["ibex_alu.out.result_o"].has_evidence_path()
+    rem = by["ibex_alu.out.result_o[rv32b]"]
+    assert not rem.has_evidence_path() and "remainder" in rem.note
+
+
 def test_workers_ignore_obligations_with_no_checker():
     ks = K.KnowledgeState()
     board = TaskBoard([Task("m.out.x", 5.0)])       # no harness bound
     w = Worker("w", "explorer", K, FormalChannel(mock=True), SimChannel(mock=True))
     assert w.propose(ks, board, ResourceLedger(100)) is None
     assert board.unverifiable(ks) == ["m.out.x"]
+
+
+# --------------------------------------------------------------------------- #
+# Impact propagation — organisational foresight                               #
+# --------------------------------------------------------------------------- #
+from impact import ImpactGraph
+
+
+def _proved(ks, phi):
+    ks.believe(K.Judgment(phi, K.Warrant.DEDUCTIVE, {"n_eff": 0}, witness=f"pf/{phi}"))
+
+
+def test_source_edit_invalidates_only_dependent_claims(tmp_path):
+    src = tmp_path / "a.sv"; src.write_text("module a; endmodule")
+    other = tmp_path / "b.sv"; other.write_text("module b; endmodule")
+    ks, W = K.KnowledgeState(), {"a.p": 5.0, "b.p": 5.0}
+    g = ImpactGraph()
+    g.record("a.p", sources=[str(src)])
+    g.record("b.p", sources=[str(other)])
+    _proved(ks, "a.p"); _proved(ks, "b.p")
+    assert K.R(ks, W) == 0
+
+    src.write_text("module a; wire x; endmodule")          # the commit
+    rep = g.propagate(ks, K, W, trigger="edit a.sv")
+    assert rep.retracted == ["a.p"]                        # only the dependent
+    assert "b.p" in ks.K                                   # untouched claim stands
+    assert rep.risk_after > rep.risk_before
+
+
+def test_retracting_a_premise_propagates_transitively():
+    """soc rests on subsystem rests on fifo — retracting the fifo premise must
+    reach the soc claim, which never mentions a FIFO."""
+    ks = K.KnowledgeState()
+    W = {"fifo.cnt": 6.0, "sub.no_loss": 8.0, "soc.integrity": 9.0}
+    g = ImpactGraph()
+    g.record("fifo.cnt")
+    g.record("sub.no_loss", assumptions=["fifo.cnt"])
+    g.record("soc.integrity", assumptions=["sub.no_loss"])
+    for p in W: _proved(ks, p)
+
+    rep = g.propagate(ks, K, W, trigger="retract", assumption="fifo.cnt")
+    assert rep.directly_hit == ["sub.no_loss"]
+    assert rep.transitively_hit == ["soc.integrity"]       # two hops out
+    assert set(rep.retracted) == {"sub.no_loss", "soc.integrity"}
+
+
+def test_risk_may_rise_on_commit_but_not_on_update(tmp_path):
+    """The kernel already reserved exactly one event class where residual risk
+    may increase. Retraction is that class — and mislabelling it is rejected."""
+    src = tmp_path / "a.sv"; src.write_text("x")
+    ks, W = K.KnowledgeState(), {"a.p": 5.0}
+    g = ImpactGraph(); g.record("a.p", sources=[str(src)])
+    _proved(ks, "a.p")
+    prev = K.R(ks, W)
+
+    src.write_text("y")
+    g.propagate(ks, K, W, trigger="edit")
+    assert K.R(ks, W) > prev
+    assert all(v for _, v in K.check_laws(ks, W, prev, "commit")[1])     # legal
+    assert not all(v for _, v in K.check_laws(ks, W, prev, "update")[1])  # rejected
+
+
+def test_unchanged_sources_invalidate_nothing(tmp_path):
+    src = tmp_path / "a.sv"; src.write_text("stable")
+    ks, W = K.KnowledgeState(), {"a.p": 5.0}
+    g = ImpactGraph(); g.record("a.p", sources=[str(src)])
+    _proved(ks, "a.p")
+    rep = g.propagate(ks, K, W, trigger="no-op")
+    assert rep.retracted == [] and K.R(ks, W) == 0
+    assert g.changed_sources() == []
+
+
+def test_impact_needs_no_kernel_change():
+    """The kernel module must expose nothing new for impact propagation to work:
+    it uses only Judgment/KnowledgeState/R/check_laws as already frozen."""
+    used = {"Judgment", "KnowledgeState", "R", "check_laws", "Warrant"}
+    assert used <= set(dir(K))
 
 
 def test_specialists_share_one_canonical_state():
