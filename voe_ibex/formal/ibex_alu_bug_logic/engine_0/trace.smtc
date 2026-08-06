@@ -1,17 +1,17 @@
 initial
-assume (= [$auto$async2sync.cc:107:execute$167] false)
-assume (= [$auto$async2sync.cc:116:execute$171] true)
-assume (= (select [dut.$auto$proc_rom.cc:155:do_switch$95] #b000010) #b0)
-assume (= (select [dut.$auto$proc_rom.cc:155:do_switch$95] #b000100) #b0)
+assume (= [$auto$async2sync.cc:107:execute$215] false)
+assume (= [$auto$async2sync.cc:116:execute$219] true)
+assume (= (select [dut.$auto$proc_rom.cc:155:do_switch$143] #b000010) #b0)
+assume (= (select [dut.$auto$proc_rom.cc:155:do_switch$143] #b000011) #b0)
 
 state 0
 assume (= [a] #xcafef00d)
-assume (= [b] #x000dce29)
+assume (= [b] #x364107f2)
 assume (= [clk] false)
 assume (= [op] #b0000010)
 
 state 1
-assume (= [a] #xa8154757)
-assume (= [b] #x01a00683)
+assume (= [a] #x9c06a032)
+assume (= [b] #x00a04c05)
 assume (= [clk] false)
-assume (= [op] #b0000100)
+assume (= [op] #b0000011)
