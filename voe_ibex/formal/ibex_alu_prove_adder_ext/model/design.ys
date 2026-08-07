@@ -1,0 +1,10 @@
+# running in ibex_alu_prove_adder_ext/src/
+verilog_defines -DCLASS_ADDER_EXT
+read_verilog ibex_alu.v
+read_verilog -sv ibex_alu_fv.v
+prep -top ibex_alu_fv
+
+hierarchy -smtcheck
+rename -witness
+write_jny -no-connections ../model/design.json
+write_rtlil ../model/design.il
