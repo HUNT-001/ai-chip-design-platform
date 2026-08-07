@@ -1,0 +1,29 @@
+# Formal jobs for the REAL ibex_alu (RV32BNone), hybrid frontend:
+#   * DUT  = sv2v-converted plain Verilog (gen/ibex_alu.v / gen/ibex_alu_mut.v)
+#   * harness (ibex_alu_fv.v) read DIRECTLY by yosys so the assert/assume live.
+# Four per-op-class proofs over the byte-identical corpus RTL (expect pass) and
+# one bug job over a narrowly-mutated copy (expect a counterexample).
+# mode prove = k-induction => a genuine unbounded proof (recorded as deductive).
+#
+# bug_logic MUST fail (counterexample). It is the self-check that the assertions
+# are actually present — an all-sv2v flow made it pass vacuously; this hybrid
+# fixes that. A green board with bug_logic passing is NOT to be trusted.
+
+[options]
+mode bmc
+depth 2
+expect pass
+
+[engines]
+smtbmc z3
+
+[script]
+verilog_defines -DCLASS_RESULT
+read_verilog ibex_alu.v
+read_verilog -sv ibex_alu_fv.v
+prep -top ibex_alu_fv
+
+[files]
+gen/ibex_alu.v
+gen/ibex_alu_mut.v
+ibex_alu_fv.v
