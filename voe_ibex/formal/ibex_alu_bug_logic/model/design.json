@@ -34,11 +34,11 @@
             ],
             "cells": [
                 {
-                  "name": "_witness_.check_assert_ibex_alu_fv_v_61_92",
+                  "name": "_witness_.check_assert_ibex_alu_fv_v_77_140",
                   "attributes": {
-                    "hdlname": "_witness_ check_assert_ibex_alu_fv_v_61_92",
+                    "hdlname": "_witness_ check_assert_ibex_alu_fv_v_77_140",
                     "keep": "00000000000000000000000000000001",
-                    "src": "ibex_alu_fv.v:61.5-61.29"
+                    "src": "ibex_alu_fv.v:77.5-77.29"
                   },
                   "parameters": {
                     "ARGS_WIDTH": "00000000000000000000000000000000",
@@ -51,11 +51,11 @@
                   }
                 },
                 {
-                  "name": "_witness_.check_assume_ibex_alu_fv_v_60_86",
+                  "name": "_witness_.check_assume_ibex_alu_fv_v_76_134",
                   "attributes": {
-                    "hdlname": "_witness_ check_assume_ibex_alu_fv_v_60_86",
+                    "hdlname": "_witness_ check_assume_ibex_alu_fv_v_76_134",
                     "keep": "00000000000000000000000000000001",
-                    "src": "ibex_alu_fv.v:60.5-60.60"
+                    "src": "ibex_alu_fv.v:76.5-76.60"
                   },
                   "parameters": {
                     "ARGS_WIDTH": "00000000000000000000000000000000",
@@ -75,12 +75,12 @@
                 {
                   "name": "adder_result_ext_o",
                   "direction": "",
-                  "range": [0, 0]
+                  "range": [34, 0]
                 },
                 {
                   "name": "adder_result_o",
                   "direction": "",
-                  "range": [0, 0]
+                  "range": [32, 0]
                 },
                 {
                   "name": "comparison_result_o",
@@ -90,7 +90,7 @@
                 {
                   "name": "imd_val_d_o",
                   "direction": "",
-                  "range": [0, 0]
+                  "range": [64, 0]
                 },
                 {
                   "name": "imd_val_q_i",
@@ -100,7 +100,7 @@
                 {
                   "name": "imd_val_we_o",
                   "direction": "",
-                  "range": [0, 0]
+                  "range": [2, 0]
                 },
                 {
                   "name": "instr_first_cycle_i",
@@ -153,7 +153,7 @@
                   "name": "dut",
                   "attributes": {
                     "module_not_derived": "00000000000000000000000000000001",
-                    "src": "ibex_alu_fv.v:27.16-43.4"
+                    "src": "ibex_alu_fv.v:31.16-47.4"
                   },
                   "parameters": {
 
@@ -187,18 +187,18 @@
             ],
             "cells": [
                 {
-                  "name": "$ternary$ibex_alu_fv.v:57$84",
+                  "name": "$ternary$ibex_alu_fv.v:73$132",
                   "attributes": {
-                    "src": "ibex_alu_fv.v:57.23-58.58"
+                    "src": "ibex_alu_fv.v:73.23-74.58"
                   },
                   "parameters": {
                     "WIDTH": "00000000000000000000000000100000"
                   }
                 },
                 {
-                  "name": "$ternary$ibex_alu_fv.v:58$83",
+                  "name": "$ternary$ibex_alu_fv.v:74$131",
                   "attributes": {
-                    "src": "ibex_alu_fv.v:58.23-58.58"
+                    "src": "ibex_alu_fv.v:74.23-74.58"
                   },
                   "parameters": {
                     "WIDTH": "00000000000000000000000000100000"
@@ -227,9 +227,9 @@
             ],
             "cells": [
                 {
-                  "name": "$xor$ibex_alu_fv.v:57$79",
+                  "name": "$xor$ibex_alu_fv.v:73$127",
                   "attributes": {
-                    "src": "ibex_alu_fv.v:57.42-57.47"
+                    "src": "ibex_alu_fv.v:73.42-73.47"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -262,9 +262,9 @@
             ],
             "cells": [
                 {
-                  "name": "$logic_or$ibex_alu_fv.v:60$89",
+                  "name": "$logic_or$ibex_alu_fv.v:76$137",
                   "attributes": {
-                    "src": "ibex_alu_fv.v:60.13-60.42"
+                    "src": "ibex_alu_fv.v:76.13-76.42"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -275,9 +275,9 @@
                   }
                 },
                 {
-                  "name": "$logic_or$ibex_alu_fv.v:60$91",
+                  "name": "$logic_or$ibex_alu_fv.v:76$139",
                   "attributes": {
-                    "src": "ibex_alu_fv.v:60.13-60.59"
+                    "src": "ibex_alu_fv.v:76.13-76.59"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -310,9 +310,9 @@
             ],
             "cells": [
                 {
-                  "name": "$or$ibex_alu_fv.v:58$81",
+                  "name": "$or$ibex_alu_fv.v:74$129",
                   "attributes": {
-                    "src": "ibex_alu_fv.v:58.42-58.47"
+                    "src": "ibex_alu_fv.v:74.42-74.47"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -345,9 +345,9 @@
             ],
             "cells": [
                 {
-                  "name": "$eq$ibex_alu_fv.v:60$87",
+                  "name": "$eq$ibex_alu_fv.v:73$126",
                   "attributes": {
-                    "src": "ibex_alu_fv.v:60.13-60.26"
+                    "src": "ibex_alu_fv.v:73.24-73.37"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -358,9 +358,9 @@
                   }
                 },
                 {
-                  "name": "$eq$ibex_alu_fv.v:60$88",
+                  "name": "$eq$ibex_alu_fv.v:74$128",
                   "attributes": {
-                    "src": "ibex_alu_fv.v:60.30-60.42"
+                    "src": "ibex_alu_fv.v:74.24-74.36"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -371,9 +371,9 @@
                   }
                 },
                 {
-                  "name": "$eq$ibex_alu_fv.v:60$90",
+                  "name": "$eq$ibex_alu_fv.v:76$138",
                   "attributes": {
-                    "src": "ibex_alu_fv.v:60.46-60.59"
+                    "src": "ibex_alu_fv.v:76.46-76.59"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -384,9 +384,9 @@
                   }
                 },
                 {
-                  "name": "$eq$ibex_alu_fv.v:61$93",
+                  "name": "$eq$ibex_alu_fv.v:77$141",
                   "attributes": {
-                    "src": "ibex_alu_fv.v:61.13-61.28"
+                    "src": "ibex_alu_fv.v:77.13-77.28"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -419,9 +419,9 @@
             ],
             "cells": [
                 {
-                  "name": "$and$ibex_alu_fv.v:58$82",
+                  "name": "$and$ibex_alu_fv.v:74$130",
                   "attributes": {
-                    "src": "ibex_alu_fv.v:58.52-58.57"
+                    "src": "ibex_alu_fv.v:74.52-74.57"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -437,7 +437,7 @@
         "attributes": {
             "keep": "00000000000000000000000000000001",
             "top": "00000000000000000000000000000001",
-            "src": "ibex_alu_fv.v:11.1-106.10"
+            "src": "ibex_alu_fv.v:11.1-192.10"
         }
       },
       {
@@ -647,7 +647,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$100_CMP0",
+                  "name": "$procmux$148_CMP0",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -662,7 +662,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$100_CMP1",
+                  "name": "$procmux$148_CMP1",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -677,7 +677,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$100_CMP2",
+                  "name": "$procmux$148_CMP2",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -692,7 +692,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$101_CMP0",
+                  "name": "$procmux$149_CMP0",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -707,7 +707,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$101_CMP1",
+                  "name": "$procmux$149_CMP1",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -722,7 +722,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$102_CMP0",
+                  "name": "$procmux$150_CMP0",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -737,7 +737,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$102_CMP1",
+                  "name": "$procmux$150_CMP1",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -752,7 +752,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$102_CMP2",
+                  "name": "$procmux$150_CMP2",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -767,7 +767,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$102_CMP3",
+                  "name": "$procmux$150_CMP3",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -782,7 +782,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$103_CMP0",
+                  "name": "$procmux$151_CMP0",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -797,7 +797,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$103_CMP1",
+                  "name": "$procmux$151_CMP1",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -812,7 +812,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$103_CMP10",
+                  "name": "$procmux$151_CMP10",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -827,7 +827,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$103_CMP11",
+                  "name": "$procmux$151_CMP11",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -842,7 +842,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$103_CMP12",
+                  "name": "$procmux$151_CMP12",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -857,7 +857,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$103_CMP13",
+                  "name": "$procmux$151_CMP13",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -872,7 +872,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$103_CMP2",
+                  "name": "$procmux$151_CMP2",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -887,7 +887,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$103_CMP3",
+                  "name": "$procmux$151_CMP3",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -902,7 +902,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$103_CMP4",
+                  "name": "$procmux$151_CMP4",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -917,7 +917,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$103_CMP5",
+                  "name": "$procmux$151_CMP5",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -932,7 +932,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$103_CMP6",
+                  "name": "$procmux$151_CMP6",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -947,7 +947,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$103_CMP7",
+                  "name": "$procmux$151_CMP7",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -962,7 +962,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$103_CMP8",
+                  "name": "$procmux$151_CMP8",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -977,7 +977,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$103_CMP9",
+                  "name": "$procmux$151_CMP9",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -992,7 +992,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$104_CMP0",
+                  "name": "$procmux$152_CMP0",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1007,7 +1007,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$104_CMP1",
+                  "name": "$procmux$152_CMP1",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1022,7 +1022,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$104_CMP2",
+                  "name": "$procmux$152_CMP2",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1037,7 +1037,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$105_CMP0",
+                  "name": "$procmux$153_CMP0",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1052,7 +1052,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$105_CMP1",
+                  "name": "$procmux$153_CMP1",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1067,7 +1067,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$106_CMP0",
+                  "name": "$procmux$154_CMP0",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1082,7 +1082,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$106_CMP1",
+                  "name": "$procmux$154_CMP1",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1097,7 +1097,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$107_CMP1",
+                  "name": "$procmux$155_CMP1",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1112,7 +1112,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$107_CMP2",
+                  "name": "$procmux$155_CMP2",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1127,7 +1127,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$107_CMP3",
+                  "name": "$procmux$155_CMP3",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1142,7 +1142,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$107_CMP4",
+                  "name": "$procmux$155_CMP4",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1157,7 +1157,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$108_CMP1",
+                  "name": "$procmux$156_CMP1",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1172,7 +1172,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$108_CMP2",
+                  "name": "$procmux$156_CMP2",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1187,7 +1187,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$108_CMP3",
+                  "name": "$procmux$156_CMP3",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1202,7 +1202,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$108_CMP4",
+                  "name": "$procmux$156_CMP4",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1217,7 +1217,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$109_CMP0",
+                  "name": "$procmux$157_CMP0",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1232,7 +1232,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$109_CMP1",
+                  "name": "$procmux$157_CMP1",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1247,7 +1247,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$109_CMP2",
+                  "name": "$procmux$157_CMP2",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1262,7 +1262,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$109_CMP3",
+                  "name": "$procmux$157_CMP3",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1277,7 +1277,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$109_CMP4",
+                  "name": "$procmux$157_CMP4",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1292,7 +1292,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$109_CMP5",
+                  "name": "$procmux$157_CMP5",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1307,7 +1307,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$128_CMP0",
+                  "name": "$procmux$176_CMP0",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1322,7 +1322,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$134_CMP0",
+                  "name": "$procmux$182_CMP0",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1337,7 +1337,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$134_CMP1",
+                  "name": "$procmux$182_CMP1",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1352,7 +1352,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$134_CMP2",
+                  "name": "$procmux$182_CMP2",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1367,7 +1367,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$134_CMP3",
+                  "name": "$procmux$182_CMP3",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1382,7 +1382,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$134_CMP4",
+                  "name": "$procmux$182_CMP4",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1397,7 +1397,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$134_CMP5",
+                  "name": "$procmux$182_CMP5",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1412,7 +1412,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$135_CMP0",
+                  "name": "$procmux$183_CMP0",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1427,7 +1427,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$135_CMP1",
+                  "name": "$procmux$183_CMP1",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1442,7 +1442,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$135_CMP2",
+                  "name": "$procmux$183_CMP2",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1457,7 +1457,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$135_CMP3",
+                  "name": "$procmux$183_CMP3",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1500,7 +1500,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$108_CMP0",
+                  "name": "$procmux$156_CMP0",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1540,7 +1540,7 @@
             ],
             "cells": [
                 {
-                  "name": "$procmux$127",
+                  "name": "$procmux$175",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1551,7 +1551,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$138",
+                  "name": "$procmux$186",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "src": "ibex_alu_mut.v:117.7-117.50|ibex_alu_mut.v:117.3-120.52"
@@ -1561,7 +1561,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$141",
+                  "name": "$procmux$189",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1572,7 +1572,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$148",
+                  "name": "$procmux$196",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1583,7 +1583,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$154",
+                  "name": "$procmux$202",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1687,7 +1687,7 @@
             ],
             "cells": [
                 {
-                  "name": "$auto$proc_rom.cc:155:do_switch$95",
+                  "name": "$auto$proc_rom.cc:155:do_switch$143",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1696,7 +1696,7 @@
                   "parameters": {
                     "ABITS": "00000000000000000000000000000110",
                     "INIT": "0000000000000000000110000000011111111110000000000000000000000010",
-                    "MEMID": "$auto$proc_rom.cc:155:do_switch$95",
+                    "MEMID": "$auto$proc_rom.cc:155:do_switch$143",
                     "OFFSET": "00000000000000000000000000000000",
                     "RD_ARST_VALUE": "x",
                     "RD_CE_OVER_SRST": "0",
@@ -1735,7 +1735,7 @@
             ],
             "cells": [
                 {
-                  "name": "$auto$opt_reduce.cc:129:opt_pmux$158",
+                  "name": "$auto$opt_reduce.cc:129:opt_pmux$206",
                   "attributes": {
 
                   },
@@ -1746,7 +1746,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$105_ANY",
+                  "name": "$procmux$153_ANY",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1759,7 +1759,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$107_ANY",
+                  "name": "$procmux$155_ANY",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1772,7 +1772,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$108_ANY",
+                  "name": "$procmux$156_ANY",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1785,7 +1785,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$109_ANY",
+                  "name": "$procmux$157_ANY",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1798,7 +1798,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$134_ANY",
+                  "name": "$procmux$182_ANY",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1811,7 +1811,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$135_ANY",
+                  "name": "$procmux$183_ANY",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1824,7 +1824,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$142_ANY",
+                  "name": "$procmux$190_ANY",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -1854,7 +1854,7 @@
             ],
             "cells": [
                 {
-                  "name": "$auto$opt_expr.cc:702:replace_const_cells$156",
+                  "name": "$auto$opt_expr.cc:702:replace_const_cells$204",
                   "attributes": {
 
                   },
@@ -1993,12 +1993,12 @@
                 {
                   "name": "B",
                   "direction": "io",
-                  "range": [64, 0]
+                  "range": [160, 0]
                 },
                 {
                   "name": "S",
                   "direction": "io",
-                  "range": [2, 0]
+                  "range": [5, 0]
                 },
                 {
                   "name": "Y",
@@ -2008,7 +2008,19 @@
             ],
             "cells": [
                 {
-                  "name": "$procmux$111",
+                  "name": "$procmux$147",
+                  "attributes": {
+                    "full_case": "00000000000000000000000000000001",
+                    "parallel_case": "00000000000000000000000000000001",
+                    "src": "ibex_alu_mut.v:880.33-880.33|ibex_alu_mut.v:866.3-884.10"
+                  },
+                  "parameters": {
+                    "S_WIDTH": "00000000000000000000000000000101",
+                    "WIDTH": "00000000000000000000000000100000"
+                  }
+                },
+                {
+                  "name": "$procmux$159",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -2020,7 +2032,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$133",
+                  "name": "$procmux$181",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -2032,7 +2044,7 @@
                   }
                 },
                 {
-                  "name": "$procmux$144",
+                  "name": "$procmux$192",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
@@ -2041,18 +2053,6 @@
                   "parameters": {
                     "S_WIDTH": "00000000000000000000000000000010",
                     "WIDTH": "00000000000000000000000000100001"
-                  }
-                },
-                {
-                  "name": "$procmux$99",
-                  "attributes": {
-                    "full_case": "00000000000000000000000000000001",
-                    "parallel_case": "00000000000000000000000000000001",
-                    "src": "ibex_alu_mut.v:880.33-880.33|ibex_alu_mut.v:866.3-884.10"
-                  },
-                  "parameters": {
-                    "S_WIDTH": "00000000000000000000000000000101",
-                    "WIDTH": "00000000000000000000000000100000"
                   }
                 }
             ]
