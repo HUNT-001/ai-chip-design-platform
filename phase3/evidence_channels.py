@@ -101,7 +101,7 @@ class FormalChannel:
     _UNBOUNDED_MODES = {"prove", "live"}
 
     def __init__(self, sby_file: str = SBY, mock: bool = False, combinational: bool = False,
-                 negative_control: str | None = None):
+                 negative_control: str | None = None, mock_timeouts=()):
         # combinational=True declares the DUT has no state, so a bmc pass at
         # depth>=1 is COMPLETE (exhaustive over inputs) and counts as a full
         # deductive proof. For sequential DUTs leave it False (bmc stays bounded).
@@ -116,8 +116,20 @@ class FormalChannel:
         self.mode = self._read_mode(sby_file)
         self.combinational = combinational
         self.negative_control = negative_control
+        # Mock fidelity, again: mock formal returns a verdict instantly, so a
+        # FORMAL-HOSTILE board looks perfectly tractable in --mock and the
+        # experiment it is built to run silently becomes meaningless. Tasks
+        # named here are MODELLED as exceeding the time budget. This is a
+        # declared model, not a measurement — only --real settles whether the
+        # solver actually times out.
+        self.mock_timeouts = set(mock_timeouts)
+        self._tasks = self._read_tasks(sby_file)   # for mock fidelity (see below)
         self._gate_state = None          # None=unchecked, True=armed, False=broken
         self._gate_reason = ""
+        # sby is deterministic for a given task, so a verdict is cached and the
+        # tool is never re-run for it. Without this an experiment that repeats
+        # campaigns re-proves everything from scratch every time.
+        self._cache: dict[str, Evidence] = {}
 
     @staticmethod
     def _read_mode(sby_file: str) -> str:
@@ -127,6 +139,19 @@ class FormalChannel:
                 return m.group(1) if m else "bmc"
         except OSError:
             return "bmc"
+
+    @staticmethod
+    def _read_tasks(sby_file: str):
+        """Task names declared in the [tasks] section, or None if unreadable."""
+        try:
+            with open(sby_file) as f:
+                m = re.search(r"^\[tasks\]\s*$(.*?)^\[", f.read(), re.M | re.S)
+            if not m:
+                return None
+            return {ln.split()[0] for ln in m.group(1).splitlines()
+                    if ln.strip() and not ln.strip().startswith("#")}
+        except OSError:
+            return None
 
     # ---------------------------------------------------------------- gate ---
     def _gate_ok(self):
@@ -184,13 +209,33 @@ class FormalChannel:
         return ev
 
     def _run_task(self, task: str) -> Evidence:
-        """Raw sby invocation + verdict parsing (no gate applied)."""
+        """Raw sby invocation + verdict parsing (no gate applied). Memoised."""
+        if task in self._cache:
+            return self._cache[task]
+        ev = self._run_task_uncached(task)
+        if ev.status != "error":         # never cache a transient failure
+            self._cache[task] = ev
+        return ev
+
+    def _run_task_uncached(self, task: str) -> Evidence:
         # A pass is a full proof if the mode is unbounded (k-induction/live) OR
         # the design is combinational (bmc depth>=1 is then exhaustive).
         unbounded = (self.mode in self._UNBOUNDED_MODES) or \
                     (self.mode == "bmc" and self.combinational)
         is_bug_task = any(s in task.lower() for s in ("bug", "buggy", "mut"))
+        # Mock fidelity: an sby task that does not exist must fail in mock too.
+        # Accepting any name let a real wiring bug (board named 'onehot', sby
+        # task 'prove_onehot') pass --mock and only surface against real tools.
+        if self._tasks is not None and task not in self._tasks:
+            return Evidence("formal", "error", witness="",
+                            detail=f"no such sby task '{task}' in "
+                                   f"{os.path.basename(self.sby_file)} "
+                                   f"(declared: {sorted(self._tasks)})")
         if self.mock:
+            if task in self.mock_timeouts:
+                return Evidence("formal", "timeout", witness=f"<mock>/{task}/TIMEOUT",
+                                detail="modelled as exceeding the time budget "
+                                       "(formal-hostile regime)")
             if not is_bug_task:
                 st = "proved" if unbounded else "bounded_pass"
                 return Evidence("formal", st, witness=f"<mock>/{task}/PASS",
@@ -223,6 +268,14 @@ class FormalChannel:
             w = trace if os.path.exists(trace) else os.path.join(work, "status")
             return Evidence("formal", "counterexample", witness=_stamp(w),
                             detail="assertion falsified — counterexample trace", raw=out)
+        if re.search(r"DONE \(TIMEOUT", out) or re.search(r"Timeout", out):
+            # Budget spent, nothing learned. A formal-hostile design does this:
+            # the property may be perfectly true and simply out of reach, which
+            # is a fact about the ENGINE, not about the design's correctness.
+            return Evidence("formal", "timeout", witness=flog,
+                            detail="formal engine exceeded its time budget — "
+                                   "no verdict; the property is out of reach here",
+                            raw=out)
         if re.search(r"DONE \(UNKNOWN", out):
             # k-induction did not decide: the base case is clean but the
             # induction step failed. That is NOT a violation and NOT a proof —
@@ -244,7 +297,8 @@ class FormalChannel:
 # --------------------------------------------------------------------------- #
 class SimChannel:
     def __init__(self, rtl: str = RTL, tb: str = TB, mock: bool = False, workroot: str | None = None,
-                 sources=None, top: str = "tb_alu", defines_for=None, covers=None):
+                 sources=None, top: str = "tb_alu", defines_for=None, covers=None,
+                 positive_control: bool = True):
         # `covers`: regex (or callable) naming the properties this testbench
         # ACTUALLY checks. A TB that only compares result_o must not have its
         # pass credited as evidence for some other output — formal is
@@ -255,12 +309,27 @@ class SimChannel:
         # (e.g. real ibex_alu: pkg + core + mutant + tb) pass `sources`, `top`,
         # and `defines_for(inject_bug)->[defines]`.
         self._covers = covers
+        # POSITIVE CONTROL — the mirror of the formal vacuity gate.
+        # The gate stops a checker that can never fail from issuing proofs.
+        # This stops a checker that fails spuriously from issuing REFUTATIONS.
+        # Both directions matter: a counterexample settles an obligation under
+        # Sem-1, so a broken testbench can close a property just as firmly as a
+        # real bug can. This is not hypothetical — an off-by-one in a testbench
+        # "found" two bugs in correct RTL and closed both obligations.
+        self.positive_control = positive_control
+        self._control_state = None
+        self._control_reason = ""
         self.sources = sources if sources is not None else [rtl, tb]
         self.top = top
         self.defines_for = defines_for or (lambda bug: (["INJECT_BUG=1"] if bug else []))
         self.mock = mock or not _have("verilator")
         self.workroot = workroot or tempfile.mkdtemp(prefix="phase3_sim_")
         self._built: dict[bool, str] = {}
+        # A simulation run is deterministic in (variant, seed, vector count), so
+        # its verdict is cached. The Verilator BUILD is cached by `_built`, which
+        # matters far more: rebuilding per campaign dominated the runtime of a
+        # repeated experiment.
+        self._cache: dict[tuple, Evidence] = {}
 
     def covers(self, phi: str) -> bool:
         """Does this testbench actually check the named property?"""
@@ -294,8 +363,46 @@ class SimChannel:
         self._built[inject_bug] = binp
         return binp, ""
 
+    def control_status(self, nvec: int = 20000):
+        """(ok, reason) — does this testbench PASS on the known-good variant?
+
+        If it does not, the checker itself is suspect: either it is wrong or the
+        reference RTL is broken, and simulation alone cannot tell which. Either
+        way its refutations must not be allowed to close obligations.
+        """
+        if self._control_state is not None:
+            return self._control_state, self._control_reason
+        ev = self._run_uncached(False, seed=99991, nvec=nvec)
+        if ev.status == "pass":
+            self._control_state, self._control_reason = True, "testbench passes the known-good variant"
+        elif ev.status == "error":
+            self._control_state, self._control_reason = False, f"control run errored: {ev.detail}"
+        else:
+            self._control_state, self._control_reason = False, (
+                "testbench FAILS on the known-good variant — the checker is "
+                "unvalidated, so its counterexamples cannot settle anything")
+        return self._control_state, self._control_reason
+
     def run(self, inject_bug: bool = False, seed: int = 1, nvec: int = 20000) -> Evidence:
-        """Run one simulation; returns inductive evidence with sample count n."""
+        """Run one simulation; returns inductive evidence with sample count n.
+        Memoised: identical (variant, seed, vectors) is the identical run."""
+        key = (inject_bug, seed, nvec)
+        if key in self._cache:
+            ev = self._cache[key]
+        else:
+            ev = self._run_uncached(inject_bug, seed, nvec)
+            if ev.status != "error":
+                self._cache[key] = ev
+        # A refutation may only stand if the checker is validated.
+        if ev.status == "counterexample" and self.positive_control:
+            ok, why = self.control_status(nvec)
+            if not ok:
+                return Evidence("sim", "control_failed", witness=ev.witness,
+                                detail=f"refutation not certifiable — {why}",
+                                n=ev.n, raw=ev.raw)
+        return ev
+
+    def _run_uncached(self, inject_bug: bool, seed: int, nvec: int) -> Evidence:
         if self.mock:
             # random sim never hits the narrow DEAD_BEEF defect -> always PASS,
             # exactly why formal is needed (Sem-1).
