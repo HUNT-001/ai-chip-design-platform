@@ -1,0 +1,10 @@
+# running in lfsr_bug_onehot/src/
+verilog_defines -DCLASS_ONEHOT -DDUT=lfsr_wrap_mut
+read_verilog lfsr_mut.v
+read_verilog -sv lfsr_fv.v
+prep -top lfsr_fv
+
+hierarchy -smtcheck
+rename -witness
+write_jny -no-connections ../model/design.json
+write_rtlil ../model/design.il

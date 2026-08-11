@@ -1,0 +1,28 @@
+# UNBOUNDED proof (k-induction) of the real cv32e40p_fifo.
+#
+# Same properties as fifo_bmc.sby, but `mode prove` establishes them for ALL
+# time rather than a fixed horizon, so a pass here is recorded as a genuine
+# deductive proof and discharges the obligation.
+#
+# The counter bound is inductive: it holds after reset, and every transition
+# preserves it because a push is blocked while full_o holds. That is exactly
+# what k-induction verifies and bounded checking cannot.
+
+[options]
+mode prove
+depth 12
+expect pass
+
+[engines]
+smtbmc z3
+
+[script]
+verilog_defines -DCLASS_CNT_BOUND
+read_verilog fifo.v
+read_verilog -sv fifo_fv.v
+prep -top fifo_fv
+
+[files]
+gen/fifo.v
+gen/fifo_mut.v
+fifo_fv.v

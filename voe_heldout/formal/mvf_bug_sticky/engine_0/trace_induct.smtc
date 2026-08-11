@@ -1,0 +1,155 @@
+initial
+assume (= [$auto$async2sync.cc:107:execute$76] false)
+assume (= [$auto$async2sync.cc:116:execute$80] false)
+assume (= [cyc] #b00)
+assume (= [dut.u_filter._witness_.anyinit_procdff_65] #x2)
+assume (= [dut.u_filter._witness_.anyinit_procdff_70] false)
+assume (= [p_clear] false)
+assume (= [p_q] false)
+assume (= [p_settled] false)
+
+state 0
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] false)
+assume (= [sample] false)
+
+state 1
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
+
+state 2
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
+
+state 3
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] false)
+assume (= [sample] true)
+
+state 4
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] false)
+assume (= [sample] false)
+
+state 5
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
+
+state 6
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] false)
+assume (= [sample] false)
+
+state 7
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] false)
+assume (= [sample] false)
+
+state 8
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
+
+state 9
+assume (= [clear] true)
+assume (= [clk] false)
+assume (= [d] false)
+assume (= [sample] false)
+
+state 10
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] false)
+assume (= [sample] false)
+
+state 11
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
+
+state 12
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
+
+state 13
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
+
+state 14
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
+
+state 15
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
+
+state 16
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
+
+state 17
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
+
+state 18
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
+
+state 19
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
+
+state 20
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
+
+state 21
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] false)
+assume (= [sample] false)
+
+state 22
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] false)
+assume (= [sample] true)
+
+state 23
+assume (= [clear] true)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
+
+state 24

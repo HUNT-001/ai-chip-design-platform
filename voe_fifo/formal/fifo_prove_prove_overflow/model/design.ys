@@ -1,0 +1,10 @@
+# running in fifo_prove_prove_overflow/src/
+verilog_defines -DCLASS_NO_OVERFLOW
+read_verilog fifo.v
+read_verilog -sv fifo_fv.v
+prep -top fifo_fv
+
+hierarchy -smtcheck
+rename -witness
+write_jny -no-connections ../model/design.json
+write_rtlil ../model/design.il

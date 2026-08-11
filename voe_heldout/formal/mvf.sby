@@ -1,0 +1,41 @@
+# Formal jobs for the real pulp mv_filter — the SECOND held-out design.
+#
+# mode prove (k-induction): both properties are inductive invariants over the
+# filter's state, so they are established for all time rather than a horizon.
+#
+# bug_sticky is the vacuity gate: the mutated filter drops its flag by default,
+# so the sticky property MUST fail against it.
+
+[tasks]
+prove_sticky
+prove_clear
+bug_sticky
+
+# depth must let the BASE CASE reach the negative control's violation. The flag
+# can only fall after it has risen, and rising needs THRESHOLD=10 sample cycles
+# plus reset — so at depth 12 bug_sticky failed only at the induction step and
+# reported UNKNOWN, which correctly disarmed the gate and blocked the board.
+[options]
+mode prove
+depth 24
+prove_sticky: expect pass
+prove_clear:  expect pass
+bug_sticky:   expect fail
+
+[engines]
+smtbmc z3
+
+[script]
+prove_sticky: verilog_defines -DCLASS_STICKY
+prove_clear:  verilog_defines -DCLASS_CLEAR
+bug_sticky:   verilog_defines -DCLASS_STICKY -DDUT=mvf_wrap_mut
+prove_sticky: read_verilog mvf.v
+prove_clear:  read_verilog mvf.v
+bug_sticky:   read_verilog mvf_mut.v
+read_verilog -sv mvf_fv.v
+prep -top mvf_fv
+
+[files]
+gen/mvf.v
+gen/mvf_mut.v
+mvf_fv.v

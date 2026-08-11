@@ -1,0 +1,30 @@
+# BOUNDED model check of the real cv32e40p_fifo.
+#
+# This file exists to be honest about what bounded checking buys on a STATEFUL
+# design. A pass here means "no violation within 12 cycles of reset" — the
+# counter could still overflow at cycle 13. The evidence adapter therefore
+# records a pass from this file as `bounded_pass`: strong inductive evidence
+# that lowers residual risk, but NEVER a proof and never a discharge to zero.
+# fifo_prove.sby runs the same properties with k-induction for a real proof.
+#
+# bug_cnt is the vacuity gate: the mutated FIFO (full_o one slot late) lets the
+# counter reach 5, so the bound MUST fail against it.
+
+[options]
+mode bmc
+depth 12
+expect pass
+
+[engines]
+smtbmc z3
+
+[script]
+verilog_defines -DCLASS_FLAGS
+read_verilog fifo.v
+read_verilog -sv fifo_fv.v
+prep -top fifo_fv
+
+[files]
+gen/fifo.v
+gen/fifo_mut.v
+fifo_fv.v

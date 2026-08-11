@@ -1,0 +1,10 @@
+# running in fifo_bmc_bmc_cnt/src/
+verilog_defines -DCLASS_CNT_BOUND
+read_verilog fifo.v
+read_verilog -sv fifo_fv.v
+prep -top fifo_fv
+
+hierarchy -smtcheck
+rename -witness
+write_jny -no-connections ../model/design.json
+write_rtlil ../model/design.il

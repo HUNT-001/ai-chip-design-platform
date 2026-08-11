@@ -1,0 +1,43 @@
+# Formal jobs for the real pulp lfsr_8bit — the HELD-OUT evaluation design.
+#
+# mode prove (k-induction): the one-hot invariant must hold for all time, not
+# just a bounded horizon. This block is sequential, so a bmc pass would only
+# ever be recorded as `bounded_pass`.
+#
+# bug_onehot is the vacuity gate: the mutated LFSR forces bit 0 set, so the
+# one-hot invariant MUST fail against it. depth is set well past the point where
+# the sequence first selects a non-zero way, so the base case can find it.
+
+[tasks]
+prove_onehot
+prove_consistent
+prove_stable
+bug_onehot
+
+[options]
+mode prove
+depth 12
+prove_onehot:     expect pass
+prove_consistent: expect pass
+prove_stable:     expect pass
+bug_onehot:       expect fail
+
+[engines]
+smtbmc z3
+
+[script]
+prove_onehot:     verilog_defines -DCLASS_ONEHOT
+prove_consistent: verilog_defines -DCLASS_CONSISTENT
+prove_stable:     verilog_defines -DCLASS_STABLE
+bug_onehot:       verilog_defines -DCLASS_ONEHOT -DDUT=lfsr_wrap_mut
+prove_onehot:     read_verilog lfsr.v
+prove_consistent: read_verilog lfsr.v
+prove_stable:     read_verilog lfsr.v
+bug_onehot:       read_verilog lfsr_mut.v
+read_verilog -sv lfsr_fv.v
+prep -top lfsr_fv
+
+[files]
+gen/lfsr.v
+gen/lfsr_mut.v
+lfsr_fv.v

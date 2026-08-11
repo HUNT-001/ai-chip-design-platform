@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+<testsuite timestamp="2026-08-07T03:09:56" hostname="TANPAN" package="fifo_bmc" id="0" name="bmc_flags" tests="2" errors="0" failures="0" time="0" skipped="0">
+<properties>
+<property name="os" value="Linux"/>
+<property name="expect" value="PASS"/>
+<property name="status" value="PASS"/>
+</properties>
+<testcase classname="bmc_flags" name="build execution" time="0">
+</testcase>
+<testcase classname="bmc_flags" name="Property ASSERT in fifo_fv at fifo_fv.v:66.5-66.36" time="0" type="ASSERT" location="fifo_fv.v:66.5-66.36" id="_witness_.check_assert_fifo_fv_v_66_61">
+</testcase>
+<testcase classname="bmc_flags" name="Property ASSERT in fifo_fv at fifo_fv.v:67.5-67.36" time="0" type="ASSERT" location="fifo_fv.v:67.5-67.36" id="_witness_.check_assert_fifo_fv_v_67_64">
+</testcase>
+<system-out>SBY  3:09:54 [fifo_bmc_bmc_flags] Removing directory '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_bmc_bmc_flags'.
+SBY  3:09:54 [fifo_bmc_bmc_flags] Copy '/mnt/e/ai-chip-design-platform/voe_fifo/formal/gen/fifo.v' to '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_bmc_bmc_flags/src/fifo.v'.
+SBY  3:09:54 [fifo_bmc_bmc_flags] Copy '/mnt/e/ai-chip-design-platform/voe_fifo/formal/gen/fifo_mut.v' to '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_bmc_bmc_flags/src/fifo_mut.v'.
+SBY  3:09:54 [fifo_bmc_bmc_flags] Copy '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_fv.v' to '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_bmc_bmc_flags/src/fifo_fv.v'.
+SBY  3:09:55 [fifo_bmc_bmc_flags] engine_0: smtbmc z3
+SBY  3:09:55 [fifo_bmc_bmc_flags] base: starting process &quot;cd fifo_bmc_bmc_flags/src; yosys -ql ../model/design.log ../model/design.ys&quot;
+SBY  3:09:55 [fifo_bmc_bmc_flags] base: finished (returncode=0)
+SBY  3:09:55 [fifo_bmc_bmc_flags] prep: starting process &quot;cd fifo_bmc_bmc_flags/model; yosys -ql design_prep.log design_prep.ys&quot;
+SBY  3:09:55 [fifo_bmc_bmc_flags] prep: finished (returncode=0)
+SBY  3:09:55 [fifo_bmc_bmc_flags] smt2: starting process &quot;cd fifo_bmc_bmc_flags/model; yosys -ql design_smt2.log design_smt2.ys&quot;
+SBY  3:09:55 [fifo_bmc_bmc_flags] smt2: finished (returncode=0)
+SBY  3:09:55 [fifo_bmc_bmc_flags] engine_0: starting process &quot;cd fifo_bmc_bmc_flags; yosys-smtbmc -s z3 --presat --noprogress -t 12  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2&quot;
+SBY  3:09:55 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Solver: z3
+SBY  3:09:55 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Checking assumptions in step 0..
+SBY  3:09:55 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Checking assertions in step 0..
+SBY  3:09:55 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Checking assumptions in step 1..
+SBY  3:09:55 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Checking assertions in step 1..
+SBY  3:09:55 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Checking assumptions in step 2..
+SBY  3:09:55 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Checking assertions in step 2..
+SBY  3:09:55 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Checking assumptions in step 3..
+SBY  3:09:55 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Checking assertions in step 3..
+SBY  3:09:55 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Checking assumptions in step 4..
+SBY  3:09:55 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Checking assertions in step 4..
+SBY  3:09:55 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Checking assumptions in step 5..
+SBY  3:09:55 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Checking assertions in step 5..
+SBY  3:09:55 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Checking assumptions in step 6..
+SBY  3:09:55 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Checking assertions in step 6..
+SBY  3:09:55 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Checking assumptions in step 7..
+SBY  3:09:55 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Checking assertions in step 7..
+SBY  3:09:55 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Checking assumptions in step 8..
+SBY  3:09:55 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Checking assertions in step 8..
+SBY  3:09:56 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Checking assumptions in step 9..
+SBY  3:09:56 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Checking assertions in step 9..
+SBY  3:09:56 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Checking assumptions in step 10..
+SBY  3:09:56 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Checking assertions in step 10..
+SBY  3:09:56 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Checking assumptions in step 11..
+SBY  3:09:56 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Checking assertions in step 11..
+SBY  3:09:56 [fifo_bmc_bmc_flags] engine_0: ##   0:00:00  Status: passed
+SBY  3:09:56 [fifo_bmc_bmc_flags] engine_0: finished (returncode=0)
+SBY  3:09:56 [fifo_bmc_bmc_flags] engine_0: Status returned by engine: pass
+SBY  3:09:56 [fifo_bmc_bmc_flags] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:01 (1)
+SBY  3:09:56 [fifo_bmc_bmc_flags] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY  3:09:56 [fifo_bmc_bmc_flags] summary: engine_0 (smtbmc z3) returned pass
+SBY  3:09:56 [fifo_bmc_bmc_flags] summary: engine_0 did not produce any traces
+SBY  3:09:56 [fifo_bmc_bmc_flags] DONE (PASS, rc=0)
+</system-out>
+<system-err>
+</system-err>
+</testsuite>
+</testsuites>

@@ -1,0 +1,18 @@
+initial
+assume (= [$auto$async2sync.cc:107:execute$73] false)
+assume (= [$auto$async2sync.cc:116:execute$71] true)
+assume (= [$auto$async2sync.cc:116:execute$77] true)
+assume (= [cyc] #b00)
+assume (= [dut.u_lfsr._witness_.anyinit_procdff_62] #x00)
+
+state 0
+assume (= [clk] false)
+assume (= [en] true)
+
+state 1
+assume (= [clk] false)
+assume (= [en] true)
+
+state 2
+assume (= [clk] false)
+assume (= [en] false)

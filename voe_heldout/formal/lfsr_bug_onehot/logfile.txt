@@ -1,0 +1,46 @@
+SBY  0:38:37 [lfsr_bug_onehot] Removing directory '/mnt/e/ai-chip-design-platform/voe_heldout/formal/lfsr_bug_onehot'.
+SBY  0:38:37 [lfsr_bug_onehot] Copy '/mnt/e/ai-chip-design-platform/voe_heldout/formal/gen/lfsr.v' to '/mnt/e/ai-chip-design-platform/voe_heldout/formal/lfsr_bug_onehot/src/lfsr.v'.
+SBY  0:38:37 [lfsr_bug_onehot] Copy '/mnt/e/ai-chip-design-platform/voe_heldout/formal/gen/lfsr_mut.v' to '/mnt/e/ai-chip-design-platform/voe_heldout/formal/lfsr_bug_onehot/src/lfsr_mut.v'.
+SBY  0:38:37 [lfsr_bug_onehot] Copy '/mnt/e/ai-chip-design-platform/voe_heldout/formal/lfsr_fv.v' to '/mnt/e/ai-chip-design-platform/voe_heldout/formal/lfsr_bug_onehot/src/lfsr_fv.v'.
+SBY  0:38:37 [lfsr_bug_onehot] engine_0: smtbmc z3
+SBY  0:38:37 [lfsr_bug_onehot] base: starting process "cd lfsr_bug_onehot/src; yosys -ql ../model/design.log ../model/design.ys"
+SBY  0:38:37 [lfsr_bug_onehot] base: finished (returncode=0)
+SBY  0:38:37 [lfsr_bug_onehot] prep: starting process "cd lfsr_bug_onehot/model; yosys -ql design_prep.log design_prep.ys"
+SBY  0:38:37 [lfsr_bug_onehot] prep: finished (returncode=0)
+SBY  0:38:37 [lfsr_bug_onehot] smt2: starting process "cd lfsr_bug_onehot/model; yosys -ql design_smt2.log design_smt2.ys"
+SBY  0:38:37 [lfsr_bug_onehot] smt2: finished (returncode=0)
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.basecase: starting process "cd lfsr_bug_onehot; yosys-smtbmc -s z3 --presat --noprogress -t 12  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2"
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.induction: starting process "cd lfsr_bug_onehot; yosys-smtbmc -s z3 --presat -i --noprogress -t 12  --append 0 --dump-vcd engine_0/trace_induct.vcd --dump-yw engine_0/trace_induct.yw --dump-vlogtb engine_0/trace_induct_tb.v --dump-smtc engine_0/trace_induct.smtc model/design_smt2.smt2"
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.basecase: ##   0:00:00  Solver: z3
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.induction: ##   0:00:00  Solver: z3
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.basecase: ##   0:00:00  Checking assumptions in step 0..
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.induction: ##   0:00:00  Trying induction in step 12..
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.basecase: ##   0:00:00  Checking assertions in step 0..
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.basecase: ##   0:00:00  Checking assumptions in step 1..
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.basecase: ##   0:00:00  Checking assertions in step 1..
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.basecase: ##   0:00:00  Checking assumptions in step 2..
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.basecase: ##   0:00:00  Checking assertions in step 2..
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.basecase: ##   0:00:00  BMC failed!
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.basecase: ##   0:00:00  Assert failed in lfsr_fv: lfsr_fv.v:38.5-38.40 (_witness_.check_assert_lfsr_fv_v_38_26)
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.basecase: ##   0:00:00  Writing trace to VCD file: engine_0/trace.vcd
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.basecase: ##   0:00:00  Writing trace to Verilog testbench: engine_0/trace_tb.v
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.basecase: ##   0:00:00  Writing trace to constraints file: engine_0/trace.smtc
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.basecase: ##   0:00:00  Writing trace to Yosys witness file: engine_0/trace.yw
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.basecase: ##   0:00:00  Status: failed
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.induction: ##   0:00:00  Trying induction in step 11..
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.induction: ##   0:00:00  Trying induction in step 10..
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.induction: ##   0:00:00  Trying induction in step 9..
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.induction: ##   0:00:00  Trying induction in step 8..
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.induction: ##   0:00:00  Trying induction in step 7..
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.induction: ##   0:00:00  Trying induction in step 6..
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.induction: ##   0:00:00  Trying induction in step 5..
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.induction: ##   0:00:00  Trying induction in step 4..
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.basecase: finished (returncode=1)
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.basecase: Status returned by engine for basecase: FAIL
+SBY  0:38:37 [lfsr_bug_onehot] engine_0.induction: terminating process
+SBY  0:38:37 [lfsr_bug_onehot] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY  0:38:37 [lfsr_bug_onehot] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY  0:38:37 [lfsr_bug_onehot] summary: engine_0 (smtbmc z3) returned FAIL for basecase
+SBY  0:38:37 [lfsr_bug_onehot] summary: counterexample trace [basecase]: lfsr_bug_onehot/engine_0/trace.vcd
+SBY  0:38:37 [lfsr_bug_onehot] summary:   failed assertion lfsr_fv._witness_.check_assert_lfsr_fv_v_38_26 at lfsr_fv.v:38.5-38.40 step 2
+SBY  0:38:37 [lfsr_bug_onehot] DONE (FAIL, rc=0)

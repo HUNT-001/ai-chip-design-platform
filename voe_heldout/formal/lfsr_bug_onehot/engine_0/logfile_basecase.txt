@@ -1,0 +1,14 @@
+##   0:00:00  Solver: z3
+##   0:00:00  Checking assumptions in step 0..
+##   0:00:00  Checking assertions in step 0..
+##   0:00:00  Checking assumptions in step 1..
+##   0:00:00  Checking assertions in step 1..
+##   0:00:00  Checking assumptions in step 2..
+##   0:00:00  Checking assertions in step 2..
+##   0:00:00  BMC failed!
+##   0:00:00  Assert failed in lfsr_fv: lfsr_fv.v:38.5-38.40 (_witness_.check_assert_lfsr_fv_v_38_26)
+##   0:00:00  Writing trace to VCD file: engine_0/trace.vcd
+##   0:00:00  Writing trace to Verilog testbench: engine_0/trace_tb.v
+##   0:00:00  Writing trace to constraints file: engine_0/trace.smtc
+##   0:00:00  Writing trace to Yosys witness file: engine_0/trace.yw
+##   0:00:00  Status: failed

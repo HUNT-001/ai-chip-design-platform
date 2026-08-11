@@ -1,0 +1,48 @@
+# UNBOUNDED proof (k-induction) of the real cv32e40p_fifo.
+#
+# Same properties as fifo_bmc.sby, but `mode prove` establishes them for ALL
+# time rather than a fixed horizon, so a pass here is recorded as a genuine
+# deductive proof and discharges the obligation.
+#
+# The counter bound is inductive: it holds after reset, and every transition
+# preserves it because a push is blocked while full_o holds. That is exactly
+# what k-induction verifies and bounded checking cannot.
+
+[tasks]
+prove_cnt
+prove_flags
+prove_overflow
+bug_cnt
+
+# depth must be deep enough for the BASE CASE to reach the negative control's
+# violation: the mutant first overflows at step 7, so `depth 6` left bug_cnt
+# reporting UNKNOWN (base case clean, induction failed) instead of FAIL — which
+# correctly disarmed the vacuity gate and blocked every proof. 12 gives the base
+# case room to find it. Proof strength is unaffected; k-induction still decides.
+[options]
+mode prove
+depth 12
+prove_cnt:      expect pass
+prove_flags:    expect pass
+prove_overflow: expect pass
+bug_cnt:        expect fail
+
+[engines]
+smtbmc z3
+
+[script]
+prove_cnt:      verilog_defines -DCLASS_CNT_BOUND
+prove_flags:    verilog_defines -DCLASS_FLAGS
+prove_overflow: verilog_defines -DCLASS_NO_OVERFLOW
+bug_cnt:        verilog_defines -DCLASS_CNT_BOUND -DDUT=fifo_wrap_mut
+prove_cnt:      read_verilog fifo.v
+prove_flags:    read_verilog fifo.v
+prove_overflow: read_verilog fifo.v
+bug_cnt:        read_verilog fifo_mut.v
+read_verilog -sv fifo_fv.v
+prep -top fifo_fv
+
+[files]
+gen/fifo.v
+gen/fifo_mut.v
+fifo_fv.v

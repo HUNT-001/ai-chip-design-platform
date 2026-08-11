@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+<testsuite timestamp="2026-08-12T00:38:37" hostname="TANPAN" package="lfsr" id="0" name="prove_onehot" tests="2" errors="0" failures="0" time="0" skipped="0">
+<properties>
+<property name="os" value="Linux"/>
+<property name="expect" value="PASS"/>
+<property name="status" value="PASS"/>
+</properties>
+<testcase classname="prove_onehot" name="build execution" time="0">
+</testcase>
+<testcase classname="prove_onehot" name="Property ASSERT in lfsr_fv at lfsr_fv.v:37.5-37.24" time="0" type="ASSERT" location="lfsr_fv.v:37.5-37.24" id="_witness_.check_assert_lfsr_fv_v_37_24">
+</testcase>
+<testcase classname="prove_onehot" name="Property ASSERT in lfsr_fv at lfsr_fv.v:38.5-38.40" time="0" type="ASSERT" location="lfsr_fv.v:38.5-38.40" id="_witness_.check_assert_lfsr_fv_v_38_26">
+</testcase>
+<system-out>SBY  0:38:37 [lfsr_prove_onehot] Removing directory '/mnt/e/ai-chip-design-platform/voe_heldout/formal/lfsr_prove_onehot'.
+SBY  0:38:37 [lfsr_prove_onehot] Copy '/mnt/e/ai-chip-design-platform/voe_heldout/formal/gen/lfsr.v' to '/mnt/e/ai-chip-design-platform/voe_heldout/formal/lfsr_prove_onehot/src/lfsr.v'.
+SBY  0:38:37 [lfsr_prove_onehot] Copy '/mnt/e/ai-chip-design-platform/voe_heldout/formal/gen/lfsr_mut.v' to '/mnt/e/ai-chip-design-platform/voe_heldout/formal/lfsr_prove_onehot/src/lfsr_mut.v'.
+SBY  0:38:37 [lfsr_prove_onehot] Copy '/mnt/e/ai-chip-design-platform/voe_heldout/formal/lfsr_fv.v' to '/mnt/e/ai-chip-design-platform/voe_heldout/formal/lfsr_prove_onehot/src/lfsr_fv.v'.
+SBY  0:38:37 [lfsr_prove_onehot] engine_0: smtbmc z3
+SBY  0:38:37 [lfsr_prove_onehot] base: starting process &quot;cd lfsr_prove_onehot/src; yosys -ql ../model/design.log ../model/design.ys&quot;
+SBY  0:38:37 [lfsr_prove_onehot] base: finished (returncode=0)
+SBY  0:38:37 [lfsr_prove_onehot] prep: starting process &quot;cd lfsr_prove_onehot/model; yosys -ql design_prep.log design_prep.ys&quot;
+SBY  0:38:37 [lfsr_prove_onehot] prep: finished (returncode=0)
+SBY  0:38:37 [lfsr_prove_onehot] smt2: starting process &quot;cd lfsr_prove_onehot/model; yosys -ql design_smt2.log design_smt2.ys&quot;
+SBY  0:38:37 [lfsr_prove_onehot] smt2: finished (returncode=0)
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: starting process &quot;cd lfsr_prove_onehot; yosys-smtbmc -s z3 --presat --noprogress -t 12  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2&quot;
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.induction: starting process &quot;cd lfsr_prove_onehot; yosys-smtbmc -s z3 --presat -i --noprogress -t 12  --append 0 --dump-vcd engine_0/trace_induct.vcd --dump-yw engine_0/trace_induct.yw --dump-vlogtb engine_0/trace_induct_tb.v --dump-smtc engine_0/trace_induct.smtc model/design_smt2.smt2&quot;
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Solver: z3
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.induction: ##   0:00:00  Solver: z3
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Checking assumptions in step 0..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.induction: ##   0:00:00  Trying induction in step 12..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Checking assertions in step 0..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.induction: ##   0:00:00  Trying induction in step 11..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Checking assumptions in step 1..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Checking assertions in step 1..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Checking assumptions in step 2..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Checking assertions in step 2..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Checking assumptions in step 3..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Checking assertions in step 3..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Checking assumptions in step 4..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Checking assertions in step 4..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Checking assumptions in step 5..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Checking assertions in step 5..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Checking assumptions in step 6..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Checking assertions in step 6..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Checking assumptions in step 7..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Checking assertions in step 7..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Checking assumptions in step 8..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Checking assertions in step 8..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Checking assumptions in step 9..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Checking assertions in step 9..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Checking assumptions in step 10..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Checking assertions in step 10..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Checking assumptions in step 11..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Checking assertions in step 11..
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: ##   0:00:00  Status: passed
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: finished (returncode=0)
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.basecase: Status returned by engine for basecase: pass
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.induction: ##   0:00:00  Temporal induction successful.
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.induction: ##   0:00:00  Status: passed
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.induction: finished (returncode=0)
+SBY  0:38:37 [lfsr_prove_onehot] engine_0.induction: Status returned by engine for induction: pass
+SBY  0:38:37 [lfsr_prove_onehot] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY  0:38:37 [lfsr_prove_onehot] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY  0:38:37 [lfsr_prove_onehot] summary: engine_0 (smtbmc z3) returned pass for basecase
+SBY  0:38:37 [lfsr_prove_onehot] summary: engine_0 (smtbmc z3) returned pass for induction
+SBY  0:38:37 [lfsr_prove_onehot] summary: engine_0 did not produce any traces
+SBY  0:38:37 [lfsr_prove_onehot] summary: successful proof by k-induction.
+SBY  0:38:37 [lfsr_prove_onehot] DONE (PASS, rc=0)
+</system-out>
+<system-err>
+</system-err>
+</testsuite>
+</testsuites>

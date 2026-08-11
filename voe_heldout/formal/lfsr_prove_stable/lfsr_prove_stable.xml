@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+<testsuite timestamp="2026-08-12T00:38:38" hostname="TANPAN" package="lfsr" id="0" name="prove_stable" tests="2" errors="0" failures="0" time="0" skipped="0">
+<properties>
+<property name="os" value="Linux"/>
+<property name="expect" value="PASS"/>
+<property name="status" value="PASS"/>
+</properties>
+<testcase classname="prove_stable" name="build execution" time="0">
+</testcase>
+<testcase classname="prove_stable" name="Property ASSERT in lfsr_fv at lfsr_fv.v:58.7-58.27" time="0" type="ASSERT" location="lfsr_fv.v:58.7-58.27" id="_witness_.check_assert_lfsr_fv_v_58_28">
+</testcase>
+<testcase classname="prove_stable" name="Property ASSERT in lfsr_fv at lfsr_fv.v:59.7-59.28" time="0" type="ASSERT" location="lfsr_fv.v:59.7-59.28" id="_witness_.check_assert_lfsr_fv_v_59_30">
+</testcase>
+<system-out>SBY  0:38:37 [lfsr_prove_stable] Removing directory '/mnt/e/ai-chip-design-platform/voe_heldout/formal/lfsr_prove_stable'.
+SBY  0:38:37 [lfsr_prove_stable] Copy '/mnt/e/ai-chip-design-platform/voe_heldout/formal/gen/lfsr.v' to '/mnt/e/ai-chip-design-platform/voe_heldout/formal/lfsr_prove_stable/src/lfsr.v'.
+SBY  0:38:37 [lfsr_prove_stable] Copy '/mnt/e/ai-chip-design-platform/voe_heldout/formal/gen/lfsr_mut.v' to '/mnt/e/ai-chip-design-platform/voe_heldout/formal/lfsr_prove_stable/src/lfsr_mut.v'.
+SBY  0:38:37 [lfsr_prove_stable] Copy '/mnt/e/ai-chip-design-platform/voe_heldout/formal/lfsr_fv.v' to '/mnt/e/ai-chip-design-platform/voe_heldout/formal/lfsr_prove_stable/src/lfsr_fv.v'.
+SBY  0:38:37 [lfsr_prove_stable] engine_0: smtbmc z3
+SBY  0:38:37 [lfsr_prove_stable] base: starting process &quot;cd lfsr_prove_stable/src; yosys -ql ../model/design.log ../model/design.ys&quot;
+SBY  0:38:37 [lfsr_prove_stable] base: finished (returncode=0)
+SBY  0:38:37 [lfsr_prove_stable] prep: starting process &quot;cd lfsr_prove_stable/model; yosys -ql design_prep.log design_prep.ys&quot;
+SBY  0:38:37 [lfsr_prove_stable] prep: finished (returncode=0)
+SBY  0:38:37 [lfsr_prove_stable] smt2: starting process &quot;cd lfsr_prove_stable/model; yosys -ql design_smt2.log design_smt2.ys&quot;
+SBY  0:38:37 [lfsr_prove_stable] smt2: finished (returncode=0)
+SBY  0:38:37 [lfsr_prove_stable] engine_0.basecase: starting process &quot;cd lfsr_prove_stable; yosys-smtbmc -s z3 --presat --noprogress -t 12  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2&quot;
+SBY  0:38:37 [lfsr_prove_stable] engine_0.induction: starting process &quot;cd lfsr_prove_stable; yosys-smtbmc -s z3 --presat -i --noprogress -t 12  --append 0 --dump-vcd engine_0/trace_induct.vcd --dump-yw engine_0/trace_induct.yw --dump-vlogtb engine_0/trace_induct_tb.v --dump-smtc engine_0/trace_induct.smtc model/design_smt2.smt2&quot;
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Solver: z3
+SBY  0:38:38 [lfsr_prove_stable] engine_0.induction: ##   0:00:00  Solver: z3
+SBY  0:38:38 [lfsr_prove_stable] engine_0.induction: ##   0:00:00  Trying induction in step 12..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Checking assumptions in step 0..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Checking assertions in step 0..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Checking assumptions in step 1..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Checking assertions in step 1..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Checking assumptions in step 2..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Checking assertions in step 2..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Checking assumptions in step 3..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Checking assertions in step 3..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Checking assumptions in step 4..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Checking assertions in step 4..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Checking assumptions in step 5..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Checking assertions in step 5..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Checking assumptions in step 6..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Checking assertions in step 6..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Checking assumptions in step 7..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Checking assertions in step 7..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Checking assumptions in step 8..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Checking assertions in step 8..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Checking assumptions in step 9..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Checking assertions in step 9..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Checking assumptions in step 10..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Checking assertions in step 10..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Checking assumptions in step 11..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Checking assertions in step 11..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: ##   0:00:00  Status: passed
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: finished (returncode=0)
+SBY  0:38:38 [lfsr_prove_stable] engine_0.basecase: Status returned by engine for basecase: pass
+SBY  0:38:38 [lfsr_prove_stable] engine_0.induction: ##   0:00:00  Trying induction in step 11..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.induction: ##   0:00:00  Trying induction in step 10..
+SBY  0:38:38 [lfsr_prove_stable] engine_0.induction: ##   0:00:00  Temporal induction successful.
+SBY  0:38:38 [lfsr_prove_stable] engine_0.induction: ##   0:00:00  Status: passed
+SBY  0:38:38 [lfsr_prove_stable] engine_0.induction: finished (returncode=0)
+SBY  0:38:38 [lfsr_prove_stable] engine_0.induction: Status returned by engine for induction: pass
+SBY  0:38:38 [lfsr_prove_stable] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY  0:38:38 [lfsr_prove_stable] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY  0:38:38 [lfsr_prove_stable] summary: engine_0 (smtbmc z3) returned pass for basecase
+SBY  0:38:38 [lfsr_prove_stable] summary: engine_0 (smtbmc z3) returned pass for induction
+SBY  0:38:38 [lfsr_prove_stable] summary: engine_0 did not produce any traces
+SBY  0:38:38 [lfsr_prove_stable] summary: successful proof by k-induction.
+SBY  0:38:38 [lfsr_prove_stable] DONE (PASS, rc=0)
+</system-out>
+<system-err>
+</system-err>
+</testsuite>
+</testsuites>
