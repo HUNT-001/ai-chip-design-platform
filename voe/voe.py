@@ -34,6 +34,7 @@ class VOE:
         self.bus = JudgmentBus(self.k, self.ks)
         self.ledger = ResourceLedger(budget=budget)
         self.rep = ReputationService()
+        self.action_log = []          # per-action record for the evaluation engine
         # default channels = toy ALU; pass custom channels for other DUTs (e.g. ibex).
         formal = formal if formal is not None else FormalChannel(mock=mock)
         sim = sim if sim is not None else SimChannel(mock=mock)
@@ -71,10 +72,19 @@ class VOE:
                 print(f"  step {step:2d}  {pick.worker.name:8s} {pick.method:6s} {pick.phi:16s}"
                       f" -> ERROR: {ev.detail}")
                 break
-            self.ledger.charge(pick.worker.name, pick.method)
+            cost = self.ledger.charge(pick.worker.name, pick.method)
+            self.action_log.append({"step": step, "worker": pick.worker.name,
+                                    "phi": pick.phi, "method": pick.method,
+                                    "status": ev.status, "cost": cost})
             if j is None:
-                # No warranted judgment (e.g. the vacuity gate refused to
-                # certify a PASS). Work was paid for; nothing is believed.
+                # No warranted judgment (a timeout, a refused gate, an
+                # uncertifiable refutation). Work was paid for; nothing is
+                # believed. The learner MUST still see this: an adaptive policy
+                # that only observes its successes cannot notice that a channel
+                # has stopped paying, which is exactly how a strategy calcifies
+                # into a habit.
+                if hasattr(pick.worker, "observe"):
+                    pick.worker.observe(pick.method, 0.0, cost)
                 print(f"  step {step:2d}  {pick.worker.name:8s} {pick.method:6s} {pick.phi:16s}"
                       f" -> {ev.status:14s} R={k.R(ks,w):.3f} spent={self.ledger.spent:.0f}"
                       f"  NOT CERTIFIED: {ev.detail}")
@@ -83,6 +93,9 @@ class VOE:
             merge = self.bus.publish(pick.worker.name, j)
             Rafter = k.R(ks, w)
             self.rep.record(pick.worker.name, pick.method, merge, Rbefore - Rafter, ev.status)
+            # let an adaptive policy learn which channel actually paid off
+            if hasattr(pick.worker, "observe"):
+                pick.worker.observe(pick.method, Rbefore - Rafter, cost)
             curR, laws = k.check_laws(ks, w, prev, "update")
             ok = all(v for _, v in laws)
             tag = f"  [refutes {merge.dominated_worker}'s pass]" if merge.dominated_worker else ""
@@ -107,6 +120,12 @@ class VOE:
         # were binding (vacuity gate) and the cited artifacts are unchanged.
         armed, why = self.formal.gate_status()
         print(f"  vacuity gate: {'ARMED' if armed else 'NOT ARMED'} — {why}")
+        # the mirror check: a testbench that fails its own positive control may
+        # not refute anything, however confidently it reports a mismatch
+        sim = getattr(self.workers[0], "sim", None) if self.workers else None
+        if sim is not None and getattr(sim, "_control_state", None) is not None:
+            ok, creason = sim.control_status()
+            print(f"  sim control : {'OK' if ok else 'FAILED'} — {creason}")
         ok, rows = audit_knowledge(ks)
         bad = [(p, r) for p, o, r in rows if not o]
         print(f"  witness audit: {'all verified' if ok else str(len(bad)) + ' unverified'}"
