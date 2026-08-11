@@ -385,6 +385,157 @@ may legitimately *rise*: `commit`. Retraction is that event. The tests verify th
 claim rather than assert it: the same risk increase is accepted under `commit`
 and **rejected** under `update`, and the kernel exposes nothing new.
 
+### PoC-H: policies as data, and the first held-out verdict
+
+Human archetypes (`explorer`/`skeptic`) were removed as *architecture* and
+replaced by `Policy` — a parameter set (ordering, method bias, explore budget,
+adaptivity) that can be enumerated, mutated and selected on measured evidence.
+Human practice survives as one point in the space (`D-human-org`), the incumbent
+to beat. `evaluation.py` measures `E = ΔR / cost` with secondary signals (proof
+yield, bugs, steps-to-first-discharge, cost sunk into obligations that never
+closed).
+
+**On the development design (`ibex_alu`), the adaptive policy beat the
+hand-designed organisation by 90%** — and the system refused to promote it,
+because `promote()` rejects any candidate evaluated on a design it was developed
+against.
+
+**On a held-out design the margin vanished entirely.** Running the same five
+policies against the real pulp `lfsr_8bit` (an 8-way cache-replacement LFSR no
+policy had seen):
+
+```
+A-random  B-cheapest  C-engineer  D-human-org  E-adaptive
+E=1.333   E=1.333     E=1.333     E=1.333      E=1.333
+REJECTED: +0.0% vs incumbent (needs > 5%)
+```
+
+The 90% advantage did not transfer. It came from choosing formal over simulation
+on a board where that choice existed; the LFSR board has no testbench, so every
+policy is forced down the same path and all strategies collapse to identical
+behaviour. **Held-out evaluation caught a non-generalising result on its first
+use** — which is the entire reason for the rule.
+
+**Then the benchmark was fixed, and it promoted RANDOM.** Giving the LFSR a
+Verilator testbench made simulation a genuine option, so policies finally faced
+an allocation decision. On a single campaign the winner was `A-random` at
+E=1.231 (+53.8%), and `promote()` accepted it. Promoting a random ordering policy
+is obviously not a discovery — it is the protocol failing exactly where a single
+sample cannot separate luck from skill.
+
+**Repeats fixed it.** Seven campaigns per policy, with the accept rule
+strengthened so the candidate's *worst* run must still beat the incumbent's mean:
+
+```
+E-adaptive   mean 1.231 +/-0.000  worst 1.231   deterministic, consistently ahead
+A-random     mean 1.130 +/-0.199  worst 0.842   luck — variance exposed
+D-human-org  mean 0.800 +/-0.000                incumbent
+PROMOTED: E-adaptive +53.8%, worst run still ahead
+```
+
+The random policy was demoted by its own variance, and the first legitimate
+promotion is an adaptive policy that re-weights channel choice from realised
+risk-per-cost — beating the hand-designed human organisation by 54% on a design
+it had never seen.
+
+**Confirmed on real tools** (35 campaigns, Verilator + SymbiYosys + Z3), with the
+real run reproducing the mock figures exactly: `E-adaptive` mean E=1.231
+(std 0.000) vs incumbent 0.800, vacuity gate armed throughout. This is the first
+time the organisation improved itself and the improvement survived a rule built
+to reject it.
+
+### Two failures the second design exposed (both caught, both fixed)
+
+Adding `mv_filter` broke the experiment in two informative ways.
+
+**The mutant was ineffective, and the gate caught it.** `bug_sticky` returned
+"successful proof by k-induction" — the mutation (`d = q` → `d = 1'b0`) does not
+break stickiness, because once the counter reaches THRESHOLD it stops
+incrementing and holds, so the flag re-asserts every cycle regardless. The
+negative control was therefore vacuous, the gate refused to arm, and **nothing
+was promoted on that design**. Correct behaviour on a badly designed experiment.
+Replaced with a mutation that genuinely breaks the property: a low sample also
+clears the filter, so `q_o` can fall with `clear_i` never asserted.
+
+**`E = ΔR/cost` rewarded proving nothing.** With formal refused on that board,
+every policy closed ZERO obligations — yet `B-cheapest` scored **E=5.000** and
+ranked first, because simulation lowers residual risk by accumulating effective
+samples without settling anything. A policy could nibble indefinitely and
+outrank one that proves. Two fixes:
+
+- the primary measure now counts only **risk removed by CLOSING obligations**
+  (proof or counterexample); inductive shaving is reported separately as
+  `shave` so a large gap between them is visible rather than rewarded;
+- promotion additionally **refuses any candidate that closed nothing in any
+  campaign**, however cheaply it moved the risk number.
+
+This is the gaming surface flagged earlier — "E is only as honest as the
+obligation set" — showing up as a concrete number rather than a worry.
+
+**Then a third failure, and the most serious: a broken testbench REFUTED correct
+RTL.** With the metric fixed, `mv_filter` still showed `E=5.000` with
+`proofs=0` — because the obligations had been closed by *counterexamples*. The
+testbench compared against the previous iteration's `clear_i` while the DUT
+responds to the one presented at the current edge: an off-by-one that reported
+failures on correct RTL. The kernel recorded them faithfully, because under
+Sem-1 a counterexample settles an obligation.
+
+This exposed a genuine asymmetry in the design. **The vacuity gate protected
+proofs; nothing protected against false refutations.** A checker that can never
+fail cannot issue proofs — but a checker that fails spuriously could close any
+property it liked. `SimChannel` now carries a **positive control**, the mirror of
+the gate: the testbench must PASS on the known-good variant, and until it does,
+its counterexamples are downgraded to `control_failed` and settle nothing. The
+VOE reports `sim control : OK / FAILED` beside the vacuity gate.
+
+The general rule, now applied in both directions: **evidence that cannot fail
+proves nothing, and evidence that always fails refutes nothing.**
+
+**And the win REPLICATED on a second held-out design.** `mv_filter` (real pulp
+majority-vote filter: a sticky output flag and a clear path, both inductive) was
+added as a second unseen design, with its own mutant, harness and testbench:
+
+```
+                 lfsr_8bit   mv_filter   pooled
+E-adaptive         1.231       1.111      1.171   PROMOTED on both
+A-random           1.130       1.010      1.070   variance-rejected on both
+D-human-org        0.800       0.625      0.712   incumbent
+                  (+53.8%)    (+77.8%)
+```
+
+The promotion rule is applied **per design and accepted only if it holds on every
+one** — a policy that wins on one block and loses on another has fitted that
+block, not improved verification. `E-adaptive` won on both.
+
+**Confirmed on real tools only after all four measurement defects were fixed**
+(ineffective mutant, gameable metric, insufficient proof depth, false-refuting
+testbench). Both designs now show real proofs (3 and 2), the vacuity gate armed,
+the simulation positive control OK, and the metric counting only closed
+obligations. Every earlier version of this table was wrong in a way that
+flattered somebody — which is the point of having reported them.
+
+Honest limitations that remain:
+
+- **Two designs is a replication, not a generalisation claim.** It rules out the
+  weakest explanation (the policy suited one block) and nothing stronger.
+  `scan_corpus.py` identified 91 further self-contained candidates.
+- **Both held-out designs are small sequential control blocks.** They are more
+  similar to each other than either is to, say, a cache or a bus. Replication
+  across a narrow family is weak evidence for a broad claim.
+- **Repeats are near-theatrical for deterministic policies.** `E-adaptive` has
+  std = 0 because nothing in it is stochastic; the variance test only bites for
+  policies like `A-random`. Real variance requires varying the *environment*
+  (tool timing, budgets, obligation order), not just the policy seed.
+- **The accept rule is a stated convention, not a statistical protocol.**
+  "Worst run beats incumbent mean" is strong enough to reject a lucky winner and
+  nothing more; effect size, significance and multiple-comparison correction
+  across designs remain open.
+- **`E = ΔR/C` is only as honest as the obligation set.** A policy can raise `E`
+  by working easy obligations, and the organisation influences what lands on the
+  board. RTL-derived obligations (§PoC-E) partly close this, but "who decides
+  what counts as an obligation" is the remaining gaming surface and deserves the
+  same negative-control treatment proofs received.
+
 ## 5. The most valuable result: three caught vacuity incidents
 
 While bringing up PoC-C, the board showed a **perfect green `R = 0.000` with all
