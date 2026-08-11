@@ -102,6 +102,11 @@ class Worker:
                 j = self.k.Judgment(phi, self.k.Warrant.INDUCTIVE,
                                     {"n_eff": ks.n_eff(phi), "counterexample": True},
                                     witness=ev.witness)
+            elif ev.status == "control_failed":
+                # The testbench failed its own positive control, so this
+                # refutation cannot settle anything. Record NOTHING.
+                self.skip.add(phi)
+                return ev, None
             else:
                 return ev, None
             return ev, j
@@ -123,9 +128,11 @@ class Worker:
             # Record NOTHING (no warrant is justified) and stop re-attacking.
             self.skip.add(phi)
             return ev, None
-        elif ev.status == "inconclusive":
-            # k-induction neither proved nor refuted it. No warrant is
-            # justified; the property likely needs a strengthening invariant.
+        elif ev.status in ("inconclusive", "timeout"):
+            # Neither proved nor refuted. No warrant is justified. A timeout in
+            # particular says the ENGINE could not reach the property — the
+            # budget is spent and nothing is learned, which is precisely the
+            # cost a formal-hostile design imposes.
             self.skip.add(phi)
             return ev, None
         else:
