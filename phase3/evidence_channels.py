@@ -298,7 +298,7 @@ class FormalChannel:
 class SimChannel:
     def __init__(self, rtl: str = RTL, tb: str = TB, mock: bool = False, workroot: str | None = None,
                  sources=None, top: str = "tb_alu", defines_for=None, covers=None,
-                 positive_control: bool = True):
+                 positive_control: bool = True, mock_finds_bug: bool = False):
         # `covers`: regex (or callable) naming the properties this testbench
         # ACTUALLY checks. A TB that only compares result_o must not have its
         # pass credited as evidence for some other output — formal is
@@ -317,6 +317,11 @@ class SimChannel:
         # real bug can. This is not hypothetical — an off-by-one in a testbench
         # "found" two bugs in correct RTL and closed both obligations.
         self.positive_control = positive_control
+        # Mock fidelity: mock simulation always PASSES, which models a defect too
+        # narrow for random vectors (the original toy board's 1-in-2^32 bug).
+        # A DENSE defect — the kind sampling actually catches — needs saying so
+        # explicitly, or a board built around bug-finding measures nothing.
+        self.mock_finds_bug = mock_finds_bug
         self._control_state = None
         self._control_reason = ""
         self.sources = sources if sources is not None else [rtl, tb]
@@ -404,8 +409,15 @@ class SimChannel:
 
     def _run_uncached(self, inject_bug: bool, seed: int, nvec: int) -> Evidence:
         if self.mock:
-            # random sim never hits the narrow DEAD_BEEF defect -> always PASS,
-            # exactly why formal is needed (Sem-1).
+            if inject_bug and self.mock_finds_bug:
+                # dense defect: sampling catches it almost immediately
+                return Evidence("sim", "counterexample",
+                                witness=f"<mock>/sim_seed{seed}.log", n=nvec,
+                                detail="mismatch found by random vectors "
+                                       "(modelled dense defect)")
+            # otherwise: PASS. For a narrow defect (the toy board's 1-in-2^32
+            # bug) that is the honest model — random sim never reaches it, which
+            # is exactly why formal is needed (Sem-1).
             return Evidence("sim", "pass", witness=f"<mock>/sim_seed{seed}.log",
                             n=nvec, detail=f"{nvec} random vectors, 0 fails")
         binp = self._built.get(inject_bug)
