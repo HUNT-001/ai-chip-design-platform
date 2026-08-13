@@ -74,19 +74,20 @@ def test_risk_is_prior_free_and_recomputed():
 # --------------------------------------------------------------------------- #
 # Vacuity gate — the invariant that caught three real incidents               #
 # --------------------------------------------------------------------------- #
+# the default channel points at phase3/formal/alu.sby, whose tasks are good/buggy
 def test_gate_blocks_proof_when_no_negative_control():
     fc = FormalChannel(mock=True)                 # no negative_control declared
-    ev = fc.prove("prove_add")
+    ev = fc.prove("good")
     assert ev.status == "gate_failed"
     armed, why = fc.gate_status()
     assert not armed and "no negative_control" in why
 
 
 def test_gate_arms_when_negative_control_fails():
-    fc = FormalChannel(mock=True, negative_control="bug_logic")
+    fc = FormalChannel(mock=True, negative_control="buggy")
     armed, _ = fc.gate_status()
     assert armed                                  # mock: *bug* tasks return cex
-    assert fc.prove("prove_add").status == "proved"
+    assert fc.prove("good").status == "proved"
 
 
 def test_gate_blocks_when_negative_control_passes(monkeypatch):
@@ -100,12 +101,12 @@ def test_gate_blocks_when_negative_control_passes(monkeypatch):
 
 
 def test_gate_is_evaluated_once(monkeypatch):
-    fc = FormalChannel(mock=True, negative_control="bug_logic")
+    fc = FormalChannel(mock=True, negative_control="buggy")
     calls = []
     real = fc._run_task
     monkeypatch.setattr(fc, "_run_task", lambda t: (calls.append(t), real(t))[1])
-    fc.prove("prove_add"); fc.prove("prove_cmp")
-    assert calls.count("bug_logic") == 1          # cached, not re-run per property
+    fc.prove("good"); fc.prove("good")
+    assert calls.count("buggy") == 1              # cached, not re-run per property
 
 
 # --------------------------------------------------------------------------- #
@@ -240,7 +241,7 @@ def test_board_open_tasks_excludes_settled():
 # --------------------------------------------------------------------------- #
 def test_gate_failed_records_nothing_and_stops_retrying():
     ks = K.KnowledgeState()
-    board = TaskBoard([Task("p", 5.0, "prove_p", False)])
+    board = TaskBoard([Task("p", 5.0, "good", False)])
     fc = FormalChannel(mock=True)                 # ungated -> gate_failed
     wk = Worker("skeptic", "skeptic", K, fc, SimChannel(mock=True))
     ev, j = wk.execute(ks, board, "p", "formal")
@@ -574,6 +575,197 @@ def test_impact_needs_no_kernel_change():
     it uses only Judgment/KnowledgeState/R/check_laws as already frozen."""
     used = {"Judgment", "KnowledgeState", "R", "check_laws", "Warrant"}
     assert used <= set(dir(K))
+
+
+# --------------------------------------------------------------------------- #
+# Evaluation engine — improvement claims must be earned                       #
+# --------------------------------------------------------------------------- #
+from evaluation import CampaignResult, promote, compare, promote_aggregate
+from policy import Policy, PolicyWorker, POLICY_SET
+
+
+def _result(name, design, dR, cost, gate=True, proofs=1):
+    r = CampaignResult(name, design, risk_before=dR, risk_after=0.0, cost=cost)
+    r.gate_armed = gate
+    r.closed_weight = dR              # by default, all movement was real closure
+    r.proofs = proofs
+    return r
+
+
+def test_efficiency_counts_only_closed_obligations():
+    assert _result("p", "d", 20.0, 10.0).efficiency == 2.0
+    assert _result("p", "d", 0.0, 10.0).efficiency == 0.0
+    assert _result("p", "d", 5.0, 0.0).efficiency == 0.0     # no divide-by-zero
+
+
+def test_inductive_shaving_does_not_count_as_discharge():
+    """Simulation lowers residual risk without settling anything. If that
+    counted, a policy could nibble forever and outrank one that proves — which
+    is exactly what happened on a real board: E=5.0 with ZERO obligations
+    closed, ranked first."""
+    r = CampaignResult("sampler", "d", risk_before=20.0, risk_after=10.0, cost=2.0)
+    r.closed_weight = 0.0             # nothing proven or refuted
+    assert r.risk_delta == 10.0       # risk did move
+    assert r.shaving_efficiency == 5.0
+    assert r.discharged == 0.0        # but nothing was discharged
+    assert r.efficiency == 0.0        # so the primary measure is zero
+
+
+def test_a_policy_that_closes_nothing_cannot_be_promoted():
+    from evaluation import Aggregate
+    cand = Aggregate("sampler", "held_out")
+    for _ in range(7):
+        cand.runs.append(_result("sampler", "held_out", 20.0, 2.0, proofs=0))
+    for r in cand.runs:
+        r.bugs = 0
+    inc = _agg("incumbent", "held_out", [1.0] * 7)
+    v = promote_aggregate(cand, inc, dev_designs=[])
+    assert not v.accepted and "closed no obligations" in v.reason
+
+
+def test_promotion_refused_on_a_development_design():
+    """Training on the test set is the organisational form of a vacuous proof."""
+    cand = _result("new", "ibex_alu", 30.0, 10.0)            # E=3.0, far better
+    inc = _result("old", "ibex_alu", 20.0, 20.0)             # E=1.0
+    v = promote(cand, inc, dev_designs=["ibex_alu"])
+    assert not v.accepted and "development design" in v.reason
+
+
+def test_promotion_refused_when_the_gate_was_not_armed():
+    cand = _result("new", "held_out", 30.0, 10.0, gate=False)
+    inc = _result("old", "held_out", 20.0, 20.0)
+    v = promote(cand, inc, dev_designs=["ibex_alu"])
+    assert not v.accepted and "vacuity gate" in v.reason
+
+
+def test_promotion_refused_without_a_real_margin():
+    cand = _result("new", "held_out", 20.4, 20.0)            # ~2% better
+    inc = _result("old", "held_out", 20.0, 20.0)
+    v = promote(cand, inc, dev_designs=["ibex_alu"], min_gain=0.05)
+    assert not v.accepted and "REJECTED" in v.reason
+
+
+def test_promotion_accepted_only_on_held_out_evidence():
+    cand = _result("new", "held_out", 30.0, 10.0)
+    inc = _result("old", "held_out", 20.0, 20.0)
+    v = promote(cand, inc, dev_designs=["ibex_alu"])
+    assert v.accepted and "PROMOTED" in v.reason
+
+
+def test_a_testbench_that_fails_its_positive_control_cannot_refute(monkeypatch):
+    """The mirror of the vacuity gate. A counterexample SETTLES an obligation
+    under Sem-1, so a checker that fails spuriously can close a property just as
+    firmly as a real bug. This is not hypothetical: an off-by-one in a testbench
+    'found' two bugs in correct RTL and closed both obligations."""
+    sc = SimChannel(mock=True)
+    # the testbench reports failure even on the known-good variant
+    monkeypatch.setattr(sc, "_run_uncached",
+                        lambda bug, seed, nvec: Evidence("sim", "counterexample",
+                                                         witness="log", n=nvec))
+    ev = sc.run(inject_bug=True, seed=1)
+    assert ev.status == "control_failed"
+    ok, why = sc.control_status()
+    assert not ok and "known-good" in why
+
+
+def test_a_validated_testbench_may_still_refute(monkeypatch):
+    sc = SimChannel(mock=True)
+    monkeypatch.setattr(sc, "_run_uncached",
+                        lambda bug, seed, nvec: Evidence(
+                            "sim", "counterexample" if bug else "pass",
+                            witness="log", n=nvec))
+    assert sc.run(inject_bug=True, seed=1).status == "counterexample"
+    assert sc.control_status()[0]
+
+
+def test_control_failed_records_nothing():
+    ks = K.KnowledgeState()
+    board = TaskBoard([Task("p", 5.0, formal_task="good")])
+    sc = SimChannel(mock=True)
+    sc._control_state, sc._control_reason = False, "broken tb"
+    sc._cache[(False, 1, 20000)] = Evidence("sim", "counterexample", witness="w")
+    w = Worker("w", "explorer", K, FormalChannel(mock=True, negative_control="buggy"), sc)
+    w._seed = 0
+    ev, j = w.execute(ks, board, "p", "sim")
+    assert ev.status == "control_failed" and j is None
+    assert "p" not in ks.K
+
+
+def test_mock_rejects_an_sby_task_that_does_not_exist(tmp_path):
+    """Mock fidelity: a board naming a task the .sby does not declare must fail
+    in --mock too. Accepting any name let a real wiring bug pass mock and
+    surface only against the toolchain."""
+    sby = tmp_path / "j.sby"
+    sby.write_text("[tasks]\nprove_onehot\nbug_onehot\n\n[options]\nmode prove\ndepth 6\n")
+    fc = FormalChannel(str(sby), mock=True, negative_control="bug_onehot")
+    bad = fc.prove("onehot")
+    assert bad.status == "error" and "no such sby task" in bad.detail
+    assert fc.prove("prove_onehot").status == "proved"
+
+
+def _agg(name, design, efficiencies, gate=True):
+    from evaluation import Aggregate
+    a = Aggregate(name, design)
+    for e in efficiencies:
+        a.runs.append(_result(name, design, e * 10.0, 10.0, gate))
+    return a
+
+
+def test_repeats_reject_a_policy_that_won_by_luck():
+    """A high-variance policy whose WORST campaign falls below the incumbent's
+    mean must not be promoted, even when its average is better. The single-run
+    version of this experiment promoted a *random* ordering policy on one
+    fortunate sample; this is the rule that stops it."""
+    lucky = _agg("random", "held_out", [1.6, 1.5, 0.7, 1.4, 0.6, 1.5, 1.6])
+    inc = _agg("incumbent", "held_out", [1.0] * 7)
+    v = promote_aggregate(lucky, inc, dev_designs=["ibex_alu"])
+    assert not v.accepted and "WORST" in v.reason
+
+
+def test_repeats_promote_a_consistent_improvement():
+    steady = _agg("adaptive", "held_out", [1.5, 1.5, 1.5, 1.5, 1.5, 1.5, 1.5])
+    inc = _agg("incumbent", "held_out", [1.0] * 7)
+    v = promote_aggregate(steady, inc, dev_designs=["ibex_alu"])
+    assert v.accepted and "PROMOTED" in v.reason
+
+
+def test_too_few_repeats_is_refused():
+    cand = _agg("c", "held_out", [2.0, 2.0])
+    inc = _agg("i", "held_out", [1.0, 1.0])
+    v = promote_aggregate(cand, inc, dev_designs=[], min_runs=5)
+    assert not v.accepted and "variance" in v.reason
+
+
+def test_aggregate_still_refuses_a_development_design():
+    cand = _agg("c", "ibex_alu", [2.0] * 7)
+    inc = _agg("i", "ibex_alu", [1.0] * 7)
+    assert not promote_aggregate(cand, inc, dev_designs=["ibex_alu"]).accepted
+
+
+def test_aggregate_refuses_when_any_campaign_had_no_gate():
+    cand = _agg("c", "held_out", [2.0] * 7, gate=False)
+    inc = _agg("i", "held_out", [1.0] * 7)
+    v = promote_aggregate(cand, inc, dev_designs=[])
+    assert not v.accepted and "vacuity gate" in v.reason
+
+
+def test_policies_are_data_not_hardcoded_roles():
+    """Human archetypes must be one point in the space, not the architecture."""
+    assert len({p.name for p in POLICY_SET}) == len(POLICY_SET)
+    custom = Policy("odd", order="weight", method_bias="formal", explore_budget=0)
+    assert custom.order == "weight" and "formal" in custom.describe()
+
+
+def test_a_policy_cannot_manufacture_knowledge():
+    """A policy chooses WHERE to spend, never what is true: an ungated formal
+    PASS stays uncertified no matter which policy proposed it."""
+    ks = K.KnowledgeState()
+    board = TaskBoard([Task("p", 5.0, formal_task="good")])
+    fc = FormalChannel(mock=True)                             # no negative control
+    w = PolicyWorker("greedy", Policy("greedy", method_bias="formal"),
+                     K, fc, SimChannel(mock=True))
+    ev, j = w.execute(ks, board, "p", "formal")
+    assert ev.status == "gate_failed" and j is None and "p" not in ks.K
 
 
 def test_specialists_share_one_canonical_state():
