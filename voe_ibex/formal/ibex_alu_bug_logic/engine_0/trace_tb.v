@@ -9,14 +9,14 @@ module testbench(input clock, output reg genclock);
   reg genclock = 1;
   reg [31:0] cycle = 0;
   reg [31:0] PI_b;
+  reg [31:0] PI_a;
   wire [0:0] PI_clk = clock;
   reg [6:0] PI_op;
-  reg [31:0] PI_a;
   ibex_alu_fv UUT (
     .b(PI_b),
+    .a(PI_a),
     .clk(PI_clk),
-    .op(PI_op),
-    .a(PI_a)
+    .op(PI_op)
   );
 `ifndef VERILATOR
   initial begin
@@ -42,15 +42,15 @@ module testbench(input clock, output reg genclock);
 
     // state 0
     PI_b = 32'b00110110010000010000011111110010;
-    PI_op = 7'b0000010;
     PI_a = 32'b11001010111111101111000000001101;
+    PI_op = 7'b0000010;
   end
   always @(posedge clock) begin
     // state 1
     if (cycle == 0) begin
       PI_b <= 32'b00000000101000000100110000000101;
-      PI_op <= 7'b0000011;
       PI_a <= 32'b10011100000001101010000000110010;
+      PI_op <= 7'b0000011;
     end
 
     genclock <= cycle < 1;
