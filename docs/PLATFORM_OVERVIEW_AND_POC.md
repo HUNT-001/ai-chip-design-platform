@@ -536,6 +536,50 @@ Honest limitations that remain:
   what counts as an obligation" is the remaining gaming surface and deserves the
   same negative-control treatment proofs received.
 
+### Experiment 2 — a formal-HOSTILE regime (`voe_hostile/`)
+
+Every earlier board rewarded going straight to proof, so the adaptive policy's
+win was only meaningful if it was CONTINGENT. This board inverts the economics:
+a 32x32 signed multiply (`corpus/rsd` `Multiplier`) checked against a
+structurally different shift-and-add reference — true, but out of the solver's
+reach (`DONE (TIMEOUT)`), so formal costs 4 and returns nothing — beside a dense
+defect (1 vector in 16) that simulation closes for 1.
+
+```
+policy         mean E    sim share here   sim share on friendly boards
+E-adaptive     1.000        33%                   ~0%
+D-human-org    0.667        56%                    —   (incumbent)
+B-cheapest     0.462        69%
+```
+
+**Contingency is supported, directionally.** The adaptive policy moved from
+essentially all-formal on the friendly boards to a third of its budget in
+simulation here. The allocation tracked the regime rather than repeating a
+habit — which is what the experiment was built to test, and it could have failed.
+
+**But the adaptation is coarse, and the honest headline is how far from optimal
+every policy is.** The optimal play on this board is one simulation run: close
+`mul.bug` (weight 6) for cost 1 and never touch `mul.equiv`, which nothing can
+close. That is `E = 6.0`. The best policy scored `1.000`. All five are within a
+factor of two of each other and all are ~6x off optimal.
+
+**Root cause, and it points at the next experiment.** `E-adaptive` learns a
+single realised rate PER CHANNEL. On this board formal is cheap for one
+obligation (it refutes `bug_equiv` in seconds) and useless for the other (it
+times out on `mul.equiv`) — a distinction a per-channel average cannot express.
+The policy can adapt BETWEEN designs but not WITHIN one. Conditioning has to
+move to per-property/per-context features (structure, prior tool outcomes on
+similar obligations), which is the concrete form of the "verification regime
+descriptor" idea rather than a design-level label.
+
+**Three broken instruments preceded this valid trial**, and both safeguards
+fired: an unsigned reference model made the property false so formal refuted it
+in seconds instead of timing out (board not hostile at all), and the same error
+in the testbench was caught by the simulation positive control, which refused
+every refutation from a checker that disagreed with the known-good DUT. Without
+that control, sim-only policies would have "found" bugs in a correct multiplier
+across 21 campaigns and posted excellent numbers.
+
 ## 5. The most valuable result: three caught vacuity incidents
 
 While bringing up PoC-C, the board showed a **perfect green `R = 0.000` with all
