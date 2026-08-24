@@ -21,7 +21,10 @@ module tb_mul;
       a = $urandom();
       b = $urandom();
       #1;
-      g = {32'd0, a} * {32'd0, b};
+      // SIGNED: the DUT's ports are `logic signed`. An unsigned golden here
+      // reported mismatches on the correct multiplier, and the simulation
+      // positive control correctly refused every refutation that came from it.
+      g = $signed(a) * $signed(b);
       if (y !== g) begin
         fails++;
         if (fails <= 5) $display("MISMATCH a=%08x b=%08x y=%016x g=%016x", a, b, y, g);
