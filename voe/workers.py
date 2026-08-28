@@ -94,7 +94,8 @@ class Worker:
             if not self.sim.covers(phi):
                 return Evidence("sim", "unsupported", witness="",
                                 detail=f"testbench does not check {phi}"), None
-            ev = self.sim.run(inject_bug=t.inject_bug, seed=self._seed_next(), nvec=self.nvec)
+            ev = self.sim.run(inject_bug=t.inject_bug, seed=self._seed_next(),
+                              nvec=self.nvec, phi=phi)
             if ev.status == "pass":
                 j = self.k.Judgment(phi, self.k.Warrant.INDUCTIVE,
                                     {"n_eff": ks.n_eff(phi) + 1}, witness=ev.witness)
