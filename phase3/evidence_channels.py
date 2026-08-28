@@ -388,9 +388,12 @@ class SimChannel:
                 "unvalidated, so its counterexamples cannot settle anything")
         return self._control_state, self._control_reason
 
-    def run(self, inject_bug: bool = False, seed: int = 1, nvec: int = 20000) -> Evidence:
+    def run(self, inject_bug: bool = False, seed: int = 1, nvec: int = 20000,
+            phi: str | None = None) -> Evidence:
         """Run one simulation; returns inductive evidence with sample count n.
-        Memoised: identical (variant, seed, vectors) is the identical run."""
+        Memoised: identical (variant, seed, vectors) is the identical run.
+        `phi` is accepted so a routing wrapper can dispatch per obligation; a
+        single-design channel ignores it."""
         key = (inject_bug, seed, nvec)
         if key in self._cache:
             ev = self._cache[key]
