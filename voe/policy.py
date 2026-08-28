@@ -37,16 +37,20 @@ class Policy:
     explore_budget: int = 4       # sim runs before escalating to formal
     formal_first: bool = False
     adaptive: bool = False        # re-weight method choice from realised payoff
+    obligation_conditioned: bool = False   # condition on Omega_i, not just channel
 
     def describe(self) -> str:
         bits = [f"order={self.order}", f"method={self.method_bias}"]
         if self.formal_first: bits.append("formal-first")
-        if self.adaptive:     bits.append("ADAPTIVE")
+        if self.obligation_conditioned: bits.append("OBLIGATION-CONDITIONED")
+        elif self.adaptive:   bits.append("ADAPTIVE (design-level)")
         else:                 bits.append(f"explore={self.explore_budget}")
         return ", ".join(bits)
 
 
 # ---- the comparison set (their experiment A-E) ----------------------------- #
+OBLIGATION  = Policy("F-obligation", order="utility",  method_bias="balanced",
+                     adaptive=True, obligation_conditioned=True)
 RANDOM      = Policy("A-random",     order="random",   method_bias="random")
 CHEAPEST    = Policy("B-cheapest",   order="cheapest", method_bias="sim",
                      explore_budget=8)
@@ -56,6 +60,7 @@ HUMAN_ORG   = Policy("D-human-org",  order="utility",  method_bias="balanced",
 ADAPTIVE    = Policy("E-adaptive",   order="utility",  method_bias="balanced",
                      adaptive=True)
 POLICY_SET = [RANDOM, CHEAPEST, ENGINEER, HUMAN_ORG, ADAPTIVE]
+POLICY_SET_V2 = POLICY_SET + [OBLIGATION]
 
 
 class PolicyWorker(Worker):
@@ -71,10 +76,13 @@ class PolicyWorker(Worker):
         self.payoff = {"sim": [0.0, 0.0], "formal": [0.0, 0.0]}   # [gain, cost]
 
     # -- learning from outcomes (adaptive policies only) -------------------- #
-    def observe(self, method, gain, cost):
+    def observe(self, method, gain, cost, phi=None):
         if method in self.payoff:
             self.payoff[method][0] += max(0.0, gain)
             self.payoff[method][1] += cost
+        # obligation-level: record the yield against this obligation's signature
+        if hasattr(self, "yields") and phi is not None:
+            self.yields.observe(self._sig(phi), method, gain, cost)
 
     def _rate(self, method):
         g, c = self.payoff[method]
@@ -122,6 +130,38 @@ class PolicyWorker(Worker):
             return "sim"
         return "formal" if "formal" in affordable else "sim"
 
+    # ---- obligation-level conditioning (Omega_i) --------------------------- #
+    def attach_features(self, feature_map):
+        """feature_map: phi -> ObligationFeatures. Enables pi(a | Omega_i)."""
+        from obligation_state import YieldModel
+        self.features = feature_map
+        self.yields = YieldModel()
+
+    def _sig(self, phi):
+        f = getattr(self, "features", {}).get(phi)
+        return f.signature() if f else None
+
+    def _pick_method_conditioned(self, phi, ledger):
+        """Choose by YIELD for obligations that look like this one.
+
+        Falls back to the global prior for an unseen signature, and tries an
+        untried channel once so a whole class is never written off on no
+        evidence. This is the difference between 'formal is good' and 'formal
+        is usually effective for this kind of property under these structural
+        conditions'.
+        """
+        affordable = [m for m in ("sim", "formal") if ledger.can_afford(m)]
+        if not affordable:
+            return None
+        if not self.sim.covers(phi):
+            return "formal" if "formal" in affordable else None
+        sig = self._sig(phi)
+        rates = {m: self.yields.rate(sig, m) for m in affordable}
+        untried = [m for m, r in rates.items() if r is None]
+        if untried:
+            return untried[0]
+        return max(affordable, key=lambda m: rates[m] or 0.0)
+
     def propose(self, ks, board, ledger):
         cands = [t for t in board.actionable(ks) if t.phi not in self.skip]
         if not cands:
@@ -133,7 +173,10 @@ class PolicyWorker(Worker):
             return Proposal(self, best.phi, "static",
                             self.k.utility(ks, board.weights(), best.phi)[0],
                             ACTION_COST["static"])
-        method = self._pick_method(best.phi, ks, ledger)
+        if self.policy.obligation_conditioned and hasattr(self, "yields"):
+            method = self._pick_method_conditioned(best.phi, ledger)
+        else:
+            method = self._pick_method(best.phi, ks, ledger)
         if method is None:
             return None
         return Proposal(self, best.phi, method,
