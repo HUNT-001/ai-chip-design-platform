@@ -14,6 +14,7 @@ Workers never mutate the canonical state. `execute` returns a witnessed
 judgment which the VOE publishes to the bus for adjudication (Fire-1).
 """
 from __future__ import annotations
+import zlib
 from dataclasses import dataclass
 
 from evidence_channels import Evidence
@@ -37,7 +38,13 @@ class Worker:
         self.static = static                  # optional structural channel
         self.nvec = nvec
         self.skip = set()                     # props this worker won't re-attack
-        self._seed = (abs(hash(name)) % 1000) + 1
+        # Stable across processes. `hash(name)` is randomised per interpreter
+        # (PYTHONHASHSEED), so two identical runs drew different simulation
+        # seeds and produced different results — while the reported std was
+        # 0.000, because the repeats varied the POLICY seed and never this one.
+        # A hidden source of variance sat underneath a statistic claiming there
+        # was none.
+        self._seed = (zlib.crc32(name.encode()) % 1000) + 1
 
     def _seed_next(self):
         self._seed += 1
@@ -89,13 +96,16 @@ class Worker:
             else:
                 return ev, None
             return ev, j
-        if method == "sim":
+        if method in ("sim", "probe"):
             # Guard: never credit a testbench pass to a property it does not check.
             if not self.sim.covers(phi):
                 return Evidence("sim", "unsupported", witness="",
                                 detail=f"testbench does not check {phi}"), None
+            # a probe is the same channel run briefly — cheap information, not a
+            # different kind of evidence
+            nv = 500 if method == "probe" else self.nvec
             ev = self.sim.run(inject_bug=t.inject_bug, seed=self._seed_next(),
-                              nvec=self.nvec, phi=phi)
+                              nvec=nv, phi=phi)
             if ev.status == "pass":
                 j = self.k.Judgment(phi, self.k.Warrant.INDUCTIVE,
                                     {"n_eff": ks.n_eff(phi) + 1}, witness=ev.witness)
