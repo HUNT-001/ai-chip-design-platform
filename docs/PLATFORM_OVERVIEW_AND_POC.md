@@ -580,6 +580,272 @@ every refutation from a checker that disagreed with the known-good DUT. Without
 that control, sim-only policies would have "found" bugs in a correct multiplier
 across 21 campaigns and posted excellent numbers.
 
+### Experiment 3 — obligation-level planning against an oracle (`voe_hetero/`)
+
+Experiment 2 showed allocation tracks the regime BETWEEN designs but not WITHIN
+one. So this board is heterogeneous in a single campaign: six obligations drawn
+from three real designs at once, each routed to its own evidence channels —
+lfsr and mv_filter invariants (formal closes cheaply), a 32x32 multiplier
+equivalence (formal TIMES OUT, nothing closes it), and a dense multiplier defect
+(simulation closes for 1).
+
+`F-obligation` conditions on `Omega_i` = (property kind, arithmetic, sequential),
+with the structural half **probed from the RTL** by `obligation_state.py`, not
+declared. Learning is keyed on the signature, so it transfers to an unseen
+obligation with similar structure rather than to a name.
+
+```
+human heuristic     E=0.683   (41.5% of oracle)
+design-adaptive     E=1.120   (68.0% of oracle)
+obligation-adaptive E=1.273   (77.3% of oracle)
+ORACLE              E=1.647   formal x4, sim for the defect, SKIP the unprovable
+```
+
+The predicted progression appears, on real tools. Transfer is genuine and
+cross-design: one signature covers four invariants spanning *two* designs, so
+what is learned on the LFSR informs the mv_filter obligations.
+
+**Two limits, one of them irreducible.**
+
+The signature `('equivalence', arith, comb)` covers BOTH multiplier
+obligations — and formal times out on one while refuting the other in seconds.
+The representation groups two obligations with opposite tool behaviour, which is
+where much of the remaining 23% goes.
+
+But refining features cannot close that gap, and this is the important part:
+the outcomes differ because one property is TRUE (needs an expensive proof) and
+the other is FALSE (needs a cheap counterexample) — and **which of those holds is
+the very question the campaign exists to answer.** The oracle is allowed to know
+it retrospectively; no policy can know it in advance. So a fraction of the gap to
+oracle is not a modelling failure but the cost of not yet knowing the answer,
+and any future claim of "approaching the oracle" has to net it out.
+
+### Experiment 4A — the realisable ceiling (`voe_hetero/run_experiment4a.py`)
+
+Experiment 3 measured against a RETROSPECTIVE oracle that knows each property's
+truth value in advance. That is not a valid ceiling for a pre-action planner:
+`mul.equiv` is expensive because it is TRUE and `mul.bug` is cheap because it is
+FALSE, and which is which is exactly what a campaign exists to discover. So a
+**realisable oracle** was built — it sees only the obligation signature and the
+population statistics of that class, and must pick one fixed action per class.
+
+```
+retrospective oracle  E=1.647   knows each truth value in advance
+REALISABLE oracle     E=1.556   class statistics only
+value of information nobody has yet: 0.092
+```
+
+**This corrects the previous write-up.** The claim that a meaningful fraction of
+the gap was irreducible was too generous to the learner: the unreachable part is
+**0.092 of a 0.374 gap — under a quarter**. The rest was model error. Measured
+against the ceiling that can actually be reached:
+
+```
+D-human-org     E=0.683    43.9% of realisable
+E-adaptive      E=1.120    72.0%
+F-obligation    E=1.273    81.8%
+G-diagnostic    E=1.287    82.8%
+```
+
+The realisable oracle also chooses differently from the retrospective one: it
+picks `sim` for the whole equivalence/arithmetic class, because half that class
+closes cheaply by counterexample and half does not close at all, so sampling has
+better expected yield than paying 4.0 for a coin-flip. That is a strategy a real
+planner could adopt; "skip the unprovable one" is not.
+
+**Diagnostic actions: mechanism demonstrated, value unmeasured.** `G-diagnostic`
+may spend a 0.25 probe — a very short simulation — where a class has behaved BOTH
+ways, to learn which action deserves the 4.0. It reaches 1.287 against
+`F-obligation`'s 1.273: about 1%. The mechanism runs, but **this board contains
+exactly one ambiguous class**, so there is almost nothing to buy. A 1% edge over
+a single ambiguity is evidence the code works, not evidence that diagnosis
+matters.
+
+Testing it properly needs a board with many classes whose members genuinely
+differ — several true-and-expensive properties interleaved with false-and-cheap
+ones sharing structure. That is the concrete requirement the next scale step has
+to satisfy, and it is a requirement about *causal diversity*, not about adding
+more designs.
+
+### Experiment 5 — the diverse-regime benchmark (`voe_bench/`)
+
+Experiment 4A could not test diagnostic planning: its board had one ambiguous
+class. The requirement was not "more designs" but **causal diversity** — classes
+whose members genuinely differ. That was satisfiable from what already existed,
+because every design here has a mutant. 20 obligations, 6 designs, 6 regimes, and
+**every class mixes true properties with mutant-refuted false ones**:
+
+```
+('equivalence', False, False)   6 obligations (4 true, 2 false)
+('equivalence', True,  False)   2 obligations (1 true, 1 false)
+('invariant',   False, True)   11 obligations (8 true, 3 false)
+```
+
+Structure cannot separate those members; only evidence can. Results (real tools):
+
+```
+G-diagnostic   E=1.256   94.9% of realisable      <- probes when a class is mixed
+E-adaptive     E=1.210   91.4%                    <- design-level, one rate per channel
+F-obligation   E=1.140   86.0%                    <- obligation-level, no probing
+D-human-org    E=0.925   69.8%                    <- incumbent
+realisable     E=1.324   |  retrospective E=1.400
+```
+
+**Diagnosis pays: +10.3% over the same policy without it**, and reaches 94.9% of
+the reachable ceiling. Spending 0.25 to learn which action deserves 4.0 beats
+committing blind — the behaviour Experiment 4A predicted but could not measure.
+
+**And a reversal that inverts Experiment 3's headline.** Obligation-level
+conditioning is now WORSE than design-level (86.0% vs 91.4%). The 11-member
+invariant class holds 8 true and 3 false obligations, so its per-class average
+blends two populations that want opposite actions, and acting on that average is
+worse than a global rate. **Finer conditioning bought false confidence.** Only
+adding the probe recovers it. So conditioning and diagnosis are not independent
+improvements: on a genuinely mixed board, conditioning WITHOUT diagnosis is
+actively harmful.
+
+**A process failure worth recording.** Experiment 3 was reported without checking
+the feature extractor, and it was wrong twice — the arithmetic regex matched `*`
+inside `/* */` comments, and `always_comb` was counted as sequential — so
+`ibex_alu` was labelled arithmetic and stateful when it is neither. Correcting it
+needed a third distinction: `i*4` and `x[2*N*(seg+1)-1:0]` are index arithmetic
+that elaborates away, not the datapath multiply that builds the solver's
+bit-blast wall. All six designs now verify against expectation
+(`test_comments_do_not_create_arithmetic`, `test_index_arithmetic_is_not_a_datapath_multiply`,
+`test_always_comb_is_not_sequential`).
+
+**Follow-up: Experiments 3 and 4A were RE-RUN under the corrected extractor and
+are byte-identical** — same signatures, same E values (0.683 / 1.120 / 1.273 /
+1.287), same conclusions. The caveat that they "should be treated as unverified"
+was over-cautious and is withdrawn.
+
+The bug never touched them: it required either a `*` inside a comment or an
+`always_comb` block, and Experiment 3's three designs have neither — `lfsr` and
+`mv_filter` are genuinely clocked (real `always_ff`), and the multiplier's
+`srcA * srcB` is a genuine datapath multiply. Only `toy_alu` and `ibex_alu` were
+mislabelled, and neither appears in Experiment 3. Flagging the risk was right;
+asserting the result was tainted without checking was not, and the check was
+two commands.
+
+That is the sixth instrument defect in this sequence. The kernel and the RTL have
+been right every time; the measuring apparatus has been wrong repeatedly.
+
+### Experiment 6 — uncertainty-aware conditioning (`voe_bench/run_controlled.py`)
+
+The benchmark's regression (obligation-level conditioning WORSE than
+design-level) had an obvious wrong reading — "conditioning was a mistake" — and a
+right one: **uncertainty-blind conditioning was the mistake**. A signature is not
+a regime; it is an observation consistent with several. So `voe/regime.py` keeps
+a posterior over "does this action close an obligation like this one", pooled
+`global <- class <- obligation`, and derives:
+
+    P(a is best)   sampled, not read off a mean
+    ambiguity      1 - max_a P(a is best)
+    VoD(d)         E_o[max_a E[U|o]] - max_a E[U] - c(d)
+
+`H-uncertainty` probes only when **VoD > 0** — when the probe pays, not merely
+when the policy feels unsure.
+
+Results on REAL tools (mock figures in brackets — the divergence matters):
+
+```
+arm             E      %realisable   wrong commits   premature loss   probe
+D-human-org   0.942      71.2%           1.0              4.0          0.00
+F-obligation  1.195      90.2%  [86.0]   1.0              4.0          0.00
+G-diagnostic  1.256      94.9%           1.0              4.0          1.00
+H-uncertainty 1.244      94.0%  [99.0]   1.0              4.0          2.75
+realisable    1.324     100.0%
+```
+
+**The principle holds, but this implementation of it does not earn its
+complexity.** Diagnosis clearly helps: both diagnosing arms beat both blind
+ones. But the honest comparison is not H against F — that is the arm H was
+designed to beat. It is **H against G**, the simplest thing that also diagnoses:
+
+```
+G-diagnostic   E=1.256   probes on a one-line heuristic ("has this class
+                         behaved both ways?"), probe cost 1.00
+H-uncertainty  E=1.244   posteriors, sampled P(a is best), priced VoD,
+                         probe cost 2.75
+H over G: -1.0%
+```
+
+H spends 2.75x more on probing and comes out slightly behind. So:
+
+- *never increase specialisation without increasing diagnosability* — **supported**
+- *the Bayesian machinery is the right way to do it* — **not supported here**
+
+**Mock overstated the effect** (99.0% vs 94.0% of ceiling for H). The modelled
+timeouts and bug densities made the board more favourable to the sophisticated
+arm than the real tools do. Every conclusion in this section rests on the real
+numbers.
+
+**Two measurement defects had to be fixed before any of these numbers meant
+anything, and the second invalidated a conclusion already drawn.**
+
+*Not reproducible.* Two identical real invocations gave `F-obligation` 1.195 and
+1.140. `Worker._seed` was `abs(hash(name)) % 1000`, and Python randomises
+`hash()` per interpreter, so every process drew different simulation seeds.
+Fixed with a stable `zlib.crc32` seed, pinned by a test.
+
+*Repeats that did not repeat anything.* With the seed stabilised, `_seed` still
+depended only on the worker NAME — so all five repeats simulated identically and
+`std = 0.000` was true by construction. The statistic was not measuring variance;
+it was **incapable** of measuring it. The repeat seed now reaches the simulation
+seed.
+
+The cost of that second defect was a wrong conclusion, not just a wrong number.
+With one seed, H scored 1.244 and LOST to G by 1.0%; with another it scored 1.311
+and WON by 4.4%. A comparison was reported as settled in both directions before
+the experiment could distinguish them.
+
+FINAL results, repeats varying the simulation seed:
+
+```
+arm               E    +/- std   worst   %realisable
+D-human-org     0.946 +/-0.012  0.925      71.4%
+E-adaptive      1.210 +/-0.000  1.210      91.4%
+F-obligation    1.151 +/-0.025  1.140      86.9%
+G-diagnostic    1.256 +/-0.000  1.256      94.9%
+H-uncertainty   1.284 +/-0.036  1.244      97.0%
+realisable      1.324             |  retrospective 1.400
+```
+
+- **diagnosis helps — SUPPORTED.** H over F is +11.6%, far outside the spread.
+- **H over G is +2.2% against a spread of 0.036 — UNDECIDED.** It does not clear
+  twice the noise, and it has already flipped sign once. The posterior/VoD
+  machinery's case rests on auditability (per-decision confidence and ambiguity),
+  which is real but must be argued on its own terms rather than on an efficiency
+  claim the data does not carry.
+
+Every verdict in the script is now gated on clearing the measured spread. An
+earlier version announced that the machinery "earns its complexity" in the same
+report that declared the comparison undecided — two sections disagreeing because
+only one consulted the variance.
+
+**Three bugs had to be fixed first, and the last one is the interesting one.**
+
+1. *No obligation-local level.* The hierarchy was implemented as global <- class
+   only, so repeated failures on ONE obligation barely moved a class-wide mean
+   and the policy thrashed.
+2. *A uniform 0.5 prior over both channels.* Combined with cost-normalised
+   utility (`w*p/cost`), that handed the cheap channel a permanent 4x advantage:
+   simulation was chosen forever and formal was never sampled, so its posterior
+   never left the prior. The fix is not a tuned constant but the kernel's own
+   warrant asymmetry — simulation is inductive and closes only by counterexample;
+   formal is deductive and closes by proof OR counterexample.
+3. *`closed = (gain > 0)`.* **The same inductive-shaving-vs-discharge conflation
+   already fixed in the efficiency metric, reintroduced one layer up.** A
+   simulation pass lowers `R` via `n_eff` while settling nothing, so the belief
+   recorded it as a closure and simulation looked successful every time. The
+   policy ran **162 sim passes in a single campaign**. Closure is now read from
+   the kernel (`proven or disproven`), never from risk movement.
+
+That third one is worth stating plainly: a distinction the platform had already
+identified, documented and tested still recurred in new code. Conceptual clarity
+did not prevent the same error being re-made in a different layer — only a test
+that watched the mechanism would have.
+
 ## 5. The most valuable result: three caught vacuity incidents
 
 While bringing up PoC-C, the board showed a **perfect green `R = 0.000` with all
@@ -715,6 +981,147 @@ pytest tests/test_voe_kernel.py --import-mode=importlib -q
 > **Always check `bug_logic` first.** If the known-bad job passes, the assertions
 > are not binding and every green result on that board is vacuous. This ordering
 > is the operational form of the platform's core rule: *evidence, not optimism.*
+
+## 8b. The Diagnosability Principle, and the roadmap it implies
+
+The sequence of experiments produced one result worth more than any of the
+percentages:
+
+> **Diagnosability Principle.** A refinement of the decision representation may
+> improve policy resolution only if the system also gains the ability to detect
+> and resolve the additional decision uncertainty that refinement exposes, at
+> acceptable cost.
+
+Evidence: obligation-level conditioning made things WORSE than design-level
+(86.9% vs 91.4% of the realisable ceiling) until diagnosis was added, at which
+point it became the best arm (97.0%). The finer representation was not wrong; it
+was under-supported.
+
+**Three uncertainties, kept separate** (collapsing them is what produced the
+regression):
+
+| | what it is | what reduces it |
+|---|---|---|
+| `U_world` | is this property actually true? | verification itself |
+| `U_strategy` | which action is best here? | a cheap diagnostic probe |
+| `U_model` | how good is my predictor? | learning across obligations |
+
+Diagnosis attacks `U_strategy` only. It does not reveal truth, and the
+realisable-vs-retrospective ceiling gap (0.076) is the part of `U_world` no
+pre-action policy can price.
+
+**Pre-registration** (`voe/preregistration.py`). Every measurement defect in this
+project was caught AFTER a number was reported. The criteria for the one
+undecided comparison are now written to disk and hashed BEFORE any campaign runs;
+the analysis re-reads them, verifies the hash, and applies exactly that rule.
+Committing twice does not overwrite; editing the file marks the result INVALID.
+Three outcomes are distinguished — MET, NOT MET, and **UNDERPOWERED**, the last
+of which must not be read as evidence against the treatment.
+
+**RESULT (real tools, 12 seeds, 6 design families):**
+
+```
+G-diagnostic    E = 1.256 +/- 0.000   probe cost 1.00
+H-uncertainty   E = 1.291 +/- 0.038   probe cost 2.75
++2.7% relative against a committed 5% threshold  ->  NOT MET
+(H's worst run, 1.229, falls below G's mean)
+```
+
+**The Bayesian belief + Value-of-Diagnosis layer does not earn its complexity.**
+Nearly 3x the probing cost for a gain that does not clear the bar. The
+obligation committed before the data was to SIMPLIFY, and it was honoured:
+`policy.RECOMMENDED = DIAGNOSTIC`, and `voe/regime.py` now carries a header
+recording that it failed its own test and is not on the default path.
+
+What survives and what does not:
+
+- **diagnosis before commitment** — established (+11.6%, far outside the spread)
+- **the Diagnosability Principle** — supported
+- **posteriors, sampled P(a is best), priced VoD** — NOT justified on efficiency.
+  Retained only for per-decision auditability ("best=formal, confidence=0.51,
+  ambiguity=0.49"), which is real but is a different argument.
+
+**This also weakens the case for Phase 5.** The world model's motivating gap was
+"the planner needs a better model of which probe is worth running" — and the
+measurement found that a one-line heuristic already selects probes as well as a
+priced VoD does. Building a predictive layer on top of a component that failed
+its own test would compound an unjustified assumption. Phase 5 needs a new
+justification, or a different foundation.
+
+The mock run of the same comparison gave +4.6% — also NOT MET, but close enough
+to the threshold that a post-hoc rule would have been tempting. That is precisely
+what committing the threshold first prevents.
+
+### Institutional memory, and Experiment 6 — finding the heuristic's boundary
+
+**The rejection was recorded, not just applied** (`voe/institutional_memory.py`,
+`voe_bench/capability_ledger.json`). An organisation that remembers only its
+successes relearns its failures, so the record carries the hypothesis, the
+evidence, the decision, **and the conditions under which to reconsider**:
+long-horizon boards, coupled obligations, non-stationary environments, large
+action spaces, multi-step diagnosis. That list is simultaneously a research
+programme — each entry names a regime where the simple policy should break.
+
+Promotion is now priced: `benefit > threshold + uncertainty + complexity`. For
+H that bar was **11.5%** against a measured +2.8% — the rejection is clearer once
+~3x probing spend is charged rather than ignored.
+
+**Experiment 6 tests the first revisit condition.** Assume-guarantee structure:
+a LEMMA (`fifo.cnt_bound`, weight 1, proved by a real `sby` run) unlocks eight
+dependents worth 48, which cannot be discharged until it closes. Eight
+independently closable distractors of weight 5 give a one-step rule something
+more attractive to chase.
+
+```
+G-diagnostic (one-step)   E=1.175   closed 47 of 89   cost 40
+I-lookahead  (values what an action unlocks)
+                          E=1.350   closed 54 of 89   cost 40
+                                                      +14.9%
+```
+
+**The first regime found where the simple policy fails materially.** A one-step
+expected-value rule ranks the lemma by its own weight of 1 and never reaches the
+48 behind it.
+
+*The first version of this board found nothing* — it blocked everything except
+the lemma, so the greedy policy proved it by elimination rather than foresight.
+A horizon test requires the greedy policy to have attractive alternatives; that
+correction is what made the experiment able to answer its question.
+
+**Boundary of the claim:** the dependency structure is DECLARED, as an
+assume-guarantee contract is, so a planner may legitimately use it. The lemma is
+discharged by a real proof, but the dependents' unlocking is modelled. This is a
+PLANNER experiment on a partly modelled environment — not a measurement of tool
+behaviour.
+
+This is what a derived justification looks like: **the failure came first, the
+mechanism second.** Multi-step planning is now motivated by a demonstrated
+deficiency rather than chosen because it is the next interesting thing to build.
+
+**Revised roadmap**, reflecting what was actually learned rather than what was
+planned:
+
+```
+Phase 1  VSA kernel                          complete
+Phase 2  Verification environment            complete
+Phase 3  Single engineer on real evidence    complete
+Phase 4  Adaptive verification strategy      CURRENT
+         4a cross-design adaptation          done
+         4b regime contingency               done
+         4c obligation conditioning          done
+         4d diagnosis before commitment      done
+         4e belief vs heuristic              RESOLVED: negative (NOT MET)
+Phase 5  Predictive world model              justification WEAKENED by 4e —
+                                             needs a new one, or a different
+                                             foundation than the belief layer
+Phase 6  Emergent specialisation             specialists earned, not declared
+Phase 7  Multi-agent organisation
+Phase 8  Self-improvement
+Phase 9  Autonomous verification research
+```
+
+Multi-agent work moved DOWN, deliberately. A single engineer that knows what it
+does not know is worth more than ten that coordinate confidently.
 
 ## 9. Roadmap position
 
