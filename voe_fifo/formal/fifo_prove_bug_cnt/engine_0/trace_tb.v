@@ -8,21 +8,21 @@ module testbench(input clock, output reg genclock);
 `endif
   reg genclock = 1;
   reg [31:0] cycle = 0;
-  wire [0:0] PI_clk = clock;
-  reg [0:0] PI_flush_but_first;
   reg [0:0] PI_flush;
+  reg [0:0] PI_pop;
+  wire [0:0] PI_clk = clock;
+  reg [0:0] PI_push;
+  reg [0:0] PI_flush_but_first;
   reg [3:0] PI_din;
   reg [0:0] PI_testmode;
-  reg [0:0] PI_pop;
-  reg [0:0] PI_push;
   fifo_fv UUT (
-    .clk(PI_clk),
-    .flush_but_first(PI_flush_but_first),
     .flush(PI_flush),
-    .din(PI_din),
-    .testmode(PI_testmode),
     .pop(PI_pop),
-    .push(PI_push)
+    .clk(PI_clk),
+    .push(PI_push),
+    .flush_but_first(PI_flush_but_first),
+    .din(PI_din),
+    .testmode(PI_testmode)
   );
 `ifndef VERILATOR
   initial begin
@@ -50,82 +50,82 @@ module testbench(input clock, output reg genclock);
     UUT.dut.u_fifo._witness_.anyinit_procdff_222 = 3'b000;
 
     // state 0
-    PI_flush_but_first = 1'b0;
     PI_flush = 1'b0;
-    PI_din = 4'b0001;
-    PI_testmode = 1'b0;
     PI_pop = 1'b0;
     PI_push = 1'b1;
+    PI_flush_but_first = 1'b0;
+    PI_din = 4'b0001;
+    PI_testmode = 1'b0;
   end
   always @(posedge clock) begin
     // state 1
     if (cycle == 0) begin
-      PI_flush_but_first <= 1'b0;
       PI_flush <= 1'b0;
-      PI_din <= 4'b0000;
-      PI_testmode <= 1'b0;
       PI_pop <= 1'b0;
       PI_push <= 1'b1;
+      PI_flush_but_first <= 1'b0;
+      PI_din <= 4'b0000;
+      PI_testmode <= 1'b0;
     end
 
     // state 2
     if (cycle == 1) begin
-      PI_flush_but_first <= 1'b0;
       PI_flush <= 1'b0;
-      PI_din <= 4'b1101;
-      PI_testmode <= 1'b0;
       PI_pop <= 1'b0;
       PI_push <= 1'b1;
+      PI_flush_but_first <= 1'b0;
+      PI_din <= 4'b1101;
+      PI_testmode <= 1'b0;
     end
 
     // state 3
     if (cycle == 2) begin
-      PI_flush_but_first <= 1'b0;
       PI_flush <= 1'b0;
-      PI_din <= 4'b0000;
-      PI_testmode <= 1'b0;
       PI_pop <= 1'b0;
       PI_push <= 1'b1;
+      PI_flush_but_first <= 1'b0;
+      PI_din <= 4'b0000;
+      PI_testmode <= 1'b0;
     end
 
     // state 4
     if (cycle == 3) begin
-      PI_flush_but_first <= 1'b0;
       PI_flush <= 1'b0;
-      PI_din <= 4'b0000;
-      PI_testmode <= 1'b0;
       PI_pop <= 1'b0;
       PI_push <= 1'b1;
+      PI_flush_but_first <= 1'b0;
+      PI_din <= 4'b0000;
+      PI_testmode <= 1'b0;
     end
 
     // state 5
     if (cycle == 4) begin
-      PI_flush_but_first <= 1'b0;
       PI_flush <= 1'b0;
-      PI_din <= 4'b0000;
-      PI_testmode <= 1'b0;
       PI_pop <= 1'b0;
       PI_push <= 1'b1;
+      PI_flush_but_first <= 1'b0;
+      PI_din <= 4'b0000;
+      PI_testmode <= 1'b0;
     end
 
     // state 6
     if (cycle == 5) begin
-      PI_flush_but_first <= 1'b1;
       PI_flush <= 1'b0;
-      PI_din <= 4'b0000;
-      PI_testmode <= 1'b0;
       PI_pop <= 1'b1;
       PI_push <= 1'b1;
+      PI_flush_but_first <= 1'b1;
+      PI_din <= 4'b0000;
+      PI_testmode <= 1'b0;
     end
 
     // state 7
     if (cycle == 6) begin
-      PI_flush_but_first <= 1'b0;
       PI_flush <= 1'b0;
-      PI_din <= 4'b0000;
-      PI_testmode <= 1'b0;
       PI_pop <= 1'b0;
       PI_push <= 1'b0;
+      PI_flush_but_first <= 1'b0;
+      PI_din <= 4'b0000;
+      PI_testmode <= 1'b0;
     end
 
     genclock <= cycle < 7;
