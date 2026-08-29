@@ -768,6 +768,180 @@ def test_a_policy_cannot_manufacture_knowledge():
     assert ev.status == "gate_failed" and j is None and "p" not in ks.K
 
 
+# --------------------------------------------------------------------------- #
+# Obligation features must mean what they claim                               #
+# --------------------------------------------------------------------------- #
+from obligation_state import probe_structure, _has_datapath_multiply
+
+
+def test_comments_do_not_create_arithmetic(tmp_path):
+    """An earlier version scanned raw source and matched the '*' in every
+    /* ... */ block, labelling comment-heavy combinational RTL as arithmetic."""
+    f = tmp_path / "m.sv"
+    f.write_text("/* a comment with * stars * in it */\n"
+                 "module m(input a, output b); assign b = a; endmodule\n")
+    arith, seq, _ = probe_structure(str(f))
+    assert not arith and not seq
+
+
+def test_index_arithmetic_is_not_a_datapath_multiply():
+    """i*4 and x[2*N*(s+1)-1:0] are strides and indices — they elaborate away.
+    Only variable x variable outside a select builds the solver's bit-blast
+    wall, which is what the feature is for."""
+    assert not _has_datapath_multiply("assign y = x[i*4 +: 3];")
+    assert not _has_datapath_multiply("assign y = q[2*N*(seg+1)-1 : 2*N*seg];")
+    assert not _has_datapath_multiply("assign y = a * 4;")
+    assert _has_datapath_multiply("assign dst = srcA * srcB;")
+
+
+def test_always_comb_is_not_sequential(tmp_path):
+    """Counting every always block (as rtl_graph's always_blocks does) marked
+    purely combinational designs like ibex_alu as stateful."""
+    f = tmp_path / "c.sv"
+    f.write_text("module c(input a, output logic b);\n"
+                 "  always_comb b = ~a;\nendmodule\n")
+    _a, seq, _d = probe_structure(str(f))
+    assert not seq
+    g = tmp_path / "s.sv"
+    g.write_text("module s(input clk, a, output logic b);\n"
+                 "  always_ff @(posedge clk) b <= a;\nendmodule\n")
+    assert probe_structure(str(g))[1]
+
+
+# --------------------------------------------------------------------------- #
+# Regime belief — the uncertainty layer                                       #
+# --------------------------------------------------------------------------- #
+from regime import RegimeBelief
+
+
+def test_a_sim_pass_is_not_a_closure():
+    """The belief must learn from CLOSURE, not from risk movement. Reading a
+    simulation pass (which lowers R via n_eff but settles nothing) as success
+    made the policy run 162 sim passes in one campaign and never reach for a
+    proof — the same shaving-vs-discharge conflation as in the metric."""
+    b = RegimeBelief(seed=1)
+    for _ in range(6):
+        b.observe(("invariant", False, True), "sim", closed=False, phi="p1")
+    al, be = b.posterior(("invariant", False, True), "sim", phi="p1")
+    assert al / (al + be) < 0.2          # repeated non-closure is believed
+
+
+def test_structural_prior_favours_the_channel_that_can_close():
+    """Simulation is inductive — it closes only by counterexample. Formal is
+    deductive — it closes by proof OR counterexample. A uniform 0.5 prior plus
+    cost-normalised utility hands the cheap channel a permanent advantage and
+    formal is never sampled."""
+    b = RegimeBelief(seed=2)
+    assert b.PRIOR_CLOSE["formal"] > b.PRIOR_CLOSE["sim"]
+    sig = ("equivalence", False, False)
+    pb = b.p_best(sig, ["sim", "formal"], weight=6.0,
+                  costs={"sim": 1.0, "formal": 4.0}, draws=300)
+    assert 0.0 < pb["formal"] < 1.0      # formal is genuinely in contention
+
+
+def test_local_evidence_outweighs_the_class():
+    """Partial pooling global <- class <- obligation. Without the local level,
+    failures on one obligation barely move a class-wide mean and the policy
+    re-attempts the losing action."""
+    b = RegimeBelief(seed=3)
+    sig = ("invariant", False, True)
+    for i in range(8):                    # class says formal usually closes
+        b.observe(sig, "formal", closed=True, phi=f"other{i}")
+    for _ in range(3):                    # but THIS obligation refuses it
+        b.observe(sig, "formal", closed=False, phi="hard")
+    p_class = (lambda a, c: a / (a + c))(*b.posterior(sig, "formal"))
+    p_local = (lambda a, c: a / (a + c))(*b.posterior(sig, "formal", phi="hard"))
+    assert p_local < p_class
+
+
+def test_ambiguity_is_high_when_the_ranking_is_unsettled():
+    b = RegimeBelief(seed=4)
+    sig = ("equivalence", True, False)
+    amb, pb = b.ambiguity(sig, ["sim", "formal"], 6.0,
+                          {"sim": 1.0, "formal": 4.0}, draws=300)
+    assert 0.0 <= amb <= 1.0 and abs(sum(pb.values()) - 1.0) < 1e-9
+
+
+def test_vod_is_finite_and_charges_for_the_probe():
+    b = RegimeBelief(seed=5)
+    sig = ("invariant", False, True)
+    v_cheap, _ = b.vod(sig, ["sim", "formal"], 6.0,
+                       {"sim": 1.0, "formal": 4.0}, probe_cost=0.25)
+    v_dear, _ = b.vod(sig, ["sim", "formal"], 6.0,
+                      {"sim": 1.0, "formal": 4.0}, probe_cost=5.0)
+    assert v_dear < v_cheap               # an expensive probe is worth less
+
+
+def test_worker_seed_is_stable_across_processes():
+    """`hash(name)` is randomised per interpreter, so two identical runs drew
+    different simulation seeds and produced different results — while the
+    reported std was 0.000, because the repeats varied the POLICY seed and never
+    this one. Reproducibility has to be checkable, not assumed."""
+    import zlib
+    w = Worker("F-obligation", "x", K, FormalChannel(mock=True), SimChannel(mock=True))
+    assert w._seed == (zlib.crc32(b"F-obligation") % 1000) + 1
+    again = Worker("F-obligation", "x", K, FormalChannel(mock=True), SimChannel(mock=True))
+    assert w._seed == again._seed
+
+
+# --------------------------------------------------------------------------- #
+# Pre-registration — the criteria must predate the data                       #
+# --------------------------------------------------------------------------- #
+from preregistration import Criteria, Preregistration
+
+
+def _prereg(tmp_path, **kw):
+    c = Criteria(question="q", treatment="H", control="G", **kw)
+    return Preregistration(c, str(tmp_path / "p.json")).commit()
+
+
+def test_criteria_are_hashed_and_tamper_evident(tmp_path):
+    p = _prereg(tmp_path)
+    assert p.intact and p.digest
+    with open(p.path) as f:
+        text = f.read()
+    with open(p.path, "w") as f:                       # move the goalposts
+        f.write(text.replace('"min_effect": 0.05', '"min_effect": 0.01'))
+    reloaded = Preregistration.load(p.path)
+    assert not reloaded.intact
+    assert reloaded.decide(1.3, 0.01, 1.25, 0.01, 12, 3)[0] == "INVALID"
+
+
+def test_committing_twice_does_not_overwrite(tmp_path):
+    p = _prereg(tmp_path, min_effect=0.05)
+    again = Preregistration(Criteria(question="q", treatment="H", control="G",
+                                     min_effect=0.001), p.path).commit()
+    assert again.criteria.min_effect == 0.05           # the original stands
+
+
+def test_a_margin_below_the_committed_threshold_is_not_met(tmp_path):
+    """+4.6% against a 5% rule reads like a win to the eye. The rule was fixed
+    before the data precisely so that it cannot."""
+    p = _prereg(tmp_path, min_effect=0.05, noise_multiple=2.0)
+    verdict, why = p.decide(1.314, 0.010, 1.256, 0.000, 12, 3)
+    assert verdict == "NOT MET" and "4.6%" in why[0]
+
+
+def test_a_margin_inside_the_noise_is_not_met(tmp_path):
+    p = _prereg(tmp_path, min_effect=0.02, noise_multiple=2.0)
+    verdict, _ = p.decide(1.30, 0.05, 1.25, 0.05, 12, 3)   # +4% but 2x std = 0.10
+    assert verdict == "NOT MET"
+
+
+def test_too_few_seeds_is_underpowered_not_negative(tmp_path):
+    """An experiment that cannot answer the question must say so, rather than
+    be read as evidence against the treatment."""
+    p = _prereg(tmp_path, min_seeds=12)
+    verdict, _ = p.decide(1.30, 0.01, 1.25, 0.01, 3, 3)
+    assert verdict == "UNDERPOWERED"
+
+
+def test_a_real_effect_clears_the_committed_rule(tmp_path):
+    p = _prereg(tmp_path, min_effect=0.05, noise_multiple=2.0, min_seeds=12)
+    verdict, _ = p.decide(1.60, 0.01, 1.25, 0.01, 12, 3)
+    assert verdict == "MET"
+
+
 def test_specialists_share_one_canonical_state():
     """Different owners, one truth: a proof by one specialist settles the
     property for the whole organisation (Struct-1 confluence)."""
