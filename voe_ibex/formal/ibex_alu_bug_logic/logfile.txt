@@ -1,32 +1,32 @@
-SBY  2:25:59 [ibex_alu_bug_logic] Removing directory '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_bug_logic'.
-SBY  2:25:59 [ibex_alu_bug_logic] Copy '/mnt/e/ai-chip-design-platform/voe_ibex/formal/gen/ibex_alu.v' to '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_bug_logic/src/ibex_alu.v'.
-SBY  2:25:59 [ibex_alu_bug_logic] Copy '/mnt/e/ai-chip-design-platform/voe_ibex/formal/gen/ibex_alu_mut.v' to '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_bug_logic/src/ibex_alu_mut.v'.
-SBY  2:25:59 [ibex_alu_bug_logic] Copy '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_fv.v' to '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_bug_logic/src/ibex_alu_fv.v'.
-SBY  2:25:59 [ibex_alu_bug_logic] engine_0: smtbmc z3
-SBY  2:25:59 [ibex_alu_bug_logic] base: starting process "cd ibex_alu_bug_logic/src; yosys -ql ../model/design.log ../model/design.ys"
-SBY  2:26:00 [ibex_alu_bug_logic] base: finished (returncode=0)
-SBY  2:26:00 [ibex_alu_bug_logic] prep: starting process "cd ibex_alu_bug_logic/model; yosys -ql design_prep.log design_prep.ys"
-SBY  2:26:00 [ibex_alu_bug_logic] prep: finished (returncode=0)
-SBY  2:26:00 [ibex_alu_bug_logic] smt2: starting process "cd ibex_alu_bug_logic/model; yosys -ql design_smt2.log design_smt2.ys"
-SBY  2:26:00 [ibex_alu_bug_logic] smt2: finished (returncode=0)
-SBY  2:26:00 [ibex_alu_bug_logic] engine_0: starting process "cd ibex_alu_bug_logic; yosys-smtbmc -s z3 --presat --noprogress -t 2  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2"
-SBY  2:26:00 [ibex_alu_bug_logic] engine_0: ##   0:00:00  Solver: z3
-SBY  2:26:00 [ibex_alu_bug_logic] engine_0: ##   0:00:00  Checking assumptions in step 0..
-SBY  2:26:00 [ibex_alu_bug_logic] engine_0: ##   0:00:00  Checking assertions in step 0..
-SBY  2:26:00 [ibex_alu_bug_logic] engine_0: ##   0:00:00  Checking assumptions in step 1..
-SBY  2:26:00 [ibex_alu_bug_logic] engine_0: ##   0:00:00  Checking assertions in step 1..
-SBY  2:26:00 [ibex_alu_bug_logic] engine_0: ##   0:00:00  BMC failed!
-SBY  2:26:00 [ibex_alu_bug_logic] engine_0: ##   0:00:00  Assert failed in ibex_alu_fv: ibex_alu_fv.v:77.5-77.29 (_witness_.check_assert_ibex_alu_fv_v_77_140)
-SBY  2:26:00 [ibex_alu_bug_logic] engine_0: ##   0:00:00  Writing trace to VCD file: engine_0/trace.vcd
-SBY  2:26:00 [ibex_alu_bug_logic] engine_0: ##   0:00:00  Writing trace to Verilog testbench: engine_0/trace_tb.v
-SBY  2:26:00 [ibex_alu_bug_logic] engine_0: ##   0:00:00  Writing trace to constraints file: engine_0/trace.smtc
-SBY  2:26:00 [ibex_alu_bug_logic] engine_0: ##   0:00:00  Writing trace to Yosys witness file: engine_0/trace.yw
-SBY  2:26:00 [ibex_alu_bug_logic] engine_0: ##   0:00:00  Status: failed
-SBY  2:26:00 [ibex_alu_bug_logic] engine_0: finished (returncode=1)
-SBY  2:26:00 [ibex_alu_bug_logic] engine_0: Status returned by engine: FAIL
-SBY  2:26:00 [ibex_alu_bug_logic] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:01 (1)
-SBY  2:26:00 [ibex_alu_bug_logic] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
-SBY  2:26:00 [ibex_alu_bug_logic] summary: engine_0 (smtbmc z3) returned FAIL
-SBY  2:26:00 [ibex_alu_bug_logic] summary: counterexample trace: ibex_alu_bug_logic/engine_0/trace.vcd
-SBY  2:26:00 [ibex_alu_bug_logic] summary:   failed assertion ibex_alu_fv._witness_.check_assert_ibex_alu_fv_v_77_140 at ibex_alu_fv.v:77.5-77.29 step 1
-SBY  2:26:00 [ibex_alu_bug_logic] DONE (FAIL, rc=0)
+SBY  0:28:45 [ibex_alu_bug_logic] Removing directory '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_bug_logic'.
+SBY  0:28:45 [ibex_alu_bug_logic] Copy '/mnt/e/ai-chip-design-platform/voe_ibex/formal/gen/ibex_alu.v' to '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_bug_logic/src/ibex_alu.v'.
+SBY  0:28:45 [ibex_alu_bug_logic] Copy '/mnt/e/ai-chip-design-platform/voe_ibex/formal/gen/ibex_alu_mut.v' to '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_bug_logic/src/ibex_alu_mut.v'.
+SBY  0:28:45 [ibex_alu_bug_logic] Copy '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_fv.v' to '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_bug_logic/src/ibex_alu_fv.v'.
+SBY  0:28:45 [ibex_alu_bug_logic] engine_0: smtbmc z3
+SBY  0:28:45 [ibex_alu_bug_logic] base: starting process "cd ibex_alu_bug_logic/src; yosys -ql ../model/design.log ../model/design.ys"
+SBY  0:28:45 [ibex_alu_bug_logic] base: finished (returncode=0)
+SBY  0:28:45 [ibex_alu_bug_logic] prep: starting process "cd ibex_alu_bug_logic/model; yosys -ql design_prep.log design_prep.ys"
+SBY  0:28:46 [ibex_alu_bug_logic] prep: finished (returncode=0)
+SBY  0:28:46 [ibex_alu_bug_logic] smt2: starting process "cd ibex_alu_bug_logic/model; yosys -ql design_smt2.log design_smt2.ys"
+SBY  0:28:46 [ibex_alu_bug_logic] smt2: finished (returncode=0)
+SBY  0:28:46 [ibex_alu_bug_logic] engine_0: starting process "cd ibex_alu_bug_logic; yosys-smtbmc -s z3 --presat --noprogress -t 2  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2"
+SBY  0:28:46 [ibex_alu_bug_logic] engine_0: ##   0:00:00  Solver: z3
+SBY  0:28:46 [ibex_alu_bug_logic] engine_0: ##   0:00:00  Checking assumptions in step 0..
+SBY  0:28:46 [ibex_alu_bug_logic] engine_0: ##   0:00:00  Checking assertions in step 0..
+SBY  0:28:46 [ibex_alu_bug_logic] engine_0: ##   0:00:00  Checking assumptions in step 1..
+SBY  0:28:46 [ibex_alu_bug_logic] engine_0: ##   0:00:00  Checking assertions in step 1..
+SBY  0:28:46 [ibex_alu_bug_logic] engine_0: ##   0:00:00  BMC failed!
+SBY  0:28:46 [ibex_alu_bug_logic] engine_0: ##   0:00:00  Assert failed in ibex_alu_fv: ibex_alu_fv.v:77.5-77.29 (_witness_.check_assert_ibex_alu_fv_v_77_140)
+SBY  0:28:46 [ibex_alu_bug_logic] engine_0: ##   0:00:00  Writing trace to VCD file: engine_0/trace.vcd
+SBY  0:28:46 [ibex_alu_bug_logic] engine_0: ##   0:00:00  Writing trace to Verilog testbench: engine_0/trace_tb.v
+SBY  0:28:46 [ibex_alu_bug_logic] engine_0: ##   0:00:00  Writing trace to constraints file: engine_0/trace.smtc
+SBY  0:28:46 [ibex_alu_bug_logic] engine_0: ##   0:00:00  Writing trace to Yosys witness file: engine_0/trace.yw
+SBY  0:28:46 [ibex_alu_bug_logic] engine_0: ##   0:00:00  Status: failed
+SBY  0:28:46 [ibex_alu_bug_logic] engine_0: finished (returncode=1)
+SBY  0:28:46 [ibex_alu_bug_logic] engine_0: Status returned by engine: FAIL
+SBY  0:28:46 [ibex_alu_bug_logic] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:01 (1)
+SBY  0:28:46 [ibex_alu_bug_logic] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY  0:28:46 [ibex_alu_bug_logic] summary: engine_0 (smtbmc z3) returned FAIL
+SBY  0:28:46 [ibex_alu_bug_logic] summary: counterexample trace: ibex_alu_bug_logic/engine_0/trace.vcd
+SBY  0:28:46 [ibex_alu_bug_logic] summary:   failed assertion ibex_alu_fv._witness_.check_assert_ibex_alu_fv_v_77_140 at ibex_alu_fv.v:77.5-77.29 step 1
+SBY  0:28:46 [ibex_alu_bug_logic] DONE (FAIL, rc=0)
