@@ -45,6 +45,9 @@ class CampaignResult:
     gate_armed: bool = False
 
     closed_weight: float = 0.0      # weight of obligations actually CLOSED
+    wrong_commitments: int = 0      # expensive actions that returned nothing
+    premature_loss: float = 0.0     # budget lost to them
+    probe_cost: float = 0.0         # spent on diagnosis
 
     @property
     def risk_delta(self) -> float:
@@ -109,6 +112,15 @@ def run_campaign(voe, design: str, policy_name: str, max_steps=120) -> CampaignR
         res.gate_armed = False
     # cost sunk into obligations that were still open at the end (0 if none were)
     res.wasted_cost = _wasted(voe, set(res.undischarged))
+    # PREMATURE SPECIALISATION: expensive actions committed on a class the
+    # policy had not disambiguated, which returned no verdict at all.
+    for e in getattr(voe, "action_log", []):
+        if e["method"] == "probe":
+            res.probe_cost += e["cost"]
+        elif e["method"] == "formal" and e["status"] not in (
+                "proved", "counterexample", "bounded_pass"):
+            res.wrong_commitments += 1
+            res.premature_loss += e["cost"]
     res.steps_to_first_discharge = _first_discharge(voe)
     return res
 
@@ -180,6 +192,21 @@ class Aggregate:
     @property
     def gate_armed(self):
         return all(r.gate_armed for r in self.runs) if self.runs else False
+
+    def _avg(self, attr):
+        return sum(getattr(r, attr) for r in self.runs) / self.n if self.n else 0.0
+
+    @property
+    def wrong_commitments(self):
+        return self._avg("wrong_commitments")
+
+    @property
+    def premature_loss(self):
+        return self._avg("premature_loss")
+
+    @property
+    def probe_cost(self):
+        return self._avg("probe_cost")
 
     def row(self):
         return (f"  {self.policy:14s} E={self.mean_E:6.3f} +/-{self.std_E:5.3f}  "
