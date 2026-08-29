@@ -84,7 +84,8 @@ class VOE:
                 # has stopped paying, which is exactly how a strategy calcifies
                 # into a habit.
                 if hasattr(pick.worker, "observe"):
-                    pick.worker.observe(pick.method, 0.0, cost, pick.phi)
+                    pick.worker.observe(pick.method, 0.0, cost, pick.phi,
+                                        closed=False)
                 print(f"  step {step:2d}  {pick.worker.name:8s} {pick.method:6s} {pick.phi:16s}"
                       f" -> {ev.status:14s} R={k.R(ks,w):.3f} spent={self.ledger.spent:.0f}"
                       f"  NOT CERTIFIED: {ev.detail}")
@@ -95,7 +96,9 @@ class VOE:
             self.rep.record(pick.worker.name, pick.method, merge, Rbefore - Rafter, ev.status)
             # let an adaptive policy learn which channel actually paid off
             if hasattr(pick.worker, "observe"):
-                pick.worker.observe(pick.method, Rbefore - Rafter, cost, pick.phi)
+                settled = ks.proven(pick.phi) or ks.disproven(pick.phi)
+                pick.worker.observe(pick.method, Rbefore - Rafter, cost, pick.phi,
+                                    closed=settled)
             curR, laws = k.check_laws(ks, w, prev, "update")
             ok = all(v for _, v in laws)
             tag = f"  [refutes {merge.dominated_worker}'s pass]" if merge.dominated_worker else ""
