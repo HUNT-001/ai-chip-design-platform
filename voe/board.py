@@ -19,6 +19,15 @@ class Task:
     signed_off: bool = False        # true only when discharged by witnessed evidence
     kind: str = "functional"        # "functional" | "structural"
     note: str = ""                  # provenance / why it exists
+    requires: tuple = ()            # obligations that must close before this one
+    enables: tuple = ()             # obligations this one unlocks when closed
+
+    # `requires`/`enables` express assume-guarantee structure: a lemma proved
+    # once lets dependent properties assume it, which is how real verification
+    # decomposes. It is DECLARED by the engineer, exactly as an assume-guarantee
+    # contract is — so a planner is entitled to use it. A one-step
+    # expected-value rule cannot: the lemma may be expensive and carry little
+    # weight of its own, while unlocking most of the board.
 
     def has_evidence_path(self) -> bool:
         """Can this obligation actually be discharged with what we have?
@@ -44,8 +53,27 @@ class TaskBoard:
                 if not ks.proven(t.phi) and not ks.disproven(t.phi)]
 
     def actionable(self, ks):
-        """Open obligations that something can actually be run against."""
-        return [t for t in self.open_tasks(ks) if t.has_evidence_path()]
+        """Open obligations that something can actually be run against.
+
+        An obligation whose prerequisites are not yet closed cannot be
+        discharged — its proof would have to assume a lemma nobody has
+        established. It stays on the board contributing risk, and becomes
+        actionable the moment its lemma closes.
+        """
+        out = []
+        for t in self.open_tasks(ks):
+            if not t.has_evidence_path():
+                continue
+            if any(not (ks.proven(r) or ks.disproven(r)) for r in t.requires):
+                continue                       # blocked on an unproved lemma
+            out.append(t)
+        return out
+
+    def blocked(self, ks):
+        """Open obligations waiting on a lemma."""
+        return [t.phi for t in self.open_tasks(ks)
+                if t.requires and any(not (ks.proven(r) or ks.disproven(r))
+                                      for r in t.requires)]
 
     def unverifiable(self, ks):
         """Open obligations with NO checker — real work that nobody can do yet."""
@@ -57,7 +85,14 @@ class TaskBoard:
 
 # Per-method costs (arbitrary units; formal is dearer than a sim run, static
 # structural analysis is cheapest — it parses rather than executes or solves).
-ACTION_COST = {"sim": 1.0, "formal": 4.0, "static": 0.5}
+ACTION_COST = {"sim": 1.0, "formal": 4.0, "static": 0.5, "probe": 0.25}
+
+# `probe` is a DIAGNOSTIC action: a very short simulation whose purpose is not to
+# discharge an obligation but to find out which action is worth taking next. It
+# is what a senior engineer does when they do not know the answer — run the cheap
+# experiment that tells you where to spend. It is still real evidence: if it hits
+# a counterexample the obligation closes, and if it passes it contributes (a
+# little) inductive weight. Nothing about it is exempt from the kernel.
 
 
 @dataclass
