@@ -10,13 +10,13 @@ module testbench(input clock, output reg genclock);
   reg [31:0] cycle = 0;
   reg [2:0] PI_op;
   reg [31:0] PI_a;
-  reg [31:0] PI_b;
   wire [0:0] PI_clk = clock;
+  reg [31:0] PI_b;
   alu_fv UUT (
     .op(PI_op),
     .a(PI_a),
-    .b(PI_b),
-    .clk(PI_clk)
+    .clk(PI_clk),
+    .b(PI_b)
   );
 `ifndef VERILATOR
   initial begin
