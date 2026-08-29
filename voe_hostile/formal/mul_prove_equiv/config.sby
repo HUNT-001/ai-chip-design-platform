@@ -1,0 +1,29 @@
+# FORMAL-HOSTILE board: 32x32 multiplier equivalence against a shift-and-add
+# reference. A short wall-clock budget is set deliberately — the question this
+# board asks is not "is the design correct" but "what happens to a policy when
+# formal STOPS BEING THE CHEAP ANSWER".
+#
+# timeout is what makes the regime hostile. Without it the solver would simply
+# take as long as it takes and the economics would never change.
+#
+# bug_equiv is the vacuity gate AND the sim-findable defect: the mutated
+# multiplier corrupts the product whenever srcB[3:0]==0xF.
+
+[options]
+mode bmc
+depth 1
+timeout 30
+expect pass
+
+[engines]
+smtbmc z3
+
+[script]
+verilog_defines -DCLASS_EQUIV
+read_verilog mul.v
+read_verilog -sv mul_fv.v
+prep -top mul_fv
+
+[files]
+gen/mul.v
+mul_fv.v

@@ -1,0 +1,21 @@
+SBY  0:28:57 [mul_prove_equiv] Removing directory '/mnt/e/ai-chip-design-platform/voe_hostile/formal/mul_prove_equiv'.
+SBY  0:28:57 [mul_prove_equiv] Copy '/mnt/e/ai-chip-design-platform/voe_hostile/formal/gen/mul.v' to '/mnt/e/ai-chip-design-platform/voe_hostile/formal/mul_prove_equiv/src/mul.v'.
+SBY  0:28:57 [mul_prove_equiv] Copy '/mnt/e/ai-chip-design-platform/voe_hostile/formal/mul_fv.v' to '/mnt/e/ai-chip-design-platform/voe_hostile/formal/mul_prove_equiv/src/mul_fv.v'.
+SBY  0:28:57 [mul_prove_equiv] engine_0: smtbmc z3
+SBY  0:28:57 [mul_prove_equiv] base: starting process "cd mul_prove_equiv/src; yosys -ql ../model/design.log ../model/design.ys"
+SBY  0:28:57 [mul_prove_equiv] base: finished (returncode=0)
+SBY  0:28:57 [mul_prove_equiv] prep: starting process "cd mul_prove_equiv/model; yosys -ql design_prep.log design_prep.ys"
+SBY  0:28:58 [mul_prove_equiv] prep: finished (returncode=0)
+SBY  0:28:58 [mul_prove_equiv] smt2: starting process "cd mul_prove_equiv/model; yosys -ql design_smt2.log design_smt2.ys"
+SBY  0:28:58 [mul_prove_equiv] smt2: finished (returncode=0)
+SBY  0:28:58 [mul_prove_equiv] engine_0: starting process "cd mul_prove_equiv; yosys-smtbmc -s z3 --presat --noprogress -t 1  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2"
+SBY  0:28:58 [mul_prove_equiv] engine_0: ##   0:00:00  Solver: z3
+SBY  0:28:58 [mul_prove_equiv] engine_0: ##   0:00:00  Checking assumptions in step 0..
+SBY  0:28:58 [mul_prove_equiv] engine_0: ##   0:00:00  Checking assertions in step 0..
+SBY  0:29:29 [mul_prove_equiv] Reached TIMEOUT (30 seconds). Terminating all subprocesses.
+SBY  0:29:29 [mul_prove_equiv] engine_0: terminating process
+SBY  0:29:29 [mul_prove_equiv] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:31 (31)
+SBY  0:29:29 [mul_prove_equiv] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY  0:29:29 [mul_prove_equiv] summary: engine_0 (smtbmc z3) did not return a status
+SBY  0:29:29 [mul_prove_equiv] summary: engine_0 did not produce any traces
+SBY  0:29:29 [mul_prove_equiv] DONE (TIMEOUT, rc=8)

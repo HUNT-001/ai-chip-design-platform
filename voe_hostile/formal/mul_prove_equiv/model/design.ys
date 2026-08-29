@@ -1,0 +1,10 @@
+# running in mul_prove_equiv/src/
+verilog_defines -DCLASS_EQUIV
+read_verilog mul.v
+read_verilog -sv mul_fv.v
+prep -top mul_fv
+
+hierarchy -smtcheck
+rename -witness
+write_jny -no-connections ../model/design.json
+write_rtlil ../model/design.il

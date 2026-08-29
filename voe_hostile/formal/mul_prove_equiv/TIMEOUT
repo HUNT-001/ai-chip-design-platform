@@ -1,0 +1,4 @@
+Elapsed clock time [H:MM:SS (secs)]: 0:00:31 (31)
+Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
+engine_0 (smtbmc z3) did not return a status
+engine_0 did not produce any traces
