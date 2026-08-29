@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+<testsuite timestamp="2026-08-30T00:29:44" hostname="TANPAN" package="mul" id="0" name="bug_equiv" tests="1" errors="0" failures="1" time="0" skipped="0">
+<properties>
+<property name="os" value="Linux"/>
+<property name="expect" value="FAIL"/>
+<property name="status" value="FAIL"/>
+</properties>
+<testcase classname="bug_equiv" name="build execution" time="0">
+</testcase>
+<testcase classname="bug_equiv" name="Property ASSERT in mul_fv at mul_fv.v:69.15-69.33" time="0" type="ASSERT" location="mul_fv.v:69.15-69.33" id="_witness_.check_assert_mul_fv_v_69_73" tracefile="engine_0/trace.vcd">
+<failure type="ASSERT" message="Property ASSERT in mul_fv at mul_fv.v:69.15-69.33 failed. Trace file: engine_0/trace.vcd" />
+</testcase>
+<system-out>SBY  0:29:43 [mul_bug_equiv] Removing directory '/mnt/e/ai-chip-design-platform/voe_hostile/formal/mul_bug_equiv'.
+SBY  0:29:43 [mul_bug_equiv] Copy '/mnt/e/ai-chip-design-platform/voe_hostile/formal/gen/mul.v' to '/mnt/e/ai-chip-design-platform/voe_hostile/formal/mul_bug_equiv/src/mul.v'.
+SBY  0:29:43 [mul_bug_equiv] Copy '/mnt/e/ai-chip-design-platform/voe_hostile/formal/mul_fv.v' to '/mnt/e/ai-chip-design-platform/voe_hostile/formal/mul_bug_equiv/src/mul_fv.v'.
+SBY  0:29:43 [mul_bug_equiv] engine_0: smtbmc z3
+SBY  0:29:43 [mul_bug_equiv] base: starting process &quot;cd mul_bug_equiv/src; yosys -ql ../model/design.log ../model/design.ys&quot;
+SBY  0:29:43 [mul_bug_equiv] base: finished (returncode=0)
+SBY  0:29:43 [mul_bug_equiv] prep: starting process &quot;cd mul_bug_equiv/model; yosys -ql design_prep.log design_prep.ys&quot;
+SBY  0:29:44 [mul_bug_equiv] prep: finished (returncode=0)
+SBY  0:29:44 [mul_bug_equiv] smt2: starting process &quot;cd mul_bug_equiv/model; yosys -ql design_smt2.log design_smt2.ys&quot;
+SBY  0:29:44 [mul_bug_equiv] smt2: finished (returncode=0)
+SBY  0:29:44 [mul_bug_equiv] engine_0: starting process &quot;cd mul_bug_equiv; yosys-smtbmc -s z3 --presat --noprogress -t 1  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2&quot;
+SBY  0:29:44 [mul_bug_equiv] engine_0: ##   0:00:00  Solver: z3
+SBY  0:29:44 [mul_bug_equiv] engine_0: ##   0:00:00  Checking assumptions in step 0..
+SBY  0:29:44 [mul_bug_equiv] engine_0: ##   0:00:00  Checking assertions in step 0..
+SBY  0:29:44 [mul_bug_equiv] engine_0: ##   0:00:00  BMC failed!
+SBY  0:29:44 [mul_bug_equiv] engine_0: ##   0:00:00  Assert failed in mul_fv: mul_fv.v:69.15-69.33 (_witness_.check_assert_mul_fv_v_69_73)
+SBY  0:29:44 [mul_bug_equiv] engine_0: ##   0:00:00  Writing trace to VCD file: engine_0/trace.vcd
+SBY  0:29:44 [mul_bug_equiv] engine_0: ##   0:00:00  Writing trace to Verilog testbench: engine_0/trace_tb.v
+SBY  0:29:44 [mul_bug_equiv] engine_0: ##   0:00:00  Writing trace to constraints file: engine_0/trace.smtc
+SBY  0:29:44 [mul_bug_equiv] engine_0: ##   0:00:00  Writing trace to Yosys witness file: engine_0/trace.yw
+SBY  0:29:44 [mul_bug_equiv] engine_0: ##   0:00:00  Status: failed
+SBY  0:29:44 [mul_bug_equiv] engine_0: finished (returncode=1)
+SBY  0:29:44 [mul_bug_equiv] engine_0: Status returned by engine: FAIL
+SBY  0:29:44 [mul_bug_equiv] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY  0:29:44 [mul_bug_equiv] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY  0:29:44 [mul_bug_equiv] summary: engine_0 (smtbmc z3) returned FAIL
+SBY  0:29:44 [mul_bug_equiv] summary: counterexample trace: mul_bug_equiv/engine_0/trace.vcd
+SBY  0:29:44 [mul_bug_equiv] summary:   failed assertion mul_fv._witness_.check_assert_mul_fv_v_69_73 at mul_fv.v:69.15-69.33
+SBY  0:29:44 [mul_bug_equiv] DONE (FAIL, rc=0)
+</system-out>
+<system-err>
+</system-err>
+</testsuite>
+</testsuites>

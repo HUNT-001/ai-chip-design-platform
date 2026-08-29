@@ -1,0 +1,10 @@
+# running in mul_bug_equiv/src/
+verilog_defines -DCLASS_BUG -DDUT=mul_wrap_mut
+read_verilog mul.v
+read_verilog -sv mul_fv.v
+prep -top mul_fv
+
+hierarchy -smtcheck
+rename -witness
+write_jny -no-connections ../model/design.json
+write_rtlil ../model/design.il

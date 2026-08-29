@@ -1,0 +1,5 @@
+initial
+
+state 0
+assume (= [a] #x862c8001)
+assume (= [b] #x3000683f)
