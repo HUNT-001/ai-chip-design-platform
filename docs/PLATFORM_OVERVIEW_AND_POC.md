@@ -727,8 +727,11 @@ mislabelled, and neither appears in Experiment 3. Flagging the risk was right;
 asserting the result was tainted without checking was not, and the check was
 two commands.
 
-That is the sixth instrument defect in this sequence. The kernel and the RTL have
-been right every time; the measuring apparatus has been wrong repeatedly.
+That is the sixth instrument defect in this sequence. No kernel or RTL defect has
+been EXPOSED by these experiments; the measuring apparatus has been wrong
+repeatedly. That is not the same as the kernel being correct — it has simply not
+yet been falsified, and it should stay under attack while the layers above it
+change.
 
 ### Experiment 6 — uncertainty-aware conditioning (`voe_bench/run_controlled.py`)
 
@@ -1030,8 +1033,10 @@ H-uncertainty   E = 1.291 +/- 0.038   probe cost 2.75
 **The Bayesian belief + Value-of-Diagnosis layer does not earn its complexity.**
 Nearly 3x the probing cost for a gain that does not clear the bar. The
 obligation committed before the data was to SIMPLIFY, and it was honoured:
-`policy.RECOMMENDED = DIAGNOSTIC`, and `voe/regime.py` now carries a header
-recording that it failed its own test and is not on the default path.
+`policy.RECOMMENDED` was set to `DIAGNOSTIC`, and `voe/regime.py` now carries a
+header recording that it failed its own test and is not on the default path.
+(`G-diagnostic` was itself superseded as the default by Experiment 11 — see
+"Experiments 8–11" below. It remains the reference control.)
 
 What survives and what does not:
 
@@ -1088,11 +1093,18 @@ the lemma, so the greedy policy proved it by elimination rather than foresight.
 A horizon test requires the greedy policy to have attractive alternatives; that
 correction is what made the experiment able to answer its question.
 
-**Boundary of the claim:** the dependency structure is DECLARED, as an
-assume-guarantee contract is, so a planner may legitimately use it. The lemma is
-discharged by a real proof, but the dependents' unlocking is modelled. This is a
-PLANNER experiment on a partly modelled environment — not a measurement of tool
-behaviour.
+**STATUS OF THIS RESULT — the accurate wording, to be kept exactly:**
+
+> Synthetic/structural stress tests indicate substantial vulnerability of the
+> current planner to long-horizon and coupled-obligation structure; real-tool
+> validation remains pending.
+
+The dependency structure is DECLARED, as an assume-guarantee contract is, so a
+planner may legitimately use it, and the lemma itself is discharged by a real
+proof. But the dependents' unlocking is MODELLED. These are therefore **not yet
+demonstrated planner failures** — they are structural stress tests indicating
+where to look. Grounding them requires harnesses in which a dependent property
+genuinely times out without its lemma and proves with it.
 
 This is what a derived justification looks like: **the failure came first, the
 mechanism second.** Multi-step planning is now motivated by a demonstrated
@@ -1122,6 +1134,100 @@ Phase 9  Autonomous verification research
 
 Multi-agent work moved DOWN, deliberately. A single engineer that knows what it
 does not know is worth more than ten that coordinate confidently.
+
+## 8b. Experiments 8-11 — the default changes, and what it cost to find out
+
+Four pre-registered experiments on real RTL with real tools. The headline is that
+**the default policy changed from `G-diagnostic` to `M-static-cached`** — read
+each design's structure ONCE with `rtl_graph`, then commit. No probe, no
+posterior, no chain, no learned model.
+
+### The sequence
+
+| # | question | verdict | what it licensed |
+|---|---|---|---|
+| 8 | Does a chain of cheap real diagnostics beat a one-step policy? | MET, +15.0% | nothing yet — the control never read the RTL at all |
+| 9 | Is that the SEQUENCING, or just the information? | UNDERPOWERED | 56% of the gain was information; sequencing alone +6.1% |
+| 10 | Should `L-static-onestep` become the default? | REJECTED | failed the held-out condition, -5.6% |
+| 11 | Should `M-static-cached` become the default? | PROMOTED, +12.2% | the default changed |
+
+### Experiment 11 result (real tools, 24 seeds, 6 design families)
+
+```
+                      full board        held out (lfsr, mv_filter)
+G-diagnostic       E = 0.998 +/-0.012   E = 1.299
+M-static-cached    E = 1.120 +/-0.000   E = 1.310
+realisable         E = 1.324
++12.2% against a 6.2% bar; held-out NOT WORSE; closed weight equal at 98.0;
+zero redundant structural reads.   prereg sha256:03795d3516b2d507 INTACT
+```
+
+**The honest claim is "better on the full board, NOT WORSE on held-out."** The
+held-out margin is +0.9% across only two design families, which is thin. It is
+not "better everywhere," and a test now asserts that the ledger record keeps that
+caveat attached.
+
+### What the four experiments actually established
+
+**Five attempts to add machinery were beaten by one that removes it.**
+`H` (posteriors + priced VoD), `I`/`J` (lookahead and coupled ordering), `K` (a
+multi-step diagnostic chain) and `L` (the same structural read, bought per
+obligation) all lost to a policy whose entire content is: read the design once
+with a tool the project already had, then decide.
+
+**The world model is still unjustified, and Experiment 9 is why.** Experiment 8's
++15.0% looked like a mandate for multi-step planning. The ablation showed the
+control had simply never obtained structural information — 56% of the gain was
+the information, not the chaining. Sequencing alone was worth +6.1%, and the
+chain that earned it is **hand-written and two steps deep**. Nothing shows the
+chain must be *learned*. A learned dynamics model is a far larger complexity jump
+than 6.1% can carry.
+
+### The recurring defect, three appearances
+
+One error kept returning in different clothes: **being charged for information
+already held.**
+
+1. Experiment 8's first run handed every policy the probed structure up front, so
+   the treatment paid 0.5 for facts it possessed. Result: -52.6%, an experiment
+   that could not test its own hypothesis.
+2. `L` paid 0.5 per *obligation* for a fact belonging to a *design* — 6 of 11
+   reads redundant on the full board, 4 of 6 on held-out.
+3. The overhead amortises over 20 obligations and dominates over 7, so `L` won
+   the full board and lost the small split.
+
+**I read (2) as overfitting. That was wrong**, and the aggregate `E` could not
+have told me — only per-read instrumentation could. A cost-model error and
+overfitting are indistinguishable from the efficiency number alone. Experiment 11
+therefore carries a fourth committed condition: an **in-run instrument check**
+that zero design facts are repeat-bought. If it fails, `E` is ignored entirely.
+
+### Instrument defects found before any verdict was trusted
+
+Experiment 8's arm produced three separate confident numbers from machinery that
+was not running:
+
+- **the branch was dead code** — guarded on `hasattr(self, "belief")`, copied
+  from the uncertainty-aware policy, which a multistep worker never has. The
+  structural read executed in *no* campaign, while the arm reported +39.2%.
+- **the gate was inverted in practice** — step 2 was gated on `_uncertain(sig)`,
+  but step 1 writes a passing probe into the yield history, making the signature
+  non-mixed and the gate false essentially always.
+- **`hard -> sim` had no cap** — the 162-sim-pass loop returning. Simulation
+  raises `n_eff` and closes nothing, so an uncapped preference shaves risk
+  forever (sim count reached 86). Structure may bias the *order* of escalation;
+  it cannot remove the obligation to escalate.
+
+All are now permanent adversarial tests naming their incident. The suite stands
+at **807 passing, 1 skipped**.
+
+### Standing caveat
+
+The kernel and the RTL remain **not falsified, not proven correct**. Every defect
+found across all eleven experiments has been in the *instruments* — the
+measurement apparatus, the policies, the experimental design — and not one has
+been a kernel or RTL defect. That is a statement about what has been exposed, not
+about what is there.
 
 ## 9. Roadmap position
 
