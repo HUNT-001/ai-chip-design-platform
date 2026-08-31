@@ -21,6 +21,15 @@ class Task:
     note: str = ""                  # provenance / why it exists
     requires: tuple = ()            # obligations that must close before this one
     enables: tuple = ()             # obligations this one unlocks when closed
+    shares_evidence_with: tuple = ()  # one run here also evidences these
+
+    # `shares_evidence_with` is COUPLING, and it is different from `enables`.
+    # `enables` is sequential: prove a lemma, then dependents become provable.
+    # Coupling is simultaneous: exercising shared infrastructure — a bus, a
+    # protocol assumption, a common interface — produces evidence bearing on
+    # many properties in the SAME run, from the SAME witness. A per-obligation
+    # planner values that action by its effect on one property and therefore
+    # systematically under-buys it.
 
     # `requires`/`enables` express assume-guarantee structure: a lemma proved
     # once lets dependent properties assume it, which is how real verification
