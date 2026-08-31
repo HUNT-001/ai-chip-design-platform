@@ -1,56 +1,56 @@
-SBY  3:09:56 [fifo_prove_prove_cnt] Removing directory '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_prove_prove_cnt'.
-SBY  3:09:56 [fifo_prove_prove_cnt] Copy '/mnt/e/ai-chip-design-platform/voe_fifo/formal/gen/fifo.v' to '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_prove_prove_cnt/src/fifo.v'.
-SBY  3:09:56 [fifo_prove_prove_cnt] Copy '/mnt/e/ai-chip-design-platform/voe_fifo/formal/gen/fifo_mut.v' to '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_prove_prove_cnt/src/fifo_mut.v'.
-SBY  3:09:56 [fifo_prove_prove_cnt] Copy '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_fv.v' to '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_prove_prove_cnt/src/fifo_fv.v'.
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0: smtbmc z3
-SBY  3:09:57 [fifo_prove_prove_cnt] base: starting process "cd fifo_prove_prove_cnt/src; yosys -ql ../model/design.log ../model/design.ys"
-SBY  3:09:57 [fifo_prove_prove_cnt] base: finished (returncode=0)
-SBY  3:09:57 [fifo_prove_prove_cnt] prep: starting process "cd fifo_prove_prove_cnt/model; yosys -ql design_prep.log design_prep.ys"
-SBY  3:09:57 [fifo_prove_prove_cnt] prep: finished (returncode=0)
-SBY  3:09:57 [fifo_prove_prove_cnt] smt2: starting process "cd fifo_prove_prove_cnt/model; yosys -ql design_smt2.log design_smt2.ys"
-SBY  3:09:57 [fifo_prove_prove_cnt] smt2: finished (returncode=0)
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: starting process "cd fifo_prove_prove_cnt; yosys-smtbmc -s z3 --presat --noprogress -t 12  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2"
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.induction: starting process "cd fifo_prove_prove_cnt; yosys-smtbmc -s z3 --presat -i --noprogress -t 12  --append 0 --dump-vcd engine_0/trace_induct.vcd --dump-yw engine_0/trace_induct.yw --dump-vlogtb engine_0/trace_induct_tb.v --dump-smtc engine_0/trace_induct.smtc model/design_smt2.smt2"
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Solver: z3
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.induction: ##   0:00:00  Solver: z3
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assumptions in step 0..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.induction: ##   0:00:00  Trying induction in step 12..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assertions in step 0..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assumptions in step 1..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assertions in step 1..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assumptions in step 2..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assertions in step 2..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assumptions in step 3..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assertions in step 3..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assumptions in step 4..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assertions in step 4..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assumptions in step 5..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assertions in step 5..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assumptions in step 6..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assertions in step 6..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assumptions in step 7..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assertions in step 7..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assumptions in step 8..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assertions in step 8..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assumptions in step 9..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assertions in step 9..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assumptions in step 10..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assertions in step 10..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assumptions in step 11..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assertions in step 11..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Status: passed
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: finished (returncode=0)
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.basecase: Status returned by engine for basecase: pass
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.induction: ##   0:00:00  Trying induction in step 11..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.induction: ##   0:00:00  Trying induction in step 10..
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.induction: ##   0:00:00  Temporal induction successful.
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.induction: ##   0:00:00  Status: passed
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.induction: finished (returncode=0)
-SBY  3:09:57 [fifo_prove_prove_cnt] engine_0.induction: Status returned by engine for induction: pass
-SBY  3:09:57 [fifo_prove_prove_cnt] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:01 (1)
-SBY  3:09:57 [fifo_prove_prove_cnt] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
-SBY  3:09:57 [fifo_prove_prove_cnt] summary: engine_0 (smtbmc z3) returned pass for basecase
-SBY  3:09:57 [fifo_prove_prove_cnt] summary: engine_0 (smtbmc z3) returned pass for induction
-SBY  3:09:57 [fifo_prove_prove_cnt] summary: engine_0 did not produce any traces
-SBY  3:09:57 [fifo_prove_prove_cnt] summary: successful proof by k-induction.
-SBY  3:09:57 [fifo_prove_prove_cnt] DONE (PASS, rc=0)
+SBY  5:36:58 [fifo_prove_prove_cnt] Removing directory '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_prove_prove_cnt'.
+SBY  5:36:58 [fifo_prove_prove_cnt] Copy '/mnt/e/ai-chip-design-platform/voe_fifo/formal/gen/fifo.v' to '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_prove_prove_cnt/src/fifo.v'.
+SBY  5:36:58 [fifo_prove_prove_cnt] Copy '/mnt/e/ai-chip-design-platform/voe_fifo/formal/gen/fifo_mut.v' to '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_prove_prove_cnt/src/fifo_mut.v'.
+SBY  5:36:58 [fifo_prove_prove_cnt] Copy '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_fv.v' to '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_prove_prove_cnt/src/fifo_fv.v'.
+SBY  5:36:58 [fifo_prove_prove_cnt] engine_0: smtbmc z3
+SBY  5:36:58 [fifo_prove_prove_cnt] base: starting process "cd fifo_prove_prove_cnt/src; yosys -ql ../model/design.log ../model/design.ys"
+SBY  5:36:58 [fifo_prove_prove_cnt] base: finished (returncode=0)
+SBY  5:36:58 [fifo_prove_prove_cnt] prep: starting process "cd fifo_prove_prove_cnt/model; yosys -ql design_prep.log design_prep.ys"
+SBY  5:36:59 [fifo_prove_prove_cnt] prep: finished (returncode=0)
+SBY  5:36:59 [fifo_prove_prove_cnt] smt2: starting process "cd fifo_prove_prove_cnt/model; yosys -ql design_smt2.log design_smt2.ys"
+SBY  5:36:59 [fifo_prove_prove_cnt] smt2: finished (returncode=0)
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: starting process "cd fifo_prove_prove_cnt; yosys-smtbmc -s z3 --presat --noprogress -t 12  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2"
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.induction: starting process "cd fifo_prove_prove_cnt; yosys-smtbmc -s z3 --presat -i --noprogress -t 12  --append 0 --dump-vcd engine_0/trace_induct.vcd --dump-yw engine_0/trace_induct.yw --dump-vlogtb engine_0/trace_induct_tb.v --dump-smtc engine_0/trace_induct.smtc model/design_smt2.smt2"
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Solver: z3
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.induction: ##   0:00:00  Solver: z3
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assumptions in step 0..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.induction: ##   0:00:00  Trying induction in step 12..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assertions in step 0..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assumptions in step 1..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assertions in step 1..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assumptions in step 2..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assertions in step 2..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assumptions in step 3..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assertions in step 3..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assumptions in step 4..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assertions in step 4..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assumptions in step 5..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assertions in step 5..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assumptions in step 6..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assertions in step 6..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assumptions in step 7..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assertions in step 7..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assumptions in step 8..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assertions in step 8..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assumptions in step 9..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assertions in step 9..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assumptions in step 10..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assertions in step 10..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assumptions in step 11..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Checking assertions in step 11..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: ##   0:00:00  Status: passed
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: finished (returncode=0)
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.basecase: Status returned by engine for basecase: pass
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.induction: ##   0:00:00  Trying induction in step 11..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.induction: ##   0:00:00  Trying induction in step 10..
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.induction: ##   0:00:00  Temporal induction successful.
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.induction: ##   0:00:00  Status: passed
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.induction: finished (returncode=0)
+SBY  5:36:59 [fifo_prove_prove_cnt] engine_0.induction: Status returned by engine for induction: pass
+SBY  5:36:59 [fifo_prove_prove_cnt] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:01 (1)
+SBY  5:36:59 [fifo_prove_prove_cnt] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY  5:36:59 [fifo_prove_prove_cnt] summary: engine_0 (smtbmc z3) returned pass for basecase
+SBY  5:36:59 [fifo_prove_prove_cnt] summary: engine_0 (smtbmc z3) returned pass for induction
+SBY  5:36:59 [fifo_prove_prove_cnt] summary: engine_0 did not produce any traces
+SBY  5:36:59 [fifo_prove_prove_cnt] summary: successful proof by k-induction.
+SBY  5:36:59 [fifo_prove_prove_cnt] DONE (PASS, rc=0)
