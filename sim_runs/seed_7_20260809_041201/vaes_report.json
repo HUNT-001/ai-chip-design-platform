@@ -1,0 +1,7 @@
+{
+  "schema_version": "2.1.0",
+  "agent": "vaes_verifier",
+  "status": "skipped",
+  "reason": "no vaes_trace",
+  "pass": true
+}
