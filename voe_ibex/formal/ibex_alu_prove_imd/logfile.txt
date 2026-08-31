@@ -1,25 +1,25 @@
-SBY  0:29:42 [ibex_alu_prove_imd] Removing directory '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_prove_imd'.
-SBY  0:29:42 [ibex_alu_prove_imd] Copy '/mnt/e/ai-chip-design-platform/voe_ibex/formal/gen/ibex_alu.v' to '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_prove_imd/src/ibex_alu.v'.
-SBY  0:29:42 [ibex_alu_prove_imd] Copy '/mnt/e/ai-chip-design-platform/voe_ibex/formal/gen/ibex_alu_mut.v' to '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_prove_imd/src/ibex_alu_mut.v'.
-SBY  0:29:42 [ibex_alu_prove_imd] Copy '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_fv.v' to '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_prove_imd/src/ibex_alu_fv.v'.
-SBY  0:29:42 [ibex_alu_prove_imd] engine_0: smtbmc z3
-SBY  0:29:42 [ibex_alu_prove_imd] base: starting process "cd ibex_alu_prove_imd/src; yosys -ql ../model/design.log ../model/design.ys"
-SBY  0:29:42 [ibex_alu_prove_imd] base: finished (returncode=0)
-SBY  0:29:42 [ibex_alu_prove_imd] prep: starting process "cd ibex_alu_prove_imd/model; yosys -ql design_prep.log design_prep.ys"
-SBY  0:29:43 [ibex_alu_prove_imd] prep: finished (returncode=0)
-SBY  0:29:43 [ibex_alu_prove_imd] smt2: starting process "cd ibex_alu_prove_imd/model; yosys -ql design_smt2.log design_smt2.ys"
-SBY  0:29:43 [ibex_alu_prove_imd] smt2: finished (returncode=0)
-SBY  0:29:43 [ibex_alu_prove_imd] engine_0: starting process "cd ibex_alu_prove_imd; yosys-smtbmc -s z3 --presat --noprogress -t 2  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2"
-SBY  0:29:43 [ibex_alu_prove_imd] engine_0: ##   0:00:00  Solver: z3
-SBY  0:29:43 [ibex_alu_prove_imd] engine_0: ##   0:00:00  Checking assumptions in step 0..
-SBY  0:29:43 [ibex_alu_prove_imd] engine_0: ##   0:00:00  Checking assertions in step 0..
-SBY  0:29:43 [ibex_alu_prove_imd] engine_0: ##   0:00:00  Checking assumptions in step 1..
-SBY  0:29:43 [ibex_alu_prove_imd] engine_0: ##   0:00:00  Checking assertions in step 1..
-SBY  0:29:43 [ibex_alu_prove_imd] engine_0: ##   0:00:00  Status: passed
-SBY  0:29:43 [ibex_alu_prove_imd] engine_0: finished (returncode=0)
-SBY  0:29:43 [ibex_alu_prove_imd] engine_0: Status returned by engine: pass
-SBY  0:29:43 [ibex_alu_prove_imd] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:00 (0)
-SBY  0:29:43 [ibex_alu_prove_imd] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
-SBY  0:29:43 [ibex_alu_prove_imd] summary: engine_0 (smtbmc z3) returned pass
-SBY  0:29:43 [ibex_alu_prove_imd] summary: engine_0 did not produce any traces
-SBY  0:29:43 [ibex_alu_prove_imd] DONE (PASS, rc=0)
+SBY 13:52:40 [ibex_alu_prove_imd] Removing directory '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_prove_imd'.
+SBY 13:52:40 [ibex_alu_prove_imd] Copy '/mnt/e/ai-chip-design-platform/voe_ibex/formal/gen/ibex_alu.v' to '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_prove_imd/src/ibex_alu.v'.
+SBY 13:52:40 [ibex_alu_prove_imd] Copy '/mnt/e/ai-chip-design-platform/voe_ibex/formal/gen/ibex_alu_mut.v' to '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_prove_imd/src/ibex_alu_mut.v'.
+SBY 13:52:40 [ibex_alu_prove_imd] Copy '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_fv.v' to '/mnt/e/ai-chip-design-platform/voe_ibex/formal/ibex_alu_prove_imd/src/ibex_alu_fv.v'.
+SBY 13:52:40 [ibex_alu_prove_imd] engine_0: smtbmc z3
+SBY 13:52:40 [ibex_alu_prove_imd] base: starting process "cd ibex_alu_prove_imd/src; yosys -ql ../model/design.log ../model/design.ys"
+SBY 13:52:41 [ibex_alu_prove_imd] base: finished (returncode=0)
+SBY 13:52:41 [ibex_alu_prove_imd] prep: starting process "cd ibex_alu_prove_imd/model; yosys -ql design_prep.log design_prep.ys"
+SBY 13:52:41 [ibex_alu_prove_imd] prep: finished (returncode=0)
+SBY 13:52:41 [ibex_alu_prove_imd] smt2: starting process "cd ibex_alu_prove_imd/model; yosys -ql design_smt2.log design_smt2.ys"
+SBY 13:52:41 [ibex_alu_prove_imd] smt2: finished (returncode=0)
+SBY 13:52:41 [ibex_alu_prove_imd] engine_0: starting process "cd ibex_alu_prove_imd; yosys-smtbmc -s z3 --presat --noprogress -t 2  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2"
+SBY 13:52:41 [ibex_alu_prove_imd] engine_0: ##   0:00:00  Solver: z3
+SBY 13:52:41 [ibex_alu_prove_imd] engine_0: ##   0:00:00  Checking assumptions in step 0..
+SBY 13:52:41 [ibex_alu_prove_imd] engine_0: ##   0:00:00  Checking assertions in step 0..
+SBY 13:52:41 [ibex_alu_prove_imd] engine_0: ##   0:00:00  Checking assumptions in step 1..
+SBY 13:52:41 [ibex_alu_prove_imd] engine_0: ##   0:00:00  Checking assertions in step 1..
+SBY 13:52:41 [ibex_alu_prove_imd] engine_0: ##   0:00:00  Status: passed
+SBY 13:52:41 [ibex_alu_prove_imd] engine_0: finished (returncode=0)
+SBY 13:52:41 [ibex_alu_prove_imd] engine_0: Status returned by engine: pass
+SBY 13:52:41 [ibex_alu_prove_imd] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:01 (1)
+SBY 13:52:41 [ibex_alu_prove_imd] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY 13:52:41 [ibex_alu_prove_imd] summary: engine_0 (smtbmc z3) returned pass
+SBY 13:52:41 [ibex_alu_prove_imd] summary: engine_0 did not produce any traces
+SBY 13:52:41 [ibex_alu_prove_imd] DONE (PASS, rc=0)
