@@ -92,6 +92,16 @@ class VOE:
                 continue
             Rbefore = k.R(ks, w)
             merge = self.bus.publish(pick.worker.name, j)
+            # COUPLING: one run of shared infrastructure evidences several
+            # obligations. The extra judgments cite the SAME witness — it is
+            # genuinely the same artifact — and go through the bus like any
+            # other, so nothing bypasses adjudication or the witness discipline.
+            for other in getattr(self.board.get(pick.phi), "shares_evidence_with", ()):
+                if other in self.board.tasks and not (ks.proven(other) or
+                                                      ks.disproven(other)):
+                    shared = k.Judgment(other, j.warrant, dict(j.evidence),
+                                        witness=j.witness)
+                    self.bus.publish(pick.worker.name, shared)
             Rafter = k.R(ks, w)
             self.rep.record(pick.worker.name, pick.method, merge, Rbefore - Rafter, ev.status)
             # let an adaptive policy learn which channel actually paid off
