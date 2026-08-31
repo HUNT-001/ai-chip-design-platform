@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <testsuites>
-<testsuite timestamp="2026-08-30T00:29:34" hostname="TANPAN" package="mvf" id="0" name="prove_sticky" tests="1" errors="0" failures="0" time="0" skipped="0">
+<testsuite timestamp="2026-08-31T05:37:08" hostname="TANPAN" package="mvf" id="0" name="prove_sticky" tests="1" errors="0" failures="0" time="0" skipped="0">
 <properties>
 <property name="os" value="Linux"/>
 <property name="expect" value="PASS"/>
@@ -8,88 +8,88 @@
 </properties>
 <testcase classname="prove_sticky" name="build execution" time="0">
 </testcase>
-<testcase classname="prove_sticky" name="Property ASSERT in mvf_fv at mvf_fv.v:49.50-49.68" time="0" type="ASSERT" location="mvf_fv.v:49.50-49.68" id="_witness_.check_assert_mvf_fv_v_49_19">
+<testcase classname="prove_sticky" name="Property ASSERT in mvf_fv at mvf_fv.v:51.50-51.68" time="0" type="ASSERT" location="mvf_fv.v:51.50-51.68" id="_witness_.check_assert_mvf_fv_v_51_19">
 </testcase>
-<system-out>SBY  0:29:33 [mvf_prove_sticky] Removing directory '/mnt/e/ai-chip-design-platform/voe_heldout/formal/mvf_prove_sticky'.
-SBY  0:29:34 [mvf_prove_sticky] Copy '/mnt/e/ai-chip-design-platform/voe_heldout/formal/gen/mvf.v' to '/mnt/e/ai-chip-design-platform/voe_heldout/formal/mvf_prove_sticky/src/mvf.v'.
-SBY  0:29:34 [mvf_prove_sticky] Copy '/mnt/e/ai-chip-design-platform/voe_heldout/formal/gen/mvf_mut.v' to '/mnt/e/ai-chip-design-platform/voe_heldout/formal/mvf_prove_sticky/src/mvf_mut.v'.
-SBY  0:29:34 [mvf_prove_sticky] Copy '/mnt/e/ai-chip-design-platform/voe_heldout/formal/mvf_fv.v' to '/mnt/e/ai-chip-design-platform/voe_heldout/formal/mvf_prove_sticky/src/mvf_fv.v'.
-SBY  0:29:34 [mvf_prove_sticky] engine_0: smtbmc z3
-SBY  0:29:34 [mvf_prove_sticky] base: starting process &quot;cd mvf_prove_sticky/src; yosys -ql ../model/design.log ../model/design.ys&quot;
-SBY  0:29:34 [mvf_prove_sticky] base: finished (returncode=0)
-SBY  0:29:34 [mvf_prove_sticky] prep: starting process &quot;cd mvf_prove_sticky/model; yosys -ql design_prep.log design_prep.ys&quot;
-SBY  0:29:34 [mvf_prove_sticky] prep: finished (returncode=0)
-SBY  0:29:34 [mvf_prove_sticky] smt2: starting process &quot;cd mvf_prove_sticky/model; yosys -ql design_smt2.log design_smt2.ys&quot;
-SBY  0:29:34 [mvf_prove_sticky] smt2: finished (returncode=0)
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: starting process &quot;cd mvf_prove_sticky; yosys-smtbmc -s z3 --presat --noprogress -t 24  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2&quot;
-SBY  0:29:34 [mvf_prove_sticky] engine_0.induction: starting process &quot;cd mvf_prove_sticky; yosys-smtbmc -s z3 --presat -i --noprogress -t 24  --append 0 --dump-vcd engine_0/trace_induct.vcd --dump-yw engine_0/trace_induct.yw --dump-vlogtb engine_0/trace_induct_tb.v --dump-smtc engine_0/trace_induct.smtc model/design_smt2.smt2&quot;
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Solver: z3
-SBY  0:29:34 [mvf_prove_sticky] engine_0.induction: ##   0:00:00  Solver: z3
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 0..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.induction: ##   0:00:00  Trying induction in step 24..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 0..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 1..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 1..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 2..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 2..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 3..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 3..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 4..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 4..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 5..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 5..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 6..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 6..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 7..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 7..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 8..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 8..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 9..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 9..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 10..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 10..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 11..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 11..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 12..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 12..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 13..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 13..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 14..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 14..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 15..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 15..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 16..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 16..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 17..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 17..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 18..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 18..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 19..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 19..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 20..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 20..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 21..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 21..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 22..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 22..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 23..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 23..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Status: passed
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: finished (returncode=0)
-SBY  0:29:34 [mvf_prove_sticky] engine_0.basecase: Status returned by engine for basecase: pass
-SBY  0:29:34 [mvf_prove_sticky] engine_0.induction: ##   0:00:00  Trying induction in step 23..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.induction: ##   0:00:00  Trying induction in step 22..
-SBY  0:29:34 [mvf_prove_sticky] engine_0.induction: ##   0:00:00  Temporal induction successful.
-SBY  0:29:34 [mvf_prove_sticky] engine_0.induction: ##   0:00:00  Status: passed
-SBY  0:29:34 [mvf_prove_sticky] engine_0.induction: finished (returncode=0)
-SBY  0:29:34 [mvf_prove_sticky] engine_0.induction: Status returned by engine for induction: pass
-SBY  0:29:34 [mvf_prove_sticky] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:00 (0)
-SBY  0:29:34 [mvf_prove_sticky] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
-SBY  0:29:34 [mvf_prove_sticky] summary: engine_0 (smtbmc z3) returned pass for basecase
-SBY  0:29:34 [mvf_prove_sticky] summary: engine_0 (smtbmc z3) returned pass for induction
-SBY  0:29:34 [mvf_prove_sticky] summary: engine_0 did not produce any traces
-SBY  0:29:34 [mvf_prove_sticky] summary: successful proof by k-induction.
-SBY  0:29:34 [mvf_prove_sticky] DONE (PASS, rc=0)
+<system-out>SBY  5:37:07 [mvf_prove_sticky] Removing directory '/mnt/e/ai-chip-design-platform/voe_heldout/formal/mvf_prove_sticky'.
+SBY  5:37:07 [mvf_prove_sticky] Copy '/mnt/e/ai-chip-design-platform/voe_heldout/formal/gen/mvf.v' to '/mnt/e/ai-chip-design-platform/voe_heldout/formal/mvf_prove_sticky/src/mvf.v'.
+SBY  5:37:07 [mvf_prove_sticky] Copy '/mnt/e/ai-chip-design-platform/voe_heldout/formal/gen/mvf_mut.v' to '/mnt/e/ai-chip-design-platform/voe_heldout/formal/mvf_prove_sticky/src/mvf_mut.v'.
+SBY  5:37:07 [mvf_prove_sticky] Copy '/mnt/e/ai-chip-design-platform/voe_heldout/formal/mvf_fv.v' to '/mnt/e/ai-chip-design-platform/voe_heldout/formal/mvf_prove_sticky/src/mvf_fv.v'.
+SBY  5:37:07 [mvf_prove_sticky] engine_0: smtbmc z3
+SBY  5:37:07 [mvf_prove_sticky] base: starting process &quot;cd mvf_prove_sticky/src; yosys -ql ../model/design.log ../model/design.ys&quot;
+SBY  5:37:07 [mvf_prove_sticky] base: finished (returncode=0)
+SBY  5:37:07 [mvf_prove_sticky] prep: starting process &quot;cd mvf_prove_sticky/model; yosys -ql design_prep.log design_prep.ys&quot;
+SBY  5:37:07 [mvf_prove_sticky] prep: finished (returncode=0)
+SBY  5:37:07 [mvf_prove_sticky] smt2: starting process &quot;cd mvf_prove_sticky/model; yosys -ql design_smt2.log design_smt2.ys&quot;
+SBY  5:37:08 [mvf_prove_sticky] smt2: finished (returncode=0)
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: starting process &quot;cd mvf_prove_sticky; yosys-smtbmc -s z3 --presat --noprogress -t 24  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2&quot;
+SBY  5:37:08 [mvf_prove_sticky] engine_0.induction: starting process &quot;cd mvf_prove_sticky; yosys-smtbmc -s z3 --presat -i --noprogress -t 24  --append 0 --dump-vcd engine_0/trace_induct.vcd --dump-yw engine_0/trace_induct.yw --dump-vlogtb engine_0/trace_induct_tb.v --dump-smtc engine_0/trace_induct.smtc model/design_smt2.smt2&quot;
+SBY  5:37:08 [mvf_prove_sticky] engine_0.induction: ##   0:00:00  Solver: z3
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Solver: z3
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 0..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.induction: ##   0:00:00  Trying induction in step 24..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 0..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 1..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 1..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 2..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 2..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 3..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 3..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 4..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 4..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 5..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 5..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 6..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 6..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 7..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 7..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 8..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 8..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 9..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 9..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 10..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 10..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 11..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 11..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 12..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 12..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 13..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 13..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 14..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 14..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 15..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 15..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 16..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 16..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 17..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 17..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 18..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 18..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 19..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 19..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 20..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 20..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 21..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 21..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 22..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 22..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assumptions in step 23..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Checking assertions in step 23..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: ##   0:00:00  Status: passed
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: finished (returncode=0)
+SBY  5:37:08 [mvf_prove_sticky] engine_0.basecase: Status returned by engine for basecase: pass
+SBY  5:37:08 [mvf_prove_sticky] engine_0.induction: ##   0:00:00  Trying induction in step 23..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.induction: ##   0:00:00  Trying induction in step 22..
+SBY  5:37:08 [mvf_prove_sticky] engine_0.induction: ##   0:00:00  Temporal induction successful.
+SBY  5:37:08 [mvf_prove_sticky] engine_0.induction: ##   0:00:00  Status: passed
+SBY  5:37:08 [mvf_prove_sticky] engine_0.induction: finished (returncode=0)
+SBY  5:37:08 [mvf_prove_sticky] engine_0.induction: Status returned by engine for induction: pass
+SBY  5:37:08 [mvf_prove_sticky] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY  5:37:08 [mvf_prove_sticky] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY  5:37:08 [mvf_prove_sticky] summary: engine_0 (smtbmc z3) returned pass for basecase
+SBY  5:37:08 [mvf_prove_sticky] summary: engine_0 (smtbmc z3) returned pass for induction
+SBY  5:37:08 [mvf_prove_sticky] summary: engine_0 did not produce any traces
+SBY  5:37:08 [mvf_prove_sticky] summary: successful proof by k-induction.
+SBY  5:37:08 [mvf_prove_sticky] DONE (PASS, rc=0)
 </system-out>
 <system-err>
 </system-err>
