@@ -40,6 +40,9 @@ class Policy:
     obligation_conditioned: bool = False   # condition on Omega_i, not just channel
     diagnostic: bool = False               # may spend a cheap probe to decide
     uncertainty_aware: bool = False        # decide by P(a is best) and VoD
+    multistep: bool = False                # may chain probes: probe -> probe -> act
+    structural_first: bool = False         # buys structure UNCONDITIONALLY, one step
+    cache_structure: bool = False          # structure is a DESIGN fact, bought once
 
     def describe(self) -> str:
         bits = [f"order={self.order}", f"method={self.method_bias}"]
@@ -61,6 +64,39 @@ UNCERTAINTY = Policy("H-uncertainty", order="utility", method_bias="balanced",
                      uncertainty_aware=True)
 LOOKAHEAD   = Policy("I-lookahead",  order="lookahead", method_bias="balanced",
                      adaptive=True, obligation_conditioned=True, diagnostic=True)
+COUPLED     = Policy("J-coupled",    order="coupled",   method_bias="balanced",
+                     adaptive=True, obligation_conditioned=True, diagnostic=True)
+# The ablation that decides what Experiment 8's MET verdict actually licenses.
+# L buys exactly the same structural information as K, from the same real tool,
+# at the same price — but WITHOUT the conditional chain: no probe first, no
+# gating on what the probe said. So L isolates the value of the INFORMATION and
+# K adds the value of the SEQUENCING. Comparing K to G alone cannot separate
+# them, because G never obtains structure at all.
+STATIC_ONE  = Policy("L-static-onestep", order="utility", method_bias="balanced",
+                     adaptive=True, obligation_conditioned=True, diagnostic=True,
+                     structural_first=True)
+# M is L with one correction: structure is a property of a DESIGN, so it is
+# bought once per design instead of once per obligation. L paid 0.5 every time it
+# met a new obligation belonging to a design it had already read — 6 of its 11
+# reads on the full board were redundant, and 4 of its 6 on the held-out board.
+# That overhead amortises on a large board and dominates on a small one, which is
+# exactly why L won the full benchmark and LOST held-out. It looked like
+# overfitting; it was the third appearance of a single recurring defect: being
+# charged for information already held.
+STATIC_CACHED = Policy("M-static-cached", order="utility", method_bias="balanced",
+                       adaptive=True, obligation_conditioned=True, diagnostic=True,
+                       structural_first=True, cache_structure=True)
+MULTISTEP   = Policy("K-multistep",  order="utility",   method_bias="balanced",
+                     adaptive=True, obligation_conditioned=True, diagnostic=True,
+                     multistep=True)
+# Experiment 13. J-coupled values SHARED evidence (one action, many properties).
+# This is the other coupling: a LEMMA, where one obligation must be CLOSED before
+# a second becomes provable at all. Ordering by immediate utility can spend a
+# full formal budget on the dependent property, learn nothing, and only later
+# prove the lemma it needed first.
+LEMMA_FIRST = Policy("N-lemmafirst", order="lemma", method_bias="balanced",
+                     adaptive=True, obligation_conditioned=True, diagnostic=True,
+                     structural_first=True, cache_structure=True)
 RANDOM      = Policy("A-random",     order="random",   method_bias="random")
 CHEAPEST    = Policy("B-cheapest",   order="cheapest", method_bias="sim",
                      explore_budget=8)
@@ -84,7 +120,33 @@ ADAPTIVE    = Policy("E-adaptive",   order="utility",  method_bias="balanced",
 # UNCERTAINTY is retained because per-decision confidence and ambiguity are
 # genuinely auditable — but that is a separate argument, not an efficiency one,
 # and it must not be smuggled back in as performance.
-RECOMMENDED = DIAGNOSTIC
+# SUPERSEDED by Experiment 11. G remains the reference control and the record
+# above stands, but it is no longer the default.
+#
+#     Experiment 11, REAL tools, 24 seeds, 6 design families,
+#     prereg sha256:03795d3516b2d507 committed and INTACT before any campaign:
+#
+#         G-diagnostic     E = 0.998 +/- 0.012
+#         M-static-cached  E = 1.120 +/- 0.000     +12.2%, bar was 6.2%
+#         realisable       E = 1.324
+#
+#     and all three committed side conditions held:
+#         held-out (lfsr, mv_filter)   M 1.310 vs G 1.299   NOT WORSE
+#         closed weight                M 98.0  vs G 98.0    equal
+#         redundant structural reads   0 in the worst run
+#
+# The honest claim is "better on the full board, NOT WORSE on held-out" — the
+# held-out margin is +0.9% on two design families, which is thin, and it must not
+# be restated as "better everywhere".
+#
+# What M does: read each design's structure ONCE with rtl_graph, then commit.
+# No probe, no posterior, no chain, no learned model. Five attempts to add
+# machinery were measured against it and lost — H (posteriors + VoD), I/J
+# (lookahead, coupled ordering), K (multi-step chain), L (the same read, bought
+# per obligation instead of per design). The only candidate that ever beat the
+# incumbent by a durable margin was the one that REMOVED machinery, and the
+# information it needed came from a tool the project already had.
+RECOMMENDED = STATIC_CACHED
 
 POLICY_SET = [RANDOM, CHEAPEST, ENGINEER, HUMAN_ORG, ADAPTIVE]
 POLICY_SET_V2 = POLICY_SET + [OBLIGATION]
@@ -110,6 +172,33 @@ class PolicyWorker(Worker):
         self._seed = (self._seed + 977 * (seed % 1000)) % 100000 + 1
         # realised payoff per method, learned during the campaign (adaptive only)
         self.payoff = {"sim": [0.0, 0.0], "formal": [0.0, 0.0]}   # [gain, cost]
+        # Per-obligation bookkeeping. Initialised HERE, not in attach_features:
+        # these track what the worker has DONE, which does not depend on whether
+        # obligation features were supplied. Creating them only in
+        # attach_features meant a worker without features crashed the moment it
+        # ran its first simulation — invisible for as long as every experiment
+        # using such a worker happened to be formal-only.
+        self._probed = set()          # one diagnostic probe per obligation
+        self._structprobed = set()    # one structural probe per obligation
+        self._probe_clean = set()     # probes that found NO counterexample
+        self._simcount = {}           # per-obligation sim spend, to force escalation
+        self._known_struct = {}       # design -> structure, bought once
+        self._struct = {}             # phi -> what the structural probe found
+
+    # -- act, and remember what the cheap probes actually said -------------- #
+    def execute(self, ks, board, phi, method):
+        ev, j = super().execute(ks, board, phi, method)
+        if method == "sim":
+            self._simcount[phi] = self._simcount.get(phi, 0) + 1
+        if method == "probe":
+            # Record the probe's OUTCOME, not merely that a probe happened.
+            # The second diagnostic step is gated on this: a counterexample
+            # settles the obligation and makes any structural question moot.
+            # Without this the chain degenerates into a fixed two-step prefix
+            # run on every obligation, which is overhead, not lookahead.
+            if ev.status == "pass":
+                self._probe_clean.add(phi)
+        return ev, j
 
     # -- learning from outcomes (adaptive policies only) -------------------- #
     def observe(self, method, gain, cost, phi=None, closed=None):
@@ -144,6 +233,31 @@ class PolicyWorker(Worker):
             return min(cands, key=lambda t: t.weight)
         if p.order == "weight":
             return max(cands, key=lambda t: t.weight)
+        if p.order == "lemma":
+            # Prefer an obligation that UNLOCKS others still open. The bonus is
+            # the weight it would make provable, so a cheap lemma supporting a
+            # heavy property outranks the heavy property itself — which is the
+            # whole point, since attacking the dependent one first buys nothing.
+            def lval(t):
+                immediate = self.k.utility(ks, weights, t.phi)[0]
+                unlocks = sum(weights.get(o, 0.0)
+                              for o in (getattr(t, "enables", None) or ())
+                              if not (ks.proven(o) or ks.disproven(o)))
+                return immediate + unlocks
+            return max(cands, key=lval)
+
+        if p.order == "coupled":
+            # Value an action by the weight of EVERY obligation it evidences,
+            # not just the one it is nominally aimed at. A per-obligation
+            # planner sees only the first term and under-buys shared
+            # infrastructure — the failure this order exists to test.
+            def cval(t):
+                immediate = self.k.utility(ks, weights, t.phi)[0]
+                shared = sum(weights.get(o, 0.0)
+                             for o in getattr(t, "shares_evidence_with", ())
+                             if not (ks.proven(o) or ks.disproven(o)))
+                return immediate + shared
+            return max(cands, key=cval)
         if p.order == "lookahead":
             # Value an obligation by its own weight PLUS the weight it unlocks.
             # A one-step expected-value rule sees only the first term, so a cheap
@@ -196,7 +310,8 @@ class PolicyWorker(Worker):
         from regime import RegimeBelief
         self.features = feature_map
         self.yields = YieldModel()
-        self._probed = set()          # one diagnostic probe per obligation
+        # the per-obligation counters live in __init__; re-creating them here
+        # would silently discard anything already recorded.
         # posterior over "does this action close an obligation like this one",
         # carrying its own spread. A signature is an OBSERVATION consistent with
         # several regimes, not a regime.
@@ -206,6 +321,54 @@ class PolicyWorker(Worker):
     def _sig(self, phi):
         f = getattr(self, "features", {}).get(phi)
         return f.signature() if f else None
+
+    def learn_structure(self, phi, arithmetic, sequential, depth_class):
+        """Record what a REAL structural probe revealed about this obligation.
+
+        Without this the policy already held the structural facts and the probe
+        was pure overhead — it charged 0.5 for information it possessed, which
+        made the experiment unable to test its own hypothesis. Information that
+        costs something must be information the policy did not already have.
+        """
+        from obligation_state import ObligationFeatures
+        key = self._design_key(phi)
+        if key is not None:
+            self._known_struct[key] = (arithmetic, sequential, depth_class)
+        f = self.features.get(phi)
+        kind = f.kind if f else "invariant"
+        self.features[phi] = ObligationFeatures(kind, arithmetic, sequential,
+                                                depth_class)
+        self._struct[phi] = (arithmetic, sequential, depth_class)
+
+    def _design_key(self, phi):
+        """Which DESIGN does this obligation belong to? Structure is its property."""
+        rtl_for = getattr(self.static, "rtl_for", None)
+        return rtl_for(phi) if rtl_for else None
+
+    def _reuse_known_structure(self, phi):
+        """Fill in structure already paid for on a sibling obligation.
+
+        Returns True if this obligation's design has already been read, in which
+        case buying the same fact again is pure cost.
+        """
+        from obligation_state import ObligationFeatures
+        key = self._design_key(phi)
+        if key is None or key not in self._known_struct:
+            return False
+        f = self.features.get(phi)
+        kind = f.kind if f else "invariant"
+        self.features[phi] = ObligationFeatures(kind, *self._known_struct[key])
+        return True
+
+    def _struct_says_formal_is_expensive(self, phi):
+        """Read the structural probe's result for this obligation.
+
+        Datapath multiplication is the classic solver wall; deep state raises
+        induction cost. This is a PREDICTION about tool cost, not a claim about
+        the design — it steers the next action and certifies nothing.
+        """
+        f = getattr(self, "features", {}).get(phi)
+        return bool(f and (f.arithmetic or f.depth_class == "large"))
 
     def _weight_of(self, phi):
         return getattr(self, "_weights", {}).get(phi, 5.0)
@@ -241,6 +404,76 @@ class PolicyWorker(Worker):
         if not self.sim.covers(phi):
             return "formal" if "formal" in affordable else None
         sig = self._sig(phi)
+
+        # ---- multi-step diagnosis: probe -> interpret -> probe -> act ---------
+        # The point under test is whether the value of an action can depend on
+        # information a LATER action will reveal. Both probes are REAL tools:
+        #   1. a short Verilator run  — is there a counterexample? (cheap, 0.25)
+        #   2. rtl_graph structure    — does this design contain a datapath
+        #      multiply / deep state? (cheap, 0.5) which predicts solver cost
+        # Crucially the second probe is only worth running if the FIRST came
+        # back clean: a found counterexample settles the obligation and makes
+        # any structural question moot. That conditional dependency is what a
+        # one-step rule cannot represent.
+        # NOTE: no `hasattr(self, "belief")` guard here. That condition was
+        # copied from the uncertainty-aware branch below, which genuinely needs a
+        # posterior — a multistep worker has none, so the guard made this entire
+        # branch DEAD CODE. The arm still probed (via the ordinary diagnostic
+        # path) and still beat the control by 39%, purely because 11 cheap probes
+        # displaced 30 full simulations. A cost artifact was about to be reported
+        # as evidence for multi-step planning, in an experiment whose structural
+        # read had never once executed.
+        # ---- ablation arm: same information, no sequencing -------------------
+        if self.policy.structural_first:
+            if self.policy.cache_structure and self._reuse_known_structure(phi):
+                self._structprobed.add(phi)          # already known: spend nothing
+            if (phi not in self._structprobed and self.static is not None
+                    and ledger.can_afford("static") and len(affordable) > 1):
+                self._structprobed.add(phi)
+                return "static"
+            hard = self._struct_says_formal_is_expensive(phi)
+            if (hard and "sim" in affordable
+                    and self._simcount.get(phi, 0) < self.policy.explore_budget):
+                return "sim"
+            return "formal" if "formal" in affordable else affordable[0]
+
+        if self.policy.multistep:
+            if phi not in self._probed and ledger.can_afford("probe"):
+                self._probed.add(phi)
+                return "probe"                       # step 1: cheap sim probe
+            # Step 2 is CONDITIONAL, and that condition is the whole hypothesis.
+            # An earlier version ran both probes on every obligation, which is a
+            # fixed two-step prefix, not lookahead — it paid 0.75 per obligation
+            # for information it often could not act on, and lost by 40%. That
+            # was an implementation defect reporting itself as a finding.
+            if (phi in self._probed and phi not in self._structprobed
+                    and self.static is not None and ledger.can_afford("static")
+                    # (a) the first probe must have come back CLEAN. A found
+                    #     counterexample settles the obligation; structure is moot.
+                    and phi in self._probe_clean
+                    # (b) the structural answer must be ABLE to change the commit.
+                    #     If only one channel is affordable the choice is forced,
+                    #     and information that cannot change an action is not
+                    #     worth its price. (`_uncertain(sig)` was tried here and
+                    #     is wrong: step 1 has just written a passing probe into
+                    #     the yield history, so the signature is no longer MIXED
+                    #     and the gate was False essentially always — the
+                    #     structural read never executed in any campaign.)
+                    and len(affordable) > 1):
+                self._structprobed.add(phi)
+                return "static"                      # step 2: real structural read
+            # Step 3: commit, informed by what the two probes revealed.
+            # "Formal looks expensive here" is a reason to SAMPLE FIRST, never a
+            # reason to sample forever: simulation raises n_eff and closes
+            # nothing, so an uncapped preference degenerates into the same
+            # inductive-shaving loop that once produced 162 consecutive sim
+            # passes. Structure biases the ORDER of escalation; it does not
+            # remove the obligation to escalate.
+            hard = self._struct_says_formal_is_expensive(phi)
+            if (hard and "sim" in affordable
+                    and self._simcount.get(phi, 0) < self.policy.explore_budget):
+                return "sim"
+            return "formal" if "formal" in affordable else affordable[0]
 
         # ---- uncertainty-aware branch: decide by P(a is best), not by a mean --
         if self.policy.uncertainty_aware and hasattr(self, "belief"):
