@@ -1,0 +1,7 @@
+{
+  "schema_version": "2.1.0",
+  "agent": "aia_verifier",
+  "status": "skipped",
+  "reason": "no aia_trace",
+  "pass": true
+}
