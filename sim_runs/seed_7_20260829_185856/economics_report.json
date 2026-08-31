@@ -1,0 +1,18 @@
+{
+  "schema_version": "2.1.0",
+  "agent": "economics_engine",
+  "run_id": "seed_7_20260829_185856",
+  "duration_s": 1.0,
+  "duration_hours": 0.0003,
+  "bugs_found": 0,
+  "tests_run": 1,
+  "bugs_per_hour": 0.0,
+  "cost_per_bug_hours": null,
+  "coverage_pct": 0.0,
+  "redundant_tests_pct": 0.0,
+  "agent_timings": [],
+  "total_agent_time_s": 0.0,
+  "roi_score": 0.2,
+  "roi_band": "POOR",
+  "computed_at": "2026-08-29T18:58:57Z"
+}

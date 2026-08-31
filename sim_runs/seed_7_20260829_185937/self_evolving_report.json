@@ -1,0 +1,7 @@
+{
+  "schema_version": "2.1.0",
+  "agent": "self_evolving_engine",
+  "status": "skipped",
+  "reason": "no coverage_summary.json in run dir",
+  "pass": true
+}
