@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+<testsuite timestamp="2026-08-31T05:36:54" hostname="TANPAN" package="fifo_coupling" id="0" name="integrity_mut" tests="2" errors="0" failures="2" time="0" skipped="1">
+<properties>
+<property name="os" value="Linux"/>
+<property name="expect" value="PASS"/>
+<property name="status" value="FAIL"/>
+</properties>
+<testcase classname="integrity_mut" name="build execution" time="0">
+<failure type="FAIL" message="Task returned status FAIL." />
+</testcase>
+<testcase classname="integrity_mut" name="Property ASSERT in fifo_fv at fifo_fv.v:179.5-179.26" time="0" type="ASSERT" location="fifo_fv.v:179.5-179.26" id="_witness_.check_assert_fifo_fv_v_179_105">
+<skipped />
+</testcase>
+<testcase classname="integrity_mut" name="Property ASSERT in fifo_fv at fifo_fv.v:180.17-180.46" time="0" type="ASSERT" location="fifo_fv.v:180.17-180.46" id="_witness_.check_assert_fifo_fv_v_180_108" tracefile="engine_0/trace.vcd">
+<failure type="ASSERT" message="Property ASSERT in fifo_fv at fifo_fv.v:180.17-180.46 failed. Trace file: engine_0/trace.vcd" />
+</testcase>
+<system-out>SBY  5:36:53 [fifo_coupling_integrity_mut] Removing directory '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_coupling_integrity_mut'.
+SBY  5:36:53 [fifo_coupling_integrity_mut] Copy '/mnt/e/ai-chip-design-platform/voe_fifo/formal/gen/fifo.v' to '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_coupling_integrity_mut/src/fifo.v'.
+SBY  5:36:53 [fifo_coupling_integrity_mut] Copy '/mnt/e/ai-chip-design-platform/voe_fifo/formal/gen/fifo_mut.v' to '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_coupling_integrity_mut/src/fifo_mut.v'.
+SBY  5:36:53 [fifo_coupling_integrity_mut] Copy '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_fv.v' to '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_coupling_integrity_mut/src/fifo_fv.v'.
+SBY  5:36:53 [fifo_coupling_integrity_mut] engine_0: smtbmc z3
+SBY  5:36:53 [fifo_coupling_integrity_mut] base: starting process &quot;cd fifo_coupling_integrity_mut/src; yosys -ql ../model/design.log ../model/design.ys&quot;
+SBY  5:36:53 [fifo_coupling_integrity_mut] base: finished (returncode=0)
+SBY  5:36:53 [fifo_coupling_integrity_mut] prep: starting process &quot;cd fifo_coupling_integrity_mut/model; yosys -ql design_prep.log design_prep.ys&quot;
+SBY  5:36:53 [fifo_coupling_integrity_mut] prep: finished (returncode=0)
+SBY  5:36:53 [fifo_coupling_integrity_mut] smt2: starting process &quot;cd fifo_coupling_integrity_mut/model; yosys -ql design_smt2.log design_smt2.ys&quot;
+SBY  5:36:53 [fifo_coupling_integrity_mut] smt2: finished (returncode=0)
+SBY  5:36:53 [fifo_coupling_integrity_mut] engine_0.basecase: starting process &quot;cd fifo_coupling_integrity_mut; yosys-smtbmc -s z3 --presat --noprogress -t 12  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2&quot;
+SBY  5:36:53 [fifo_coupling_integrity_mut] engine_0.induction: starting process &quot;cd fifo_coupling_integrity_mut; yosys-smtbmc -s z3 --presat -i --noprogress -t 12  --append 0 --dump-vcd engine_0/trace_induct.vcd --dump-yw engine_0/trace_induct.yw --dump-vlogtb engine_0/trace_induct_tb.v --dump-smtc engine_0/trace_induct.smtc model/design_smt2.smt2&quot;
+SBY  5:36:53 [fifo_coupling_integrity_mut] engine_0.basecase: ##   0:00:00  Solver: z3
+SBY  5:36:53 [fifo_coupling_integrity_mut] engine_0.induction: ##   0:00:00  Solver: z3
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.basecase: ##   0:00:00  Checking assumptions in step 0..
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.induction: ##   0:00:00  Trying induction in step 12..
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.basecase: ##   0:00:00  Checking assertions in step 0..
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.basecase: ##   0:00:00  Checking assumptions in step 1..
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.basecase: ##   0:00:00  Checking assertions in step 1..
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.basecase: ##   0:00:00  Checking assumptions in step 2..
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.basecase: ##   0:00:00  Checking assertions in step 2..
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.basecase: ##   0:00:00  Checking assumptions in step 3..
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.basecase: ##   0:00:00  Checking assertions in step 3..
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.basecase: ##   0:00:00  Checking assumptions in step 4..
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.induction: ##   0:00:00  Trying induction in step 11..
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.induction: ##   0:00:00  Trying induction in step 10..
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.basecase: ##   0:00:00  Checking assertions in step 4..
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.basecase: ##   0:00:00  Checking assumptions in step 5..
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.basecase: ##   0:00:00  Checking assertions in step 5..
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.induction: ##   0:00:00  Trying induction in step 9..
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.induction: ##   0:00:00  Trying induction in step 8..
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.basecase: ##   0:00:00  Checking assumptions in step 6..
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.basecase: ##   0:00:00  Checking assertions in step 6..
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.induction: ##   0:00:00  Trying induction in step 7..
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.induction: ##   0:00:00  Trying induction in step 6..
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.basecase: ##   0:00:00  Checking assumptions in step 7..
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.basecase: ##   0:00:00  Checking assertions in step 7..
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.basecase: ##   0:00:00  BMC failed!
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.basecase: ##   0:00:00  Assert failed in fifo_fv: fifo_fv.v:180.17-180.46 (_witness_.check_assert_fifo_fv_v_180_108)
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.basecase: ##   0:00:00  Writing trace to VCD file: engine_0/trace.vcd
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.basecase: ##   0:00:00  Writing trace to Verilog testbench: engine_0/trace_tb.v
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.basecase: ##   0:00:00  Writing trace to constraints file: engine_0/trace.smtc
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.basecase: ##   0:00:00  Writing trace to Yosys witness file: engine_0/trace.yw
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.basecase: ##   0:00:00  Status: failed
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.basecase: finished (returncode=1)
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.basecase: Status returned by engine for basecase: FAIL
+SBY  5:36:54 [fifo_coupling_integrity_mut] engine_0.induction: terminating process
+SBY  5:36:54 [fifo_coupling_integrity_mut] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY  5:36:54 [fifo_coupling_integrity_mut] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY  5:36:54 [fifo_coupling_integrity_mut] summary: engine_0 (smtbmc z3) returned FAIL for basecase
+SBY  5:36:54 [fifo_coupling_integrity_mut] summary: counterexample trace [basecase]: fifo_coupling_integrity_mut/engine_0/trace.vcd
+SBY  5:36:54 [fifo_coupling_integrity_mut] summary:   failed assertion fifo_fv._witness_.check_assert_fifo_fv_v_180_108 at fifo_fv.v:180.17-180.46 step 7
+SBY  5:36:54 [fifo_coupling_integrity_mut] DONE (FAIL, rc=2)
+</system-out>
+<system-err>
+</system-err>
+</testsuite>
+</testsuites>

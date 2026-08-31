@@ -1,0 +1,13 @@
+# running in fifo_coupling_cnt_lemma/src/
+verilog_defines -DCLASS_CNT_BOUND
+# the LEMMA asserts ONLY the lemma. Adding -DCLASS_DATA_INTEGRITY here meant the
+# task failed on the integrity assertion instead of its own, so the lemma could
+# never be proved while the property it supports was unprovable — circular.
+read_verilog fifo.v
+read_verilog -sv fifo_fv.v
+prep -top fifo_fv
+
+hierarchy -smtcheck
+rename -witness
+write_jny -no-connections ../model/design.json
+write_rtlil ../model/design.il

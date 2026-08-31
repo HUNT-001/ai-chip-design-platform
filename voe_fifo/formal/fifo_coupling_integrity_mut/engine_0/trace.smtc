@@ -1,0 +1,87 @@
+initial
+assume (= [$auto$async2sync.cc:107:execute$384] false)
+assume (= [$auto$async2sync.cc:107:execute$390] false)
+assume (= [$auto$async2sync.cc:116:execute$388] true)
+assume (= [$auto$async2sync.cc:116:execute$394] true)
+assume (= [cyc] #b00)
+assume (= [dut.u_fifo._witness_.anyinit_procdff_346] #x0001)
+assume (= [dut.u_fifo._witness_.anyinit_procdff_351] #b01)
+assume (= [dut.u_fifo._witness_.anyinit_procdff_356] #b01)
+assume (= [dut.u_fifo._witness_.anyinit_procdff_361] #b000)
+assume (= [s_cnt] #b001)
+assume (= [s_rd] #b01)
+assume (= [s_wr] #b01)
+assume (= (select [shadow] #b01) #x1)
+assume (= (select [shadow] #b00) #x0)
+
+state 0
+assume (= [clk] false)
+assume (= [din] #x1)
+assume (= [flush] false)
+assume (= [flush_but_first] false)
+assume (= [pop] false)
+assume (= [push] true)
+assume (= [testmode] false)
+
+state 1
+assume (= [clk] false)
+assume (= [din] #xf)
+assume (= [flush] false)
+assume (= [flush_but_first] false)
+assume (= [pop] false)
+assume (= [push] true)
+assume (= [testmode] false)
+
+state 2
+assume (= [clk] false)
+assume (= [din] #x0)
+assume (= [flush] false)
+assume (= [flush_but_first] false)
+assume (= [pop] false)
+assume (= [push] true)
+assume (= [testmode] false)
+
+state 3
+assume (= [clk] false)
+assume (= [din] #x0)
+assume (= [flush] false)
+assume (= [flush_but_first] false)
+assume (= [pop] false)
+assume (= [push] true)
+assume (= [testmode] false)
+
+state 4
+assume (= [clk] false)
+assume (= [din] #x4)
+assume (= [flush] false)
+assume (= [flush_but_first] false)
+assume (= [pop] false)
+assume (= [push] true)
+assume (= [testmode] false)
+
+state 5
+assume (= [clk] false)
+assume (= [din] #x0)
+assume (= [flush] false)
+assume (= [flush_but_first] true)
+assume (= [pop] true)
+assume (= [push] true)
+assume (= [testmode] false)
+
+state 6
+assume (= [clk] false)
+assume (= [din] #x0)
+assume (= [flush] false)
+assume (= [flush_but_first] false)
+assume (= [pop] true)
+assume (= [push] false)
+assume (= [testmode] false)
+
+state 7
+assume (= [clk] false)
+assume (= [din] #x0)
+assume (= [flush] false)
+assume (= [flush_but_first] false)
+assume (= [pop] false)
+assume (= [push] false)
+assume (= [testmode] false)

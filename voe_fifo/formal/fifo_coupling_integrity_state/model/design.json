@@ -1,0 +1,2183 @@
+{
+  "$schema": "https://raw.githubusercontent.com/YosysHQ/yosys/main/misc/jny.schema.json",
+  "generator": "Yosys 0.65+7 (git sha1 2046a23a2, clang++ 18.1.8 -fPIC -O3)",
+  "version": "0.0.1",
+  "invocation": "write_jny -no-connections ../model/design.json ",
+  "features": ["attributes", "properties"],
+  "modules": [
+      {
+        "name": "$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc\\cv32e40p_fifo",
+        "cell_sorts": [
+          {
+            "type": "$sub",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [3, 0]
+                },
+                {
+                  "name": "B",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "Y",
+                  "direction": "",
+                  "range": [3, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$sub$fifo.v:84$156",
+                  "attributes": {
+                    "src": "fifo.v:84.19-84.35"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000011",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000011"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$shift",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [4, 0]
+                },
+                {
+                  "name": "B",
+                  "direction": "io",
+                  "range": [33, 0]
+                },
+                {
+                  "name": "Y",
+                  "direction": "",
+                  "range": [16, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$shift$fifo.v:71$143",
+                  "attributes": {
+                    "src": "fifo.v:71.4-71.60"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000100",
+                    "B_SIGNED": "00000000000000000000000000000001",
+                    "B_WIDTH": "00000000000000000000000000100001",
+                    "Y_WIDTH": "00000000000000000000000000010000"
+                  }
+                },
+                {
+                  "name": "$shift$fifo.v:71$147",
+                  "attributes": {
+                    "src": "fifo.v:71.4-71.60"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000100",
+                    "B_SIGNED": "00000000000000000000000000000001",
+                    "B_WIDTH": "00000000000000000000000000100001",
+                    "Y_WIDTH": "00000000000000000000000000010000"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$add",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [2, 0]
+                },
+                {
+                  "name": "B",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "Y",
+                  "direction": "",
+                  "range": [2, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$add$fifo.v:113$170",
+                  "attributes": {
+                    "src": "fifo.v:113.45-113.63"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000010",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$add$fifo.v:67$135",
+                  "attributes": {
+                    "src": "fifo.v:67.40-67.81"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000101",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000110"
+                  }
+                },
+                {
+                  "name": "$add$fifo.v:71$141",
+                  "attributes": {
+                    "src": "fifo.v:71.9-71.51"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000101",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000110"
+                  }
+                },
+                {
+                  "name": "$add$fifo.v:76$150",
+                  "attributes": {
+                    "src": "fifo.v:76.23-76.42"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000010",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$add$fifo.v:77$151",
+                  "attributes": {
+                    "src": "fifo.v:77.19-77.35"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000011",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000011"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$shiftx",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [16, 0]
+                },
+                {
+                  "name": "B",
+                  "direction": "io",
+                  "range": [7, 0]
+                },
+                {
+                  "name": "Y",
+                  "direction": "",
+                  "range": [4, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$shiftx$fifo.v:67$136",
+                  "attributes": {
+                    "src": "fifo.v:67.40-67.81"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000010000",
+                    "B_SIGNED": "00000000000000000000000000000001",
+                    "B_WIDTH": "00000000000000000000000000000111",
+                    "Y_WIDTH": "00000000000000000000000000000100"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$neg",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [6, 0]
+                },
+                {
+                  "name": "Y",
+                  "direction": "",
+                  "range": [33, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$neg$fifo.v:71$146",
+                  "attributes": {
+                    "src": "fifo.v:71.4-71.60"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000110",
+                    "Y_WIDTH": "00000000000000000000000000100001"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$pmux",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [3, 0]
+                },
+                {
+                  "name": "B",
+                  "direction": "io",
+                  "range": [6, 0]
+                },
+                {
+                  "name": "S",
+                  "direction": "io",
+                  "range": [2, 0]
+                },
+                {
+                  "name": "Y",
+                  "direction": "",
+                  "range": [3, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$procmux$286",
+                  "attributes": {
+                    "full_case": "00000000000000000000000000000001",
+                    "parallel_case": "00000000000000000000000000000001",
+                    "src": "fifo.v:110.8-110.8|fifo.v:105.4-121.11"
+                  },
+                  "parameters": {
+                    "S_WIDTH": "00000000000000000000000000000010",
+                    "WIDTH": "00000000000000000000000000000011"
+                  }
+                },
+                {
+                  "name": "$procmux$290",
+                  "attributes": {
+                    "full_case": "00000000000000000000000000000001",
+                    "parallel_case": "00000000000000000000000000000001",
+                    "src": "fifo.v:110.8-110.8|fifo.v:105.4-121.11"
+                  },
+                  "parameters": {
+                    "S_WIDTH": "00000000000000000000000000000010",
+                    "WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$procmux$294",
+                  "attributes": {
+                    "full_case": "00000000000000000000000000000001",
+                    "parallel_case": "00000000000000000000000000000001",
+                    "src": "fifo.v:110.8-110.8|fifo.v:105.4-121.11"
+                  },
+                  "parameters": {
+                    "S_WIDTH": "00000000000000000000000000000010",
+                    "WIDTH": "00000000000000000000000000000010"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$and",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [16, 0]
+                },
+                {
+                  "name": "B",
+                  "direction": "io",
+                  "range": [16, 0]
+                },
+                {
+                  "name": "Y",
+                  "direction": "",
+                  "range": [16, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$and$fifo.v:71$145",
+                  "attributes": {
+                    "src": "fifo.v:71.4-71.60"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000010000",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000010000",
+                    "Y_WIDTH": "00000000000000000000000000010000"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$eq",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [3, 0]
+                },
+                {
+                  "name": "B",
+                  "direction": "io",
+                  "range": [3, 0]
+                },
+                {
+                  "name": "Y",
+                  "direction": "",
+                  "range": [0, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$eq$fifo.v:57$179",
+                  "attributes": {
+                    "src": "fifo.v:57.20-57.60"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000011",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000011",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$or",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [16, 0]
+                },
+                {
+                  "name": "B",
+                  "direction": "io",
+                  "range": [16, 0]
+                },
+                {
+                  "name": "Y",
+                  "direction": "",
+                  "range": [16, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$or$fifo.v:71$148",
+                  "attributes": {
+                    "src": "fifo.v:71.4-71.60"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000010000",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000010000",
+                    "Y_WIDTH": "00000000000000000000000000010000"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$logic_not",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [3, 0]
+                },
+                {
+                  "name": "Y",
+                  "direction": "",
+                  "range": [0, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$eq$fifo.v:58$180",
+                  "attributes": {
+                    "src": "fifo.v:58.22-58.39"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000011",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$adff",
+            "ports": [
+                {
+                  "name": "ARST",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "CLK",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "D",
+                  "direction": "io",
+                  "range": [16, 0]
+                },
+                {
+                  "name": "Q",
+                  "direction": "",
+                  "range": [16, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$procdff$379",
+                  "attributes": {
+                    "src": "fifo.v:122.2-126.19"
+                  },
+                  "parameters": {
+                    "ARST_POLARITY": "00000000000000000000000000000000",
+                    "ARST_VALUE": "0000000000000000",
+                    "CLK_POLARITY": "1",
+                    "WIDTH": "00000000000000000000000000010000"
+                  }
+                },
+                {
+                  "name": "$procdff$384",
+                  "attributes": {
+                    "src": "fifo.v:97.2-121.11"
+                  },
+                  "parameters": {
+                    "ARST_POLARITY": "00000000000000000000000000000000",
+                    "ARST_VALUE": "00",
+                    "CLK_POLARITY": "1",
+                    "WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$procdff$389",
+                  "attributes": {
+                    "src": "fifo.v:97.2-121.11"
+                  },
+                  "parameters": {
+                    "ARST_POLARITY": "00000000000000000000000000000000",
+                    "ARST_VALUE": "00",
+                    "CLK_POLARITY": "1",
+                    "WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$procdff$394",
+                  "attributes": {
+                    "src": "fifo.v:97.2-121.11"
+                  },
+                  "parameters": {
+                    "ARST_POLARITY": "00000000000000000000000000000000",
+                    "ARST_VALUE": "000",
+                    "CLK_POLARITY": "1",
+                    "WIDTH": "00000000000000000000000000000011"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$gt",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [3, 0]
+                },
+                {
+                  "name": "B",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "Y",
+                  "direction": "",
+                  "range": [0, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$gt$fifo.v:114$173",
+                  "attributes": {
+                    "src": "fifo.v:114.23-114.39"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000011",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$mul",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [2, 0]
+                },
+                {
+                  "name": "B",
+                  "direction": "io",
+                  "range": [3, 0]
+                },
+                {
+                  "name": "Y",
+                  "direction": "",
+                  "range": [5, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$mul$fifo.v:67$134",
+                  "attributes": {
+                    "src": "fifo.v:67.41-67.68"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000010",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000011",
+                    "Y_WIDTH": "00000000000000000000000000000101"
+                  }
+                },
+                {
+                  "name": "$mul$fifo.v:71$140",
+                  "attributes": {
+                    "src": "fifo.v:71.10-71.38"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000010",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000011",
+                    "Y_WIDTH": "00000000000000000000000000000101"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$logic_and",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "B",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "Y",
+                  "direction": "",
+                  "range": [0, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$logic_and$fifo.v:70$138",
+                  "attributes": {
+                    "src": "fifo.v:70.7-70.24"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000001",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$logic_and$fifo.v:79$153",
+                  "attributes": {
+                    "src": "fifo.v:79.7-79.24"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000001",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$logic_and$fifo.v:86$157",
+                  "attributes": {
+                    "src": "fifo.v:86.9-86.24"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000001",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$logic_and$fifo.v:86$159",
+                  "attributes": {
+                    "src": "fifo.v:86.8-86.36"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000001",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$logic_and$fifo.v:86$161",
+                  "attributes": {
+                    "src": "fifo.v:86.7-86.49"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000001",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$not",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [16, 0]
+                },
+                {
+                  "name": "Y",
+                  "direction": "",
+                  "range": [16, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$not$fifo.v:71$144",
+                  "attributes": {
+                    "src": "fifo.v:71.4-71.60"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000010000",
+                    "Y_WIDTH": "00000000000000000000000000010000"
+                  }
+                },
+                {
+                  "name": "$not$fifo.v:86$158",
+                  "attributes": {
+                    "src": "fifo.v:86.29-86.36"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$not$fifo.v:86$160",
+                  "attributes": {
+                    "src": "fifo.v:86.41-86.49"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$mux",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [16, 0]
+                },
+                {
+                  "name": "B",
+                  "direction": "io",
+                  "range": [16, 0]
+                },
+                {
+                  "name": "S",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "Y",
+                  "direction": "",
+                  "range": [16, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$procmux$283",
+                  "attributes": {
+                    "src": "fifo.v:125.12-125.23|fifo.v:125.8-126.19"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000010000"
+                  }
+                },
+                {
+                  "name": "$procmux$328",
+                  "attributes": {
+                    "full_case": "00000000000000000000000000000001",
+                    "src": "fifo.v:86.7-86.49|fifo.v:86.3-87.32"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000011"
+                  }
+                },
+                {
+                  "name": "$procmux$337",
+                  "attributes": {
+                    "full_case": "00000000000000000000000000000001",
+                    "src": "fifo.v:79.7-79.24|fifo.v:79.3-85.6"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000011"
+                  }
+                },
+                {
+                  "name": "$procmux$340",
+                  "attributes": {
+                    "full_case": "00000000000000000000000000000001",
+                    "src": "fifo.v:79.7-79.24|fifo.v:79.3-85.6"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$procmux$349",
+                  "attributes": {
+                    "full_case": "00000000000000000000000000000001",
+                    "src": "fifo.v:70.7-70.24|fifo.v:70.3-78.6"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000011"
+                  }
+                },
+                {
+                  "name": "$procmux$352",
+                  "attributes": {
+                    "full_case": "00000000000000000000000000000001",
+                    "src": "fifo.v:70.7-70.24|fifo.v:70.3-78.6"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$ternary$fifo.v:112$168",
+                  "attributes": {
+                    "src": "fifo.v:112.25-112.81"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$ternary$fifo.v:113$172",
+                  "attributes": {
+                    "src": "fifo.v:113.26-113.86"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$ternary$fifo.v:114$175",
+                  "attributes": {
+                    "src": "fifo.v:114.23-114.110"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000001"
+                  }
+                }
+            ]
+          }
+        ],
+        "attributes": {
+            "dynports": "00000000000000000000000000000001",
+            "hdlname": "cv32e40p_fifo",
+            "src": "fifo.v:1.1-132.10"
+        }
+      },
+      {
+        "name": "fifo_fv",
+        "cell_sorts": [
+          {
+            "type": "$mem_v2",
+            "ports": [
+                {
+                  "name": "RD_ADDR",
+                  "direction": "io",
+                  "range": [10, 0]
+                },
+                {
+                  "name": "RD_ARST",
+                  "direction": "io",
+                  "range": [5, 0]
+                },
+                {
+                  "name": "RD_CLK",
+                  "direction": "io",
+                  "range": [5, 0]
+                },
+                {
+                  "name": "RD_DATA",
+                  "direction": "",
+                  "range": [20, 0]
+                },
+                {
+                  "name": "RD_EN",
+                  "direction": "io",
+                  "range": [5, 0]
+                },
+                {
+                  "name": "RD_SRST",
+                  "direction": "io",
+                  "range": [5, 0]
+                },
+                {
+                  "name": "WR_ADDR",
+                  "direction": "io",
+                  "range": [10, 0]
+                },
+                {
+                  "name": "WR_CLK",
+                  "direction": "io",
+                  "range": [5, 0]
+                },
+                {
+                  "name": "WR_DATA",
+                  "direction": "io",
+                  "range": [20, 0]
+                },
+                {
+                  "name": "WR_EN",
+                  "direction": "io",
+                  "range": [20, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "shadow",
+                  "attributes": {
+                    "src": "fifo_fv.v:117.13-117.19"
+                  },
+                  "parameters": {
+                    "ABITS": "00000000000000000000000000000010",
+                    "INIT": "xxxxxxxxxxxxxxxx",
+                    "MEMID": "\\shadow",
+                    "OFFSET": "00000000000000000000000000000000",
+                    "RD_ARST_VALUE": "xxxxxxxxxxxxxxxxxxxx",
+                    "RD_CE_OVER_SRST": "00000",
+                    "RD_CLK_ENABLE": "00000",
+                    "RD_CLK_POLARITY": "00000",
+                    "RD_COLLISION_X_MASK": "0000000000000000000000000",
+                    "RD_INIT_VALUE": "xxxxxxxxxxxxxxxxxxxx",
+                    "RD_PORTS": "00000000000000000000000000000101",
+                    "RD_SRST_VALUE": "xxxxxxxxxxxxxxxxxxxx",
+                    "RD_TRANSPARENCY_MASK": "0000000000000000000000000",
+                    "RD_WIDE_CONTINUATION": "00000",
+                    "SIZE": "00000000000000000000000000000100",
+                    "WIDTH": "00000000000000000000000000000100",
+                    "WR_CLK_ENABLE": "11111",
+                    "WR_CLK_POLARITY": "11111",
+                    "WR_PORTS": "00000000000000000000000000000101",
+                    "WR_PRIORITY_MASK": "0000000111000110000100000",
+                    "WR_WIDE_CONTINUATION": "00000"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "fifo_wrap",
+            "ports": [
+                {
+                  "name": "clk_i",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "cnt_o",
+                  "direction": "",
+                  "range": [3, 0]
+                },
+                {
+                  "name": "data_i",
+                  "direction": "io",
+                  "range": [4, 0]
+                },
+                {
+                  "name": "data_o",
+                  "direction": "",
+                  "range": [4, 0]
+                },
+                {
+                  "name": "dbg_cnt_o",
+                  "direction": "",
+                  "range": [3, 0]
+                },
+                {
+                  "name": "dbg_mem_o",
+                  "direction": "",
+                  "range": [16, 0]
+                },
+                {
+                  "name": "dbg_rd_o",
+                  "direction": "",
+                  "range": [2, 0]
+                },
+                {
+                  "name": "dbg_wr_o",
+                  "direction": "",
+                  "range": [2, 0]
+                },
+                {
+                  "name": "empty_o",
+                  "direction": "",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "flush_but_first_i",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "flush_i",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "full_o",
+                  "direction": "",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "pop_i",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "push_i",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "rst_ni",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "testmode_i",
+                  "direction": "io",
+                  "range": [0, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "dut",
+                  "attributes": {
+                    "module_not_derived": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:43.13-60.4"
+                  },
+                  "parameters": {
+
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$sub",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [3, 0]
+                },
+                {
+                  "name": "B",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "Y",
+                  "direction": "",
+                  "range": [3, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$sub$fifo_fv.v:167$103",
+                  "attributes": {
+                    "src": "fifo_fv.v:167.27-167.39"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000011",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000011"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$pmux",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [3, 0]
+                },
+                {
+                  "name": "B",
+                  "direction": "io",
+                  "range": [6, 0]
+                },
+                {
+                  "name": "S",
+                  "direction": "io",
+                  "range": [2, 0]
+                },
+                {
+                  "name": "Y",
+                  "direction": "",
+                  "range": [3, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$procmux$227",
+                  "attributes": {
+                    "src": "fifo_fv.v:166.40-166.40|fifo_fv.v:165.7-169.14"
+                  },
+                  "parameters": {
+                    "S_WIDTH": "00000000000000000000000000000010",
+                    "WIDTH": "00000000000000000000000000000011"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$check",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "ARGS",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "EN",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "TRG",
+                  "direction": "io",
+                  "range": [0, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "_witness_.check_assert_fifo_fv_v_179_105",
+                  "attributes": {
+                    "hdlname": "_witness_ check_assert_fifo_fv_v_179_105",
+                    "keep": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:179.5-179.26"
+                  },
+                  "parameters": {
+                    "ARGS_WIDTH": "00000000000000000000000000000000",
+                    "FLAVOR": "assert",
+                    "FORMAT": true,
+                    "PRIORITY": "11111111111111111111111111111111",
+                    "TRG_ENABLE": "00000000000000000000000000000001",
+                    "TRG_POLARITY": "1",
+                    "TRG_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "_witness_.check_assert_fifo_fv_v_180_108",
+                  "attributes": {
+                    "hdlname": "_witness_ check_assert_fifo_fv_v_180_108",
+                    "keep": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:180.17-180.46"
+                  },
+                  "parameters": {
+                    "ARGS_WIDTH": "00000000000000000000000000000000",
+                    "FLAVOR": "assert",
+                    "FORMAT": true,
+                    "PRIORITY": "11111111111111111111111111111110",
+                    "TRG_ENABLE": "00000000000000000000000000000001",
+                    "TRG_POLARITY": "1",
+                    "TRG_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "_witness_.check_assume_fifo_fv_v_212_112",
+                  "attributes": {
+                    "hdlname": "_witness_ check_assume_fifo_fv_v_212_112",
+                    "keep": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:212.5-212.30"
+                  },
+                  "parameters": {
+                    "ARGS_WIDTH": "00000000000000000000000000000000",
+                    "FLAVOR": "assume",
+                    "FORMAT": true,
+                    "PRIORITY": "11111111111111111111111111111111",
+                    "TRG_ENABLE": "00000000000000000000000000000001",
+                    "TRG_POLARITY": "1",
+                    "TRG_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "_witness_.check_assume_fifo_fv_v_213_114",
+                  "attributes": {
+                    "hdlname": "_witness_ check_assume_fifo_fv_v_213_114",
+                    "keep": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:213.5-213.29"
+                  },
+                  "parameters": {
+                    "ARGS_WIDTH": "00000000000000000000000000000000",
+                    "FLAVOR": "assume",
+                    "FORMAT": true,
+                    "PRIORITY": "11111111111111111111111111111110",
+                    "TRG_ENABLE": "00000000000000000000000000000001",
+                    "TRG_POLARITY": "1",
+                    "TRG_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "_witness_.check_assume_fifo_fv_v_214_116",
+                  "attributes": {
+                    "hdlname": "_witness_ check_assume_fifo_fv_v_214_116",
+                    "keep": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:214.5-214.29"
+                  },
+                  "parameters": {
+                    "ARGS_WIDTH": "00000000000000000000000000000000",
+                    "FLAVOR": "assume",
+                    "FORMAT": true,
+                    "PRIORITY": "11111111111111111111111111111101",
+                    "TRG_ENABLE": "00000000000000000000000000000001",
+                    "TRG_POLARITY": "1",
+                    "TRG_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "_witness_.check_assume_fifo_fv_v_215_118",
+                  "attributes": {
+                    "hdlname": "_witness_ check_assume_fifo_fv_v_215_118",
+                    "keep": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:215.5-215.39"
+                  },
+                  "parameters": {
+                    "ARGS_WIDTH": "00000000000000000000000000000000",
+                    "FLAVOR": "assume",
+                    "FORMAT": true,
+                    "PRIORITY": "11111111111111111111111111111100",
+                    "TRG_ENABLE": "00000000000000000000000000000001",
+                    "TRG_POLARITY": "1",
+                    "TRG_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "_witness_.check_assume_fifo_fv_v_216_121",
+                  "attributes": {
+                    "hdlname": "_witness_ check_assume_fifo_fv_v_216_121",
+                    "keep": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:216.5-216.39"
+                  },
+                  "parameters": {
+                    "ARGS_WIDTH": "00000000000000000000000000000000",
+                    "FLAVOR": "assume",
+                    "FORMAT": true,
+                    "PRIORITY": "11111111111111111111111111111011",
+                    "TRG_ENABLE": "00000000000000000000000000000001",
+                    "TRG_POLARITY": "1",
+                    "TRG_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "_witness_.check_assume_fifo_fv_v_217_124",
+                  "attributes": {
+                    "hdlname": "_witness_ check_assume_fifo_fv_v_217_124",
+                    "keep": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:217.5-217.40"
+                  },
+                  "parameters": {
+                    "ARGS_WIDTH": "00000000000000000000000000000000",
+                    "FLAVOR": "assume",
+                    "FORMAT": true,
+                    "PRIORITY": "11111111111111111111111111111010",
+                    "TRG_ENABLE": "00000000000000000000000000000001",
+                    "TRG_POLARITY": "1",
+                    "TRG_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "_witness_.check_assume_fifo_fv_v_218_127",
+                  "attributes": {
+                    "hdlname": "_witness_ check_assume_fifo_fv_v_218_127",
+                    "keep": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:218.5-218.41"
+                  },
+                  "parameters": {
+                    "ARGS_WIDTH": "00000000000000000000000000000000",
+                    "FLAVOR": "assume",
+                    "FORMAT": true,
+                    "PRIORITY": "11111111111111111111111111111001",
+                    "TRG_ENABLE": "00000000000000000000000000000001",
+                    "TRG_POLARITY": "1",
+                    "TRG_WIDTH": "00000000000000000000000000000001"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$dff",
+            "ports": [
+                {
+                  "name": "CLK",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "D",
+                  "direction": "io",
+                  "range": [3, 0]
+                },
+                {
+                  "name": "Q",
+                  "direction": "",
+                  "range": [3, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$procdff$363",
+                  "attributes": {
+                    "src": "fifo_fv.v:153.3-171.6"
+                  },
+                  "parameters": {
+                    "CLK_POLARITY": "1",
+                    "WIDTH": "00000000000000000000000000000011"
+                  }
+                },
+                {
+                  "name": "$procdff$364",
+                  "attributes": {
+                    "src": "fifo_fv.v:153.3-171.6"
+                  },
+                  "parameters": {
+                    "CLK_POLARITY": "1",
+                    "WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$procdff$365",
+                  "attributes": {
+                    "src": "fifo_fv.v:153.3-171.6"
+                  },
+                  "parameters": {
+                    "CLK_POLARITY": "1",
+                    "WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$procdff$374",
+                  "attributes": {
+                    "src": "fifo_fv.v:32.3-32.60"
+                  },
+                  "parameters": {
+                    "CLK_POLARITY": "1",
+                    "WIDTH": "00000000000000000000000000000010"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$reduce_bool",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [2, 0]
+                },
+                {
+                  "name": "Y",
+                  "direction": "",
+                  "range": [0, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$ne$fifo_fv.v:34$65",
+                  "attributes": {
+                    "src": "fifo_fv.v:34.19-34.30"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000010",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$mux",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "B",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "S",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "Y",
+                  "direction": "",
+                  "range": [0, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$procmux$199",
+                  "attributes": {
+                    "src": "fifo_fv.v:180.9-180.15|fifo_fv.v:180.5-180.47"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$procmux$201",
+                  "attributes": {
+                    "src": "fifo_fv.v:178.29-178.36|fifo_fv.v:178.25-181.6"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$procmux$203",
+                  "attributes": {
+                    "src": "fifo_fv.v:178.29-178.36|fifo_fv.v:178.25-181.6"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$procmux$205",
+                  "attributes": {
+                    "src": "fifo_fv.v:163.11-163.18|fifo_fv.v:163.7-163.40"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$procmux$208",
+                  "attributes": {
+                    "full_case": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:158.18-158.33|fifo_fv.v:158.14-170.8"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$procmux$211",
+                  "attributes": {
+                    "full_case": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:156.18-156.23|fifo_fv.v:156.14-170.8"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$procmux$214",
+                  "attributes": {
+                    "full_case": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:154.9-154.15|fifo_fv.v:154.5-170.8"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$procmux$216",
+                  "attributes": {
+                    "src": "fifo_fv.v:164.11-164.17|fifo_fv.v:164.7-164.40"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$procmux$219",
+                  "attributes": {
+                    "full_case": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:158.18-158.33|fifo_fv.v:158.14-170.8"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$procmux$222",
+                  "attributes": {
+                    "full_case": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:156.18-156.23|fifo_fv.v:156.14-170.8"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$procmux$225",
+                  "attributes": {
+                    "full_case": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:154.9-154.15|fifo_fv.v:154.5-170.8"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$procmux$231",
+                  "attributes": {
+                    "full_case": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:158.18-158.33|fifo_fv.v:158.14-170.8"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000011"
+                  }
+                },
+                {
+                  "name": "$procmux$234",
+                  "attributes": {
+                    "full_case": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:156.18-156.23|fifo_fv.v:156.14-170.8"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000011"
+                  }
+                },
+                {
+                  "name": "$procmux$237",
+                  "attributes": {
+                    "full_case": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:154.9-154.15|fifo_fv.v:154.5-170.8"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000011"
+                  }
+                },
+                {
+                  "name": "$procmux$240",
+                  "attributes": {
+                    "full_case": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:146.18-146.25|fifo_fv.v:146.14-148.8"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$procmux$246",
+                  "attributes": {
+                    "full_case": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:146.18-146.25|fifo_fv.v:146.14-148.8"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000100"
+                  }
+                },
+                {
+                  "name": "$procmux$252",
+                  "attributes": {
+                    "full_case": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:146.18-146.25|fifo_fv.v:146.14-148.8"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$procmux$270",
+                  "attributes": {
+                    "full_case": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:144.9-144.15|fifo_fv.v:144.5-148.8"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$procmux$273",
+                  "attributes": {
+                    "full_case": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:144.9-144.15|fifo_fv.v:144.5-148.8"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$procmux$276",
+                  "attributes": {
+                    "full_case": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:144.9-144.15|fifo_fv.v:144.5-148.8"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000100"
+                  }
+                },
+                {
+                  "name": "$procmux$279",
+                  "attributes": {
+                    "full_case": "00000000000000000000000000000001",
+                    "src": "fifo_fv.v:144.9-144.15|fifo_fv.v:144.5-148.8"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$procmux$281",
+                  "attributes": {
+                    "src": "fifo_fv.v:32.29-32.40|fifo_fv.v:32.25-32.60"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$ternary$fifo_fv.v:159$94",
+                  "attributes": {
+                    "src": "fifo_fv.v:159.16-159.44"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$ternary$fifo_fv.v:160$97",
+                  "attributes": {
+                    "src": "fifo_fv.v:160.16-160.53"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$ternary$fifo_fv.v:161$99",
+                  "attributes": {
+                    "src": "fifo_fv.v:161.16-161.44"
+                  },
+                  "parameters": {
+                    "WIDTH": "00000000000000000000000000000001"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$ne",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [2, 0]
+                },
+                {
+                  "name": "B",
+                  "direction": "io",
+                  "range": [2, 0]
+                },
+                {
+                  "name": "Y",
+                  "direction": "",
+                  "range": [0, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$ne$fifo_fv.v:32$62",
+                  "attributes": {
+                    "src": "fifo_fv.v:32.29-32.40"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000010",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000010",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$logic_and",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "B",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "Y",
+                  "direction": "",
+                  "range": [0, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$logic_and$fifo_fv.v:132$69",
+                  "attributes": {
+                    "src": "fifo_fv.v:132.18-132.33"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000001",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$logic_and$fifo_fv.v:133$71",
+                  "attributes": {
+                    "src": "fifo_fv.v:133.18-133.34"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000001",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$gt",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [3, 0]
+                },
+                {
+                  "name": "B",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "Y",
+                  "direction": "",
+                  "range": [0, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$gt$fifo_fv.v:161$98",
+                  "attributes": {
+                    "src": "fifo_fv.v:161.17-161.29"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000011",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$logic_not",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [3, 0]
+                },
+                {
+                  "name": "Y",
+                  "direction": "",
+                  "range": [0, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$eq$fifo_fv.v:131$67",
+                  "attributes": {
+                    "src": "fifo_fv.v:131.19-131.32"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000011",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$logic_not$fifo_fv.v:132$68",
+                  "attributes": {
+                    "src": "fifo_fv.v:132.26-132.33"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$logic_not$fifo_fv.v:133$70",
+                  "attributes": {
+                    "src": "fifo_fv.v:133.26-133.34"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$eq",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [3, 0]
+                },
+                {
+                  "name": "B",
+                  "direction": "io",
+                  "range": [3, 0]
+                },
+                {
+                  "name": "Y",
+                  "direction": "",
+                  "range": [0, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$eq$fifo_fv.v:130$66",
+                  "attributes": {
+                    "src": "fifo_fv.v:130.19-130.32"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000011",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000011",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$eq$fifo_fv.v:179$106",
+                  "attributes": {
+                    "src": "fifo_fv.v:179.13-179.25"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000011",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000011",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$eq$fifo_fv.v:180$110",
+                  "attributes": {
+                    "src": "fifo_fv.v:180.25-180.45"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000100",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000100",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$eq$fifo_fv.v:212$113",
+                  "attributes": {
+                    "src": "fifo_fv.v:212.13-212.29"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000011",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000011",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$eq$fifo_fv.v:213$115",
+                  "attributes": {
+                    "src": "fifo_fv.v:213.13-213.28"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000010",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000010",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$eq$fifo_fv.v:214$117",
+                  "attributes": {
+                    "src": "fifo_fv.v:214.13-214.28"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000010",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000010",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$eq$fifo_fv.v:215$120",
+                  "attributes": {
+                    "src": "fifo_fv.v:215.13-215.38"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000100",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000100",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$eq$fifo_fv.v:216$123",
+                  "attributes": {
+                    "src": "fifo_fv.v:216.13-216.38"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000100",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000100",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$eq$fifo_fv.v:217$126",
+                  "attributes": {
+                    "src": "fifo_fv.v:217.13-217.39"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000100",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000100",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$eq$fifo_fv.v:218$129",
+                  "attributes": {
+                    "src": "fifo_fv.v:218.13-218.40"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000100",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000100",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$procmux$228_CMP0",
+                  "attributes": {
+                    "src": "fifo_fv.v:166.40-166.40|fifo_fv.v:165.7-169.14"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000010",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                },
+                {
+                  "name": "$procmux$229_CMP0",
+                  "attributes": {
+                    "src": "fifo_fv.v:165.31-165.31|fifo_fv.v:165.7-169.14"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000010",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000010",
+                    "Y_WIDTH": "00000000000000000000000000000001"
+                  }
+                }
+            ]
+          },
+          {
+            "type": "$add",
+            "ports": [
+                {
+                  "name": "A",
+                  "direction": "io",
+                  "range": [2, 0]
+                },
+                {
+                  "name": "B",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "Y",
+                  "direction": "",
+                  "range": [2, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "$add$fifo_fv.v:163$100",
+                  "attributes": {
+                    "src": "fifo_fv.v:163.28-163.39"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000010",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$add$fifo_fv.v:164$101",
+                  "attributes": {
+                    "src": "fifo_fv.v:164.28-164.39"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000010",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000010"
+                  }
+                },
+                {
+                  "name": "$add$fifo_fv.v:166$102",
+                  "attributes": {
+                    "src": "fifo_fv.v:166.27-166.39"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000011",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000011"
+                  }
+                },
+                {
+                  "name": "$add$fifo_fv.v:32$63",
+                  "attributes": {
+                    "src": "fifo_fv.v:32.49-32.59"
+                  },
+                  "parameters": {
+                    "A_SIGNED": "00000000000000000000000000000000",
+                    "A_WIDTH": "00000000000000000000000000000010",
+                    "B_SIGNED": "00000000000000000000000000000000",
+                    "B_WIDTH": "00000000000000000000000000000001",
+                    "Y_WIDTH": "00000000000000000000000000000010"
+                  }
+                }
+            ]
+          }
+        ],
+        "attributes": {
+            "keep": "00000000000000000000000000000001",
+            "top": "00000000000000000000000000000001",
+            "src": "fifo_fv.v:21.1-231.10"
+        }
+      },
+      {
+        "name": "fifo_wrap",
+        "cell_sorts": [
+          {
+            "type": "$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc\\cv32e40p_fifo",
+            "ports": [
+                {
+                  "name": "clk_i",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "cnt_o",
+                  "direction": "",
+                  "range": [3, 0]
+                },
+                {
+                  "name": "data_i",
+                  "direction": "io",
+                  "range": [4, 0]
+                },
+                {
+                  "name": "data_o",
+                  "direction": "",
+                  "range": [4, 0]
+                },
+                {
+                  "name": "dbg_cnt_o",
+                  "direction": "",
+                  "range": [3, 0]
+                },
+                {
+                  "name": "dbg_mem_o",
+                  "direction": "",
+                  "range": [16, 0]
+                },
+                {
+                  "name": "dbg_rd_o",
+                  "direction": "",
+                  "range": [2, 0]
+                },
+                {
+                  "name": "dbg_wr_o",
+                  "direction": "",
+                  "range": [2, 0]
+                },
+                {
+                  "name": "empty_o",
+                  "direction": "",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "flush_but_first_i",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "flush_i",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "full_o",
+                  "direction": "",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "pop_i",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "push_i",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "rst_ni",
+                  "direction": "io",
+                  "range": [0, 0]
+                },
+                {
+                  "name": "testmode_i",
+                  "direction": "io",
+                  "range": [0, 0]
+                }
+            ],
+            "cells": [
+                {
+                  "name": "u_fifo",
+                  "attributes": {
+                    "src": "fifo.v:171.4-188.3"
+                  },
+                  "parameters": {
+
+                  }
+                }
+            ]
+          }
+        ],
+        "attributes": {
+            "src": "fifo.v:133.1-189.10"
+        }
+      }
+  ]
+}

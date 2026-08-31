@@ -1,0 +1,8 @@
+##   0:00:00  Solver: z3
+##   0:00:00  Trying induction in step 12..
+##   0:00:00  Trying induction in step 11..
+##   0:00:00  Trying induction in step 10..
+##   0:00:00  Trying induction in step 9..
+##   0:00:00  Trying induction in step 8..
+##   0:00:00  Trying induction in step 7..
+##   0:00:00  Trying induction in step 6..

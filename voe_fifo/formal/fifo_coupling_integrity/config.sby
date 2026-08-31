@@ -1,0 +1,73 @@
+# COUPLING PROBE — does a dependent property actually need its lemma?
+#
+# Experiments 6 and 7 DECLARED their dependency structure: the harness was told
+# which obligations unlocked which. That is why their results are only synthetic
+# structural stress tests. This file declares nothing. It runs the same property
+# twice, once alone and once with the counter invariant ASSUMED, and lets the
+# solver say whether the lemma matters.
+#
+#   integrity        CLASS_DATA_INTEGRITY alone
+#   integrity_lemma  CLASS_DATA_INTEGRITY with `cnt <= DEPTH` assumed
+#   cnt_lemma        CLASS_CNT_BOUND alone — the lemma must itself be PROVED,
+#                    or assuming it above is unsound and every dependent result
+#                    is vacuous
+#   state_match      the pointer/count/MEMORY matching invariant, asserted ALONE
+#                    (no -DCLASS_DATA_INTEGRITY). Must be PROVED, or assuming it
+#                    below is unsound. Memory equality is in it because the DUT
+#                    resets mem_q to zero while the shadow array was left
+#                    uninitialised — the two storages disagreed from cycle 0 and
+#                    no amount of pointer matching could repair that.
+#   integrity_state  integrity with state_match ASSUMED. This is the pair that
+#                    tests whether the RIGHT lemma closes the property, after
+#                    `cnt <= DEPTH` measurably did not.
+#   tap_control      CONNECTIVITY CONTROL, and it must PASS. The first attempt
+#                    at state_match used hierarchical references, which yosys
+#                    does not resolve — it created undriven wires of that name,
+#                    so the lemma was assumed against floating signals and
+#                    constrained nothing. Read this task FIRST; if it fails,
+#                    every other result in this file is meaningless.
+#   integrity_mut    NEGATIVE CONTROL. The same reference model against the
+#                    MUTANT FIFO. It must FAIL. A model that passes on a design
+#                    known to be broken is not checking anything, and "integrity
+#                    passes" would then be vacuous rather than reassuring.
+#
+# NO `expect` lines. An expectation here would prejudge the very thing being
+# measured, and a task that cannot surprise us is not evidence. Read the exit
+# status per task instead.
+#
+# Interpreting the outcome:
+#   integrity FAILS/UNKNOWN + integrity_lemma PASSES  -> genuine coupling
+#   both PASS                                          -> no coupling here; the
+#                                                         property is inductive
+#                                                         alone and Experiment
+#                                                         12 has no ground
+#   integrity_lemma FAILS                              -> the reference model is
+#                                                         WRONG, not the DUT.
+#                                                         Inspect the trace
+#                                                         before concluding
+#                                                         anything.
+#
+# That third case is not hypothetical: an off-by-one testbench in this project
+# once refuted correct RTL, and a wrong reference model produces exactly the
+# same symptom as real coupling.
+
+[options]
+mode prove
+depth 12
+
+[engines]
+smtbmc z3
+
+[script]
+verilog_defines -DSHADOW -DCLASS_DATA_INTEGRITY
+# the LEMMA asserts ONLY the lemma. Adding -DCLASS_DATA_INTEGRITY here meant the
+# task failed on the integrity assertion instead of its own, so the lemma could
+# never be proved while the property it supports was unprovable — circular.
+read_verilog fifo.v
+read_verilog -sv fifo_fv.v
+prep -top fifo_fv
+
+[files]
+gen/fifo.v
+gen/fifo_mut.v
+fifo_fv.v

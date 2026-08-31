@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+<testsuite timestamp="2026-08-30T15:41:45" hostname="TANPAN" package="fifo_coupling" id="0" name="integrity_lemma" tests="2" errors="0" failures="2" time="32" skipped="1">
+<properties>
+<property name="os" value="Linux"/>
+<property name="expect" value="PASS"/>
+<property name="status" value="UNKNOWN"/>
+</properties>
+<testcase classname="integrity_lemma" name="build execution" time="0">
+<failure type="UNKNOWN" message="Task returned status UNKNOWN." />
+</testcase>
+<testcase classname="integrity_lemma" name="Property ASSERT in fifo_fv at fifo_fv.v:179.5-179.26" time="0" type="ASSERT" location="fifo_fv.v:179.5-179.26" id="_witness_.check_assert_fifo_fv_v_179_108">
+<skipped />
+</testcase>
+<testcase classname="integrity_lemma" name="Property ASSERT in fifo_fv at fifo_fv.v:180.17-180.46" time="0" type="ASSERT" location="fifo_fv.v:180.17-180.46" id="_witness_.check_assert_fifo_fv_v_180_111" tracefile="engine_0/trace_induct.vcd">
+<failure type="ASSERT" message="Property ASSERT in fifo_fv at fifo_fv.v:180.17-180.46 failed. Trace file: engine_0/trace_induct.vcd" />
+</testcase>
+<system-out>SBY 15:41:21 [fifo_coupling_integrity] Removing directory '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_coupling_integrity'.
+SBY 15:41:22 [fifo_coupling_integrity_lemma] Removing directory '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_coupling_integrity_lemma'.
+SBY 15:41:22 [fifo_coupling_integrity_lemma] Copy '/mnt/e/ai-chip-design-platform/voe_fifo/formal/gen/fifo.v' to '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_coupling_integrity_lemma/src/fifo.v'.
+SBY 15:41:22 [fifo_coupling_integrity_lemma] Copy '/mnt/e/ai-chip-design-platform/voe_fifo/formal/gen/fifo_mut.v' to '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_coupling_integrity_lemma/src/fifo_mut.v'.
+SBY 15:41:22 [fifo_coupling_integrity_lemma] Copy '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_fv.v' to '/mnt/e/ai-chip-design-platform/voe_fifo/formal/fifo_coupling_integrity_lemma/src/fifo_fv.v'.
+SBY 15:41:23 [fifo_coupling_integrity_lemma] engine_0: smtbmc z3
+SBY 15:41:28 [fifo_coupling_integrity_lemma] base: starting process &quot;cd fifo_coupling_integrity_lemma/src; yosys -ql ../model/design.log ../model/design.ys&quot;
+SBY 15:41:28 [fifo_coupling_integrity_lemma] base: finished (returncode=0)
+SBY 15:41:28 [fifo_coupling_integrity_lemma] prep: starting process &quot;cd fifo_coupling_integrity_lemma/model; yosys -ql design_prep.log design_prep.ys&quot;
+SBY 15:41:28 [fifo_coupling_integrity_lemma] prep: finished (returncode=0)
+SBY 15:41:28 [fifo_coupling_integrity_lemma] smt2: starting process &quot;cd fifo_coupling_integrity_lemma/model; yosys -ql design_smt2.log design_smt2.ys&quot;
+SBY 15:41:28 [fifo_coupling_integrity_lemma] smt2: finished (returncode=0)
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.basecase: starting process &quot;cd fifo_coupling_integrity_lemma; yosys-smtbmc -s z3 --presat --noprogress -t 12  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2&quot;
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:00  Solver: z3
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:00  Checking assumptions in step 0..
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:00  Checking assertions in step 0..
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:00  Checking assumptions in step 1..
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:00  Checking assertions in step 1..
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:00  Checking assumptions in step 2..
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:00  Checking assertions in step 2..
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:00  Checking assumptions in step 3..
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:00  Checking assertions in step 3..
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:00  Checking assumptions in step 4..
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:00  Checking assertions in step 4..
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:00  Checking assumptions in step 5..
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:00  Checking assertions in step 5..
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:00  Checking assumptions in step 6..
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:00  Checking assertions in step 6..
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.induction: starting process &quot;cd fifo_coupling_integrity_lemma; yosys-smtbmc -s z3 --presat -i --noprogress -t 12  --append 0 --dump-vcd engine_0/trace_induct.vcd --dump-yw engine_0/trace_induct.yw --dump-vlogtb engine_0/trace_induct_tb.v --dump-smtc engine_0/trace_induct.smtc model/design_smt2.smt2&quot;
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:00  Checking assumptions in step 7..
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:00  Checking assertions in step 7..
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.induction: ##   0:00:00  Solver: z3
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.induction: ##   0:00:00  Trying induction in step 12..
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.induction: ##   0:00:00  Trying induction in step 11..
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.induction: ##   0:00:00  Trying induction in step 10..
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.induction: ##   0:00:00  Trying induction in step 9..
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.induction: ##   0:00:00  Trying induction in step 8..
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.induction: ##   0:00:00  Trying induction in step 7..
+SBY 15:41:29 [fifo_coupling_integrity_lemma] engine_0.induction: ##   0:00:00  Trying induction in step 6..
+SBY 15:41:30 [fifo_coupling_integrity_lemma] engine_0.induction: ##   0:00:00  Trying induction in step 5..
+SBY 15:41:30 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:00  Checking assumptions in step 8..
+SBY 15:41:30 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:00  Checking assertions in step 8..
+SBY 15:41:30 [fifo_coupling_integrity_lemma] engine_0.induction: ##   0:00:01  Trying induction in step 4..
+SBY 15:41:30 [fifo_coupling_integrity_lemma] engine_0.induction: ##   0:00:01  Trying induction in step 3..
+SBY 15:41:31 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:01  Checking assumptions in step 9..
+SBY 15:41:31 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:01  Checking assertions in step 9..
+SBY 15:41:31 [fifo_coupling_integrity_lemma] engine_0.induction: ##   0:00:01  Trying induction in step 2..
+SBY 15:41:32 [fifo_coupling_integrity_lemma] engine_0.induction: ##   0:00:03  Trying induction in step 1..
+SBY 15:41:33 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:03  Checking assumptions in step 10..
+SBY 15:41:33 [fifo_coupling_integrity_lemma] engine_0.induction: ##   0:00:03  Trying induction in step 0..
+SBY 15:41:33 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:03  Checking assertions in step 10..
+SBY 15:41:37 [fifo_coupling_integrity_lemma] engine_0.induction: ##   0:00:07  Temporal induction failed!
+SBY 15:41:37 [fifo_coupling_integrity_lemma] engine_0.induction: ##   0:00:07  Assert failed in fifo_fv: fifo_fv.v:180.17-180.46 (_witness_.check_assert_fifo_fv_v_180_111)
+SBY 15:41:37 [fifo_coupling_integrity_lemma] engine_0.induction: ##   0:00:07  Writing trace to VCD file: engine_0/trace_induct.vcd
+SBY 15:41:37 [fifo_coupling_integrity_lemma] engine_0.induction: ##   0:00:07  Writing trace to Verilog testbench: engine_0/trace_induct_tb.v
+SBY 15:41:37 [fifo_coupling_integrity_lemma] engine_0.induction: ##   0:00:07  Writing trace to constraints file: engine_0/trace_induct.smtc
+SBY 15:41:37 [fifo_coupling_integrity_lemma] engine_0.induction: ##   0:00:07  Writing trace to Yosys witness file: engine_0/trace_induct.yw
+SBY 15:41:37 [fifo_coupling_integrity_lemma] engine_0.induction: ##   0:00:07  Status: failed
+SBY 15:41:37 [fifo_coupling_integrity_lemma] engine_0.induction: finished (returncode=1)
+SBY 15:41:37 [fifo_coupling_integrity_lemma] engine_0.induction: Status returned by engine for induction: FAIL
+SBY 15:41:37 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:08  Checking assumptions in step 11..
+SBY 15:41:37 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:08  Checking assertions in step 11..
+SBY 15:41:45 [fifo_coupling_integrity_lemma] engine_0.basecase: ##   0:00:16  Status: passed
+SBY 15:41:45 [fifo_coupling_integrity_lemma] engine_0.basecase: finished (returncode=0)
+SBY 15:41:45 [fifo_coupling_integrity_lemma] engine_0.basecase: Status returned by engine for basecase: pass
+SBY 15:41:45 [fifo_coupling_integrity_lemma] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:22 (22)
+SBY 15:41:45 [fifo_coupling_integrity_lemma] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:32 (32)
+SBY 15:41:45 [fifo_coupling_integrity_lemma] summary: engine_0 (smtbmc z3) returned pass for basecase
+SBY 15:41:45 [fifo_coupling_integrity_lemma] summary: engine_0 (smtbmc z3) returned FAIL for induction
+SBY 15:41:45 [fifo_coupling_integrity_lemma] summary: counterexample trace [induction]: fifo_coupling_integrity_lemma/engine_0/trace_induct.vcd
+SBY 15:41:45 [fifo_coupling_integrity_lemma] summary:   failed assertion fifo_fv._witness_.check_assert_fifo_fv_v_180_111 at fifo_fv.v:180.17-180.46
+SBY 15:41:45 [fifo_coupling_integrity_lemma] DONE (UNKNOWN, rc=4)
+</system-out>
+<system-err>
+</system-err>
+</testsuite>
+</testsuites>
