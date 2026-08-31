@@ -8,13 +8,13 @@ module testbench(input clock, output reg genclock);
 `endif
   reg genclock = 1;
   reg [31:0] cycle = 0;
-  reg [31:0] PI_b;
   reg [2:0] PI_op;
+  reg [31:0] PI_b;
   wire [0:0] PI_clk = clock;
   reg [31:0] PI_a;
   alu_fv UUT (
-    .b(PI_b),
     .op(PI_op),
+    .b(PI_b),
     .clk(PI_clk),
     .a(PI_a)
   );
@@ -39,15 +39,15 @@ module testbench(input clock, output reg genclock);
     // UUT.$auto$async2sync.\cc:116:execute$60  = 1'b1;
 
     // state 0
-    PI_b = 32'b10011111010011010100110011110000;
     PI_op = 3'b000;
+    PI_b = 32'b10011111010011010100110011110000;
     PI_a = 32'b11011110101011011011111011101111;
   end
   always @(posedge clock) begin
     // state 1
     if (cycle == 0) begin
-      PI_b <= 32'b00100001010100100100000100000010;
       PI_op <= 3'b000;
+      PI_b <= 32'b00100001010100100100000100000010;
       PI_a <= 32'b11011110101011011011111011101111;
     end
 
