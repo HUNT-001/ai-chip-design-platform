@@ -1,0 +1,7 @@
+{
+  "schema_version": "2.1.0",
+  "agent": "advanced_link_verifier",
+  "status": "skipped",
+  "reason": "no advlink_trace",
+  "pass": true
+}
