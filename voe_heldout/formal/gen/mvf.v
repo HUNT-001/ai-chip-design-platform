@@ -4,7 +4,8 @@ module mv_filter (
 	sample_i,
 	clear_i,
 	d_i,
-	q_o
+	q_o,
+	dbg_cnt_o
 );
 	reg _sv2v_0;
 	parameter [31:0] WIDTH = 4;
@@ -15,11 +16,13 @@ module mv_filter (
 	input wire clear_i;
 	input wire d_i;
 	output wire q_o;
+	output wire [WIDTH - 1:0] dbg_cnt_o;
 	reg [WIDTH - 1:0] counter_q;
 	reg [WIDTH - 1:0] counter_d;
 	reg d;
 	reg q;
 	assign q_o = q;
+	assign dbg_cnt_o = counter_q;
 	always @(*) begin
 		if (_sv2v_0)
 			;
@@ -51,7 +54,8 @@ module mvf_wrap (
 	sample_i,
 	clear_i,
 	d_i,
-	q_o
+	q_o,
+	dbg_cnt_o
 );
 	input wire clk_i;
 	input wire rst_ni;
@@ -59,6 +63,7 @@ module mvf_wrap (
 	input wire clear_i;
 	input wire d_i;
 	output wire q_o;
+	output wire [3:0] dbg_cnt_o;
 	mv_filter #(
 		.WIDTH(4),
 		.THRESHOLD(10)
@@ -68,6 +73,7 @@ module mvf_wrap (
 		.sample_i(sample_i),
 		.clear_i(clear_i),
 		.d_i(d_i),
-		.q_o(q_o)
+		.q_o(q_o),
+		.dbg_cnt_o(dbg_cnt_o)
 	);
 endmodule
