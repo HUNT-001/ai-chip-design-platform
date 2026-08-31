@@ -1,0 +1,211 @@
+# CLAUDE.md — AVA Verification Platform
+
+This file gives AI assistants (Claude, etc.) the context needed to work
+effectively in this codebase without re-reading every file.
+
+---
+
+## What this project is
+
+**AVA v3.0** — Autonomic Verification Agent. A multi-agent RISC-V RTL
+verification platform. Given an RTL spec, it runs a 6-phase pipeline:
+
+1. **Semantic analysis** (AGENT_A) — schema validation, DUT module extraction
+2. **Testbench generation** (AGENT_B) — Verilator/cocotb/UVM wiring
+3. **Tandem simulation** (AGENT_C + AGENT_D) — Spike ISS vs RTL, commit-log diff
+4. **Compliance** (AGENT_E) — RISC-V compliance test runner
+5. **Coverage adaptation** (AGENT_F + AGENT_G) — UCB1 bandit + genetic/causal tests
+6. **Extended verification** (AGENT_H modules + I/J/K/L) — 14 specialised agents
+
+The main entry point is `ava_patched.py` — specifically the `AVA` class and
+`generate_suite()` method.
+
+---
+
+## Key files
+
+| File | Purpose |
+|---|---|
+| `ava_patched.py` | Main orchestrator — `AVA` class, 6-phase pipeline, `VerificationReportWriter` |
+| `AGENT_G/causal_engine.py` | `CausalGeneticEngine` — causal AI-guided test generation |
+| `AGENT_H/agent_h_intent.py` | `IntentChecker` — architectural intent verification |
+| `AGENT_H/aia_verifier.py` | `AIAVerifier` + `IMSICModel` + `APLICModel` — AIA interrupt arbitration: IMSIC `topei` (smallest identity = highest priority among pending `eip` ∧ enabled `eie` below `eithreshold`, gated by `eidelivery`) and APLIC `topi` direct-delivery (lowest `iprio` = highest, among active+pending+enabled below `ithreshold`, tie→lowest id). Checks imsic_*/aplic_*. Golden over an `aia_trace.jsonl` |
+| `AGENT_H/confidence_scorer.py` | `ConfidenceScorer` — weighted confidence score [0,1] |
+| `AGENT_H/hypervisor_verifier.py` | `HypervisorVerifier` + `TwoStageMMU` — Hypervisor (H) two-stage translation: GVA →VS-stage(vsatp)→ GPA →G-stage(hgatp)→ SPA composition + per-stage perms; VS-stage fault = ordinary page-fault (12/13/15), G-stage fault = guest-page-fault (20/21/23). Checks htrans_result/htrans_fault. Golden over a `hypervisor_trace.jsonl` |
+| `AGENT_H/reset_verifier.py` | `ResetVerifier` — RISC-V architectural reset state over a reset snapshot (priv==M; mstatus.MIE/MPRV==0; reset PC==reset vector; misa MXL/base sanity; golden expected-CSR compare). Multi-hart. Golden over a `reset_snapshot.json` |
+| `AGENT_H/debug_verifier.py` | `DebugVerifier` + `Trigger` — RISC-V Debug + Trigger module (mcontrol golden match: fires iff execute/load/store type + priv enabled + tdata2==addr → trigger_missed/spurious/cause; debug entry dcsr.cause per source + dpc; single-step==1 instr; abstract command halted + correct read). Golden over a `debug_trace.jsonl` |
+| `AGENT_H/perf_counter_verifier.py` | `PerfCounterVerifier` — HW performance counters over the commit-log `perf_counters` field (minstret +1 per retired instr / 0 when IR-inhibited / trap-tolerant; mcycle non-decreasing / 0 when CY-inhibited; IPC/CPI metrics). No separate trace |
+| `AGENT_H/interrupt_verifier.py` | `InterruptVerifier` + `PLICModel` + `CLICModel` — interrupt-controller checker: PLIC priority arbitration (claim = highest pending+enabled source above threshold, tie→lowest id, prio 0 = never) + CLINT (mtip iff mtime≥mtimecmp, msip) + CLIC fast-interrupt arbitration (highest clicintctl level/priority among pending+enabled above mintthresh, tie→highest id). Golden over an `interrupt_trace.jsonl` |
+| `AGENT_H/memory_model_verifier.py` | `MemoryModelVerifier` + `find_cycle` — axiomatic memory-consistency checker (SC/TSO/RVWMO): builds po/ppo/rf/rfe/co/fr + fence relations, checks sc-per-location (coherence), global-happens-before acyclicity (+ .aq/.rl acquire-release, FENCE pred/succ r/w sets) and RMW atomicity (lr/sc + amo); a cycle = execution not permitted by the model = HIGH violation with a witness cycle. Validated on SB/MP/LB/CoRR litmus tests |
+| `AGENT_H/coherence_verifier.py` | `CoherenceVerifier` — multicore cache-coherence (read_from_valid: no fabricated load values; coherence_read_monotonic: per-core reads non-decreasing in the global per-address write order = write serialization; swmr: single-writer/multiple-reader from MESI state). Golden checks over a `coherence_trace.jsonl` multicore event stream. Also emits coherence *coverage* (`coherence_coverage_bins`/`coherence_universe`: cohpat sharing patterns + cohstate/cohtrans[own-op]/cohshare) that feeds the self-evolving loop |
+| `AGENT_H/coverage_collector.py` | `CoverageCollector` + `classify_value` — functional coverage from the commit log (reg-write/value-class/branch-dir/priv/instr + cross[opcode×result] + opnd[srcA×srcB via golden shadow regfile] bins with finite universes → holes + importance weights; CSR/trap/vtype telemetry; optional coherence bins via `coherence_events`). Emits `coverage_summary.json` consumed by `self_evolving_engine`, closing the RL loop |
+| `AGENT_H/contract_dsl.py` | `ContractRunner` + `@contract` / `@for_instruction` decorators |
+| `AGENT_H/temporal_checker.py` | `TemporalChecker` — LTL-style monitors over commit stream |
+| `AGENT_H/atomics_verifier.py` | `AtomicsVerifier` — RV32A golden-reference checker (LR/SC + 9 AMO ops) |
+| `AGENT_H/csr_verifier.py` | `CSRVerifier` — Zicsr/Zifencei semantics (CSR RMW, read-only enforcement, FENCE.I sync) |
+| `AGENT_H/crypto_verifier.py` | `CryptoVerifier` + `crypto_golden` — scalar-crypto (Zknh/Zksh) golden transforms: SHA-256 sig/sum (32b), SHA-512 sig/sum (RV64 64b), SM3 p0/p1; recomputes ROTR/ROTL/SHR/XOR recipe from shadow-regfile rs1, checks committed rd (crypto_result). Also Zbkb/Zbkx (`zbk_one`/`zbk_two`: pack/brev8/zip/unzip, xperm8/4). Rides commit log |
+| `AGENT_H/aes_verifier.py` | `AESVerifier` + `aes_golden` — RV64 AES (Zkne/Zknd): aes64es/esm/ds/dsm round instrs (S-box + RV64 ShiftRows layout `[0,5,10,15,4,9,14,3]` + GF(2⁸) MixColumns), aes64im, aes64ks2, aes64ks1i (key-schedule 1: RotWord/SubWord/Rcon, rnum imm). Golden **validated against FIPS-197** round vector + full AES-128 key expansion. Checks aes_result via shadow regfile; rides commit log |
+| `AGENT_H/sm4_verifier.py` | `SM4Verifier` + `sm4_golden` — RISC-V SM4 (Zksed): sm4ed (cipher round L) + sm4ks (key-schedule L'), standard S-box, byte-select `bs`+rotate. Golden **validated against the GB/T 32907 test vector** (full-block encryption reproduces `681edf34…536e4246`). Checks sm4_result via shadow regfile; rides commit log |
+| `AGENT_H/vaes_verifier.py` | `VAESVerifier` + `vaes_round` — vector AES (Zvkned): vaesef/vaesem/vaesdf/vaesdm/vaesz on 128-bit element groups (full-128 ShiftRows+SubBytes+MixColumns reusing the AES core). Encrypt **FIPS-197-validated**, decrypt = inverse cipher (round-trips). Golden over a `vaes_trace.jsonl` |
+| `AGENT_H/vsha_verifier.py` | `VSHAVerifier` + `vsha2ms_golden`/`vsha2c_golden` — vector SHA-2 (Zvknha/b): vsha2ms (message schedule σ₀/σ₁) + vsha2ch/vsha2cl (two-round compression Σ₀/Σ₁/Ch/Maj; cl=low two vs1 words, ch=high two; K pre-added in SW). SEW=32→SHA-256, SEW=64→SHA-512. Golden **validated end-to-end vs `hashlib`** (full SHA-256/512 composed from the ops reproduces `ba7816bf…`/`ddaf35a1…`). Golden over a `vsha_trace.jsonl` |
+| `AGENT_H/vsm3_verifier.py` | `VSM3Verifier` + `vsm3me_golden`/`vsm3c_golden` — vector SM3 (Zvksh): vsm3me (message expansion, P1 recurrence) + vsm3c (two-round compression per `rnds`; SS1/SS2/TT1/TT2, FFj/GGj/Tj, `rev8` endian swaps, rolled `{G1,G2,E1,E2,C1,C2,A1,A2}` packing). 256-bit/8-elem groups. Golden **validated end-to-end vs GB/T 32905** (`"abc"`→`66c7f0f4…`, `"abcd"×16`→`debe9ff9…`). Golden over a `vsm3_trace.jsonl` |
+| `AGENT_H/vaeskf_verifier.py` | `VAESKFVerifier` + `vaeskf1_golden`/`vaeskf2_golden` — vector AES forward key schedule (Zvkned): vaeskf1 (AES-128) + vaeskf2 (AES-256) on 128-bit/4-word groups (RotWord/SubWord/Rcon + out-of-range imm projection). **FIPS-197-validated** over full AES-128/256 expansions. Golden over a `vaeskf_trace.jsonl`. Scalar `aes64ks1i` lives in `aes_verifier` |
+| `AGENT_H/rtl_graph.py` | `RTLGraphAnalyzer` + `parse_module`/`extract_fsms`/`embed`/`similarity`/`find_clones`/`find_comb_loops` — structural SystemVerilog parser → dataflow/combinational/hierarchy graphs, structural embeddings, clone detection, and **FSM extraction** that emits `rtl_basics_verifier`'s `fsm_def` (real RTL → FSM → illegal-transition checking, no hand modelling). Procedural blocks resolved with **versioned (SSA)** semantics so blocking-assignment cascades aren't mis-reported as combinational loops. Validated across a **9-repo corpus** (Ibex/CVA6/cv32e40p/VeeR/BlackParrot/RSD, `corpus/`, see `docs/CORPUS_SCOREBOARD.md`): FSM idioms `*_cs/_ns`+`state/nstate`+ternary/nested-case, multi-idiom assertions (CVA6 572), structural-mass-gated clone detection; 17/17 `ibex_controller` + 32-edge VeeR JTAG TAP transitions, 0 false loops in `ibex_alu` |
+| `AGENT_H/formal_engine.py` | `TransitionSystem` + `bmc_safety`/`bmc_liveness`/`reachable`/`deadlock_free`/`mutual_exclusion`/`check_all` — **pure-Python formal core**: boolean AST, Tseitin CNF, **DPLL SAT solver** (unit prop + pure literal + unsat core), k-step BMC with concrete counterexample traces. Verdicts distinguish `violated` / `bounded_proof` / `proved` (the last only with a completeness threshold). Solver validated vs exhaustive brute force |
+| `AGENT_H/formal_analysis.py` | `FormalAnalysis` + `cover_property`/`unreachable_states`/`cone_of_influence`/`proof_coverage`/`detect_vacuity`/`minimize_counterexample`/`explain_counterexample`/`proof_core`/`mine_assertions` — formal coverage (dead scenarios, sound COI reduction), formal debug (vacuous-pass detection, delta-debugged counterexamples, unsat-core proof cores) and Daikon-style **assertion mining** (templates eliminated by falsifying samples, ranked, labelled `candidate`) |
+| `AGENT_H/failure_analytics.py` | `FailureAnalytics` + `canonical_signature`/`fingerprint`/`cluster_failures`/`deduplicate`/`prioritise`/`classify_trends` — failure clustering (signature, Jaccard log, weighted stack-trace, waveform cosine), dedup with occurrence counts, priority ranking (severity × blast radius × recency, regression-blocker flag, first occurrence), trend labels (new/persistent/intermittent/aging/recurring/resolved) |
+| `AGENT_H/bug_intelligence.py` | `BugIntelligence` + `localize`/`ochiai`/`tarantula`/`predict_severity`/`predict_lifetime`/`predict_reopen`/`find_duplicates`/`classify_root_cause` — **Ochiai spectrum-based fault localization** of RTL files, severity/lifetime/reopen prediction from history (honest `None`/low confidence when data is thin), duplicate-bug matching, six-way root-cause classification with evidence |
+| `AGENT_H/regression_intelligence.py` | `RegressionIntelligence` + `impacted_tests`/`prioritise_tests`/`select_tests`/`schedule`/`regression_health`/`flakiness`/`incremental_plan`/`cost_report` — test-impact analysis (fail-safe on unknown coverage), value/cost selection with auditable drops, **LPT** scheduling, flakiness as result-flip rate, incremental plans + CPU/wall-clock savings |
+| `AGENT_H/dashboard.py` | `DashboardBuilder` + `write_dashboards`/`sparkline`/`heatmap`/`sankey`/`scorecard` — six standalone HTML dashboards (executive/engineer/regression/coverage/bug/failure), inline SVG visuals, A–F module scorecards, `<details>` drill-down, HTML-escaped, no JS/CDN dependencies |
+| `AGENT_H/rtl_basics_verifier.py` | `RTLBasicsVerifier` + `FSMModel`/`FIFOModel`/`MemModel` — level-1 RTL blocks: FSM (illegal/unknown transition, deadlock, unreachable-from-reset, one-hot), FIFO (overflow/underflow/ordering/flags/occupancy/gray pointers), memory (shadow-memory read compare, bounds, uninitialised read, byte-enables, port collision, ECC undetected). Golden over an `rtl_trace.jsonl`; undeclared blocks ignored |
+| `AGENT_H/soc_peripheral_verifier.py` | `SoCPeripheralVerifier` — GPIO (direction/read-back/IRQ condition), SPI (CPOL/CPHA sampling edge, CS protocol, bit order), I²C (START/STOP framing, SDA-stable-while-SCL-high, ACK, arbitration), Timer (period/overflow) and PWM (duty/period ± tolerance). Golden over a `soc_periph_trace.jsonl`. Complements DMA/UART/CRYPTO in `peripheral_verifier` |
+| `AGENT_H/interconnect_verifier.py` | `InterconnectVerifier` — Wishbone (handshake/cycle/stall), AXI4-Lite (VALID-until-READY, no burst/exclusive, response pairing), AXI-Stream (TVALID + payload stability, TLAST/packet, TKEEP/TSTRB), TileLink TL-UL/TL-UH (opcode legality, source-id reuse, A/D pairing, size alignment). Golden over an `interconnect_trace.jsonl`. Extends `bus_verifier` (AXI4/AHB/APB) |
+| `AGENT_H/advanced_link_verifier.py` | `AdvancedLinkVerifier` + `find_cycle` — PCIe/CXL/UCIe/CCIX/NVLink/OpenCAPI link layer (seq gap/duplicate, CRC-FEC undetected, credit overflow/leak, ACK-NAK replay, LTSSM legality) + PCIe ordering, CXL device-type/coherence pairing, UCIe module config, Ethernet MAC (runt/giant/FCS/IPG), NoC (XY turn model + cyclic channel-dependency deadlock). Link/transaction-layer invariants, **not** a PCIe-SIG/CXL compliance suite. Golden over an `advlink_trace.jsonl` |
+| `AGENT_H/power_verifier.py` | `PowerVerifier` — **power-aware / low-power intent** (taxonomy level 15): per-domain state machine for clock gating (`power_gated_activity`), power-down (`power_off_activity`), isolation clamps (`power_isolation`), retention restore + leak, power sequencing, and DVFS operating-point legality/ordering (`power_dvfs_opp`/`power_dvfs_order`). Golden over a `power_trace.jsonl` |
+| `AGENT_H/cdc_verifier.py` | `CDCVerifier` — clock/reset-domain crossings (upgrades AGENT_J): unsynchronized + shallow (<2-stage) synchronizers, multi-bit buses through plain FF sync, gray-code violations (>1 bit/sample), four-phase req/ack handshake protocol, reset-domain crossing (removal/recovery), combinational glitch sources. Golden over a `cdc_trace.jsonl` |
+| `AGENT_H/equivalence_verifier.py` | `EquivalenceVerifier` + `comb_equivalent`/`best_latency_offset` — equivalence checking (upgrades AGENT_L): **exhaustive** combinational proof over ≤2²⁰ input assignments with concrete counterexamples, latency/retiming-tolerant sequential output alignment, I/O-trace compare; reports `equiv_incomplete` rather than over-claiming on large spaces. Golden over an `equiv_trace.jsonl` |
+| `AGENT_H/vghash_verifier.py` | `VGHASHVerifier` + `vgmul_golden`/`vghsh_golden` — vector GHASH (Zvkg) for AES-GCM: vgmul (`vd⊗vs2`) + vghsh (`(vd⊕vs1)⊗vs2`) over GF(2¹²⁸) mod `x¹²⁸+x⁷+x²+x+1`, `brev8` within-byte reversal + shift/`0x87` reduce. **Validated vs an independent NIST SP 800-38D multiply and NIST GCM Test Case 2** (`f38cbb1a…`). Golden over a `vghash_trace.jsonl` |
+| `AGENT_H/vsm4_verifier.py` | `VSM4Verifier` + `vsm4r_golden`/`vsm4k_golden` — vector SM4 (Zvksed): vsm4r (4 cipher rounds, linear `L` + S-box subword) + vsm4k (4 key-expansion rounds, CK constants + linear `L'`, `rnd` imm). 128-bit/4-word groups, reuses scalar SM4 S-box. Golden **validated end-to-end vs GB/T 32907** (full-block encryption → `681edf34…536e4246`; decrypt round-trips). Golden over a `vsm4_trace.jsonl` |
+| `AGENT_H/rvc_verifier.py` | `RVCVerifier` — RV32C checks (PC+2 stride, reserved encodings, x8-x15 prime fields) |
+| `AGENT_H/fp_verifier.py` | `FPVerifier` — RV32F/D golden IEEE-754 checker (NaN-boxing, RNE arithmetic, sgnj/min-max/compare/fclass/fmv, fflags) |
+| `AGENT_H/bitmanip_verifier.py` | `BitmanipVerifier` — RV32B golden checker (Zba/Zbb/Zbc/Zbs: shadd, clz/ctz/cpop, rol/ror, clmul, b{set,clr,ext,inv}) |
+| `AGENT_H/privilege_verifier.py` | `PrivilegeVerifier` — privilege transitions + PMP (xRET/CSR legality, ECALL cause, MRET target, PMP region permission/access-fault model) |
+| `AGENT_H/vm_verifier.py` | `Sv32MMU` + `VMVerifier` — golden Sv32 page-table walker (4KB/4MB, permissions, faults) and translation/page-fault checker |
+| `AGENT_H/tlb_verifier.py` | `TLBVerifier` — TLB coherence + sfence.vma (golden TLB over Sv32MMU: stale-after-sfence, incoherent/fabricated translation, scoped invalidation) |
+| `AGENT_H/pipeline_verifier.py` | `PipelineVerifier` — pipeline hazards (golden in-order ALU forwarding/stall diagnosis, control-hazard, RAW/WAR/WAW inventory, IPC/CPI/stall metrics) |
+| `AGENT_H/ooo_verifier.py` | `OOOVerifier` — out-of-order scoreboard scheduling (ooo_commit_order: in-order ROB retire; ooo_raw_hazard: issue ≥ producer complete; ooo_exec_timing: issue≤complete≤commit; ooo_rename: no shared physical dest among in-flight; ooo_squash: mis-speculated must not commit; reorder-depth/latency metrics). Reads OOO scheduling fields on the commit log |
+| `AGENT_H/lsq_verifier.py` | `LSQVerifier` — single-core load/store queue (lsq_forward: a load with a program-order-older store to its address must observe the youngest such store's value = store-to-load forwarding / disambiguation; lsq_store_order: same-addr stores drain in program order). Rides commit-log mem_reads/mem_writes; conservative (skips loads with no known older store) |
+| `AGENT_H/branch_predictor_verifier.py` | `BranchPredictorVerifier` — Level-7 branch prediction (bp_recovery: operand-derived outcome vs committed next-PC, bp_hit_flag, accuracy/mispredict/MPKI + golden RAS return-prediction metrics) |
+| `AGENT_H/vector_verifier.py` | `VectorVerifier` + `decode_vtype`/`vlmax`/`velem_compute` — RISC-V Vector "V"/RVV (vset_vl: spec-accurate vl from AVL/VLEN/SEW/LMUL incl. fractional LMUL + impl-defined band; vtype_vill; velem: element-wise golden SEW-width ALU across active/unmasked elements for vadd/sub/logic/shift/mul/min-max/merge/mv .vv/.vx/.vi; vtail undisturbed; vmem: golden per-element load/store addressing for unit/strided/indexed + access-count/EEW/value checks; SEW/LMUL/vl metrics) |
+| `AGENT_H/cache_verifier.py` | `CacheModel` + `CacheVerifier` — golden set-associative cache (LRU/FIFO, WB/WT) checking hit/miss, eviction victim, dirty write-back, line integrity + miss-rate metrics |
+| `AGENT_H/bus_verifier.py` | `BusVerifier` + `axi_expected_beats` — AXI4/AHB/APB protocol checks (burst length, WLAST, beat-addr FIXED/INCR/WRAP, 4KB boundary, WRAP alignment, response codes) |
+| `AGENT_H/cas_verifier.py` | `CASVerifier` — Zacas compare-and-swap (`amocas.w/d/q`): cas_return (rd == old memory), cas_success (mem_old==compare → mem_new==swap), cas_fail (mismatch → memory unchanged); width-masked. Golden over a `cas_trace.jsonl` |
+| `AGENT_H/fault_injector.py` | `FaultCampaign` + `inject_fault` — fault-injection / mutation testing of the verification suite (bit-flip/stuck-at/corruption models, detection-rate & blind-spot reporting) |
+| `AGENT_H/rv64_verifier.py` | `RV64Verifier` — RV64 datapath (64-bit `alu64` + W-ops `aluw` with 32→64 sign-extension, `rv64_word_sext` diagnosis; auto-detects RV64, no-op on RV32) |
+| `AGENT_H/sv_mmu_verifier.py` | `SvMMU` + `SvMMUVerifier` — golden Sv39/Sv48 multi-level page-table walker (4KB/2MB/1GB superpages, non-canonical VA, permissions) for RV64 virtual memory |
+| `AGENT_H/rv64_atomics_verifier.py` | `RV64AtomicsVerifier` + `amo_compute64` — RV64 64-bit atomics (LR.D/SC.D + 9 AMO.D ops, golden signed/unsigned 64-bit math, reservation, 8-byte alignment) |
+| `AGENT_H/stimulus_generator.py` | `StimulusGenerator` + `generate_from_holes` — coverage-directed RISC-V stimulus: hole/constraint → concrete instruction seed (asm + golden commit records), self-validating via `coverage_collector`. `make_env`/`close_coverage` provide real generate/evaluate plugins so `self_evolving_engine` closes coverage with generated stimulus; `run_from_manifest` emits `stimulus.json` from coverage holes |
+| `AGENT_H/self_evolving_engine.py` | `SelfEvolvingEngine` + pluggable **non-stationary** bandits (`UCB1`/`DiscountedUCB1`/`SlidingWindowUCB`/`ThompsonSampling` via `make_policy`) + `constraint_for` escalation ladder + `CoverageState` (importance-weighted, novelty) + `run_campaign` (multi-seed mean±CI) — RL coverage-closure loop (difficulty-aware hole scheduler, suspected-unreachable waivers, weighted+novelty reward, regret/velocity/closure-prediction metrics; offline planner via `plan_from_coverage`/`run_from_manifest`) |
+| `AGENT_H/security_intel.py` | `SecurityIntelligence` — Spectre/privilege/cache detection |
+| `AGENT_H/economics_engine.py` | `EconomicsEngine` — bugs/hour, ROI, persistent ledger |
+| `AGENT_H/cross_domain.py` | `get_adapter(DUTClass.CRYPTO/DMA/UART)` — non-CPU adapters |
+| `AGENT_H/peripheral_verifier.py` | `PeripheralVerifier` — DMA/UART/CRYPTO protocol checkers (reference model + scoreboard) |
+| `AGENT_H/digital_twin.py` | `DigitalTwin` — Python micro-ISS for fast pre-screening |
+| `AGENT_H/verification_twin.py` | `VerificationTwin` + `fit_coverage_curve`/`forecast_closure`/`predict_regression`/`tapeout_readiness`/`what_if`/`replay`/`silicon_sync` — verification/AI digital twin: live status, deterministic replay (flags non-reproducible runs), what-if projection, coverage-closure forecast (fits `Cmax·(1−e^(−t/τ))`, reports *unreachable* when the asymptote < goal), regression-outcome prediction, weighted tape-out readiness (a blocker caps it), and honest FPGA/emulator/silicon sync adapters (`awaiting_hardware`, never fabricated) |
+| `AGENT_H/formal_fuzzer.py` | `FormalFuzzBridge` — SymbiYosys witness → assembly seeds |
+| `AGENT_H/explainer.py` | `BugExplainer` — human-readable bug explanations |
+| `AGENT_H/knowledge_graph.py` | `KnowledgeGraph` — cross-campaign bug DB (SQLite) |
+| `AGENT_H/minimizer.py` | `CommitLogMinimizer` — delta-debug counterexample reduction |
+| `AGENT_H/root_cause_localizer.py` | `RootCauseLocalizer` — RTL file-level root cause |
+| `tests/test_agents.py` | 46 pure-Python pytest tests (no EDA tools needed) |
+| `AGENT_A/semantic_analyzer.py` | `SemanticAnalyzer` + `validate_record`/`validate_manifest`/`extract_dut` — Phase-1 semantic analysis: stdlib schema validation of commit-log records + run manifest (required fields/types/hex/enums) and Verilog DUT extraction (module, ports dir/width, clk/reset). `run_from_manifest` → `semantic_report.json` |
+| `AGENT_A/commitlog.schema.json` | Commit-log record schema v2.1.0 |
+| `AGENT_A/run_manifest.schema.json` | Per-run manifest schema v2.1.0 |
+| `AGENT_A/interfaces.md` | Inter-agent contract documentation |
+| `AGENT_B/testbench_generator.py` | `TestbenchGenerator` + `detect_clock_reset`/`detect_buses` — **RTL→verification-environment synthesis**: consumes a parsed `rtl_graph` module and emits a compilable UVM env (interface, item/driver/monitor/sequencer/agent/scoreboard/coverage/env/seqs/tests, tb_top with every port wired), a plain-SV self-checking smoke TB, a cocotb test, an SVA package (reset + detected-handshake stability), filelist/Makefile/regression.yaml. Token-aware clock/reset detection + AXI-Lite/APB/Wishbone/AXI-Stream/TileLink bus detection. Scoreboard refmodel is an honest scaffold (generator can't infer DUT function). Deterministic. Validated on cv32e40p/ibex ALU (`AGENT_B/examples/`) |
+
+---
+
+## Schema v2.1.0
+
+Every agent communicates via two JSON schemas:
+
+**Commit-log record** (`commitlog.schema.json`):
+```json
+{
+  "schema_version": "2.1.0",
+  "seq": 0,
+  "pc": "0x80000000",
+  "disasm": "addi x1,x0,1",
+  "regs": {"x1": "0x00000001"},
+  "csrs": {"mstatus": "0x00001800"},
+  "mem_reads":  [{"addr": "0x...", "size": 4, "value": "0x..."}],
+  "mem_writes": [{"addr": "0x...", "size": 4, "value": "0x..."}],
+  "trap": {"cause": 11, "tval": "0x0"},
+  "perf_counters": {"cycles": 10, "instret": 1}
+}
+```
+
+**Run manifest** (`run_manifest.json` written to each run dir):
+```json
+{
+  "schema_version": "2.1.0",
+  "run_id": "...",
+  "run_dir": "/path/to/run",
+  "status": "running|completed|fail",
+  "started_at": "2026-01-01T00:00:00Z",
+  "isa": "rv32im",
+  "dut_module": "riscv_core",
+  "metrics": {"total_commits": 0, "total_mismatches": 0},
+  "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}
+}
+```
+
+---
+
+## Architecture rules
+
+1. **Never delete files** — move to `_legacy/` instead. The user is explicit about this.
+2. **All new agents use graceful degradation** — wrap EDA tool calls in `try/except`,
+   return `{"status": "skipped", "reason": "..."}` when tools are missing.
+3. **`_try_import()` pattern** in `ava_patched.py` — all Phase 6 agent modules are
+   lazily imported so missing modules never crash the base pipeline.
+4. **Schema version** — always `"2.1.0"` in new output dicts.
+5. **All AGENT_* dirs are Python packages** — `__init__.py` present in all of them.
+
+---
+
+## Running tests
+
+```bash
+# Fast (no EDA tools, ~0.5s)
+pytest tests/test_agents.py --import-mode=importlib -p no:cacheprovider -q
+
+# Or via Makefile
+make test       # pure-Python tests
+make smoke      # AVA orchestrator end-to-end
+make lint       # syntax check all .py files
+```
+
+---
+
+## Confidence score bands
+
+| Band | Score | Meaning |
+|---|---|---|
+| VERIFIED | ≥ 0.90 | Ready for sign-off |
+| HIGH | ≥ 0.70 | Strong evidence, minor gaps |
+| MEDIUM | ≥ 0.50 | Partial coverage |
+| LOW | ≥ 0.30 | Significant gaps |
+| CRITICAL | < 0.30 | Do not tape out |
+
+---
+
+## Common tasks
+
+**Add a new AGENT_H module:**
+1. Create `AGENT_H/my_module.py` with a main class and `run_from_manifest(path)` fn
+2. Add `_my_module = _try_import("AGENT_H.my_module", "MyModule")` in `ava_patched.py`
+3. Call it inside `_run_extended_pipeline()` with a `try/except` block
+4. Add it to `EXTENDED_AGENTS_AVAILABLE` check
+5. Add tests in `tests/test_agents.py`
+
+**Add a new cross-domain DUT adapter:**
+```python
+from AGENT_H.cross_domain import DUTAdapter, DUTClass, register_adapter
+
+class MyAdapter(DUTAdapter):
+    dut_class = DUTClass.CUSTOM
+    name = "my_adapter"
+    def translate_record(self, raw, seq):
+        rec = self._base_record(seq)
+        rec["disasm"] = raw.get("op", "nop")
+        return rec
+
+register_adapter(DUTClass.CUSTOM, MyAdapter)
+```
+
+**Generate all report formats:**
+```bash
+python ava_patched.py --rtl core.sv --formats json csv html
+```
