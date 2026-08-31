@@ -10,7 +10,11 @@ module cv32e40p_fifo_mut (
 	data_i,
 	push_i,
 	data_o,
-	pop_i
+	pop_i,
+	dbg_cnt_o,
+	dbg_rd_o,
+	dbg_wr_o,
+	dbg_mem_o
 );
 	reg _sv2v_0;
 	parameter [0:0] FALL_THROUGH = 1'b0;
@@ -29,6 +33,10 @@ module cv32e40p_fifo_mut (
 	input wire push_i;
 	output reg [DATA_WIDTH - 1:0] data_o;
 	input wire pop_i;
+	output wire [ADDR_DEPTH:0] dbg_cnt_o;
+	output wire [ADDR_DEPTH - 1:0] dbg_rd_o;
+	output wire [ADDR_DEPTH - 1:0] dbg_wr_o;
+	output wire [((DEPTH > 0 ? DEPTH : 1) * DATA_WIDTH) - 1:0] dbg_mem_o;
 	localparam [31:0] FIFO_DEPTH = (DEPTH > 0 ? DEPTH : 1);
 	reg gate_clock;
 	reg [ADDR_DEPTH - 1:0] read_pointer_n;
@@ -116,6 +124,10 @@ module cv32e40p_fifo_mut (
 			mem_q <= 1'sb0;
 		else if (!gate_clock)
 			mem_q <= mem_n;
+	assign dbg_cnt_o = status_cnt_q;
+	assign dbg_rd_o = read_pointer_q;
+	assign dbg_wr_o = write_pointer_q;
+	assign dbg_mem_o = mem_q;
 	initial _sv2v_0 = 0;
 endmodule
 module fifo_wrap_mut (
@@ -127,6 +139,10 @@ module fifo_wrap_mut (
 	full_o,
 	empty_o,
 	cnt_o,
+	dbg_cnt_o,
+	dbg_rd_o,
+	dbg_wr_o,
+	dbg_mem_o,
 	data_i,
 	push_i,
 	data_o,
@@ -140,6 +156,10 @@ module fifo_wrap_mut (
 	output wire full_o;
 	output wire empty_o;
 	output wire [2:0] cnt_o;
+	output wire [2:0] dbg_cnt_o;
+	output wire [1:0] dbg_rd_o;
+	output wire [1:0] dbg_wr_o;
+	output wire [15:0] dbg_mem_o;
 	input wire [3:0] data_i;
 	input wire push_i;
 	output wire [3:0] data_o;
@@ -160,6 +180,10 @@ module fifo_wrap_mut (
 		.data_i(data_i),
 		.push_i(push_i),
 		.data_o(data_o),
-		.pop_i(pop_i)
+		.pop_i(pop_i),
+		.dbg_cnt_o(dbg_cnt_o),
+		.dbg_rd_o(dbg_rd_o),
+		.dbg_wr_o(dbg_wr_o),
+		.dbg_mem_o(dbg_mem_o)
 	);
 endmodule
