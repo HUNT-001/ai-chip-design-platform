@@ -29,9 +29,9 @@
             ],
             "cells": [
                 {
-                  "name": "$sub$fifo.v:76$99",
+                  "name": "$sub$fifo.v:84$99",
                   "attributes": {
-                    "src": "fifo.v:76.19-76.35"
+                    "src": "fifo.v:84.19-84.35"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -64,9 +64,9 @@
             ],
             "cells": [
                 {
-                  "name": "$shift$fifo.v:63$86",
+                  "name": "$shift$fifo.v:71$86",
                   "attributes": {
-                    "src": "fifo.v:63.4-63.60"
+                    "src": "fifo.v:71.4-71.60"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -77,9 +77,9 @@
                   }
                 },
                 {
-                  "name": "$shift$fifo.v:63$90",
+                  "name": "$shift$fifo.v:71$90",
                   "attributes": {
-                    "src": "fifo.v:63.4-63.60"
+                    "src": "fifo.v:71.4-71.60"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -112,9 +112,9 @@
             ],
             "cells": [
                 {
-                  "name": "$add$fifo.v:105$113",
+                  "name": "$add$fifo.v:113$113",
                   "attributes": {
-                    "src": "fifo.v:105.45-105.63"
+                    "src": "fifo.v:113.45-113.63"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -125,9 +125,9 @@
                   }
                 },
                 {
-                  "name": "$add$fifo.v:59$78",
+                  "name": "$add$fifo.v:67$78",
                   "attributes": {
-                    "src": "fifo.v:59.40-59.81"
+                    "src": "fifo.v:67.40-67.81"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -138,9 +138,9 @@
                   }
                 },
                 {
-                  "name": "$add$fifo.v:63$84",
+                  "name": "$add$fifo.v:71$84",
                   "attributes": {
-                    "src": "fifo.v:63.9-63.51"
+                    "src": "fifo.v:71.9-71.51"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -151,9 +151,9 @@
                   }
                 },
                 {
-                  "name": "$add$fifo.v:68$93",
+                  "name": "$add$fifo.v:76$93",
                   "attributes": {
-                    "src": "fifo.v:68.23-68.42"
+                    "src": "fifo.v:76.23-76.42"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -164,9 +164,9 @@
                   }
                 },
                 {
-                  "name": "$add$fifo.v:69$94",
+                  "name": "$add$fifo.v:77$94",
                   "attributes": {
-                    "src": "fifo.v:69.19-69.35"
+                    "src": "fifo.v:77.19-77.35"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -199,9 +199,9 @@
             ],
             "cells": [
                 {
-                  "name": "$shiftx$fifo.v:59$79",
+                  "name": "$shiftx$fifo.v:67$79",
                   "attributes": {
-                    "src": "fifo.v:59.40-59.81"
+                    "src": "fifo.v:67.40-67.81"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -229,9 +229,9 @@
             ],
             "cells": [
                 {
-                  "name": "$neg$fifo.v:63$89",
+                  "name": "$neg$fifo.v:71$89",
                   "attributes": {
-                    "src": "fifo.v:63.4-63.60"
+                    "src": "fifo.v:71.4-71.60"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -271,7 +271,7 @@
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
-                    "src": "fifo.v:102.8-102.8|fifo.v:97.4-113.11"
+                    "src": "fifo.v:110.8-110.8|fifo.v:105.4-121.11"
                   },
                   "parameters": {
                     "S_WIDTH": "00000000000000000000000000000010",
@@ -283,7 +283,7 @@
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
-                    "src": "fifo.v:102.8-102.8|fifo.v:97.4-113.11"
+                    "src": "fifo.v:110.8-110.8|fifo.v:105.4-121.11"
                   },
                   "parameters": {
                     "S_WIDTH": "00000000000000000000000000000010",
@@ -295,7 +295,7 @@
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
                     "parallel_case": "00000000000000000000000000000001",
-                    "src": "fifo.v:102.8-102.8|fifo.v:97.4-113.11"
+                    "src": "fifo.v:110.8-110.8|fifo.v:105.4-121.11"
                   },
                   "parameters": {
                     "S_WIDTH": "00000000000000000000000000000010",
@@ -325,9 +325,9 @@
             ],
             "cells": [
                 {
-                  "name": "$and$fifo.v:63$88",
+                  "name": "$and$fifo.v:71$88",
                   "attributes": {
-                    "src": "fifo.v:63.4-63.60"
+                    "src": "fifo.v:71.4-71.60"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -360,9 +360,9 @@
             ],
             "cells": [
                 {
-                  "name": "$eq$fifo.v:49$122",
+                  "name": "$eq$fifo.v:57$122",
                   "attributes": {
-                    "src": "fifo.v:49.20-49.60"
+                    "src": "fifo.v:57.20-57.60"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -395,9 +395,9 @@
             ],
             "cells": [
                 {
-                  "name": "$or$fifo.v:63$91",
+                  "name": "$or$fifo.v:71$91",
                   "attributes": {
-                    "src": "fifo.v:63.4-63.60"
+                    "src": "fifo.v:71.4-71.60"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -425,9 +425,9 @@
             ],
             "cells": [
                 {
-                  "name": "$eq$fifo.v:50$123",
+                  "name": "$eq$fifo.v:58$123",
                   "attributes": {
-                    "src": "fifo.v:50.22-50.39"
+                    "src": "fifo.v:58.22-58.39"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -465,7 +465,7 @@
                 {
                   "name": "$procdff$224",
                   "attributes": {
-                    "src": "fifo.v:114.2-118.19"
+                    "src": "fifo.v:122.2-126.19"
                   },
                   "parameters": {
                     "ARST_POLARITY": "00000000000000000000000000000000",
@@ -477,7 +477,7 @@
                 {
                   "name": "$procdff$229",
                   "attributes": {
-                    "src": "fifo.v:89.2-113.11"
+                    "src": "fifo.v:97.2-121.11"
                   },
                   "parameters": {
                     "ARST_POLARITY": "00000000000000000000000000000000",
@@ -489,7 +489,7 @@
                 {
                   "name": "$procdff$234",
                   "attributes": {
-                    "src": "fifo.v:89.2-113.11"
+                    "src": "fifo.v:97.2-121.11"
                   },
                   "parameters": {
                     "ARST_POLARITY": "00000000000000000000000000000000",
@@ -501,7 +501,7 @@
                 {
                   "name": "$procdff$239",
                   "attributes": {
-                    "src": "fifo.v:89.2-113.11"
+                    "src": "fifo.v:97.2-121.11"
                   },
                   "parameters": {
                     "ARST_POLARITY": "00000000000000000000000000000000",
@@ -533,9 +533,9 @@
             ],
             "cells": [
                 {
-                  "name": "$gt$fifo.v:106$116",
+                  "name": "$gt$fifo.v:114$116",
                   "attributes": {
-                    "src": "fifo.v:106.23-106.39"
+                    "src": "fifo.v:114.23-114.39"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -568,9 +568,9 @@
             ],
             "cells": [
                 {
-                  "name": "$mul$fifo.v:59$77",
+                  "name": "$mul$fifo.v:67$77",
                   "attributes": {
-                    "src": "fifo.v:59.41-59.68"
+                    "src": "fifo.v:67.41-67.68"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -581,9 +581,9 @@
                   }
                 },
                 {
-                  "name": "$mul$fifo.v:63$83",
+                  "name": "$mul$fifo.v:71$83",
                   "attributes": {
-                    "src": "fifo.v:63.10-63.38"
+                    "src": "fifo.v:71.10-71.38"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -616,9 +616,9 @@
             ],
             "cells": [
                 {
-                  "name": "$logic_and$fifo.v:62$81",
+                  "name": "$logic_and$fifo.v:70$81",
                   "attributes": {
-                    "src": "fifo.v:62.7-62.24"
+                    "src": "fifo.v:70.7-70.24"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -629,9 +629,9 @@
                   }
                 },
                 {
-                  "name": "$logic_and$fifo.v:71$96",
+                  "name": "$logic_and$fifo.v:79$96",
                   "attributes": {
-                    "src": "fifo.v:71.7-71.24"
+                    "src": "fifo.v:79.7-79.24"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -642,9 +642,9 @@
                   }
                 },
                 {
-                  "name": "$logic_and$fifo.v:78$100",
+                  "name": "$logic_and$fifo.v:86$100",
                   "attributes": {
-                    "src": "fifo.v:78.9-78.24"
+                    "src": "fifo.v:86.9-86.24"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -655,9 +655,9 @@
                   }
                 },
                 {
-                  "name": "$logic_and$fifo.v:78$102",
+                  "name": "$logic_and$fifo.v:86$102",
                   "attributes": {
-                    "src": "fifo.v:78.8-78.36"
+                    "src": "fifo.v:86.8-86.36"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -668,9 +668,9 @@
                   }
                 },
                 {
-                  "name": "$logic_and$fifo.v:78$104",
+                  "name": "$logic_and$fifo.v:86$104",
                   "attributes": {
-                    "src": "fifo.v:78.7-78.49"
+                    "src": "fifo.v:86.7-86.49"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -698,9 +698,9 @@
             ],
             "cells": [
                 {
-                  "name": "$not$fifo.v:63$87",
+                  "name": "$not$fifo.v:71$87",
                   "attributes": {
-                    "src": "fifo.v:63.4-63.60"
+                    "src": "fifo.v:71.4-71.60"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -709,9 +709,9 @@
                   }
                 },
                 {
-                  "name": "$not$fifo.v:78$101",
+                  "name": "$not$fifo.v:86$101",
                   "attributes": {
-                    "src": "fifo.v:78.29-78.36"
+                    "src": "fifo.v:86.29-86.36"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -720,9 +720,9 @@
                   }
                 },
                 {
-                  "name": "$not$fifo.v:78$103",
+                  "name": "$not$fifo.v:86$103",
                   "attributes": {
-                    "src": "fifo.v:78.41-78.49"
+                    "src": "fifo.v:86.41-86.49"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -760,7 +760,7 @@
                 {
                   "name": "$procmux$132",
                   "attributes": {
-                    "src": "fifo.v:117.12-117.23|fifo.v:117.8-118.19"
+                    "src": "fifo.v:125.12-125.23|fifo.v:125.8-126.19"
                   },
                   "parameters": {
                     "WIDTH": "00000000000000000000000000010000"
@@ -770,7 +770,7 @@
                   "name": "$procmux$177",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
-                    "src": "fifo.v:78.7-78.49|fifo.v:78.3-79.32"
+                    "src": "fifo.v:86.7-86.49|fifo.v:86.3-87.32"
                   },
                   "parameters": {
                     "WIDTH": "00000000000000000000000000000011"
@@ -780,7 +780,7 @@
                   "name": "$procmux$186",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
-                    "src": "fifo.v:71.7-71.24|fifo.v:71.3-77.6"
+                    "src": "fifo.v:79.7-79.24|fifo.v:79.3-85.6"
                   },
                   "parameters": {
                     "WIDTH": "00000000000000000000000000000011"
@@ -790,7 +790,7 @@
                   "name": "$procmux$189",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
-                    "src": "fifo.v:71.7-71.24|fifo.v:71.3-77.6"
+                    "src": "fifo.v:79.7-79.24|fifo.v:79.3-85.6"
                   },
                   "parameters": {
                     "WIDTH": "00000000000000000000000000000010"
@@ -800,7 +800,7 @@
                   "name": "$procmux$198",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
-                    "src": "fifo.v:62.7-62.24|fifo.v:62.3-70.6"
+                    "src": "fifo.v:70.7-70.24|fifo.v:70.3-78.6"
                   },
                   "parameters": {
                     "WIDTH": "00000000000000000000000000000011"
@@ -810,34 +810,34 @@
                   "name": "$procmux$201",
                   "attributes": {
                     "full_case": "00000000000000000000000000000001",
-                    "src": "fifo.v:62.7-62.24|fifo.v:62.3-70.6"
+                    "src": "fifo.v:70.7-70.24|fifo.v:70.3-78.6"
                   },
                   "parameters": {
                     "WIDTH": "00000000000000000000000000000010"
                   }
                 },
                 {
-                  "name": "$ternary$fifo.v:104$111",
+                  "name": "$ternary$fifo.v:112$111",
                   "attributes": {
-                    "src": "fifo.v:104.25-104.81"
+                    "src": "fifo.v:112.25-112.81"
                   },
                   "parameters": {
                     "WIDTH": "00000000000000000000000000000010"
                   }
                 },
                 {
-                  "name": "$ternary$fifo.v:105$115",
+                  "name": "$ternary$fifo.v:113$115",
                   "attributes": {
-                    "src": "fifo.v:105.26-105.86"
+                    "src": "fifo.v:113.26-113.86"
                   },
                   "parameters": {
                     "WIDTH": "00000000000000000000000000000010"
                   }
                 },
                 {
-                  "name": "$ternary$fifo.v:106$118",
+                  "name": "$ternary$fifo.v:114$118",
                   "attributes": {
-                    "src": "fifo.v:106.23-106.110"
+                    "src": "fifo.v:114.23-114.110"
                   },
                   "parameters": {
                     "WIDTH": "00000000000000000000000000000001"
@@ -849,7 +849,7 @@
         "attributes": {
             "dynports": "00000000000000000000000000000001",
             "hdlname": "cv32e40p_fifo",
-            "src": "fifo.v:1.1-120.10"
+            "src": "fifo.v:1.1-132.10"
         }
       },
       {
@@ -877,6 +877,26 @@
                   "name": "data_o",
                   "direction": "",
                   "range": [4, 0]
+                },
+                {
+                  "name": "dbg_cnt_o",
+                  "direction": "",
+                  "range": [3, 0]
+                },
+                {
+                  "name": "dbg_mem_o",
+                  "direction": "",
+                  "range": [16, 0]
+                },
+                {
+                  "name": "dbg_rd_o",
+                  "direction": "",
+                  "range": [2, 0]
+                },
+                {
+                  "name": "dbg_wr_o",
+                  "direction": "",
+                  "range": [2, 0]
                 },
                 {
                   "name": "empty_o",
@@ -924,7 +944,7 @@
                   "name": "dut",
                   "attributes": {
                     "module_not_derived": "00000000000000000000000000000001",
-                    "src": "fifo_fv.v:40.13-53.4"
+                    "src": "fifo_fv.v:43.13-60.4"
                   },
                   "parameters": {
 
@@ -958,11 +978,11 @@
             ],
             "cells": [
                 {
-                  "name": "_witness_.check_assert_fifo_fv_v_82_71",
+                  "name": "_witness_.check_assert_fifo_fv_v_89_71",
                   "attributes": {
-                    "hdlname": "_witness_ check_assert_fifo_fv_v_82_71",
+                    "hdlname": "_witness_ check_assert_fifo_fv_v_89_71",
                     "keep": "00000000000000000000000000000001",
-                    "src": "fifo_fv.v:82.7-82.28"
+                    "src": "fifo_fv.v:89.7-89.28"
                   },
                   "parameters": {
                     "ARGS_WIDTH": "00000000000000000000000000000000",
@@ -999,7 +1019,7 @@
                 {
                   "name": "$procdff$212",
                   "attributes": {
-                    "src": "fifo_fv.v:75.3-78.6"
+                    "src": "fifo_fv.v:82.3-85.6"
                   },
                   "parameters": {
                     "CLK_POLARITY": "1",
@@ -1009,7 +1029,7 @@
                 {
                   "name": "$procdff$213",
                   "attributes": {
-                    "src": "fifo_fv.v:75.3-78.6"
+                    "src": "fifo_fv.v:82.3-85.6"
                   },
                   "parameters": {
                     "CLK_POLARITY": "1",
@@ -1019,7 +1039,7 @@
                 {
                   "name": "$procdff$214",
                   "attributes": {
-                    "src": "fifo_fv.v:75.3-78.6"
+                    "src": "fifo_fv.v:82.3-85.6"
                   },
                   "parameters": {
                     "CLK_POLARITY": "1",
@@ -1029,7 +1049,7 @@
                 {
                   "name": "$procdff$215",
                   "attributes": {
-                    "src": "fifo_fv.v:75.3-78.6"
+                    "src": "fifo_fv.v:82.3-85.6"
                   },
                   "parameters": {
                     "CLK_POLARITY": "1",
@@ -1039,7 +1059,7 @@
                 {
                   "name": "$procdff$216",
                   "attributes": {
-                    "src": "fifo_fv.v:75.3-78.6"
+                    "src": "fifo_fv.v:82.3-85.6"
                   },
                   "parameters": {
                     "CLK_POLARITY": "1",
@@ -1049,7 +1069,7 @@
                 {
                   "name": "$procdff$217",
                   "attributes": {
-                    "src": "fifo_fv.v:75.3-78.6"
+                    "src": "fifo_fv.v:82.3-85.6"
                   },
                   "parameters": {
                     "CLK_POLARITY": "1",
@@ -1059,7 +1079,7 @@
                 {
                   "name": "$procdff$218",
                   "attributes": {
-                    "src": "fifo_fv.v:75.3-78.6"
+                    "src": "fifo_fv.v:82.3-85.6"
                   },
                   "parameters": {
                     "CLK_POLARITY": "1",
@@ -1134,7 +1154,7 @@
                 {
                   "name": "$procmux$128",
                   "attributes": {
-                    "src": "fifo_fv.v:80.9-81.35|fifo_fv.v:80.5-82.29"
+                    "src": "fifo_fv.v:87.9-88.35|fifo_fv.v:87.5-89.29"
                   },
                   "parameters": {
                     "WIDTH": "00000000000000000000000000000001"
@@ -1202,9 +1222,9 @@
             ],
             "cells": [
                 {
-                  "name": "$logic_not$fifo_fv.v:80$63",
+                  "name": "$logic_not$fifo_fv.v:87$63",
                   "attributes": {
-                    "src": "fifo_fv.v:80.33-80.41"
+                    "src": "fifo_fv.v:87.33-87.41"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -1213,9 +1233,9 @@
                   }
                 },
                 {
-                  "name": "$logic_not$fifo_fv.v:80$65",
+                  "name": "$logic_not$fifo_fv.v:87$65",
                   "attributes": {
-                    "src": "fifo_fv.v:80.45-80.51"
+                    "src": "fifo_fv.v:87.45-87.51"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -1224,9 +1244,9 @@
                   }
                 },
                 {
-                  "name": "$logic_not$fifo_fv.v:81$69",
+                  "name": "$logic_not$fifo_fv.v:88$69",
                   "attributes": {
-                    "src": "fifo_fv.v:81.29-81.35"
+                    "src": "fifo_fv.v:88.29-88.35"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -1257,9 +1277,9 @@
             ],
             "cells": [
                 {
-                  "name": "$logic_and$fifo_fv.v:80$62",
+                  "name": "$logic_and$fifo_fv.v:87$62",
                   "attributes": {
-                    "src": "fifo_fv.v:80.9-80.29"
+                    "src": "fifo_fv.v:87.9-87.29"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -1270,9 +1290,9 @@
                   }
                 },
                 {
-                  "name": "$logic_and$fifo_fv.v:80$64",
+                  "name": "$logic_and$fifo_fv.v:87$64",
                   "attributes": {
-                    "src": "fifo_fv.v:80.9-80.41"
+                    "src": "fifo_fv.v:87.9-87.41"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -1283,9 +1303,9 @@
                   }
                 },
                 {
-                  "name": "$logic_and$fifo_fv.v:80$66",
+                  "name": "$logic_and$fifo_fv.v:87$66",
                   "attributes": {
-                    "src": "fifo_fv.v:80.9-80.51"
+                    "src": "fifo_fv.v:87.9-87.51"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -1296,9 +1316,9 @@
                   }
                 },
                 {
-                  "name": "$logic_and$fifo_fv.v:80$67",
+                  "name": "$logic_and$fifo_fv.v:87$67",
                   "attributes": {
-                    "src": "fifo_fv.v:80.9-81.15"
+                    "src": "fifo_fv.v:87.9-88.15"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -1309,9 +1329,9 @@
                   }
                 },
                 {
-                  "name": "$logic_and$fifo_fv.v:80$68",
+                  "name": "$logic_and$fifo_fv.v:87$68",
                   "attributes": {
-                    "src": "fifo_fv.v:80.9-81.25"
+                    "src": "fifo_fv.v:87.9-88.25"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -1322,9 +1342,9 @@
                   }
                 },
                 {
-                  "name": "$logic_and$fifo_fv.v:80$70",
+                  "name": "$logic_and$fifo_fv.v:87$70",
                   "attributes": {
-                    "src": "fifo_fv.v:80.9-81.35"
+                    "src": "fifo_fv.v:87.9-88.35"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -1357,9 +1377,9 @@
             ],
             "cells": [
                 {
-                  "name": "$eq$fifo_fv.v:82$72",
+                  "name": "$eq$fifo_fv.v:89$72",
                   "attributes": {
-                    "src": "fifo_fv.v:82.15-82.27"
+                    "src": "fifo_fv.v:89.15-89.27"
                   },
                   "parameters": {
                     "A_SIGNED": "00000000000000000000000000000000",
@@ -1410,7 +1430,7 @@
         "attributes": {
             "keep": "00000000000000000000000000000001",
             "top": "00000000000000000000000000000001",
-            "src": "fifo_fv.v:21.1-86.10"
+            "src": "fifo_fv.v:21.1-231.10"
         }
       },
       {
@@ -1438,6 +1458,26 @@
                   "name": "data_o",
                   "direction": "",
                   "range": [4, 0]
+                },
+                {
+                  "name": "dbg_cnt_o",
+                  "direction": "",
+                  "range": [3, 0]
+                },
+                {
+                  "name": "dbg_mem_o",
+                  "direction": "",
+                  "range": [16, 0]
+                },
+                {
+                  "name": "dbg_rd_o",
+                  "direction": "",
+                  "range": [2, 0]
+                },
+                {
+                  "name": "dbg_wr_o",
+                  "direction": "",
+                  "range": [2, 0]
                 },
                 {
                   "name": "empty_o",
@@ -1484,7 +1524,7 @@
                 {
                   "name": "u_fifo",
                   "attributes": {
-                    "src": "fifo.v:151.4-164.3"
+                    "src": "fifo.v:171.4-188.3"
                   },
                   "parameters": {
 
@@ -1494,7 +1534,7 @@
           }
         ],
         "attributes": {
-            "src": "fifo.v:121.1-165.10"
+            "src": "fifo.v:133.1-189.10"
         }
       }
   ]

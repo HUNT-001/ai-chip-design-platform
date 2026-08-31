@@ -2,25 +2,25 @@
 ; yosys-smt2-module $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo
 (declare-sort |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s| 0)
 (declare-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_is| (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|) Bool)
-; yosys-smt2-anyinit $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#0 3 fifo.v:89.2-113.11
+; yosys-smt2-anyinit $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#0 3 fifo.v:97.2-121.11
 ; yosys-smt2-witness {"offset": 0, "path": ["\\_witness_", "\\anyinit_procdff_239"], "smtname": 0, "smtoffset": 0, "type": "init", "width": 3}
 (declare-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#0| (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|) (_ BitVec 3)) ; \_witness_.anyinit_procdff_239
 ; yosys-smt2-register _witness_.anyinit_procdff_239 3
 ; yosys-smt2-wire _witness_.anyinit_procdff_239 3
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n _witness_.anyinit_procdff_239| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 3) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#0| state))
-; yosys-smt2-anyinit $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#1 16 fifo.v:114.2-118.19
+; yosys-smt2-anyinit $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#1 16 fifo.v:122.2-126.19
 ; yosys-smt2-witness {"offset": 0, "path": ["\\_witness_", "\\anyinit_procdff_224"], "smtname": 1, "smtoffset": 0, "type": "init", "width": 16}
 (declare-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#1| (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|) (_ BitVec 16)) ; \_witness_.anyinit_procdff_224
 ; yosys-smt2-register _witness_.anyinit_procdff_224 16
 ; yosys-smt2-wire _witness_.anyinit_procdff_224 16
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n _witness_.anyinit_procdff_224| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 16) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#1| state))
-; yosys-smt2-anyinit $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#2 2 fifo.v:89.2-113.11
+; yosys-smt2-anyinit $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#2 2 fifo.v:97.2-121.11
 ; yosys-smt2-witness {"offset": 0, "path": ["\\_witness_", "\\anyinit_procdff_234"], "smtname": 2, "smtoffset": 0, "type": "init", "width": 2}
 (declare-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#2| (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|) (_ BitVec 2)) ; \_witness_.anyinit_procdff_234
 ; yosys-smt2-register _witness_.anyinit_procdff_234 2
 ; yosys-smt2-wire _witness_.anyinit_procdff_234 2
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n _witness_.anyinit_procdff_234| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 2) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#2| state))
-; yosys-smt2-anyinit $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#3 2 fifo.v:89.2-113.11
+; yosys-smt2-anyinit $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#3 2 fifo.v:97.2-121.11
 ; yosys-smt2-witness {"offset": 0, "path": ["\\_witness_", "\\anyinit_procdff_229"], "smtname": 3, "smtoffset": 0, "type": "init", "width": 2}
 (declare-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#3| (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|) (_ BitVec 2)) ; \_witness_.anyinit_procdff_229
 ; yosys-smt2-register _witness_.anyinit_procdff_229 2
@@ -51,30 +51,42 @@
 ; yosys-smt2-output data_o 4
 ; yosys-smt2-wire data_o 4
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n data_o| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 4) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#10| state))
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#11| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (not (or  (= ((_ extract 0 0) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#6| state)) #b1) (= ((_ extract 1 1) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#6| state)) #b1) (= ((_ extract 2 2) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#6| state)) #b1)))) ; \empty_o
+; yosys-smt2-output dbg_cnt_o 3
+; yosys-smt2-wire dbg_cnt_o 3
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n dbg_cnt_o| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 3) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#6| state))
+; yosys-smt2-output dbg_mem_o 16
+; yosys-smt2-wire dbg_mem_o 16
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n dbg_mem_o| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 16) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#9| state))
+; yosys-smt2-output dbg_rd_o 2
+; yosys-smt2-wire dbg_rd_o 2
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n dbg_rd_o| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 2) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#8| state))
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#11| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 2) (ite (= ((_ extract 0 0) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#5| state)) #b1) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#2| state) #b00)) ; \write_pointer_q
+; yosys-smt2-output dbg_wr_o 2
+; yosys-smt2-wire dbg_wr_o 2
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n dbg_wr_o| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 2) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#11| state))
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#12| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (not (or  (= ((_ extract 0 0) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#6| state)) #b1) (= ((_ extract 1 1) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#6| state)) #b1) (= ((_ extract 2 2) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#6| state)) #b1)))) ; \empty_o
 ; yosys-smt2-output empty_o 1
 ; yosys-smt2-wire empty_o 1
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n empty_o| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#11| state))
-(declare-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#12| (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|) Bool) ; \flush_but_first_i
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n empty_o| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#12| state))
+(declare-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#13| (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|) Bool) ; \flush_but_first_i
 ; yosys-smt2-input flush_but_first_i 1
 ; yosys-smt2-wire flush_but_first_i 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\flush_but_first_i"], "smtname": "flush_but_first_i", "smtoffset": 0, "type": "input", "width": 1}
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n flush_but_first_i| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#12| state))
-(declare-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#13| (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|) Bool) ; \flush_i
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n flush_but_first_i| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#13| state))
+(declare-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#14| (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|) Bool) ; \flush_i
 ; yosys-smt2-input flush_i 1
 ; yosys-smt2-wire flush_i 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\flush_i"], "smtname": "flush_i", "smtoffset": 0, "type": "input", "width": 1}
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n flush_i| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#13| state))
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#14| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (= (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#6| state) #b100)) ; \full_o
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n flush_i| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#14| state))
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#15| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (= (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#6| state) #b100)) ; \full_o
 ; yosys-smt2-output full_o 1
 ; yosys-smt2-wire full_o 1
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n full_o| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#14| state))
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#15| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 2) (ite (= ((_ extract 0 0) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#5| state)) #b1) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#2| state) #b00)) ; \write_pointer_q
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#16| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 33) (bvneg (concat #b00000000000000000000000000000 (concat (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#15| state) #b00)))) ; $neg$fifo.v:63$85_Y
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#17| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 16) ((_ extract 15 0) (ite (bvsge (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#16| state) #b000000000000000000000000000000000) (bvlshr #b000000000000000000000000000001111 (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#16| state)) (bvshl #b000000000000000000000000000001111 (bvneg (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#16| state)))))) ; $shift$fifo.v:63$86_Y
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#18| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 16) (bvnot (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#17| state))) ; $not$fifo.v:63$87_Y
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#19| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 16) (bvand (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#9| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#18| state))) ; $and$fifo.v:63$88_Y
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#20| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 16) ((_ extract 15 0) (ite (bvsge (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#16| state) #b000000000000000000000000000000000) (bvlshr (concat #b00000000000000000000000000000 (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#7| state)) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#16| state)) (bvshl (concat #b00000000000000000000000000000 (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#7| state)) (bvneg (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#16| state)))))) ; $shift$fifo.v:63$90_Y
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n full_o| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#15| state))
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#16| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 33) (bvneg (concat #b00000000000000000000000000000 (concat (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#11| state) #b00)))) ; $neg$fifo.v:71$85_Y
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#17| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 16) ((_ extract 15 0) (ite (bvsge (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#16| state) #b000000000000000000000000000000000) (bvlshr #b000000000000000000000000000001111 (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#16| state)) (bvshl #b000000000000000000000000000001111 (bvneg (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#16| state)))))) ; $shift$fifo.v:71$86_Y
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#18| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 16) (bvnot (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#17| state))) ; $not$fifo.v:71$87_Y
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#19| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 16) (bvand (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#9| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#18| state))) ; $and$fifo.v:71$88_Y
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#20| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 16) ((_ extract 15 0) (ite (bvsge (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#16| state) #b000000000000000000000000000000000) (bvlshr (concat #b00000000000000000000000000000 (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#7| state)) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#16| state)) (bvshl (concat #b00000000000000000000000000000 (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#7| state)) (bvneg (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#16| state)))))) ; $shift$fifo.v:71$90_Y
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#21| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 16) (bvor (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#19| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#20| state))) ; \mem_n
 ; yosys-smt2-wire mem_n 16
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n mem_n| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 16) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#21| state))
@@ -91,8 +103,8 @@
 ; yosys-smt2-witness {"offset": 0, "path": ["\\push_i"], "smtname": "push_i", "smtoffset": 0, "type": "input", "width": 1}
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n push_i| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#23| state))
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#24| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 2) (bvadd (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#8| state) #b01)) ; $2\read_pointer_n[1:0]
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#25| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 1) (bvnot (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#11| state) #b1 #b0))) ; $not$fifo.v:71$95_Y
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#26| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (and (or  (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#22| state) false) (or  (= ((_ extract 0 0) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#25| state)) #b1) false))) ; $logic_and$fifo.v:71$96_Y
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#25| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 1) (bvnot (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#12| state) #b1 #b0))) ; $not$fifo.v:79$95_Y
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#26| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (and (or  (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#22| state) false) (or  (= ((_ extract 0 0) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#25| state)) #b1) false))) ; $logic_and$fifo.v:79$96_Y
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#27| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 2) (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#26| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#24| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#8| state))) ; \read_pointer_n
 ; yosys-smt2-wire read_pointer_n 2
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n read_pointer_n| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 2) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#27| state))
@@ -102,15 +114,15 @@
 ; yosys-smt2-wire rst_ni 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\rst_ni"], "smtname": "rst_ni", "smtoffset": 0, "type": "input", "width": 1}
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n rst_ni| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (= ((_ extract 0 0) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#5| state)) #b1))
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#28| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 3) (bvadd (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#6| state) #b001)) ; $add$fifo.v:69$94_Y
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#29| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 1) (bvnot (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#14| state) #b1 #b0))) ; $not$fifo.v:62$80_Y
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#30| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (and (or  (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#23| state) false) (or  (= ((_ extract 0 0) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#29| state)) #b1) false))) ; $logic_and$fifo.v:62$81_Y
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#28| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 3) (bvadd (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#6| state) #b001)) ; $add$fifo.v:77$94_Y
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#29| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 1) (bvnot (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#15| state) #b1 #b0))) ; $not$fifo.v:70$80_Y
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#30| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (and (or  (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#23| state) false) (or  (= ((_ extract 0 0) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#29| state)) #b1) false))) ; $logic_and$fifo.v:70$81_Y
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#31| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 3) (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#30| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#28| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#6| state))) ; $1\status_cnt_n[2:0]
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#32| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 3) (bvsub (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#6| state) #b001)) ; $auto$wreduce.cc:514:run$247 [2:0]
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#33| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 3) (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#26| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#32| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#31| state))) ; $2\status_cnt_n[2:0]
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#34| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (and (or  (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#23| state) false) (or  (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#22| state) false))) ; $logic_and$fifo.v:78$100_Y
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#35| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (and (or  (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#34| state) false) (or  (= ((_ extract 0 0) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#29| state)) #b1) false))) ; $logic_and$fifo.v:78$102_Y
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#36| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (and (or  (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#35| state) false) (or  (= ((_ extract 0 0) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#25| state)) #b1) false))) ; $logic_and$fifo.v:78$104_Y
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#34| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (and (or  (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#23| state) false) (or  (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#22| state) false))) ; $logic_and$fifo.v:86$100_Y
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#35| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (and (or  (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#34| state) false) (or  (= ((_ extract 0 0) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#29| state)) #b1) false))) ; $logic_and$fifo.v:86$102_Y
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#36| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (and (or  (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#35| state) false) (or  (= ((_ extract 0 0) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#25| state)) #b1) false))) ; $logic_and$fifo.v:86$104_Y
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#37| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 3) (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#36| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#6| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#33| state))) ; \status_cnt_n
 ; yosys-smt2-wire status_cnt_n 3
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n status_cnt_n| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 3) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#37| state))
@@ -121,26 +133,26 @@
 ; yosys-smt2-wire testmode_i 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\testmode_i"], "smtname": "testmode_i", "smtoffset": 0, "type": "input", "width": 1}
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n testmode_i| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#38| state))
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#39| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 2) (bvadd (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#15| state) #b01)) ; $2\write_pointer_n[1:0]
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#40| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 2) (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#30| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#39| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#15| state))) ; \write_pointer_n
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#39| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 2) (bvadd (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#11| state) #b01)) ; $2\write_pointer_n[1:0]
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#40| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 2) (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#30| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#39| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#11| state))) ; \write_pointer_n
 ; yosys-smt2-wire write_pointer_n 2
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n write_pointer_n| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 2) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#40| state))
 ; yosys-smt2-wire write_pointer_q 2
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n write_pointer_q| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 2) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#15| state))
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#41| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 1) (bvnot (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#4| state) #b1 #b0))) ; $auto$rtlil.cc:3255:Not$310
-; yosys-smt2-assume 0 $auto$formalff.cc:987:execute$311
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_u 0| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (or (= ((_ extract 0 0) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#41| state)) #b1) (not true))) ; $auto$formalff.cc:987:execute$311
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#42| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (bvugt (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#6| state) #b000)) ; $gt$fifo.v:104$110_Y
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#43| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 2) (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#42| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#8| state) #b00)) ; $ternary$fifo.v:104$111_Y
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#44| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 2) (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#13| state) #b00 (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#12| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#43| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#27| state)))) ; $0\read_pointer_q[1:0]
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n write_pointer_q| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 2) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#11| state))
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#41| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 1) (bvnot (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#4| state) #b1 #b0))) ; $auto$rtlil.cc:3255:Not$318
+; yosys-smt2-assume 0 $auto$formalff.cc:987:execute$319
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_u 0| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (or (= ((_ extract 0 0) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#41| state)) #b1) (not true))) ; $auto$formalff.cc:987:execute$319
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#42| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool (bvugt (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#6| state) #b000)) ; $gt$fifo.v:112$110_Y
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#43| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 2) (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#42| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#8| state) #b00)) ; $ternary$fifo.v:112$111_Y
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#44| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 2) (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#14| state) #b00 (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#13| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#43| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#27| state)))) ; $0\read_pointer_q[1:0]
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#45| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 2) (ite (= ((_ extract 0 0) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#5| state)) #b1) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#44| state) #b00)) ; $auto$rtlil.cc:3390:Mux$272
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#46| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 2) (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#42| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#24| state) #b00)) ; $auto$wreduce.cc:514:run$242 [1:0]
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#47| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 2) (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#13| state) #b00 (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#12| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#46| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#40| state)))) ; $0\write_pointer_q[1:0]
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#47| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 2) (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#14| state) #b00 (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#13| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#46| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#40| state)))) ; $0\write_pointer_q[1:0]
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#48| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 2) (ite (= ((_ extract 0 0) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#5| state)) #b1) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#47| state) #b00)) ; $auto$rtlil.cc:3390:Mux$270
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#49| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 16) (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#30| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#21| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#9| state))) ; $0\mem_q[15:0]
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#50| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 16) (ite (= ((_ extract 0 0) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#5| state)) #b1) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#49| state) #b0000000000000000)) ; $auto$rtlil.cc:3390:Mux$274
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#51| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 1) (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#42| state) #b1 #b0)) ; $auto$wreduce.cc:514:run$241 [0]
-(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#52| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 3) (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#13| state) #b000 (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#12| state) (concat #b00 (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#51| state)) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#37| state)))) ; $0\status_cnt_q[2:0]
+(define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#52| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 3) (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#14| state) #b000 (ite (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#13| state) (concat #b00 (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#51| state)) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#37| state)))) ; $0\status_cnt_q[2:0]
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#53| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) (_ BitVec 3) (ite (= ((_ extract 0 0) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#5| state)) #b1) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo#52| state) #b000)) ; $auto$rtlil.cc:3390:Mux$268
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_a| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool true)
 (define-fun |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_u| ((state |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)) Bool 
@@ -168,56 +180,72 @@
 ; yosys-smt2-witness {"path": ["\\u_fifo"], "smtname": "u_fifo", "type": "cell"}
 (declare-fun |fifo_wrap#1| (|fifo_wrap_s|) (_ BitVec 3)) ; \cnt_o
 (declare-fun |fifo_wrap#2| (|fifo_wrap_s|) (_ BitVec 4)) ; \data_o
-(declare-fun |fifo_wrap#3| (|fifo_wrap_s|) Bool) ; \empty_o
-(declare-fun |fifo_wrap#4| (|fifo_wrap_s|) Bool) ; \full_o
+(declare-fun |fifo_wrap#3| (|fifo_wrap_s|) (_ BitVec 3)) ; \dbg_cnt_o
+(declare-fun |fifo_wrap#4| (|fifo_wrap_s|) (_ BitVec 16)) ; \dbg_mem_o
+(declare-fun |fifo_wrap#5| (|fifo_wrap_s|) (_ BitVec 2)) ; \dbg_rd_o
+(declare-fun |fifo_wrap#6| (|fifo_wrap_s|) (_ BitVec 2)) ; \dbg_wr_o
+(declare-fun |fifo_wrap#7| (|fifo_wrap_s|) Bool) ; \empty_o
+(declare-fun |fifo_wrap#8| (|fifo_wrap_s|) Bool) ; \full_o
 (declare-fun |fifo_wrap_h u_fifo| (|fifo_wrap_s|) |$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_s|)
 ; yosys-smt2-output cnt_o 3
 ; yosys-smt2-wire cnt_o 3
 (define-fun |fifo_wrap_n cnt_o| ((state |fifo_wrap_s|)) (_ BitVec 3) (|fifo_wrap#1| state))
-(declare-fun |fifo_wrap#5| (|fifo_wrap_s|) (_ BitVec 4)) ; \data_i
+(declare-fun |fifo_wrap#9| (|fifo_wrap_s|) (_ BitVec 4)) ; \data_i
 ; yosys-smt2-input data_i 4
 ; yosys-smt2-wire data_i 4
 ; yosys-smt2-witness {"offset": 0, "path": ["\\data_i"], "smtname": "data_i", "smtoffset": 0, "type": "input", "width": 4}
-(define-fun |fifo_wrap_n data_i| ((state |fifo_wrap_s|)) (_ BitVec 4) (|fifo_wrap#5| state))
+(define-fun |fifo_wrap_n data_i| ((state |fifo_wrap_s|)) (_ BitVec 4) (|fifo_wrap#9| state))
 ; yosys-smt2-output data_o 4
 ; yosys-smt2-wire data_o 4
 (define-fun |fifo_wrap_n data_o| ((state |fifo_wrap_s|)) (_ BitVec 4) (|fifo_wrap#2| state))
+; yosys-smt2-output dbg_cnt_o 3
+; yosys-smt2-wire dbg_cnt_o 3
+(define-fun |fifo_wrap_n dbg_cnt_o| ((state |fifo_wrap_s|)) (_ BitVec 3) (|fifo_wrap#3| state))
+; yosys-smt2-output dbg_mem_o 16
+; yosys-smt2-wire dbg_mem_o 16
+(define-fun |fifo_wrap_n dbg_mem_o| ((state |fifo_wrap_s|)) (_ BitVec 16) (|fifo_wrap#4| state))
+; yosys-smt2-output dbg_rd_o 2
+; yosys-smt2-wire dbg_rd_o 2
+(define-fun |fifo_wrap_n dbg_rd_o| ((state |fifo_wrap_s|)) (_ BitVec 2) (|fifo_wrap#5| state))
+; yosys-smt2-output dbg_wr_o 2
+; yosys-smt2-wire dbg_wr_o 2
+(define-fun |fifo_wrap_n dbg_wr_o| ((state |fifo_wrap_s|)) (_ BitVec 2) (|fifo_wrap#6| state))
 ; yosys-smt2-output empty_o 1
 ; yosys-smt2-wire empty_o 1
-(define-fun |fifo_wrap_n empty_o| ((state |fifo_wrap_s|)) Bool (|fifo_wrap#3| state))
-(declare-fun |fifo_wrap#6| (|fifo_wrap_s|) Bool) ; \flush_but_first_i
+(define-fun |fifo_wrap_n empty_o| ((state |fifo_wrap_s|)) Bool (|fifo_wrap#7| state))
+(declare-fun |fifo_wrap#10| (|fifo_wrap_s|) Bool) ; \flush_but_first_i
 ; yosys-smt2-input flush_but_first_i 1
 ; yosys-smt2-wire flush_but_first_i 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\flush_but_first_i"], "smtname": "flush_but_first_i", "smtoffset": 0, "type": "input", "width": 1}
-(define-fun |fifo_wrap_n flush_but_first_i| ((state |fifo_wrap_s|)) Bool (|fifo_wrap#6| state))
-(declare-fun |fifo_wrap#7| (|fifo_wrap_s|) Bool) ; \flush_i
+(define-fun |fifo_wrap_n flush_but_first_i| ((state |fifo_wrap_s|)) Bool (|fifo_wrap#10| state))
+(declare-fun |fifo_wrap#11| (|fifo_wrap_s|) Bool) ; \flush_i
 ; yosys-smt2-input flush_i 1
 ; yosys-smt2-wire flush_i 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\flush_i"], "smtname": "flush_i", "smtoffset": 0, "type": "input", "width": 1}
-(define-fun |fifo_wrap_n flush_i| ((state |fifo_wrap_s|)) Bool (|fifo_wrap#7| state))
+(define-fun |fifo_wrap_n flush_i| ((state |fifo_wrap_s|)) Bool (|fifo_wrap#11| state))
 ; yosys-smt2-output full_o 1
 ; yosys-smt2-wire full_o 1
-(define-fun |fifo_wrap_n full_o| ((state |fifo_wrap_s|)) Bool (|fifo_wrap#4| state))
-(declare-fun |fifo_wrap#8| (|fifo_wrap_s|) Bool) ; \pop_i
+(define-fun |fifo_wrap_n full_o| ((state |fifo_wrap_s|)) Bool (|fifo_wrap#8| state))
+(declare-fun |fifo_wrap#12| (|fifo_wrap_s|) Bool) ; \pop_i
 ; yosys-smt2-input pop_i 1
 ; yosys-smt2-wire pop_i 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\pop_i"], "smtname": "pop_i", "smtoffset": 0, "type": "input", "width": 1}
-(define-fun |fifo_wrap_n pop_i| ((state |fifo_wrap_s|)) Bool (|fifo_wrap#8| state))
-(declare-fun |fifo_wrap#9| (|fifo_wrap_s|) Bool) ; \push_i
+(define-fun |fifo_wrap_n pop_i| ((state |fifo_wrap_s|)) Bool (|fifo_wrap#12| state))
+(declare-fun |fifo_wrap#13| (|fifo_wrap_s|) Bool) ; \push_i
 ; yosys-smt2-input push_i 1
 ; yosys-smt2-wire push_i 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\push_i"], "smtname": "push_i", "smtoffset": 0, "type": "input", "width": 1}
-(define-fun |fifo_wrap_n push_i| ((state |fifo_wrap_s|)) Bool (|fifo_wrap#9| state))
-(declare-fun |fifo_wrap#10| (|fifo_wrap_s|) Bool) ; \rst_ni
+(define-fun |fifo_wrap_n push_i| ((state |fifo_wrap_s|)) Bool (|fifo_wrap#13| state))
+(declare-fun |fifo_wrap#14| (|fifo_wrap_s|) Bool) ; \rst_ni
 ; yosys-smt2-input rst_ni 1
 ; yosys-smt2-wire rst_ni 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\rst_ni"], "smtname": "rst_ni", "smtoffset": 0, "type": "input", "width": 1}
-(define-fun |fifo_wrap_n rst_ni| ((state |fifo_wrap_s|)) Bool (|fifo_wrap#10| state))
-(declare-fun |fifo_wrap#11| (|fifo_wrap_s|) Bool) ; \testmode_i
+(define-fun |fifo_wrap_n rst_ni| ((state |fifo_wrap_s|)) Bool (|fifo_wrap#14| state))
+(declare-fun |fifo_wrap#15| (|fifo_wrap_s|) Bool) ; \testmode_i
 ; yosys-smt2-input testmode_i 1
 ; yosys-smt2-wire testmode_i 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\testmode_i"], "smtname": "testmode_i", "smtoffset": 0, "type": "input", "width": 1}
-(define-fun |fifo_wrap_n testmode_i| ((state |fifo_wrap_s|)) Bool (|fifo_wrap#11| state))
+(define-fun |fifo_wrap_n testmode_i| ((state |fifo_wrap_s|)) Bool (|fifo_wrap#15| state))
 (define-fun |fifo_wrap_a| ((state |fifo_wrap_s|)) Bool 
   (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_a| (|fifo_wrap_h u_fifo| state))
 )
@@ -231,16 +259,20 @@
   (= (|fifo_wrap_is| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_is| (|fifo_wrap_h u_fifo| state)))
   (= (|fifo_wrap#0| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n clk_i| (|fifo_wrap_h u_fifo| state))) ; $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo.clk_i
   (= (|fifo_wrap#1| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n cnt_o| (|fifo_wrap_h u_fifo| state))) ; $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo.cnt_o
-  (= (|fifo_wrap#5| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n data_i| (|fifo_wrap_h u_fifo| state))) ; $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo.data_i
+  (= (|fifo_wrap#9| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n data_i| (|fifo_wrap_h u_fifo| state))) ; $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo.data_i
   (= (|fifo_wrap#2| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n data_o| (|fifo_wrap_h u_fifo| state))) ; $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo.data_o
-  (= (|fifo_wrap#3| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n empty_o| (|fifo_wrap_h u_fifo| state))) ; $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo.empty_o
-  (= (|fifo_wrap#6| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n flush_but_first_i| (|fifo_wrap_h u_fifo| state))) ; $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo.flush_but_first_i
-  (= (|fifo_wrap#7| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n flush_i| (|fifo_wrap_h u_fifo| state))) ; $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo.flush_i
-  (= (|fifo_wrap#4| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n full_o| (|fifo_wrap_h u_fifo| state))) ; $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo.full_o
-  (= (|fifo_wrap#8| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n pop_i| (|fifo_wrap_h u_fifo| state))) ; $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo.pop_i
-  (= (|fifo_wrap#9| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n push_i| (|fifo_wrap_h u_fifo| state))) ; $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo.push_i
-  (= (|fifo_wrap#10| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n rst_ni| (|fifo_wrap_h u_fifo| state))) ; $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo.rst_ni
-  (= (|fifo_wrap#11| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n testmode_i| (|fifo_wrap_h u_fifo| state))) ; $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo.testmode_i
+  (= (|fifo_wrap#3| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n dbg_cnt_o| (|fifo_wrap_h u_fifo| state))) ; $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo.dbg_cnt_o
+  (= (|fifo_wrap#4| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n dbg_mem_o| (|fifo_wrap_h u_fifo| state))) ; $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo.dbg_mem_o
+  (= (|fifo_wrap#5| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n dbg_rd_o| (|fifo_wrap_h u_fifo| state))) ; $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo.dbg_rd_o
+  (= (|fifo_wrap#6| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n dbg_wr_o| (|fifo_wrap_h u_fifo| state))) ; $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo.dbg_wr_o
+  (= (|fifo_wrap#7| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n empty_o| (|fifo_wrap_h u_fifo| state))) ; $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo.empty_o
+  (= (|fifo_wrap#10| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n flush_but_first_i| (|fifo_wrap_h u_fifo| state))) ; $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo.flush_but_first_i
+  (= (|fifo_wrap#11| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n flush_i| (|fifo_wrap_h u_fifo| state))) ; $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo.flush_i
+  (= (|fifo_wrap#8| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n full_o| (|fifo_wrap_h u_fifo| state))) ; $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo.full_o
+  (= (|fifo_wrap#12| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n pop_i| (|fifo_wrap_h u_fifo| state))) ; $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo.pop_i
+  (= (|fifo_wrap#13| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n push_i| (|fifo_wrap_h u_fifo| state))) ; $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo.push_i
+  (= (|fifo_wrap#14| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n rst_ni| (|fifo_wrap_h u_fifo| state))) ; $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo.rst_ni
+  (= (|fifo_wrap#15| state) (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_n testmode_i| (|fifo_wrap_h u_fifo| state))) ; $paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo.testmode_i
   (|$paramod$d23d0c7284b1f9e74ac1c87aae513c8f96ae6ecc/cv32e40p_fifo_h| (|fifo_wrap_h u_fifo| state))
 ))
 (define-fun |fifo_wrap_t| ((state |fifo_wrap_s|) (next_state |fifo_wrap_s|)) Bool 
@@ -268,118 +300,130 @@
 ; yosys-smt2-witness {"path": ["\\dut"], "smtname": "dut", "type": "cell"}
 (declare-fun |fifo_fv#3| (|fifo_fv_s|) (_ BitVec 3)) ; \cnt
 (declare-fun |fifo_fv#4| (|fifo_fv_s|) (_ BitVec 4)) ; \dout
-(declare-fun |fifo_fv#5| (|fifo_fv_s|) Bool) ; \empty
-(declare-fun |fifo_fv#6| (|fifo_fv_s|) Bool) ; \full
+(declare-fun |fifo_fv#5| (|fifo_fv_s|) (_ BitVec 3)) ; \dbg_cnt
+(declare-fun |fifo_fv#6| (|fifo_fv_s|) (_ BitVec 16)) ; \dbg_mem
+(declare-fun |fifo_fv#7| (|fifo_fv_s|) (_ BitVec 2)) ; \dbg_rd
+(declare-fun |fifo_fv#8| (|fifo_fv_s|) (_ BitVec 2)) ; \dbg_wr
+(declare-fun |fifo_fv#9| (|fifo_fv_s|) Bool) ; \empty
+(declare-fun |fifo_fv#10| (|fifo_fv_s|) Bool) ; \full
 (declare-fun |fifo_fv_h dut| (|fifo_fv_s|) |fifo_wrap_s|)
 ; yosys-smt2-wire cnt 3
 (define-fun |fifo_fv_n cnt| ((state |fifo_fv_s|)) (_ BitVec 3) (|fifo_fv#3| state))
-; yosys-smt2-witness {"offset": 0, "path": ["\\cyc"], "smtname": 7, "smtoffset": 0, "type": "reg", "width": 2}
-(declare-fun |fifo_fv#7| (|fifo_fv_s|) (_ BitVec 2)) ; \cyc
+; yosys-smt2-witness {"offset": 0, "path": ["\\cyc"], "smtname": 11, "smtoffset": 0, "type": "reg", "width": 2}
+(declare-fun |fifo_fv#11| (|fifo_fv_s|) (_ BitVec 2)) ; \cyc
 ; yosys-smt2-register cyc 2
 ; yosys-smt2-wire cyc 2
-(define-fun |fifo_fv_n cyc| ((state |fifo_fv_s|)) (_ BitVec 2) (|fifo_fv#7| state))
-(declare-fun |fifo_fv#8| (|fifo_fv_s|) (_ BitVec 4)) ; \din
+(define-fun |fifo_fv_n cyc| ((state |fifo_fv_s|)) (_ BitVec 2) (|fifo_fv#11| state))
+; yosys-smt2-wire dbg_cnt 3
+(define-fun |fifo_fv_n dbg_cnt| ((state |fifo_fv_s|)) (_ BitVec 3) (|fifo_fv#5| state))
+; yosys-smt2-wire dbg_mem 16
+(define-fun |fifo_fv_n dbg_mem| ((state |fifo_fv_s|)) (_ BitVec 16) (|fifo_fv#6| state))
+; yosys-smt2-wire dbg_rd 2
+(define-fun |fifo_fv_n dbg_rd| ((state |fifo_fv_s|)) (_ BitVec 2) (|fifo_fv#7| state))
+; yosys-smt2-wire dbg_wr 2
+(define-fun |fifo_fv_n dbg_wr| ((state |fifo_fv_s|)) (_ BitVec 2) (|fifo_fv#8| state))
+(declare-fun |fifo_fv#12| (|fifo_fv_s|) (_ BitVec 4)) ; \din
 ; yosys-smt2-input din 4
 ; yosys-smt2-wire din 4
 ; yosys-smt2-witness {"offset": 0, "path": ["\\din"], "smtname": "din", "smtoffset": 0, "type": "input", "width": 4}
-(define-fun |fifo_fv_n din| ((state |fifo_fv_s|)) (_ BitVec 4) (|fifo_fv#8| state))
+(define-fun |fifo_fv_n din| ((state |fifo_fv_s|)) (_ BitVec 4) (|fifo_fv#12| state))
 ; yosys-smt2-wire dout 4
 (define-fun |fifo_fv_n dout| ((state |fifo_fv_s|)) (_ BitVec 4) (|fifo_fv#4| state))
 ; yosys-smt2-wire empty 1
-(define-fun |fifo_fv_n empty| ((state |fifo_fv_s|)) Bool (|fifo_fv#5| state))
-(declare-fun |fifo_fv#9| (|fifo_fv_s|) Bool) ; \flush
+(define-fun |fifo_fv_n empty| ((state |fifo_fv_s|)) Bool (|fifo_fv#9| state))
+(declare-fun |fifo_fv#13| (|fifo_fv_s|) Bool) ; \flush
 ; yosys-smt2-input flush 1
 ; yosys-smt2-wire flush 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\flush"], "smtname": "flush", "smtoffset": 0, "type": "input", "width": 1}
-(define-fun |fifo_fv_n flush| ((state |fifo_fv_s|)) Bool (|fifo_fv#9| state))
-(declare-fun |fifo_fv#10| (|fifo_fv_s|) Bool) ; \flush_but_first
+(define-fun |fifo_fv_n flush| ((state |fifo_fv_s|)) Bool (|fifo_fv#13| state))
+(declare-fun |fifo_fv#14| (|fifo_fv_s|) Bool) ; \flush_but_first
 ; yosys-smt2-input flush_but_first 1
 ; yosys-smt2-wire flush_but_first 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\flush_but_first"], "smtname": "flush_but_first", "smtoffset": 0, "type": "input", "width": 1}
-(define-fun |fifo_fv_n flush_but_first| ((state |fifo_fv_s|)) Bool (|fifo_fv#10| state))
+(define-fun |fifo_fv_n flush_but_first| ((state |fifo_fv_s|)) Bool (|fifo_fv#14| state))
 ; yosys-smt2-wire full 1
-(define-fun |fifo_fv_n full| ((state |fifo_fv_s|)) Bool (|fifo_fv#6| state))
-; yosys-smt2-anyinit fifo_fv#11 3 fifo_fv.v:75.3-78.6
-; yosys-smt2-witness {"offset": 0, "path": ["\\p_cnt"], "smtname": 11, "smtoffset": 0, "type": "init", "width": 3}
-(declare-fun |fifo_fv#11| (|fifo_fv_s|) (_ BitVec 3)) ; \p_cnt
+(define-fun |fifo_fv_n full| ((state |fifo_fv_s|)) Bool (|fifo_fv#10| state))
+; yosys-smt2-anyinit fifo_fv#15 3 fifo_fv.v:82.3-85.6
+; yosys-smt2-witness {"offset": 0, "path": ["\\p_cnt"], "smtname": 15, "smtoffset": 0, "type": "init", "width": 3}
+(declare-fun |fifo_fv#15| (|fifo_fv_s|) (_ BitVec 3)) ; \p_cnt
 ; yosys-smt2-register p_cnt 3
 ; yosys-smt2-wire p_cnt 3
-(define-fun |fifo_fv_n p_cnt| ((state |fifo_fv_s|)) (_ BitVec 3) (|fifo_fv#11| state))
-; yosys-smt2-anyinit fifo_fv#12 1 fifo_fv.v:75.3-78.6
-; yosys-smt2-witness {"offset": 0, "path": ["\\p_fbf"], "smtname": 12, "smtoffset": 0, "type": "init", "width": 1}
-(declare-fun |fifo_fv#12| (|fifo_fv_s|) (_ BitVec 1)) ; \p_fbf
+(define-fun |fifo_fv_n p_cnt| ((state |fifo_fv_s|)) (_ BitVec 3) (|fifo_fv#15| state))
+; yosys-smt2-anyinit fifo_fv#16 1 fifo_fv.v:82.3-85.6
+; yosys-smt2-witness {"offset": 0, "path": ["\\p_fbf"], "smtname": 16, "smtoffset": 0, "type": "init", "width": 1}
+(declare-fun |fifo_fv#16| (|fifo_fv_s|) (_ BitVec 1)) ; \p_fbf
 ; yosys-smt2-register p_fbf 1
 ; yosys-smt2-wire p_fbf 1
-(define-fun |fifo_fv_n p_fbf| ((state |fifo_fv_s|)) Bool (= ((_ extract 0 0) (|fifo_fv#12| state)) #b1))
-; yosys-smt2-anyinit fifo_fv#13 1 fifo_fv.v:75.3-78.6
-; yosys-smt2-witness {"offset": 0, "path": ["\\p_flush"], "smtname": 13, "smtoffset": 0, "type": "init", "width": 1}
-(declare-fun |fifo_fv#13| (|fifo_fv_s|) (_ BitVec 1)) ; \p_flush
+(define-fun |fifo_fv_n p_fbf| ((state |fifo_fv_s|)) Bool (= ((_ extract 0 0) (|fifo_fv#16| state)) #b1))
+; yosys-smt2-anyinit fifo_fv#17 1 fifo_fv.v:82.3-85.6
+; yosys-smt2-witness {"offset": 0, "path": ["\\p_flush"], "smtname": 17, "smtoffset": 0, "type": "init", "width": 1}
+(declare-fun |fifo_fv#17| (|fifo_fv_s|) (_ BitVec 1)) ; \p_flush
 ; yosys-smt2-register p_flush 1
 ; yosys-smt2-wire p_flush 1
-(define-fun |fifo_fv_n p_flush| ((state |fifo_fv_s|)) Bool (= ((_ extract 0 0) (|fifo_fv#13| state)) #b1))
-; yosys-smt2-anyinit fifo_fv#14 1 fifo_fv.v:75.3-78.6
-; yosys-smt2-witness {"offset": 0, "path": ["\\p_full"], "smtname": 14, "smtoffset": 0, "type": "init", "width": 1}
-(declare-fun |fifo_fv#14| (|fifo_fv_s|) (_ BitVec 1)) ; \p_full
+(define-fun |fifo_fv_n p_flush| ((state |fifo_fv_s|)) Bool (= ((_ extract 0 0) (|fifo_fv#17| state)) #b1))
+; yosys-smt2-anyinit fifo_fv#18 1 fifo_fv.v:82.3-85.6
+; yosys-smt2-witness {"offset": 0, "path": ["\\p_full"], "smtname": 18, "smtoffset": 0, "type": "init", "width": 1}
+(declare-fun |fifo_fv#18| (|fifo_fv_s|) (_ BitVec 1)) ; \p_full
 ; yosys-smt2-register p_full 1
 ; yosys-smt2-wire p_full 1
-(define-fun |fifo_fv_n p_full| ((state |fifo_fv_s|)) Bool (= ((_ extract 0 0) (|fifo_fv#14| state)) #b1))
-; yosys-smt2-anyinit fifo_fv#15 1 fifo_fv.v:75.3-78.6
-; yosys-smt2-witness {"offset": 0, "path": ["\\p_pop"], "smtname": 15, "smtoffset": 0, "type": "init", "width": 1}
-(declare-fun |fifo_fv#15| (|fifo_fv_s|) (_ BitVec 1)) ; \p_pop
+(define-fun |fifo_fv_n p_full| ((state |fifo_fv_s|)) Bool (= ((_ extract 0 0) (|fifo_fv#18| state)) #b1))
+; yosys-smt2-anyinit fifo_fv#19 1 fifo_fv.v:82.3-85.6
+; yosys-smt2-witness {"offset": 0, "path": ["\\p_pop"], "smtname": 19, "smtoffset": 0, "type": "init", "width": 1}
+(declare-fun |fifo_fv#19| (|fifo_fv_s|) (_ BitVec 1)) ; \p_pop
 ; yosys-smt2-register p_pop 1
 ; yosys-smt2-wire p_pop 1
-(define-fun |fifo_fv_n p_pop| ((state |fifo_fv_s|)) Bool (= ((_ extract 0 0) (|fifo_fv#15| state)) #b1))
-; yosys-smt2-anyinit fifo_fv#16 1 fifo_fv.v:75.3-78.6
-; yosys-smt2-witness {"offset": 0, "path": ["\\p_push"], "smtname": 16, "smtoffset": 0, "type": "init", "width": 1}
-(declare-fun |fifo_fv#16| (|fifo_fv_s|) (_ BitVec 1)) ; \p_push
+(define-fun |fifo_fv_n p_pop| ((state |fifo_fv_s|)) Bool (= ((_ extract 0 0) (|fifo_fv#19| state)) #b1))
+; yosys-smt2-anyinit fifo_fv#20 1 fifo_fv.v:82.3-85.6
+; yosys-smt2-witness {"offset": 0, "path": ["\\p_push"], "smtname": 20, "smtoffset": 0, "type": "init", "width": 1}
+(declare-fun |fifo_fv#20| (|fifo_fv_s|) (_ BitVec 1)) ; \p_push
 ; yosys-smt2-register p_push 1
 ; yosys-smt2-wire p_push 1
-(define-fun |fifo_fv_n p_push| ((state |fifo_fv_s|)) Bool (= ((_ extract 0 0) (|fifo_fv#16| state)) #b1))
-; yosys-smt2-anyinit fifo_fv#17 1 fifo_fv.v:75.3-78.6
-; yosys-smt2-witness {"offset": 0, "path": ["\\p_settled"], "smtname": 17, "smtoffset": 0, "type": "init", "width": 1}
-(declare-fun |fifo_fv#17| (|fifo_fv_s|) (_ BitVec 1)) ; \p_settled
+(define-fun |fifo_fv_n p_push| ((state |fifo_fv_s|)) Bool (= ((_ extract 0 0) (|fifo_fv#20| state)) #b1))
+; yosys-smt2-anyinit fifo_fv#21 1 fifo_fv.v:82.3-85.6
+; yosys-smt2-witness {"offset": 0, "path": ["\\p_settled"], "smtname": 21, "smtoffset": 0, "type": "init", "width": 1}
+(declare-fun |fifo_fv#21| (|fifo_fv_s|) (_ BitVec 1)) ; \p_settled
 ; yosys-smt2-register p_settled 1
 ; yosys-smt2-wire p_settled 1
-(define-fun |fifo_fv_n p_settled| ((state |fifo_fv_s|)) Bool (= ((_ extract 0 0) (|fifo_fv#17| state)) #b1))
-(declare-fun |fifo_fv#18| (|fifo_fv_s|) Bool) ; \pop
+(define-fun |fifo_fv_n p_settled| ((state |fifo_fv_s|)) Bool (= ((_ extract 0 0) (|fifo_fv#21| state)) #b1))
+(declare-fun |fifo_fv#22| (|fifo_fv_s|) Bool) ; \pop
 ; yosys-smt2-input pop 1
 ; yosys-smt2-wire pop 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\pop"], "smtname": "pop", "smtoffset": 0, "type": "input", "width": 1}
-(define-fun |fifo_fv_n pop| ((state |fifo_fv_s|)) Bool (|fifo_fv#18| state))
-(declare-fun |fifo_fv#19| (|fifo_fv_s|) Bool) ; \push
+(define-fun |fifo_fv_n pop| ((state |fifo_fv_s|)) Bool (|fifo_fv#22| state))
+(declare-fun |fifo_fv#23| (|fifo_fv_s|) Bool) ; \push
 ; yosys-smt2-input push 1
 ; yosys-smt2-wire push 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\push"], "smtname": "push", "smtoffset": 0, "type": "input", "width": 1}
-(define-fun |fifo_fv_n push| ((state |fifo_fv_s|)) Bool (|fifo_fv#19| state))
-(define-fun |fifo_fv#20| ((state |fifo_fv_s|)) Bool (or  (= ((_ extract 0 0) (|fifo_fv#7| state)) #b1) (= ((_ extract 1 1) (|fifo_fv#7| state)) #b1))) ; \rst_n
+(define-fun |fifo_fv_n push| ((state |fifo_fv_s|)) Bool (|fifo_fv#23| state))
+(define-fun |fifo_fv#24| ((state |fifo_fv_s|)) Bool (or  (= ((_ extract 0 0) (|fifo_fv#11| state)) #b1) (= ((_ extract 1 1) (|fifo_fv#11| state)) #b1))) ; \rst_n
 ; yosys-smt2-wire rst_n 1
-(define-fun |fifo_fv_n rst_n| ((state |fifo_fv_s|)) Bool (|fifo_fv#20| state))
+(define-fun |fifo_fv_n rst_n| ((state |fifo_fv_s|)) Bool (|fifo_fv#24| state))
 ; yosys-smt2-wire settled 1
-(define-fun |fifo_fv_n settled| ((state |fifo_fv_s|)) Bool (|fifo_fv#20| state))
-(declare-fun |fifo_fv#21| (|fifo_fv_s|) Bool) ; \testmode
+(define-fun |fifo_fv_n settled| ((state |fifo_fv_s|)) Bool (|fifo_fv#24| state))
+(declare-fun |fifo_fv#25| (|fifo_fv_s|) Bool) ; \testmode
 ; yosys-smt2-input testmode 1
 ; yosys-smt2-wire testmode 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\testmode"], "smtname": "testmode", "smtoffset": 0, "type": "input", "width": 1}
-(define-fun |fifo_fv_n testmode| ((state |fifo_fv_s|)) Bool (|fifo_fv#21| state))
-(define-fun |fifo_fv#22| ((state |fifo_fv_s|)) (_ BitVec 1) (bvnot (ite (|fifo_fv#2| state) #b1 #b0))) ; $auto$rtlil.cc:3255:Not$313
-; yosys-smt2-assume 0 $auto$formalff.cc:987:execute$314
-(define-fun |fifo_fv_u 0| ((state |fifo_fv_s|)) Bool (or (= ((_ extract 0 0) (|fifo_fv#22| state)) #b1) (not true))) ; $auto$formalff.cc:987:execute$314
-; yosys-smt2-assert 0 _witness_.check_assert_fifo_fv_v_82_71 fifo_fv.v:82.7-82.28
-(define-fun |fifo_fv_a 0| ((state |fifo_fv_s|)) Bool (or (= ((_ extract 0 0) (|fifo_fv#0| state)) #b1) (not (= ((_ extract 0 0) (|fifo_fv#1| state)) #b1)))) ; _witness_.check_assert_fifo_fv_v_82_71
-(define-fun |fifo_fv#23| ((state |fifo_fv_s|)) (_ BitVec 2) (bvadd (|fifo_fv#7| state) #b01)) ; $add$fifo_fv.v:32$57_Y
-(define-fun |fifo_fv#24| ((state |fifo_fv_s|)) Bool (distinct (|fifo_fv#7| state) #b11)) ; $ne$fifo_fv.v:32$56_Y
-(define-fun |fifo_fv#25| ((state |fifo_fv_s|)) (_ BitVec 2) (ite (|fifo_fv#24| state) (|fifo_fv#23| state) (|fifo_fv#7| state))) ; $0\cyc[1:0]
-(define-fun |fifo_fv#26| ((state |fifo_fv_s|)) Bool (and (or  (|fifo_fv#20| state) false) (or  (= ((_ extract 0 0) (|fifo_fv#17| state)) #b1) false))) ; $logic_and$fifo_fv.v:80$62_Y
-(define-fun |fifo_fv#27| ((state |fifo_fv_s|)) Bool (not (or  (= ((_ extract 0 0) (|fifo_fv#13| state)) #b1) false))) ; $logic_not$fifo_fv.v:80$63_Y
-(define-fun |fifo_fv#28| ((state |fifo_fv_s|)) Bool (and (or  (|fifo_fv#26| state) false) (or  (|fifo_fv#27| state) false))) ; $logic_and$fifo_fv.v:80$64_Y
-(define-fun |fifo_fv#29| ((state |fifo_fv_s|)) Bool (not (or  (= ((_ extract 0 0) (|fifo_fv#12| state)) #b1) false))) ; $logic_not$fifo_fv.v:80$65_Y
-(define-fun |fifo_fv#30| ((state |fifo_fv_s|)) Bool (and (or  (|fifo_fv#28| state) false) (or  (|fifo_fv#29| state) false))) ; $logic_and$fifo_fv.v:80$66_Y
-(define-fun |fifo_fv#31| ((state |fifo_fv_s|)) Bool (and (or  (|fifo_fv#30| state) false) (or  (= ((_ extract 0 0) (|fifo_fv#14| state)) #b1) false))) ; $logic_and$fifo_fv.v:80$67_Y
-(define-fun |fifo_fv#32| ((state |fifo_fv_s|)) Bool (and (or  (|fifo_fv#31| state) false) (or  (= ((_ extract 0 0) (|fifo_fv#16| state)) #b1) false))) ; $logic_and$fifo_fv.v:80$68_Y
-(define-fun |fifo_fv#33| ((state |fifo_fv_s|)) Bool (not (or  (= ((_ extract 0 0) (|fifo_fv#15| state)) #b1) false))) ; $logic_not$fifo_fv.v:81$69_Y
-(define-fun |fifo_fv#34| ((state |fifo_fv_s|)) Bool (and (or  (|fifo_fv#32| state) false) (or  (|fifo_fv#33| state) false))) ; $logic_and$fifo_fv.v:80$70_Y
-(define-fun |fifo_fv#35| ((state |fifo_fv_s|)) (_ BitVec 1) (ite (|fifo_fv#34| state) #b1 #b0)) ; $assert$fifo_fv.v:82$71_EN
-(define-fun |fifo_fv#36| ((state |fifo_fv_s|)) Bool (= (|fifo_fv#3| state) (|fifo_fv#11| state))) ; $eq$fifo_fv.v:82$72_Y
+(define-fun |fifo_fv_n testmode| ((state |fifo_fv_s|)) Bool (|fifo_fv#25| state))
+(define-fun |fifo_fv#26| ((state |fifo_fv_s|)) (_ BitVec 1) (bvnot (ite (|fifo_fv#2| state) #b1 #b0))) ; $auto$rtlil.cc:3255:Not$321
+; yosys-smt2-assume 0 $auto$formalff.cc:987:execute$322
+(define-fun |fifo_fv_u 0| ((state |fifo_fv_s|)) Bool (or (= ((_ extract 0 0) (|fifo_fv#26| state)) #b1) (not true))) ; $auto$formalff.cc:987:execute$322
+; yosys-smt2-assert 0 _witness_.check_assert_fifo_fv_v_89_71 fifo_fv.v:89.7-89.28
+(define-fun |fifo_fv_a 0| ((state |fifo_fv_s|)) Bool (or (= ((_ extract 0 0) (|fifo_fv#0| state)) #b1) (not (= ((_ extract 0 0) (|fifo_fv#1| state)) #b1)))) ; _witness_.check_assert_fifo_fv_v_89_71
+(define-fun |fifo_fv#27| ((state |fifo_fv_s|)) (_ BitVec 2) (bvadd (|fifo_fv#11| state) #b01)) ; $add$fifo_fv.v:32$57_Y
+(define-fun |fifo_fv#28| ((state |fifo_fv_s|)) Bool (distinct (|fifo_fv#11| state) #b11)) ; $ne$fifo_fv.v:32$56_Y
+(define-fun |fifo_fv#29| ((state |fifo_fv_s|)) (_ BitVec 2) (ite (|fifo_fv#28| state) (|fifo_fv#27| state) (|fifo_fv#11| state))) ; $0\cyc[1:0]
+(define-fun |fifo_fv#30| ((state |fifo_fv_s|)) Bool (and (or  (|fifo_fv#24| state) false) (or  (= ((_ extract 0 0) (|fifo_fv#21| state)) #b1) false))) ; $logic_and$fifo_fv.v:87$62_Y
+(define-fun |fifo_fv#31| ((state |fifo_fv_s|)) Bool (not (or  (= ((_ extract 0 0) (|fifo_fv#17| state)) #b1) false))) ; $logic_not$fifo_fv.v:87$63_Y
+(define-fun |fifo_fv#32| ((state |fifo_fv_s|)) Bool (and (or  (|fifo_fv#30| state) false) (or  (|fifo_fv#31| state) false))) ; $logic_and$fifo_fv.v:87$64_Y
+(define-fun |fifo_fv#33| ((state |fifo_fv_s|)) Bool (not (or  (= ((_ extract 0 0) (|fifo_fv#16| state)) #b1) false))) ; $logic_not$fifo_fv.v:87$65_Y
+(define-fun |fifo_fv#34| ((state |fifo_fv_s|)) Bool (and (or  (|fifo_fv#32| state) false) (or  (|fifo_fv#33| state) false))) ; $logic_and$fifo_fv.v:87$66_Y
+(define-fun |fifo_fv#35| ((state |fifo_fv_s|)) Bool (and (or  (|fifo_fv#34| state) false) (or  (= ((_ extract 0 0) (|fifo_fv#18| state)) #b1) false))) ; $logic_and$fifo_fv.v:87$67_Y
+(define-fun |fifo_fv#36| ((state |fifo_fv_s|)) Bool (and (or  (|fifo_fv#35| state) false) (or  (= ((_ extract 0 0) (|fifo_fv#20| state)) #b1) false))) ; $logic_and$fifo_fv.v:87$68_Y
+(define-fun |fifo_fv#37| ((state |fifo_fv_s|)) Bool (not (or  (= ((_ extract 0 0) (|fifo_fv#19| state)) #b1) false))) ; $logic_not$fifo_fv.v:88$69_Y
+(define-fun |fifo_fv#38| ((state |fifo_fv_s|)) Bool (and (or  (|fifo_fv#36| state) false) (or  (|fifo_fv#37| state) false))) ; $logic_and$fifo_fv.v:87$70_Y
+(define-fun |fifo_fv#39| ((state |fifo_fv_s|)) (_ BitVec 1) (ite (|fifo_fv#38| state) #b1 #b0)) ; $assert$fifo_fv.v:89$71_EN
+(define-fun |fifo_fv#40| ((state |fifo_fv_s|)) Bool (= (|fifo_fv#3| state) (|fifo_fv#15| state))) ; $eq$fifo_fv.v:89$72_Y
 (define-fun |fifo_fv_a| ((state |fifo_fv_s|)) Bool (and
   (|fifo_fv_a 0| state)
   (|fifo_wrap_a| (|fifo_fv_h dut| state))
@@ -391,36 +435,40 @@
 (define-fun |fifo_fv_i| ((state |fifo_fv_s|)) Bool (and
   (= (= ((_ extract 0 0) (|fifo_fv#0| state)) #b1) true) ; $auto$async2sync.cc:116:execute$260
   (= (= ((_ extract 0 0) (|fifo_fv#1| state)) #b1) false) ; $auto$async2sync.cc:107:execute$256
-  (= (|fifo_fv#7| state) #b00) ; cyc
+  (= (|fifo_fv#11| state) #b00) ; cyc
   (|fifo_wrap_i| (|fifo_fv_h dut| state))
 ))
 (define-fun |fifo_fv_h| ((state |fifo_fv_s|)) Bool (and
   (= (|fifo_fv_is| state) (|fifo_wrap_is| (|fifo_fv_h dut| state)))
   (= (|fifo_fv#2| state) (|fifo_wrap_n clk_i| (|fifo_fv_h dut| state))) ; fifo_wrap.clk_i
   (= (|fifo_fv#3| state) (|fifo_wrap_n cnt_o| (|fifo_fv_h dut| state))) ; fifo_wrap.cnt_o
-  (= (|fifo_fv#8| state) (|fifo_wrap_n data_i| (|fifo_fv_h dut| state))) ; fifo_wrap.data_i
+  (= (|fifo_fv#12| state) (|fifo_wrap_n data_i| (|fifo_fv_h dut| state))) ; fifo_wrap.data_i
   (= (|fifo_fv#4| state) (|fifo_wrap_n data_o| (|fifo_fv_h dut| state))) ; fifo_wrap.data_o
-  (= (|fifo_fv#5| state) (|fifo_wrap_n empty_o| (|fifo_fv_h dut| state))) ; fifo_wrap.empty_o
-  (= (|fifo_fv#10| state) (|fifo_wrap_n flush_but_first_i| (|fifo_fv_h dut| state))) ; fifo_wrap.flush_but_first_i
-  (= (|fifo_fv#9| state) (|fifo_wrap_n flush_i| (|fifo_fv_h dut| state))) ; fifo_wrap.flush_i
-  (= (|fifo_fv#6| state) (|fifo_wrap_n full_o| (|fifo_fv_h dut| state))) ; fifo_wrap.full_o
-  (= (|fifo_fv#18| state) (|fifo_wrap_n pop_i| (|fifo_fv_h dut| state))) ; fifo_wrap.pop_i
-  (= (|fifo_fv#19| state) (|fifo_wrap_n push_i| (|fifo_fv_h dut| state))) ; fifo_wrap.push_i
-  (= (|fifo_fv#20| state) (|fifo_wrap_n rst_ni| (|fifo_fv_h dut| state))) ; fifo_wrap.rst_ni
-  (= (|fifo_fv#21| state) (|fifo_wrap_n testmode_i| (|fifo_fv_h dut| state))) ; fifo_wrap.testmode_i
+  (= (|fifo_fv#5| state) (|fifo_wrap_n dbg_cnt_o| (|fifo_fv_h dut| state))) ; fifo_wrap.dbg_cnt_o
+  (= (|fifo_fv#6| state) (|fifo_wrap_n dbg_mem_o| (|fifo_fv_h dut| state))) ; fifo_wrap.dbg_mem_o
+  (= (|fifo_fv#7| state) (|fifo_wrap_n dbg_rd_o| (|fifo_fv_h dut| state))) ; fifo_wrap.dbg_rd_o
+  (= (|fifo_fv#8| state) (|fifo_wrap_n dbg_wr_o| (|fifo_fv_h dut| state))) ; fifo_wrap.dbg_wr_o
+  (= (|fifo_fv#9| state) (|fifo_wrap_n empty_o| (|fifo_fv_h dut| state))) ; fifo_wrap.empty_o
+  (= (|fifo_fv#14| state) (|fifo_wrap_n flush_but_first_i| (|fifo_fv_h dut| state))) ; fifo_wrap.flush_but_first_i
+  (= (|fifo_fv#13| state) (|fifo_wrap_n flush_i| (|fifo_fv_h dut| state))) ; fifo_wrap.flush_i
+  (= (|fifo_fv#10| state) (|fifo_wrap_n full_o| (|fifo_fv_h dut| state))) ; fifo_wrap.full_o
+  (= (|fifo_fv#22| state) (|fifo_wrap_n pop_i| (|fifo_fv_h dut| state))) ; fifo_wrap.pop_i
+  (= (|fifo_fv#23| state) (|fifo_wrap_n push_i| (|fifo_fv_h dut| state))) ; fifo_wrap.push_i
+  (= (|fifo_fv#24| state) (|fifo_wrap_n rst_ni| (|fifo_fv_h dut| state))) ; fifo_wrap.rst_ni
+  (= (|fifo_fv#25| state) (|fifo_wrap_n testmode_i| (|fifo_fv_h dut| state))) ; fifo_wrap.testmode_i
   (|fifo_wrap_h| (|fifo_fv_h dut| state))
 ))
 (define-fun |fifo_fv_t| ((state |fifo_fv_s|) (next_state |fifo_fv_s|)) Bool (and
-  (= (ite (|fifo_fv#20| state) #b1 #b0) (|fifo_fv#17| next_state)) ; $procdff$215 \p_settled
-  (= (ite (|fifo_fv#19| state) #b1 #b0) (|fifo_fv#16| next_state)) ; $procdff$213 \p_push
-  (= (ite (|fifo_fv#18| state) #b1 #b0) (|fifo_fv#15| next_state)) ; $procdff$214 \p_pop
-  (= (ite (|fifo_fv#6| state) #b1 #b0) (|fifo_fv#14| next_state)) ; $procdff$212 \p_full
-  (= (ite (|fifo_fv#9| state) #b1 #b0) (|fifo_fv#13| next_state)) ; $procdff$216 \p_flush
-  (= (ite (|fifo_fv#10| state) #b1 #b0) (|fifo_fv#12| next_state)) ; $procdff$217 \p_fbf
-  (= (|fifo_fv#3| state) (|fifo_fv#11| next_state)) ; $procdff$218 \p_cnt
-  (= (|fifo_fv#25| state) (|fifo_fv#7| next_state)) ; $procdff$219 \cyc
-  (= (|fifo_fv#35| state) (|fifo_fv#1| next_state)) ; $auto$async2sync.cc:110:execute$258 $auto$async2sync.cc:107:execute$256
-  (= (ite (|fifo_fv#36| state) #b1 #b0) (|fifo_fv#0| next_state)) ; $auto$async2sync.cc:118:execute$261 $auto$async2sync.cc:116:execute$260
+  (= (ite (|fifo_fv#24| state) #b1 #b0) (|fifo_fv#21| next_state)) ; $procdff$215 \p_settled
+  (= (ite (|fifo_fv#23| state) #b1 #b0) (|fifo_fv#20| next_state)) ; $procdff$213 \p_push
+  (= (ite (|fifo_fv#22| state) #b1 #b0) (|fifo_fv#19| next_state)) ; $procdff$214 \p_pop
+  (= (ite (|fifo_fv#10| state) #b1 #b0) (|fifo_fv#18| next_state)) ; $procdff$212 \p_full
+  (= (ite (|fifo_fv#13| state) #b1 #b0) (|fifo_fv#17| next_state)) ; $procdff$216 \p_flush
+  (= (ite (|fifo_fv#14| state) #b1 #b0) (|fifo_fv#16| next_state)) ; $procdff$217 \p_fbf
+  (= (|fifo_fv#3| state) (|fifo_fv#15| next_state)) ; $procdff$218 \p_cnt
+  (= (|fifo_fv#29| state) (|fifo_fv#11| next_state)) ; $procdff$219 \cyc
+  (= (|fifo_fv#39| state) (|fifo_fv#1| next_state)) ; $auto$async2sync.cc:110:execute$258 $auto$async2sync.cc:107:execute$256
+  (= (ite (|fifo_fv#40| state) #b1 #b0) (|fifo_fv#0| next_state)) ; $auto$async2sync.cc:118:execute$261 $auto$async2sync.cc:116:execute$260
   (|fifo_wrap_t| (|fifo_fv_h dut| state) (|fifo_fv_h dut| next_state))
 )) ; end of module fifo_fv
 ; yosys-smt2-topmod fifo_fv
