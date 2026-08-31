@@ -62,7 +62,11 @@ testpaths = [
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
-addopts = "-v --tb=short --import-mode=importlib"
+# NOTE: blocking foreign plugins by name from here does not work reliably — the
+# entry-point name differs from the module name, and two attempts guessed wrong.
+# Use ./run_tests.sh, which disables plugin autoload entirely and allow-lists
+# exactly what the suite needs. See that script for why.
+addopts = "-v --tb=short --import-mode=importlib -p no:launch_testing"
 asyncio_mode = "auto"
 
 [tool.mypy]
