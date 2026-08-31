@@ -1,0 +1,83 @@
+{
+  "schema_version": "2.1.0",
+  "agent": "verification_twin",
+  "started_at": "2026-08-29T05:28:22.323849+00:00",
+  "finished_at": "2026-08-29T05:28:22.323989+00:00",
+  "live_status": {
+    "agents": 5,
+    "total_violations": 0,
+    "failing_agents": [],
+    "overall_health": 0.91,
+    "confidence": null,
+    "band": "VERIFIED",
+    "per_module": {
+      "agent_j": {
+        "band": "CLEAN",
+        "violations": 0,
+        "pass": true,
+        "health": 1.0
+      },
+      "agent_l": {
+        "band": "CLEAN",
+        "violations": 0,
+        "pass": true,
+        "health": 1.0
+      },
+      "peripheral": {
+        "band": "CLEAN",
+        "violations": 0,
+        "pass": true,
+        "health": 1.0
+      },
+      "economics": {
+        "band": "CLEAN",
+        "violations": 0,
+        "pass": true,
+        "health": 1.0
+      },
+      "confidence": {
+        "band": "MEDIUM",
+        "violations": 0,
+        "pass": true,
+        "health": 0.55
+      }
+    }
+  },
+  "coverage_forecast": null,
+  "regression_prediction": null,
+  "tapeout_readiness": {
+    "readiness_score": 0.564,
+    "band": "NOT_READY",
+    "blockers": 0,
+    "factors": {
+      "coverage": 0.0,
+      "confidence": 0.91,
+      "bug_freedom": 1.0,
+      "completeness": 0.91,
+      "regression_health": 0.0
+    },
+    "weighted_gaps": [
+      [
+        "coverage",
+        0.3
+      ],
+      [
+        "regression_health",
+        0.1
+      ],
+      [
+        "confidence",
+        0.0225
+      ]
+    ],
+    "recommendation": "close the top gap: coverage"
+  },
+  "metrics": {
+    "agents": 5,
+    "overall_health": 0.91,
+    "coverage_reachable": null,
+    "readiness_band": "NOT_READY",
+    "readiness_score": 0.564
+  },
+  "pass": false
+}
