@@ -30,7 +30,7 @@
 ##   0:00:00  Checking assumptions in step 14..
 ##   0:00:00  Checking assertions in step 14..
 ##   0:00:00  BMC failed!
-##   0:00:00  Assert failed in mvf_fv: mvf_fv.v:49.50-49.68 (_witness_.check_assert_mvf_fv_v_49_22)
+##   0:00:00  Assert failed in mvf_fv: mvf_fv.v:51.50-51.68 (_witness_.check_assert_mvf_fv_v_51_22)
 ##   0:00:00  Writing trace to VCD file: engine_0/trace.vcd
 ##   0:00:00  Writing trace to Verilog testbench: engine_0/trace_tb.v
 ##   0:00:00  Writing trace to constraints file: engine_0/trace.smtc

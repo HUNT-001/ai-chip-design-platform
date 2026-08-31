@@ -2,7 +2,7 @@ initial
 assume (= [$auto$async2sync.cc:107:execute$76] false)
 assume (= [$auto$async2sync.cc:116:execute$80] false)
 assume (= [cyc] #b00)
-assume (= [dut.u_filter._witness_.anyinit_procdff_65] #x2)
+assume (= [dut.u_filter._witness_.anyinit_procdff_65] #x0)
 assume (= [dut.u_filter._witness_.anyinit_procdff_70] false)
 assume (= [p_clear] false)
 assume (= [p_q] false)
@@ -21,34 +21,34 @@ assume (= [d] true)
 assume (= [sample] true)
 
 state 2
-assume (= [clear] false)
+assume (= [clear] true)
 assume (= [clk] false)
-assume (= [d] true)
+assume (= [d] false)
 assume (= [sample] true)
 
 state 3
 assume (= [clear] false)
 assume (= [clk] false)
-assume (= [d] false)
+assume (= [d] true)
 assume (= [sample] true)
 
 state 4
 assume (= [clear] false)
 assume (= [clk] false)
-assume (= [d] false)
+assume (= [d] true)
 assume (= [sample] false)
 
 state 5
-assume (= [clear] false)
-assume (= [clk] false)
-assume (= [d] true)
-assume (= [sample] true)
-
-state 6
-assume (= [clear] false)
+assume (= [clear] true)
 assume (= [clk] false)
 assume (= [d] false)
 assume (= [sample] false)
+
+state 6
+assume (= [clear] true)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
 
 state 7
 assume (= [clear] false)
@@ -63,7 +63,7 @@ assume (= [d] true)
 assume (= [sample] true)
 
 state 9
-assume (= [clear] true)
+assume (= [clear] false)
 assume (= [clk] false)
 assume (= [d] false)
 assume (= [sample] false)
@@ -71,8 +71,8 @@ assume (= [sample] false)
 state 10
 assume (= [clear] false)
 assume (= [clk] false)
-assume (= [d] false)
-assume (= [sample] false)
+assume (= [d] true)
+assume (= [sample] true)
 
 state 11
 assume (= [clear] false)
@@ -89,14 +89,14 @@ assume (= [sample] true)
 state 13
 assume (= [clear] false)
 assume (= [clk] false)
-assume (= [d] true)
-assume (= [sample] true)
+assume (= [d] false)
+assume (= [sample] false)
 
 state 14
 assume (= [clear] false)
 assume (= [clk] false)
-assume (= [d] true)
-assume (= [sample] true)
+assume (= [d] false)
+assume (= [sample] false)
 
 state 15
 assume (= [clear] false)
@@ -137,8 +137,8 @@ assume (= [sample] true)
 state 21
 assume (= [clear] false)
 assume (= [clk] false)
-assume (= [d] false)
-assume (= [sample] false)
+assume (= [d] true)
+assume (= [sample] true)
 
 state 22
 assume (= [clear] false)
@@ -153,3 +153,7 @@ assume (= [d] true)
 assume (= [sample] true)
 
 state 24
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] false)
+assume (= [sample] false)

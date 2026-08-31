@@ -8,15 +8,15 @@ module testbench(input clock, output reg genclock);
 `endif
   reg genclock = 1;
   reg [31:0] cycle = 0;
+  wire [0:0] PI_clk = clock;
   reg [0:0] PI_clear;
   reg [0:0] PI_sample;
   reg [0:0] PI_d;
-  wire [0:0] PI_clk = clock;
   mvf_fv UUT (
+    .clk(PI_clk),
     .clear(PI_clear),
     .sample(PI_sample),
-    .d(PI_d),
-    .clk(PI_clk)
+    .d(PI_d)
   );
 `ifndef VERILATOR
   initial begin
@@ -38,7 +38,7 @@ module testbench(input clock, output reg genclock);
     // UUT.$auto$async2sync.\cc:107:execute$76  = 1'b0;
     // UUT.$auto$async2sync.\cc:116:execute$80  = 1'b0;
     UUT.cyc = 2'b00;
-    UUT.dut.u_filter._witness_.anyinit_procdff_65 = 4'b0010;
+    UUT.dut.u_filter._witness_.anyinit_procdff_65 = 4'b0000;
     UUT.dut.u_filter._witness_.anyinit_procdff_70 = 1'b0;
     UUT.p_clear = 1'b0;
     UUT.p_q = 1'b0;
@@ -59,37 +59,37 @@ module testbench(input clock, output reg genclock);
 
     // state 2
     if (cycle == 1) begin
-      PI_clear <= 1'b0;
+      PI_clear <= 1'b1;
       PI_sample <= 1'b1;
-      PI_d <= 1'b1;
+      PI_d <= 1'b0;
     end
 
     // state 3
     if (cycle == 2) begin
       PI_clear <= 1'b0;
       PI_sample <= 1'b1;
-      PI_d <= 1'b0;
+      PI_d <= 1'b1;
     end
 
     // state 4
     if (cycle == 3) begin
       PI_clear <= 1'b0;
       PI_sample <= 1'b0;
-      PI_d <= 1'b0;
+      PI_d <= 1'b1;
     end
 
     // state 5
     if (cycle == 4) begin
-      PI_clear <= 1'b0;
-      PI_sample <= 1'b1;
-      PI_d <= 1'b1;
+      PI_clear <= 1'b1;
+      PI_sample <= 1'b0;
+      PI_d <= 1'b0;
     end
 
     // state 6
     if (cycle == 5) begin
-      PI_clear <= 1'b0;
-      PI_sample <= 1'b0;
-      PI_d <= 1'b0;
+      PI_clear <= 1'b1;
+      PI_sample <= 1'b1;
+      PI_d <= 1'b1;
     end
 
     // state 7
@@ -108,7 +108,7 @@ module testbench(input clock, output reg genclock);
 
     // state 9
     if (cycle == 8) begin
-      PI_clear <= 1'b1;
+      PI_clear <= 1'b0;
       PI_sample <= 1'b0;
       PI_d <= 1'b0;
     end
@@ -116,8 +116,8 @@ module testbench(input clock, output reg genclock);
     // state 10
     if (cycle == 9) begin
       PI_clear <= 1'b0;
-      PI_sample <= 1'b0;
-      PI_d <= 1'b0;
+      PI_sample <= 1'b1;
+      PI_d <= 1'b1;
     end
 
     // state 11
@@ -137,15 +137,15 @@ module testbench(input clock, output reg genclock);
     // state 13
     if (cycle == 12) begin
       PI_clear <= 1'b0;
-      PI_sample <= 1'b1;
-      PI_d <= 1'b1;
+      PI_sample <= 1'b0;
+      PI_d <= 1'b0;
     end
 
     // state 14
     if (cycle == 13) begin
       PI_clear <= 1'b0;
-      PI_sample <= 1'b1;
-      PI_d <= 1'b1;
+      PI_sample <= 1'b0;
+      PI_d <= 1'b0;
     end
 
     // state 15
@@ -193,8 +193,8 @@ module testbench(input clock, output reg genclock);
     // state 21
     if (cycle == 20) begin
       PI_clear <= 1'b0;
-      PI_sample <= 1'b0;
-      PI_d <= 1'b0;
+      PI_sample <= 1'b1;
+      PI_d <= 1'b1;
     end
 
     // state 22

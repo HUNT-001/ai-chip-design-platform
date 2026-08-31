@@ -9,6 +9,9 @@
     {"path": ["\\clk"], "width": 1, "offset": 0, "init_only": false},
     {"path": ["\\d"], "width": 1, "offset": 0, "init_only": false},
     {"path": ["\\sample"], "width": 1, "offset": 0, "init_only": false},
+    {"path": ["$auto$async2sync.cc:107:execute$76"], "width": 1, "offset": 0, "init_only": true},
+    {"path": ["$auto$async2sync.cc:116:execute$80"], "width": 1, "offset": 0, "init_only": true},
+    {"path": ["\\cyc"], "width": 2, "offset": 0, "init_only": true},
     {"path": ["\\dut", "\\u_filter", "\\_witness_", "\\anyinit_procdff_65"], "width": 4, "offset": 0, "init_only": true},
     {"path": ["\\dut", "\\u_filter", "\\_witness_", "\\anyinit_procdff_70"], "width": 1, "offset": 0, "init_only": true},
     {"path": ["\\p_clear"], "width": 1, "offset": 0, "init_only": true},
@@ -16,11 +19,21 @@
     {"path": ["\\p_settled"], "width": 1, "offset": 0, "init_only": true}
   ],
   "steps": [
-    {"bits": "100000010000"},
+    {"bits": "0000000000000000"},
+    {"bits": "1100"},
+    {"bits": "1001"},
+    {"bits": "1100"},
+    {"bits": "0100"},
+    {"bits": "0001"},
+    {"bits": "1101"},
+    {"bits": "0000"},
+    {"bits": "1100"},
+    {"bits": "0000"},
     {"bits": "1100"},
     {"bits": "1100"},
     {"bits": "1100"},
-    {"bits": "1100"},
+    {"bits": "0000"},
+    {"bits": "0000"},
     {"bits": "1100"},
     {"bits": "1100"},
     {"bits": "1100"},
@@ -29,7 +42,7 @@
     {"bits": "1100"},
     {"bits": "1100"},
     {"bits": "1000"},
-    {"bits": "1100"},
+    {"bits": "1101"},
     {"bits": "0000"}
   ]
 }

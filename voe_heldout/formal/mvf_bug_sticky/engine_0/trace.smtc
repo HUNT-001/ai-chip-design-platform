@@ -2,7 +2,7 @@ initial
 assume (= [$auto$async2sync.cc:107:execute$76] false)
 assume (= [$auto$async2sync.cc:116:execute$80] true)
 assume (= [cyc] #b00)
-assume (= [dut.u_filter._witness_.anyinit_procdff_65] #x0)
+assume (= [dut.u_filter._witness_.anyinit_procdff_65] #x1)
 assume (= [dut.u_filter._witness_.anyinit_procdff_70] false)
 assume (= [p_clear] false)
 assume (= [p_q] false)
@@ -12,7 +12,7 @@ state 0
 assume (= [clear] false)
 assume (= [clk] false)
 assume (= [d] false)
-assume (= [sample] true)
+assume (= [sample] false)
 
 state 1
 assume (= [clear] false)
@@ -77,8 +77,8 @@ assume (= [sample] true)
 state 11
 assume (= [clear] false)
 assume (= [clk] false)
-assume (= [d] false)
-assume (= [sample] false)
+assume (= [d] true)
+assume (= [sample] true)
 
 state 12
 assume (= [clear] false)
@@ -89,7 +89,7 @@ assume (= [sample] true)
 state 13
 assume (= [clear] false)
 assume (= [clk] false)
-assume (= [d] false)
+assume (= [d] true)
 assume (= [sample] true)
 
 state 14
