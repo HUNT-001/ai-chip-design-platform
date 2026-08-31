@@ -13,6 +13,10 @@ module fifo_wrap (
     output logic       full_o,
     output logic       empty_o,
     output logic [2:0] cnt_o,
+    output logic [2:0] dbg_cnt_o,
+    output logic [1:0] dbg_rd_o,
+    output logic [1:0] dbg_wr_o,
+    output logic [15:0] dbg_mem_o,
     input  logic [3:0] data_i,
     input  logic       push_i,
     output logic [3:0] data_o,
@@ -34,6 +38,13 @@ module fifo_wrap (
       .data_i            (data_i),
       .push_i            (push_i),
       .data_o            (data_o),
-      .pop_i             (pop_i)
+      .pop_i             (pop_i),
+      .dbg_cnt_o         (dbg_cnt_o),
+      .dbg_rd_o          (dbg_rd_o),
+      .dbg_wr_o          (dbg_wr_o),
+      .dbg_mem_o         (dbg_mem_o)
   );
+  // The observation taps are ports of the FIFO itself (see cv32e40p_fifo.sv):
+  // neither sv2v nor yosys resolves hierarchical references, so tapping from
+  // out here produced floating wires and a vacuously-satisfied assumption.
 endmodule
