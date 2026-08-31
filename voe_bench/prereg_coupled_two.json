@@ -1,0 +1,16 @@
+{
+  "committed_at": 1788096379.726468,
+  "criteria": {
+    "control": "M-static-cached",
+    "max_ci_width": 0.1,
+    "min_design_families": 2,
+    "min_effect": 0.05,
+    "min_seeds": 12,
+    "noise_multiple": 2.0,
+    "promote_if_met": true,
+    "question": "Across TWO design families each carrying a MEASURED lemma dependency, with different lemma shapes and one family held out, does ordering by what an obligation UNLOCKS beat ordering by immediate utility?",
+    "treatment": "N-lemmafirst"
+  },
+  "notes": "Committed before any campaign. FOUR conditions, all required:\n (1) the comparison clears the rule above;\n (2) both arms close the same weight;\n (3) INSTRUMENT CHECK: the direct attempt must come back inconclusive on      BOTH families, not just one. A win driven entirely by the FIFO would      be Experiment 13 again with extra obligations attached;\n (4) the effect must hold on the HELD-OUT family (mv_filter) considered      alone. Reported separately below.\nNOT fixed by this experiment: both boards are formal-only and deterministic, so seeds remain repetition rather than replication and the noise criterion is still vacuous. This asks whether the effect generalises across designs, not whether it is stable under noise."
+}
+// sha256:17d0923baca393f6

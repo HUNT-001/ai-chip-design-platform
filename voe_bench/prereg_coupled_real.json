@@ -1,0 +1,16 @@
+{
+  "committed_at": 1788085168.4634106,
+  "criteria": {
+    "control": "M-static-cached",
+    "max_ci_width": 0.1,
+    "min_design_families": 1,
+    "min_effect": 0.05,
+    "min_seeds": 12,
+    "noise_multiple": 2.0,
+    "promote_if_met": true,
+    "question": "On a board carrying a MEASURED lemma dependency (proving fifo.state_match is what makes fifo.integrity provable at all), does ordering by what an obligation UNLOCKS beat ordering by immediate utility?",
+    "treatment": "N-lemmafirst"
+  },
+  "notes": "Committed before any campaign. THREE conditions, all required:\n (1) the comparison clears the rule above;\n (2) both arms close the same weight. Ordering must change WHEN work is      done, not how much gets settled; if the treatment closes less it is      cheaper by settling less, which closed_weight already caught once;\n (3) INSTRUMENT CHECK: the direct attempt on fifo.integrity must actually      come back inconclusive in at least one campaign. If it never does, the      coupling is not being exercised and any difference is unrelated to the      dependency this experiment exists to test.\nOnly one design family here (fifo), below this project's usual three, because only one design has a measured lemma dependency. That is a corpus limit and it caps how far the result generalises \u2014 stated, not hidden."
+}
+// sha256:33efa91c898c31b5

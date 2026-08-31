@@ -1,0 +1,16 @@
+{
+  "committed_at": 1788034230.7539246,
+  "criteria": {
+    "control": "L-static-onestep",
+    "max_ci_width": 0.1,
+    "min_design_families": 3,
+    "min_effect": 0.05,
+    "min_seeds": 12,
+    "noise_multiple": 2.0,
+    "promote_if_met": true,
+    "question": "Does the SEQUENCING earn Experiment 8's gain, or does merely obtaining structural information earn it? K-multistep is compared against L-static-onestep, which buys the same real structural evidence at the same price without any conditional chain.",
+    "treatment": "K-multistep"
+  },
+  "notes": "Ablation of Experiment 8. L receives the SAME structural channel and the same 0.5 price as K; the only difference is that K acquires it conditionally on a prior probe. Any gain K shows over L is attributable to sequencing and to nothing else."
+}
+// sha256:d53c2aadc4d29c3b

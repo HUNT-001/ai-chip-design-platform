@@ -1,0 +1,16 @@
+{
+  "committed_at": 1788011053.021395,
+  "criteria": {
+    "control": "G-diagnostic",
+    "max_ci_width": 0.1,
+    "min_design_families": 3,
+    "min_effect": 0.05,
+    "min_seeds": 12,
+    "noise_multiple": 2.0,
+    "promote_if_met": true,
+    "question": "Does explicit Bayesian belief + Value-of-Diagnosis outperform a one-line diagnostic heuristic, holding conditioning and diagnosis constant?",
+    "treatment": "H-uncertainty"
+  },
+  "notes": "Frozen: no LWM, no extra agents, no new features. Only the decision machinery differs."
+}
+// sha256:f2609e87ac99a4e2

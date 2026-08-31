@@ -1,0 +1,16 @@
+{
+  "committed_at": 1788113196.9481883,
+  "criteria": {
+    "control": "M-static-cached",
+    "max_ci_width": 0.1,
+    "min_design_families": 2,
+    "min_effect": 0.05,
+    "min_seeds": 24,
+    "noise_multiple": 2.0,
+    "promote_if_met": true,
+    "question": "Does the lemma-ordering advantage survive on a board with REAL campaign variance, rather than only on the deterministic formal-only boards of Experiments 13 and 14?",
+    "treatment": "N-lemmafirst"
+  },
+  "notes": "Committed before any campaign. FOUR conditions, all required:\n (1) INVERTED INSTRUMENT CHECK, read FIRST: the campaigns must actually      DIFFER from one another. Experiments 13/14 were deterministic, so      their seed counts were repetition and their noise criterion was      vacuous. If this board is still deterministic it answers nothing,      whatever E says;\n (2) the comparison clears the committed rule, whose noise term is now      meaningful because std is no longer structurally zero;\n (3) both arms close the same weight;\n (4) the coupling is still exercised on BOTH families.\nSimulation is enabled ONLY for mvf.sticky and mvf.clear, which is what mv_filter's testbench actually covers. The lemma dependency stays formal on both families, so the mechanism under test is unchanged \u2014 the board gains variance, not a different question."
+}
+// sha256:9f0816e89b5bc104

@@ -1,0 +1,16 @@
+{
+  "committed_at": 1788035350.272984,
+  "criteria": {
+    "control": "G-diagnostic",
+    "max_ci_width": 0.1,
+    "min_design_families": 3,
+    "min_effect": 0.05,
+    "min_seeds": 24,
+    "noise_multiple": 2.0,
+    "promote_if_met": true,
+    "question": "Should L-static-onestep (one real structural read per obligation, no probe, no chain) replace G-diagnostic as the recommended default policy, on real RTL with real tools?",
+    "treatment": "L-static-onestep"
+  },
+  "notes": "Committed before any campaign. THREE conditions, all required:\n (1) the full-benchmark comparison clears the rule above;\n (2) the HELD-OUT split (lfsr, mv_filter \u2014 only 2 design families, below      this project's normal 3, and that is a corpus weakness not a relaxed      bar) does not show L WORSE than G;\n (3) L closes at least as much weight as G. A policy that spends less by      settling less is cheaper, not better, and closed_weight is the metric      that already caught that exact gaming once.\nComplexity charge is 0.0 because L REMOVES machinery rather than adding it. If the sign were reversed the charge would apply."
+}
+// sha256:2158cdcd9a28fe05

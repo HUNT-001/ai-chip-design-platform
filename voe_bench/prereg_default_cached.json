@@ -1,0 +1,16 @@
+{
+  "committed_at": 1788061710.2933373,
+  "criteria": {
+    "control": "G-diagnostic",
+    "max_ci_width": 0.1,
+    "min_design_families": 3,
+    "min_effect": 0.05,
+    "min_seeds": 24,
+    "noise_multiple": 2.0,
+    "promote_if_met": true,
+    "question": "Should M-static-cached (one real structural read per DESIGN, no probe, no chain) replace G-diagnostic as the recommended default?",
+    "treatment": "M-static-cached"
+  },
+  "notes": "Committed before any campaign. FOUR conditions, all required:\n (1) the full-benchmark comparison clears the rule above;\n (2) the HELD-OUT split (lfsr, mv_filter) shows M NOT WORSE than G. This is      the condition L failed, kept identical and un-weakened;\n (3) M closes at least as much weight as G \u2014 cheaper by settling less is      not better;\n (4) INSTRUMENT CHECK: zero redundant structural reads, verified during the      run. If M still repeat-purchases design facts, the diagnosis was wrong      and the comparison is meaningless whatever E says.\nComplexity charge 0.0: M removes machinery relative to G (no probe) and relative to L (fewer reads). Third default candidate tested; multiplicity is discussed in the module docstring and the held-out condition is the guard."
+}
+// sha256:03795d3516b2d507

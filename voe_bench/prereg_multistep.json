@@ -1,0 +1,16 @@
+{
+  "committed_at": 1788032902.8649077,
+  "criteria": {
+    "control": "G-diagnostic",
+    "max_ci_width": 0.1,
+    "min_design_families": 3,
+    "min_effect": 0.05,
+    "min_seeds": 12,
+    "noise_multiple": 2.0,
+    "promote_if_met": true,
+    "question": "Can a SEQUENCE of cheap real diagnostic actions (short simulation, then structural analysis) allocate verification effort better than a one-step diagnostic policy, on real RTL with real tools?",
+    "treatment": "K-multistep"
+  },
+  "notes": "Both probes are real tools (Verilator, rtl_graph). Nothing modelled."
+}
+// sha256:618e564d5497168e
