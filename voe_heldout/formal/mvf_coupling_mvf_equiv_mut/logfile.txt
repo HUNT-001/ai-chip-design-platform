@@ -1,0 +1,93 @@
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] Removing directory '/mnt/e/ai-chip-design-platform/voe_heldout/formal/mvf_coupling_mvf_equiv_mut'.
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] Copy '/mnt/e/ai-chip-design-platform/voe_heldout/formal/gen/mvf.v' to '/mnt/e/ai-chip-design-platform/voe_heldout/formal/mvf_coupling_mvf_equiv_mut/src/mvf.v'.
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] Copy '/mnt/e/ai-chip-design-platform/voe_heldout/formal/gen/mvf_mut.v' to '/mnt/e/ai-chip-design-platform/voe_heldout/formal/mvf_coupling_mvf_equiv_mut/src/mvf_mut.v'.
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] Copy '/mnt/e/ai-chip-design-platform/voe_heldout/formal/mvf_fv.v' to '/mnt/e/ai-chip-design-platform/voe_heldout/formal/mvf_coupling_mvf_equiv_mut/src/mvf_fv.v'.
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0: smtbmc z3
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] base: starting process "cd mvf_coupling_mvf_equiv_mut/src; yosys -ql ../model/design.log ../model/design.ys"
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] base: finished (returncode=0)
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] prep: starting process "cd mvf_coupling_mvf_equiv_mut/model; yosys -ql design_prep.log design_prep.ys"
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] prep: finished (returncode=0)
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] smt2: starting process "cd mvf_coupling_mvf_equiv_mut/model; yosys -ql design_smt2.log design_smt2.ys"
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] smt2: finished (returncode=0)
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: starting process "cd mvf_coupling_mvf_equiv_mut; yosys-smtbmc -s z3 --presat --noprogress -t 24  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2"
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: starting process "cd mvf_coupling_mvf_equiv_mut; yosys-smtbmc -s z3 --presat -i --noprogress -t 24  --append 0 --dump-vcd engine_0/trace_induct.vcd --dump-yw engine_0/trace_induct.yw --dump-vlogtb engine_0/trace_induct_tb.v --dump-smtc engine_0/trace_induct.smtc model/design_smt2.smt2"
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Solver: z3
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Solver: z3
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assumptions in step 0..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Trying induction in step 24..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assertions in step 0..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assumptions in step 1..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assertions in step 1..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assumptions in step 2..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assertions in step 2..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assumptions in step 3..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assertions in step 3..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assumptions in step 4..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assertions in step 4..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assumptions in step 5..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assertions in step 5..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assumptions in step 6..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assertions in step 6..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assumptions in step 7..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assertions in step 7..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assumptions in step 8..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assertions in step 8..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assumptions in step 9..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assertions in step 9..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assumptions in step 10..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assertions in step 10..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assumptions in step 11..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assertions in step 11..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Trying induction in step 23..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Trying induction in step 22..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Trying induction in step 21..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Trying induction in step 20..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Trying induction in step 19..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Trying induction in step 18..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Trying induction in step 17..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Trying induction in step 16..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Trying induction in step 15..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Trying induction in step 14..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Trying induction in step 13..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Trying induction in step 12..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Trying induction in step 11..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Trying induction in step 10..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Trying induction in step 9..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Trying induction in step 8..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Trying induction in step 7..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Trying induction in step 6..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Trying induction in step 5..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Trying induction in step 4..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assumptions in step 12..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assertions in step 12..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Trying induction in step 3..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Trying induction in step 2..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Trying induction in step 1..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assumptions in step 13..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Checking assertions in step 13..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Trying induction in step 0..
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Temporal induction failed!
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  BMC failed!
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Assert failed in mvf_fv: mvf_fv.v:100.38-100.55 (_witness_.check_assert_mvf_fv_v_100_23)
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Writing trace to VCD file: engine_0/trace.vcd
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Assert failed in mvf_fv: mvf_fv.v:100.38-100.55 (_witness_.check_assert_mvf_fv_v_100_23)
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Writing trace to VCD file: engine_0/trace_induct.vcd
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Writing trace to Verilog testbench: engine_0/trace_tb.v
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Writing trace to constraints file: engine_0/trace.smtc
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Writing trace to Yosys witness file: engine_0/trace.yw
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Writing trace to Verilog testbench: engine_0/trace_induct_tb.v
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Writing trace to constraints file: engine_0/trace_induct.smtc
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: ##   0:00:00  Status: failed
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Writing trace to Yosys witness file: engine_0/trace_induct.yw
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: ##   0:00:00  Status: failed
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: finished (returncode=1)
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.basecase: Status returned by engine for basecase: FAIL
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] engine_0.induction: terminating process
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] summary: engine_0 (smtbmc z3) returned FAIL for basecase
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] summary: counterexample trace [basecase]: mvf_coupling_mvf_equiv_mut/engine_0/trace.vcd
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] summary:   failed assertion mvf_fv._witness_.check_assert_mvf_fv_v_100_23 at mvf_fv.v:100.38-100.55 step 13
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] summary: counterexample trace [induction]: mvf_coupling_mvf_equiv_mut/engine_0/trace_induct.vcd
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] summary:   failed assertion mvf_fv._witness_.check_assert_mvf_fv_v_100_23 at mvf_fv.v:100.38-100.55
+SBY  5:36:55 [mvf_coupling_mvf_equiv_mut] DONE (FAIL, rc=2)

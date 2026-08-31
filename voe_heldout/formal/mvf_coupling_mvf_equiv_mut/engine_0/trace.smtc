@@ -1,0 +1,92 @@
+initial
+assume (= [$auto$async2sync.cc:107:execute$99] false)
+assume (= [$auto$async2sync.cc:116:execute$103] true)
+assume (= [cyc] #b00)
+assume (= [dut.u_filter._witness_.anyinit_procdff_88] #x4)
+assume (= [dut.u_filter._witness_.anyinit_procdff_93] false)
+assume (= [s_cnt] #xa)
+assume (= [s_q] false)
+
+state 0
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] false)
+assume (= [sample] false)
+
+state 1
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
+
+state 2
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
+
+state 3
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
+
+state 4
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
+
+state 5
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
+
+state 6
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
+
+state 7
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
+
+state 8
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
+
+state 9
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
+
+state 10
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] true)
+assume (= [sample] true)
+
+state 11
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] false)
+assume (= [sample] true)
+
+state 12
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] false)
+assume (= [sample] false)
+
+state 13
+assume (= [clear] false)
+assume (= [clk] false)
+assume (= [d] false)
+assume (= [sample] false)

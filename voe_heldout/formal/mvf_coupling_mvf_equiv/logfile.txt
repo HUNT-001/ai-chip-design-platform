@@ -1,0 +1,107 @@
+SBY  5:29:55 [mvf_coupling_mvf_equiv] Removing directory '/mnt/e/ai-chip-design-platform/voe_heldout/formal/mvf_coupling_mvf_equiv'.
+SBY  5:29:55 [mvf_coupling_mvf_equiv] Copy '/mnt/e/ai-chip-design-platform/voe_heldout/formal/gen/mvf.v' to '/mnt/e/ai-chip-design-platform/voe_heldout/formal/mvf_coupling_mvf_equiv/src/mvf.v'.
+SBY  5:29:55 [mvf_coupling_mvf_equiv] Copy '/mnt/e/ai-chip-design-platform/voe_heldout/formal/gen/mvf_mut.v' to '/mnt/e/ai-chip-design-platform/voe_heldout/formal/mvf_coupling_mvf_equiv/src/mvf_mut.v'.
+SBY  5:29:55 [mvf_coupling_mvf_equiv] Copy '/mnt/e/ai-chip-design-platform/voe_heldout/formal/mvf_fv.v' to '/mnt/e/ai-chip-design-platform/voe_heldout/formal/mvf_coupling_mvf_equiv/src/mvf_fv.v'.
+SBY  5:29:55 [mvf_coupling_mvf_equiv] engine_0: smtbmc z3
+SBY  5:29:55 [mvf_coupling_mvf_equiv] base: starting process "cd mvf_coupling_mvf_equiv/src; yosys -ql ../model/design.log ../model/design.ys"
+SBY  5:29:55 [mvf_coupling_mvf_equiv] base: finished (returncode=0)
+SBY  5:29:55 [mvf_coupling_mvf_equiv] prep: starting process "cd mvf_coupling_mvf_equiv/model; yosys -ql design_prep.log design_prep.ys"
+SBY  5:29:55 [mvf_coupling_mvf_equiv] prep: finished (returncode=0)
+SBY  5:29:55 [mvf_coupling_mvf_equiv] smt2: starting process "cd mvf_coupling_mvf_equiv/model; yosys -ql design_smt2.log design_smt2.ys"
+SBY  5:29:55 [mvf_coupling_mvf_equiv] smt2: finished (returncode=0)
+SBY  5:29:55 [mvf_coupling_mvf_equiv] engine_0.basecase: starting process "cd mvf_coupling_mvf_equiv; yosys-smtbmc -s z3 --presat --noprogress -t 24  --append 0 --dump-vcd engine_0/trace.vcd --dump-yw engine_0/trace.yw --dump-vlogtb engine_0/trace_tb.v --dump-smtc engine_0/trace.smtc model/design_smt2.smt2"
+SBY  5:29:55 [mvf_coupling_mvf_equiv] engine_0.induction: starting process "cd mvf_coupling_mvf_equiv; yosys-smtbmc -s z3 --presat -i --noprogress -t 24  --append 0 --dump-vcd engine_0/trace_induct.vcd --dump-yw engine_0/trace_induct.yw --dump-vlogtb engine_0/trace_induct_tb.v --dump-smtc engine_0/trace_induct.smtc model/design_smt2.smt2"
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Solver: z3
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Solver: z3
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Trying induction in step 24..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assumptions in step 0..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assertions in step 0..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assumptions in step 1..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assertions in step 1..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assumptions in step 2..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assertions in step 2..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assumptions in step 3..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assertions in step 3..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assumptions in step 4..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assertions in step 4..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assumptions in step 5..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assertions in step 5..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assumptions in step 6..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assertions in step 6..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assumptions in step 7..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assertions in step 7..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assumptions in step 8..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assertions in step 8..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assumptions in step 9..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assertions in step 9..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assumptions in step 10..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assertions in step 10..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Trying induction in step 23..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Trying induction in step 22..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Trying induction in step 21..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Trying induction in step 20..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Trying induction in step 19..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Trying induction in step 18..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Trying induction in step 17..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Trying induction in step 16..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Trying induction in step 15..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Trying induction in step 14..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Trying induction in step 13..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Trying induction in step 12..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Trying induction in step 11..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Trying induction in step 10..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Trying induction in step 9..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Trying induction in step 8..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Trying induction in step 7..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Trying induction in step 6..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assumptions in step 11..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assertions in step 11..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Trying induction in step 5..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assumptions in step 12..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Trying induction in step 4..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assertions in step 12..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Trying induction in step 3..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Trying induction in step 2..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Trying induction in step 1..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assumptions in step 13..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assertions in step 13..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assumptions in step 14..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assertions in step 14..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assumptions in step 15..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assertions in step 15..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assumptions in step 16..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assertions in step 16..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Trying induction in step 0..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Temporal induction failed!
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Assert failed in mvf_fv: mvf_fv.v:100.38-100.55 (_witness_.check_assert_mvf_fv_v_100_20)
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Writing trace to VCD file: engine_0/trace_induct.vcd
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Writing trace to Verilog testbench: engine_0/trace_induct_tb.v
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Writing trace to constraints file: engine_0/trace_induct.smtc
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Writing trace to Yosys witness file: engine_0/trace_induct.yw
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: ##   0:00:00  Status: failed
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: finished (returncode=1)
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.induction: Status returned by engine for induction: FAIL
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assumptions in step 17..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assertions in step 17..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assumptions in step 18..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assertions in step 18..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assumptions in step 19..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assertions in step 19..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assumptions in step 20..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assertions in step 20..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assumptions in step 21..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assertions in step 21..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assumptions in step 22..
+SBY  5:29:56 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:00  Checking assertions in step 22..
+SBY  5:29:57 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:01  Checking assumptions in step 23..
+SBY  5:29:57 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:01  Checking assertions in step 23..
+SBY  5:29:57 [mvf_coupling_mvf_equiv] engine_0.basecase: ##   0:00:01  Status: passed
+SBY  5:29:57 [mvf_coupling_mvf_equiv] engine_0.basecase: finished (returncode=0)
+SBY  5:29:57 [mvf_coupling_mvf_equiv] engine_0.basecase: Status returned by engine for basecase: pass
+SBY  5:29:57 [mvf_coupling_mvf_equiv] summary: Elapsed clock time [H:MM:SS (secs)]: 0:00:01 (1)
+SBY  5:29:57 [mvf_coupling_mvf_equiv] summary: Elapsed process time [H:MM:SS (secs)]: 0:00:01 (1)
+SBY  5:29:57 [mvf_coupling_mvf_equiv] summary: engine_0 (smtbmc z3) returned pass for basecase
+SBY  5:29:57 [mvf_coupling_mvf_equiv] summary: engine_0 (smtbmc z3) returned FAIL for induction
+SBY  5:29:57 [mvf_coupling_mvf_equiv] summary: counterexample trace [induction]: mvf_coupling_mvf_equiv/engine_0/trace_induct.vcd
+SBY  5:29:57 [mvf_coupling_mvf_equiv] summary:   failed assertion mvf_fv._witness_.check_assert_mvf_fv_v_100_20 at mvf_fv.v:100.38-100.55
+SBY  5:29:57 [mvf_coupling_mvf_equiv] DONE (UNKNOWN, rc=4)

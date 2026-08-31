@@ -1,0 +1,10 @@
+# running in mvf_coupling_mvf_equiv/src/
+verilog_defines -DMVF_SHADOW -DCLASS_MVF_EQUIV
+read_verilog mvf.v
+read_verilog -sv mvf_fv.v
+prep -top mvf_fv
+
+hierarchy -smtcheck
+rename -witness
+write_jny -no-connections ../model/design.json
+write_rtlil ../model/design.il

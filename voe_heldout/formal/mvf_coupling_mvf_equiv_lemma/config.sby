@@ -1,0 +1,58 @@
+# COUPLING PROBE #2 — does the lemma dependency RECUR on a second design?
+#
+# The FIFO probe established one measured coupling: a data-integrity property
+# that is true but not inductive, closed by a pointer+count+memory lemma. One
+# design is one observation. This asks the same question of mv_filter, whose
+# lemma would be a single SCALAR (the sample counter) — a different shape, so a
+# positive answer is about the dependency PHENOMENON rather than one invariant.
+#
+#   mvf_tap        CONNECTIVITY CONTROL. Read it FIRST. counter_q can never
+#                  exceed THRESHOLD, so this passes iff the tap is really wired;
+#                  an undriven 4-bit wire takes 11..15 and fails. Two runs of
+#                  the FIFO probe were silently meaningless for exactly this
+#                  reason, so it is checked before anything else is believed.
+#   mvf_equiv      the dependent property alone: q_o agrees with the model.
+#   mvf_state      the lemma ALONE (no -DCLASS_MVF_EQUIV). A lemma task that
+#                  also asserts the property it supports can never pass while
+#                  that property is unprovable — circular, and it made the FIFO
+#                  probe fail at a line that had nothing to do with the lemma.
+#   mvf_equiv_lemma  the property with the lemma ASSUMED. Sound only if
+#                  mvf_state passes; until then this proves nothing.
+#   mvf_equiv_mut  NEGATIVE CONTROL, must FAIL. The model must detect a broken
+#                  filter. It reads only the DUT's INPUTS, never q_o, so it
+#                  cannot inherit the mutation — the defect that made the FIFO's
+#                  negative control silently vacuous.
+#
+# NO `expect` lines: an expectation would prejudge what is being measured.
+#
+# Reading it:
+#   mvf_state PASS + mvf_equiv_lemma PASS + mvf_equiv UNKNOWN + mut FAIL
+#       -> the dependency RECURS on a second, held-out design. Experiment 13
+#          can then be re-run across two families and stops being deterministic.
+#   mvf_equiv PASSES alone
+#       -> no coupling here; the property is inductive by itself and this design
+#          simply does not exhibit the phenomenon. That is a real answer too.
+#   mvf_equiv_mut PASSES
+#       -> the model checks nothing. Ignore every other task in this file.
+#
+# depth 24, matching mvf.sby: the flag needs THRESHOLD=10 qualifying samples
+# plus reset before it can rise, so a shallower base case cannot reach the
+# behaviour the negative control depends on.
+
+[options]
+mode prove
+depth 24
+
+[engines]
+smtbmc z3
+
+[script]
+verilog_defines -DMVF_SHADOW -DCLASS_MVF_EQUIV -DUSE_LEMMA_MVF
+read_verilog mvf.v
+read_verilog -sv mvf_fv.v
+prep -top mvf_fv
+
+[files]
+gen/mvf.v
+gen/mvf_mut.v
+mvf_fv.v
