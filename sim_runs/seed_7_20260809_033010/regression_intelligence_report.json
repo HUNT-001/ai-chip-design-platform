@@ -1,0 +1,7 @@
+{
+  "schema_version": "2.1.0",
+  "agent": "regression_intelligence",
+  "status": "skipped",
+  "reason": "no regression data",
+  "pass": true
+}
