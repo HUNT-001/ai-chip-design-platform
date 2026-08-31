@@ -8,11 +8,11 @@ module testbench(input clock, output reg genclock);
 `endif
   reg genclock = 1;
   reg [31:0] cycle = 0;
-  reg [0:0] PI_en;
   wire [0:0] PI_clk = clock;
+  reg [0:0] PI_en;
   lfsr_fv UUT (
-    .en(PI_en),
-    .clk(PI_clk)
+    .clk(PI_clk),
+    .en(PI_en)
   );
 `ifndef VERILATOR
   initial begin

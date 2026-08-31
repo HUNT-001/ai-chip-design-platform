@@ -1,6 +1,10 @@
 Elapsed clock time [H:MM:SS (secs)]: 0:00:00 (0)
 Elapsed process time [H:MM:SS (secs)]: 0:00:00 (0)
 engine_0 (smtbmc z3) returned FAIL for basecase
+engine_0 (smtbmc z3) returned FAIL for induction
 counterexample trace [basecase]: engine_0/trace.vcd
 counterexample trace [basecase]: engine_0/trace.yw
   failed assertion lfsr_fv._witness_.check_assert_lfsr_fv_v_38_26 at lfsr_fv.v:38.5-38.40 step 2
+counterexample trace [induction]: engine_0/trace_induct.vcd
+counterexample trace [induction]: engine_0/trace_induct.yw
+  failed assertion lfsr_fv._witness_.check_assert_lfsr_fv_v_38_26 at lfsr_fv.v:38.5-38.40
