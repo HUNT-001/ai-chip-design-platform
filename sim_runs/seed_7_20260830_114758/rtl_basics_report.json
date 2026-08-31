@@ -1,0 +1,7 @@
+{
+  "schema_version": "2.1.0",
+  "agent": "rtl_basics_verifier",
+  "status": "skipped",
+  "reason": "no rtl_trace",
+  "pass": true
+}
