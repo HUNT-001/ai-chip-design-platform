@@ -2,13 +2,13 @@
 ; yosys-smt2-module $paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter
 (declare-sort |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_s| 0)
 (declare-fun |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_is| (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_s|) Bool)
-; yosys-smt2-anyinit $paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#0 4 mvf.v:37.2-45.6
+; yosys-smt2-anyinit $paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#0 4 mvf.v:40.2-48.6
 ; yosys-smt2-witness {"offset": 0, "path": ["\\_witness_", "\\anyinit_procdff_57"], "smtname": 0, "smtoffset": 0, "type": "init", "width": 4}
 (declare-fun |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#0| (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_s|) (_ BitVec 4)) ; \_witness_.anyinit_procdff_57
 ; yosys-smt2-register _witness_.anyinit_procdff_57 4
 ; yosys-smt2-wire _witness_.anyinit_procdff_57 4
 (define-fun |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_n _witness_.anyinit_procdff_57| ((state |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_s|)) (_ BitVec 4) (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#0| state))
-; yosys-smt2-anyinit $paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#1 1 mvf.v:37.2-45.6
+; yosys-smt2-anyinit $paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#1 1 mvf.v:40.2-48.6
 ; yosys-smt2-witness {"offset": 0, "path": ["\\_witness_", "\\anyinit_procdff_62"], "smtname": 1, "smtoffset": 0, "type": "init", "width": 1}
 (declare-fun |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#1| (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_s|) (_ BitVec 1)) ; \_witness_.anyinit_procdff_62
 ; yosys-smt2-register _witness_.anyinit_procdff_62 1
@@ -30,12 +30,12 @@
 (define-fun |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_n clk_i| ((state |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_s|)) Bool (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#3| state))
 (declare-fun |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#4| (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_s|) (_ BitVec 1)) ; \rst_ni
 (define-fun |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#5| ((state |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_s|)) (_ BitVec 4) (ite (= ((_ extract 0 0) (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#4| state)) #b1) (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#0| state) #b0000)) ; \counter_q
-(define-fun |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#6| ((state |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_s|)) (_ BitVec 4) (bvadd (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#5| state) #b0001)) ; $add$mvf.v:31$23_Y
+(define-fun |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#6| ((state |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_s|)) (_ BitVec 4) (bvadd (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#5| state) #b0001)) ; $add$mvf.v:34$23_Y
 (declare-fun |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#7| (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_s|) Bool) ; \sample_i
 (declare-fun |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#8| (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_s|) Bool) ; \d_i
-(define-fun |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#9| ((state |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_s|)) Bool (and (or  (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#7| state) false) (or  (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#8| state) false))) ; $logic_and$mvf.v:30$22_Y
+(define-fun |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#9| ((state |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_s|)) Bool (and (or  (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#7| state) false) (or  (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#8| state) false))) ; $logic_and$mvf.v:33$22_Y
 (define-fun |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#10| ((state |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_s|)) (_ BitVec 4) (ite (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#9| state) (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#6| state) (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#5| state))) ; $2\counter_d[3:0]
-(define-fun |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#11| ((state |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_s|)) Bool (bvuge (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#5| state) #b1010)) ; $ge$mvf.v:28$21_Y
+(define-fun |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#11| ((state |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_s|)) Bool (bvuge (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#5| state) #b1010)) ; $ge$mvf.v:31$21_Y
 (define-fun |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#12| ((state |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_s|)) (_ BitVec 4) (ite (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#11| state) (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#5| state) (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#10| state))) ; $1\counter_d[3:0]
 (define-fun |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#13| ((state |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_s|)) (_ BitVec 4) (ite (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#2| state) #b0000 (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#12| state))) ; \counter_d
 ; yosys-smt2-wire counter_d 4
@@ -51,6 +51,9 @@
 ; yosys-smt2-wire d_i 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\d_i"], "smtname": "d_i", "smtoffset": 0, "type": "input", "width": 1}
 (define-fun |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_n d_i| ((state |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_s|)) Bool (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#8| state))
+; yosys-smt2-output dbg_cnt_o 4
+; yosys-smt2-wire dbg_cnt_o 4
+(define-fun |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_n dbg_cnt_o| ((state |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_s|)) (_ BitVec 4) (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#5| state))
 ; yosys-smt2-wire q 1
 (define-fun |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_n q| ((state |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_s|)) Bool (= ((_ extract 0 0) (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter#14| state)) #b1))
 ; yosys-smt2-output q_o 1
@@ -101,21 +104,25 @@
 (define-fun |mvf_wrap_n d_i| ((state |mvf_wrap_s|)) Bool (|mvf_wrap#2| state))
 ; yosys-smt2-cell $paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter u_filter
 ; yosys-smt2-witness {"path": ["\\u_filter"], "smtname": "u_filter", "type": "cell"}
-(declare-fun |mvf_wrap#3| (|mvf_wrap_s|) Bool) ; \q_o
+(declare-fun |mvf_wrap#3| (|mvf_wrap_s|) (_ BitVec 4)) ; \dbg_cnt_o
+(declare-fun |mvf_wrap#4| (|mvf_wrap_s|) Bool) ; \q_o
 (declare-fun |mvf_wrap_h u_filter| (|mvf_wrap_s|) |$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_s|)
+; yosys-smt2-output dbg_cnt_o 4
+; yosys-smt2-wire dbg_cnt_o 4
+(define-fun |mvf_wrap_n dbg_cnt_o| ((state |mvf_wrap_s|)) (_ BitVec 4) (|mvf_wrap#3| state))
 ; yosys-smt2-output q_o 1
 ; yosys-smt2-wire q_o 1
-(define-fun |mvf_wrap_n q_o| ((state |mvf_wrap_s|)) Bool (|mvf_wrap#3| state))
-(declare-fun |mvf_wrap#4| (|mvf_wrap_s|) Bool) ; \rst_ni
+(define-fun |mvf_wrap_n q_o| ((state |mvf_wrap_s|)) Bool (|mvf_wrap#4| state))
+(declare-fun |mvf_wrap#5| (|mvf_wrap_s|) Bool) ; \rst_ni
 ; yosys-smt2-input rst_ni 1
 ; yosys-smt2-wire rst_ni 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\rst_ni"], "smtname": "rst_ni", "smtoffset": 0, "type": "input", "width": 1}
-(define-fun |mvf_wrap_n rst_ni| ((state |mvf_wrap_s|)) Bool (|mvf_wrap#4| state))
-(declare-fun |mvf_wrap#5| (|mvf_wrap_s|) Bool) ; \sample_i
+(define-fun |mvf_wrap_n rst_ni| ((state |mvf_wrap_s|)) Bool (|mvf_wrap#5| state))
+(declare-fun |mvf_wrap#6| (|mvf_wrap_s|) Bool) ; \sample_i
 ; yosys-smt2-input sample_i 1
 ; yosys-smt2-wire sample_i 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\sample_i"], "smtname": "sample_i", "smtoffset": 0, "type": "input", "width": 1}
-(define-fun |mvf_wrap_n sample_i| ((state |mvf_wrap_s|)) Bool (|mvf_wrap#5| state))
+(define-fun |mvf_wrap_n sample_i| ((state |mvf_wrap_s|)) Bool (|mvf_wrap#6| state))
 (define-fun |mvf_wrap_a| ((state |mvf_wrap_s|)) Bool 
   (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_a| (|mvf_wrap_h u_filter| state))
 )
@@ -130,9 +137,10 @@
   (= (|mvf_wrap#0| state) (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_n clear_i| (|mvf_wrap_h u_filter| state))) ; $paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter.clear_i
   (= (|mvf_wrap#1| state) (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_n clk_i| (|mvf_wrap_h u_filter| state))) ; $paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter.clk_i
   (= (|mvf_wrap#2| state) (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_n d_i| (|mvf_wrap_h u_filter| state))) ; $paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter.d_i
-  (= (|mvf_wrap#3| state) (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_n q_o| (|mvf_wrap_h u_filter| state))) ; $paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter.q_o
-  (= (|mvf_wrap#4| state) (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_n rst_ni| (|mvf_wrap_h u_filter| state))) ; $paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter.rst_ni
-  (= (|mvf_wrap#5| state) (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_n sample_i| (|mvf_wrap_h u_filter| state))) ; $paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter.sample_i
+  (= (|mvf_wrap#3| state) (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_n dbg_cnt_o| (|mvf_wrap_h u_filter| state))) ; $paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter.dbg_cnt_o
+  (= (|mvf_wrap#4| state) (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_n q_o| (|mvf_wrap_h u_filter| state))) ; $paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter.q_o
+  (= (|mvf_wrap#5| state) (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_n rst_ni| (|mvf_wrap_h u_filter| state))) ; $paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter.rst_ni
+  (= (|mvf_wrap#6| state) (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_n sample_i| (|mvf_wrap_h u_filter| state))) ; $paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter.sample_i
   (|$paramod$06d2f9676ca4aec19ef4e1b365f8b0e8ef41a086/mv_filter_h| (|mvf_wrap_h u_filter| state))
 ))
 (define-fun |mvf_wrap_t| ((state |mvf_wrap_s|) (next_state |mvf_wrap_s|)) Bool 
@@ -171,46 +179,49 @@
 ; yosys-smt2-wire d 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\d"], "smtname": "d", "smtoffset": 0, "type": "input", "width": 1}
 (define-fun |mvf_fv_n d| ((state |mvf_fv_s|)) Bool (|mvf_fv#5| state))
-; yosys-smt2-anyinit mvf_fv#6 1 mvf_fv.v:40.3-42.6
-; yosys-smt2-witness {"offset": 0, "path": ["\\p_clear"], "smtname": 6, "smtoffset": 0, "type": "init", "width": 1}
-(declare-fun |mvf_fv#6| (|mvf_fv_s|) (_ BitVec 1)) ; \p_clear
-; yosys-smt2-register p_clear 1
-; yosys-smt2-wire p_clear 1
-(define-fun |mvf_fv_n p_clear| ((state |mvf_fv_s|)) Bool (= ((_ extract 0 0) (|mvf_fv#6| state)) #b1))
-; yosys-smt2-anyinit mvf_fv#7 1 mvf_fv.v:40.3-42.6
-; yosys-smt2-witness {"offset": 0, "path": ["\\p_settled"], "smtname": 7, "smtoffset": 0, "type": "init", "width": 1}
-(declare-fun |mvf_fv#7| (|mvf_fv_s|) (_ BitVec 1)) ; \p_settled
-; yosys-smt2-register p_settled 1
-; yosys-smt2-wire p_settled 1
-(define-fun |mvf_fv_n p_settled| ((state |mvf_fv_s|)) Bool (= ((_ extract 0 0) (|mvf_fv#7| state)) #b1))
 ; yosys-smt2-cell mvf_wrap dut
 ; yosys-smt2-witness {"path": ["\\dut"], "smtname": "dut", "type": "cell"}
-(declare-fun |mvf_fv#8| (|mvf_fv_s|) Bool) ; \q
+(declare-fun |mvf_fv#6| (|mvf_fv_s|) (_ BitVec 4)) ; \dbg_cnt
+(declare-fun |mvf_fv#7| (|mvf_fv_s|) Bool) ; \q
 (declare-fun |mvf_fv_h dut| (|mvf_fv_s|) |mvf_wrap_s|)
+; yosys-smt2-wire dbg_cnt 4
+(define-fun |mvf_fv_n dbg_cnt| ((state |mvf_fv_s|)) (_ BitVec 4) (|mvf_fv#6| state))
+; yosys-smt2-anyinit mvf_fv#8 1 mvf_fv.v:42.3-44.6
+; yosys-smt2-witness {"offset": 0, "path": ["\\p_clear"], "smtname": 8, "smtoffset": 0, "type": "init", "width": 1}
+(declare-fun |mvf_fv#8| (|mvf_fv_s|) (_ BitVec 1)) ; \p_clear
+; yosys-smt2-register p_clear 1
+; yosys-smt2-wire p_clear 1
+(define-fun |mvf_fv_n p_clear| ((state |mvf_fv_s|)) Bool (= ((_ extract 0 0) (|mvf_fv#8| state)) #b1))
+; yosys-smt2-anyinit mvf_fv#9 1 mvf_fv.v:42.3-44.6
+; yosys-smt2-witness {"offset": 0, "path": ["\\p_settled"], "smtname": 9, "smtoffset": 0, "type": "init", "width": 1}
+(declare-fun |mvf_fv#9| (|mvf_fv_s|) (_ BitVec 1)) ; \p_settled
+; yosys-smt2-register p_settled 1
+; yosys-smt2-wire p_settled 1
+(define-fun |mvf_fv_n p_settled| ((state |mvf_fv_s|)) Bool (= ((_ extract 0 0) (|mvf_fv#9| state)) #b1))
 ; yosys-smt2-wire q 1
-(define-fun |mvf_fv_n q| ((state |mvf_fv_s|)) Bool (|mvf_fv#8| state))
-(define-fun |mvf_fv#9| ((state |mvf_fv_s|)) Bool (or  (= ((_ extract 0 0) (|mvf_fv#4| state)) #b1) (= ((_ extract 1 1) (|mvf_fv#4| state)) #b1))) ; \rst_n
+(define-fun |mvf_fv_n q| ((state |mvf_fv_s|)) Bool (|mvf_fv#7| state))
+(define-fun |mvf_fv#10| ((state |mvf_fv_s|)) Bool (or  (= ((_ extract 0 0) (|mvf_fv#4| state)) #b1) (= ((_ extract 1 1) (|mvf_fv#4| state)) #b1))) ; \rst_n
 ; yosys-smt2-wire rst_n 1
-(define-fun |mvf_fv_n rst_n| ((state |mvf_fv_s|)) Bool (|mvf_fv#9| state))
-(declare-fun |mvf_fv#10| (|mvf_fv_s|) Bool) ; \sample
+(define-fun |mvf_fv_n rst_n| ((state |mvf_fv_s|)) Bool (|mvf_fv#10| state))
+(declare-fun |mvf_fv#11| (|mvf_fv_s|) Bool) ; \sample
 ; yosys-smt2-input sample 1
 ; yosys-smt2-wire sample 1
 ; yosys-smt2-witness {"offset": 0, "path": ["\\sample"], "smtname": "sample", "smtoffset": 0, "type": "input", "width": 1}
-(define-fun |mvf_fv_n sample| ((state |mvf_fv_s|)) Bool (|mvf_fv#10| state))
+(define-fun |mvf_fv_n sample| ((state |mvf_fv_s|)) Bool (|mvf_fv#11| state))
 ; yosys-smt2-wire settled 1
-(define-fun |mvf_fv_n settled| ((state |mvf_fv_s|)) Bool (|mvf_fv#9| state))
-(define-fun |mvf_fv#11| ((state |mvf_fv_s|)) (_ BitVec 1) (bvnot (ite (|mvf_fv#3| state) #b1 #b0))) ; $auto$rtlil.cc:3255:Not$91
+(define-fun |mvf_fv_n settled| ((state |mvf_fv_s|)) Bool (|mvf_fv#10| state))
+(define-fun |mvf_fv#12| ((state |mvf_fv_s|)) (_ BitVec 1) (bvnot (ite (|mvf_fv#3| state) #b1 #b0))) ; $auto$rtlil.cc:3255:Not$91
 ; yosys-smt2-assume 0 $auto$formalff.cc:987:execute$92
-(define-fun |mvf_fv_u 0| ((state |mvf_fv_s|)) Bool (or (= ((_ extract 0 0) (|mvf_fv#11| state)) #b1) (not true))) ; $auto$formalff.cc:987:execute$92
-; yosys-smt2-assert 0 _witness_.check_assert_mvf_fv_v_57_17 mvf_fv.v:57.42-57.60
-(define-fun |mvf_fv_a 0| ((state |mvf_fv_s|)) Bool (or (= ((_ extract 0 0) (|mvf_fv#0| state)) #b1) (not (= ((_ extract 0 0) (|mvf_fv#1| state)) #b1)))) ; _witness_.check_assert_mvf_fv_v_57_17
-(define-fun |mvf_fv#12| ((state |mvf_fv_s|)) (_ BitVec 2) (bvadd (|mvf_fv#4| state) #b01)) ; $add$mvf_fv.v:23$10_Y
-(define-fun |mvf_fv#13| ((state |mvf_fv_s|)) Bool (distinct (|mvf_fv#4| state) #b11)) ; $ne$mvf_fv.v:23$9_Y
-(define-fun |mvf_fv#14| ((state |mvf_fv_s|)) (_ BitVec 2) (ite (|mvf_fv#13| state) (|mvf_fv#12| state) (|mvf_fv#4| state))) ; $0\cyc[1:0]
-(define-fun |mvf_fv#15| ((state |mvf_fv_s|)) Bool (and (or  (|mvf_fv#9| state) false) (or  (= ((_ extract 0 0) (|mvf_fv#7| state)) #b1) false))) ; $logic_and$mvf_fv.v:57$15_Y
-(define-fun |mvf_fv#16| ((state |mvf_fv_s|)) Bool (and (or  (|mvf_fv#15| state) false) (or  (= ((_ extract 0 0) (|mvf_fv#6| state)) #b1) false))) ; $logic_and$mvf_fv.v:57$16_Y
-(define-fun |mvf_fv#17| ((state |mvf_fv_s|)) (_ BitVec 1) (ite (|mvf_fv#16| state) #b1 #b0)) ; $assert$mvf_fv.v:57$17_EN
-(define-fun |mvf_fv#18| ((state |mvf_fv_s|)) (_ BitVec 1) (bvnot (ite (|mvf_fv#8| state) #b1 #b0))) ; $eq$mvf_fv.v:57$18_Y
+(define-fun |mvf_fv_u 0| ((state |mvf_fv_s|)) Bool (or (= ((_ extract 0 0) (|mvf_fv#12| state)) #b1) (not true))) ; $auto$formalff.cc:987:execute$92
+; yosys-smt2-assert 0 _witness_.check_assert_mvf_fv_v_59_17 mvf_fv.v:59.42-59.60
+(define-fun |mvf_fv_a 0| ((state |mvf_fv_s|)) Bool (or (= ((_ extract 0 0) (|mvf_fv#0| state)) #b1) (not (= ((_ extract 0 0) (|mvf_fv#1| state)) #b1)))) ; _witness_.check_assert_mvf_fv_v_59_17
+(define-fun |mvf_fv#13| ((state |mvf_fv_s|)) (_ BitVec 2) (bvadd (|mvf_fv#4| state) #b01)) ; $add$mvf_fv.v:23$10_Y
+(define-fun |mvf_fv#14| ((state |mvf_fv_s|)) Bool (distinct (|mvf_fv#4| state) #b11)) ; $ne$mvf_fv.v:23$9_Y
+(define-fun |mvf_fv#15| ((state |mvf_fv_s|)) (_ BitVec 2) (ite (|mvf_fv#14| state) (|mvf_fv#13| state) (|mvf_fv#4| state))) ; $0\cyc[1:0]
+(define-fun |mvf_fv#16| ((state |mvf_fv_s|)) Bool (and (or  (|mvf_fv#10| state) false) (or  (= ((_ extract 0 0) (|mvf_fv#9| state)) #b1) false))) ; $logic_and$mvf_fv.v:59$15_Y
+(define-fun |mvf_fv#17| ((state |mvf_fv_s|)) Bool (and (or  (|mvf_fv#16| state) false) (or  (= ((_ extract 0 0) (|mvf_fv#8| state)) #b1) false))) ; $logic_and$mvf_fv.v:59$16_Y
+(define-fun |mvf_fv#18| ((state |mvf_fv_s|)) (_ BitVec 1) (ite (|mvf_fv#17| state) #b1 #b0)) ; $assert$mvf_fv.v:59$17_EN
+(define-fun |mvf_fv#19| ((state |mvf_fv_s|)) (_ BitVec 1) (bvnot (ite (|mvf_fv#7| state) #b1 #b0))) ; $eq$mvf_fv.v:59$18_Y
 (define-fun |mvf_fv_a| ((state |mvf_fv_s|)) Bool (and
   (|mvf_fv_a 0| state)
   (|mvf_wrap_a| (|mvf_fv_h dut| state))
@@ -230,17 +241,18 @@
   (= (|mvf_fv#2| state) (|mvf_wrap_n clear_i| (|mvf_fv_h dut| state))) ; mvf_wrap.clear_i
   (= (|mvf_fv#3| state) (|mvf_wrap_n clk_i| (|mvf_fv_h dut| state))) ; mvf_wrap.clk_i
   (= (|mvf_fv#5| state) (|mvf_wrap_n d_i| (|mvf_fv_h dut| state))) ; mvf_wrap.d_i
-  (= (|mvf_fv#8| state) (|mvf_wrap_n q_o| (|mvf_fv_h dut| state))) ; mvf_wrap.q_o
-  (= (|mvf_fv#9| state) (|mvf_wrap_n rst_ni| (|mvf_fv_h dut| state))) ; mvf_wrap.rst_ni
-  (= (|mvf_fv#10| state) (|mvf_wrap_n sample_i| (|mvf_fv_h dut| state))) ; mvf_wrap.sample_i
+  (= (|mvf_fv#6| state) (|mvf_wrap_n dbg_cnt_o| (|mvf_fv_h dut| state))) ; mvf_wrap.dbg_cnt_o
+  (= (|mvf_fv#7| state) (|mvf_wrap_n q_o| (|mvf_fv_h dut| state))) ; mvf_wrap.q_o
+  (= (|mvf_fv#10| state) (|mvf_wrap_n rst_ni| (|mvf_fv_h dut| state))) ; mvf_wrap.rst_ni
+  (= (|mvf_fv#11| state) (|mvf_wrap_n sample_i| (|mvf_fv_h dut| state))) ; mvf_wrap.sample_i
   (|mvf_wrap_h| (|mvf_fv_h dut| state))
 ))
 (define-fun |mvf_fv_t| ((state |mvf_fv_s|) (next_state |mvf_fv_s|)) Bool (and
-  (= (ite (|mvf_fv#9| state) #b1 #b0) (|mvf_fv#7| next_state)) ; $procdff$51 \p_settled
-  (= (ite (|mvf_fv#2| state) #b1 #b0) (|mvf_fv#6| next_state)) ; $procdff$50 \p_clear
-  (= (|mvf_fv#14| state) (|mvf_fv#4| next_state)) ; $procdff$52 \cyc
-  (= (|mvf_fv#17| state) (|mvf_fv#1| next_state)) ; $auto$async2sync.cc:110:execute$70 $auto$async2sync.cc:107:execute$68
-  (= (|mvf_fv#18| state) (|mvf_fv#0| next_state)) ; $auto$async2sync.cc:118:execute$73 $auto$async2sync.cc:116:execute$72
+  (= (ite (|mvf_fv#10| state) #b1 #b0) (|mvf_fv#9| next_state)) ; $procdff$51 \p_settled
+  (= (ite (|mvf_fv#2| state) #b1 #b0) (|mvf_fv#8| next_state)) ; $procdff$50 \p_clear
+  (= (|mvf_fv#15| state) (|mvf_fv#4| next_state)) ; $procdff$52 \cyc
+  (= (|mvf_fv#18| state) (|mvf_fv#1| next_state)) ; $auto$async2sync.cc:110:execute$70 $auto$async2sync.cc:107:execute$68
+  (= (|mvf_fv#19| state) (|mvf_fv#0| next_state)) ; $auto$async2sync.cc:118:execute$73 $auto$async2sync.cc:116:execute$72
   (|mvf_wrap_t| (|mvf_fv_h dut| state) (|mvf_fv_h dut| next_state))
 )) ; end of module mvf_fv
 ; yosys-smt2-topmod mvf_fv
