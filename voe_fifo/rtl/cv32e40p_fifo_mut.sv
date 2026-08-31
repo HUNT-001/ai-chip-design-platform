@@ -33,7 +33,16 @@ module cv32e40p_fifo_mut #(
     input logic push_i,  // data is valid and can be pushed to the queue
     // as long as the queue is not empty we can pop new elements
     output logic [DATA_WIDTH-1:0] data_o,  // output data
-    input logic pop_i  // pop head from queue
+    input logic pop_i,  // pop head from queue
+    // FORMAL OBSERVATION TAPS — read-only mirrors of internal state.
+    // Needed because NEITHER sv2v NOR yosys resolves hierarchical references:
+    // writing `u_fifo.status_cnt_q` from outside produced a floating 1-bit wire
+    // and a silently vacuous assumption. These ports drive nothing; they only
+    // let the harness see state it cannot otherwise name.
+    output logic [ADDR_DEPTH:0] dbg_cnt_o,
+    output logic [ADDR_DEPTH-1:0] dbg_rd_o,
+    output logic [ADDR_DEPTH-1:0] dbg_wr_o,
+    output logic [(DEPTH > 0 ? DEPTH : 1)*DATA_WIDTH-1:0] dbg_mem_o
 );
   // local parameter
   // FIFO depth - handle the case of pass-through, synthesizer will do constant propagation
@@ -165,4 +174,10 @@ module cv32e40p_fifo_mut #(
   else $fatal(1, "Trying to pop data although the FIFO is empty.");
 `endif
 
+
+  // observation only — no internal logic reads these
+  assign dbg_cnt_o = status_cnt_q;
+  assign dbg_rd_o  = read_pointer_q;
+  assign dbg_wr_o  = write_pointer_q;
+  assign dbg_mem_o = mem_q;
 endmodule  // cv32e40p_fifo
