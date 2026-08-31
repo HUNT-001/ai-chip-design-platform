@@ -86,6 +86,22 @@ class Worker:
         t = board.get(phi)
         if method == "static":
             ev = self.static.check("comb_loops")
+            # A structural read used as a DIAGNOSTIC probe informs the next
+            # action and certifies nothing: the obligation it is aimed at is not
+            # the property the analysis decides. Only a structural obligation may
+            # be discharged by it.
+            # A structural read used as a DIAGNOSTIC probe feeds the planner
+            # what it did not know, and certifies nothing.
+            if hasattr(self, "learn_structure") and ev.status in ("proved", "counterexample"):
+                try:
+                    from obligation_state import probe_structure
+                    rtl = getattr(self.static, "rtl_for", lambda p: None)(phi)
+                    if rtl:
+                        self.learn_structure(phi, *probe_structure(rtl))
+                except Exception:
+                    pass
+            if t.kind != "structural":
+                return ev, None
             if ev.status == "proved":         # exhaustive over the parsed netlist
                 j = self.k.Judgment(phi, self.k.Warrant.DEDUCTIVE,
                                     {"n_eff": ks.n_eff(phi)}, witness=ev.witness)
