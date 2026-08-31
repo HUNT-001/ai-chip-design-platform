@@ -1229,6 +1229,88 @@ measurement apparatus, the policies, the experimental design — and not one has
 been a kernel or RTL defect. That is a statement about what has been exposed, not
 about what is there.
 
+## 8c. Experiments 12-14 — coupling, measured instead of declared
+
+Experiments 6 and 7 DECLARED their dependency structure: the harness was told
+which obligations unlocked which. That is why their +14.9% and +72.4% are
+synthetic structural stress tests and are still described that way. Experiments
+12-14 replaced the declaration with a measurement.
+
+### The dependency, measured on two designs
+
+A coupling probe asks the solver — not the author — whether proving one
+obligation makes another provable. No `expect` lines: an expectation would
+prejudge what is being measured.
+
+| | cv32e40p_fifo (dev) | pulp mv_filter (HELD OUT) |
+|---|---|---|
+| lemma | pointers + count + memory | one scalar counter |
+| lemma alone | PASS (k-induction) | PASS (k-induction) |
+| property alone | UNKNOWN — true, not inductive | UNKNOWN — true, not inductive |
+| property GIVEN lemma | PASS (k-induction) | PASS (k-induction) |
+| negative control | FAIL @ step 7 | FAIL @ step 13 |
+| connectivity control | PASS | PASS |
+
+Two designs, two measured dependencies, **two different lemma shapes**. The
+recurring thing is the phenomenon — a true-but-not-inductive property closed by
+a separately proved lemma — not one invariant that worked twice.
+
+A real negative result on the way: `cnt <= DEPTH` is sound, proves in a second,
+and does **not** help. The FIFO's induction fails identically with and without
+it. The lemma had to be found by measurement, not intuition.
+
+### Experiment 14 result (real tools, 2 families)
+
+```
+                     both families      held-out family alone
+M-static-cached       E = 1.136          E = 1.100
+N-lemmafirst          E = 1.389 (+22.2%) E = 1.375 (+25.0%)
+closed weight equal at 50.0 / 22.0; coupling exercised on BOTH (12 and 12)
+```
+
+The effect is **larger on the design no policy was developed against** — the
+opposite of the overfitting signature that rejected `L-static-onestep`.
+
+### Two things this does NOT establish
+
+**It is not statistically replicated.** Both boards are formal-only and
+deterministic, so twelve campaigns are one campaign repeated twelve times and
+the committed noise criterion is vacuous. Two families answers *generalisation
+across designs*; it says nothing about *stability under noise*.
+
+**It does not revive Experiment 7.** That +72.4% still rests on a declared
+structure. Experiment 14 replaces it rather than confirming it.
+
+### The failure memory transferred
+
+The FIFO probe took six attempts. Five instrument defects, every one of which
+made a broken instrument look green:
+
+1. the model gated on `testmode`, which the FIFO never uses in its datapath;
+2. it skipped flush cycles instead of mirroring them;
+3. hierarchical references became **undriven wires** in both yosys and sv2v, so
+   the lemma was assumed against floating signals and constrained nothing;
+4. the lemma task also asserted the property it supported — circular, so it
+   could never pass;
+5. worst, the reference model read the DUT's own `full_o`, inherited the
+   mutant's bug, and the negative control detected **nothing**.
+
+(5) was invisible until (1) and (2) were fixed: each repair removed a spurious
+divergence until the control finally revealed it had never been checking. Fixed
+in the other order, this would have shipped a vacuous proof under a green
+negative control.
+
+**The mv_filter probe then worked first try** — the same five lessons applied as
+design rules up front. That is the first direct evidence the failure memory
+transfers to new work rather than only preventing repeats.
+
+### Standing caveat
+
+Fourteen instrument defects across the project. Every one has been in the
+measuring apparatus — the harnesses, the policies, the experimental design — and
+not one has been a kernel or RTL defect. The kernel and the RTL remain **not
+falsified, not proven correct**.
+
 ## 9. Roadmap position
 
 Phase 1 (kernel) ✅ · Phase 2 (VOE) ✅ · Phase 3 (one engineer on real evidence) ✅
