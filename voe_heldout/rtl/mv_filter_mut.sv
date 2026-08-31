@@ -19,12 +19,18 @@ module mv_filter_mut #(
     input  logic sample_i,
     input  logic clear_i,
     input  logic d_i,
-    output logic q_o
+    output logic q_o,
+    // FORMAL OBSERVATION TAP — read-only mirror of the sample counter.
+    // A port, not a hierarchical reference: neither yosys nor sv2v resolves
+    // `u_filter.counter_q`, both leave an undriven wire of that literal name,
+    // and a lemma assumed against a floating signal constrains nothing.
+    output logic [WIDTH-1:0] dbg_cnt_o
 );
     logic [WIDTH-1:0] counter_q, counter_d;
     logic d, q;
 
     assign q_o = q;
+    assign dbg_cnt_o = counter_q;   // observation only
 
     always_comb begin
         counter_d = counter_q;
