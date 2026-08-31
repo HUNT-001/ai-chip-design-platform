@@ -8,20 +8,20 @@ module testbench(input clock, output reg genclock);
 `endif
   reg genclock = 1;
   reg [31:0] cycle = 0;
-  reg [0:0] PI_flush;
-  reg [0:0] PI_pop;
-  wire [0:0] PI_clk = clock;
   reg [0:0] PI_push;
-  reg [0:0] PI_flush_but_first;
   reg [3:0] PI_din;
+  reg [0:0] PI_pop;
+  reg [0:0] PI_flush;
+  reg [0:0] PI_flush_but_first;
+  wire [0:0] PI_clk = clock;
   reg [0:0] PI_testmode;
   fifo_fv UUT (
-    .flush(PI_flush),
-    .pop(PI_pop),
-    .clk(PI_clk),
     .push(PI_push),
-    .flush_but_first(PI_flush_but_first),
     .din(PI_din),
+    .pop(PI_pop),
+    .flush(PI_flush),
+    .flush_but_first(PI_flush_but_first),
+    .clk(PI_clk),
     .testmode(PI_testmode)
   );
 `ifndef VERILATOR
@@ -44,87 +44,87 @@ module testbench(input clock, output reg genclock);
     // UUT.$auto$async2sync.\cc:107:execute$239  = 1'b0;
     // UUT.$auto$async2sync.\cc:116:execute$243  = 1'b1;
     UUT.cyc = 2'b00;
-    UUT.dut.u_fifo._witness_.anyinit_procdff_207 = 16'b0000000000000100;
+    UUT.dut.u_fifo._witness_.anyinit_procdff_207 = 16'b0000000000000001;
     UUT.dut.u_fifo._witness_.anyinit_procdff_212 = 2'b01;
     UUT.dut.u_fifo._witness_.anyinit_procdff_217 = 2'b01;
     UUT.dut.u_fifo._witness_.anyinit_procdff_222 = 3'b000;
 
     // state 0
-    PI_flush = 1'b0;
-    PI_pop = 1'b0;
     PI_push = 1'b1;
-    PI_flush_but_first = 1'b0;
     PI_din = 4'b0001;
+    PI_pop = 1'b0;
+    PI_flush = 1'b0;
+    PI_flush_but_first = 1'b0;
     PI_testmode = 1'b0;
   end
   always @(posedge clock) begin
     // state 1
     if (cycle == 0) begin
-      PI_flush <= 1'b0;
-      PI_pop <= 1'b0;
       PI_push <= 1'b1;
-      PI_flush_but_first <= 1'b0;
       PI_din <= 4'b0000;
+      PI_pop <= 1'b0;
+      PI_flush <= 1'b0;
+      PI_flush_but_first <= 1'b0;
       PI_testmode <= 1'b0;
     end
 
     // state 2
     if (cycle == 1) begin
-      PI_flush <= 1'b0;
-      PI_pop <= 1'b0;
       PI_push <= 1'b1;
+      PI_din <= 4'b0000;
+      PI_pop <= 1'b0;
+      PI_flush <= 1'b0;
       PI_flush_but_first <= 1'b0;
-      PI_din <= 4'b1101;
       PI_testmode <= 1'b0;
     end
 
     // state 3
     if (cycle == 2) begin
-      PI_flush <= 1'b0;
-      PI_pop <= 1'b0;
       PI_push <= 1'b1;
-      PI_flush_but_first <= 1'b0;
       PI_din <= 4'b0000;
+      PI_pop <= 1'b0;
+      PI_flush <= 1'b0;
+      PI_flush_but_first <= 1'b0;
       PI_testmode <= 1'b0;
     end
 
     // state 4
     if (cycle == 3) begin
-      PI_flush <= 1'b0;
-      PI_pop <= 1'b0;
       PI_push <= 1'b1;
-      PI_flush_but_first <= 1'b0;
       PI_din <= 4'b0000;
+      PI_pop <= 1'b0;
+      PI_flush <= 1'b0;
+      PI_flush_but_first <= 1'b0;
       PI_testmode <= 1'b0;
     end
 
     // state 5
     if (cycle == 4) begin
-      PI_flush <= 1'b0;
-      PI_pop <= 1'b0;
       PI_push <= 1'b1;
-      PI_flush_but_first <= 1'b0;
       PI_din <= 4'b0000;
+      PI_pop <= 1'b0;
+      PI_flush <= 1'b0;
+      PI_flush_but_first <= 1'b0;
       PI_testmode <= 1'b0;
     end
 
     // state 6
     if (cycle == 5) begin
-      PI_flush <= 1'b0;
-      PI_pop <= 1'b1;
       PI_push <= 1'b1;
-      PI_flush_but_first <= 1'b1;
       PI_din <= 4'b0000;
+      PI_pop <= 1'b0;
+      PI_flush <= 1'b1;
+      PI_flush_but_first <= 1'b0;
       PI_testmode <= 1'b0;
     end
 
     // state 7
     if (cycle == 6) begin
-      PI_flush <= 1'b0;
-      PI_pop <= 1'b0;
       PI_push <= 1'b0;
-      PI_flush_but_first <= 1'b0;
       PI_din <= 4'b0000;
+      PI_pop <= 1'b0;
+      PI_flush <= 1'b0;
+      PI_flush_but_first <= 1'b0;
       PI_testmode <= 1'b0;
     end
 

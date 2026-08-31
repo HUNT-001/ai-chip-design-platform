@@ -16,7 +16,7 @@
 ##   0:00:00  Checking assumptions in step 7..
 ##   0:00:00  Checking assertions in step 7..
 ##   0:00:00  BMC failed!
-##   0:00:00  Assert failed in fifo_fv: fifo_fv.v:60.38-60.58 (_witness_.check_assert_fifo_fv_v_60_61)
+##   0:00:00  Assert failed in fifo_fv: fifo_fv.v:67.38-67.58 (_witness_.check_assert_fifo_fv_v_67_61)
 ##   0:00:00  Writing trace to VCD file: engine_0/trace.vcd
 ##   0:00:00  Writing trace to Verilog testbench: engine_0/trace_tb.v
 ##   0:00:00  Writing trace to constraints file: engine_0/trace.smtc

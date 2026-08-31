@@ -11,3 +11,7 @@
 ##   0:00:00  Trying induction in step 3..
 ##   0:00:00  Trying induction in step 2..
 ##   0:00:00  Trying induction in step 1..
+##   0:00:00  Trying induction in step 0..
+##   0:00:00  Temporal induction failed!
+##   0:00:00  Assert failed in fifo_fv: fifo_fv.v:67.38-67.58 (_witness_.check_assert_fifo_fv_v_67_61)
+##   0:00:00  Writing trace to VCD file: engine_0/trace_induct.vcd
