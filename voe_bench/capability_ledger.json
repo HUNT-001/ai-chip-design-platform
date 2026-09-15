@@ -172,5 +172,48 @@
     ],
     "complexity_note": "THE DETERMINISM CAVEAT ON EXPERIMENTS 13 AND 14 THEREFORE STANDS, UNDISCHARGED. Their +20.0% and +22.2% remain exact arithmetic on deterministic boards rather than sampled estimates, and their noise criteria remain vacuous. Two defects were found building this: every obligation was initially a TRUE property, so the board could never have varied (fixed by adding the mutant-refuted mvf.bug, named explicitly in source); and per-obligation counters were initialised in attach_features rather than __init__, so any featureless worker crashed on its first simulation \u2014 latent for as long as every such experiment was formal-only. TEMPTING AND REFUSED: shrinking nvec until the mutant is sometimes missed would manufacture variance by tuning the instrument toward the desired result. If that is done it must be pre-registered with the vector count justified as realistic, not chosen because it produces noise.",
     "at": 1788120858.0167363
+  },
+  {
+    "hypothesis": "CORRECTION to the Experiment 15 record above, which was filed as UNDERPOWERED. That was the wrong state. UNDERPOWERED means the committed rule could not decide AT THIS SAMPLE SIZE \u2014 it implies more seeds would help. Here no sample size helps, because the environment cannot exhibit the phenomenon at all.",
+    "treatment": "Experiment 15",
+    "control": "(no comparison was admissible)",
+    "evidence": "Eligibility gate, run BEFORE any campaign: the same action (simulate mvf.bug) yields 1 distinct outcome across seeds {1,7,42,999,31337} \u2014 'counterexample' every time. Var(O|a) = 0.",
+    "decision": "NOT EVALUABLE",
+    "reason": "A third verdict state, distinct from MET / NOT MET / UNDERPOWERED. NOT MET says the effect is absent or too small. NOT EVALUABLE says the question was never asked: the committed rule was never applicable, so no metric is reported and none should be quoted. Experiment 15 now refuses at the eligibility gate and runs zero campaigns, so the 0.765-vs-1.480 figure no longer exists to be misread. A validly rejected experiment is a successful experiment-control outcome, not a failure.",
+    "revisit_if": [
+      "a benchmark with 0 < P(bug detected per campaign) < 1 under a realistic stimulus distribution is admitted to the corpus",
+      "ONLY THEN do belief/posterior/world-model questions become askable \u2014 those mechanisms exploit stochasticity this corpus cannot present, so testing them here would measure nothing"
+    ],
+    "complexity_note": "GENERALISED INTO voe/eligibility.py as a permanent gate that runs BEFORE the pre-registered rule, alongside the vacuity gate, positive control, negative control and witness audit. Those all ask whether a RESULT is trustworthy; this asks whether the environment can OBSERVE the phenomenon at all. Three regimes are now explicit: DETERMINISTIC (admits freely, but seed counts are repetition and must never be reported as sample size), STOCHASTIC (requires Var(O|a) > 0 demonstrated on the actual board), SEQUENTIAL (requires an action whose outcome changes what is worth doing next). Current corpus: good for DETERMINISTIC, demonstrated for SEQUENTIAL (fifo and mv_filter lemma dependencies), INSUFFICIENT for STOCHASTIC.",
+    "at": 1789241908.650664
+  },
+  {
+    "hypothesis": "A benchmark can be built whose bug random stimulus SOMETIMES catches and sometimes misses, admitting the STOCHASTIC experiment class that Experiment 15 showed the corpus could not support.",
+    "treatment": "sat_mac (saturating signed MAC) + (-128)x(-128) mutant",
+    "control": "the existing corpus, which is a deterministic classifier",
+    "evidence": "REAL Verilator, 40 seeds, 20000 vectors (project default, unchanged). Positive control: good DUT passes on ALL 40 seeds. Mutant caught in 18/40 campaigns -> P(detect) = 0.450 +/- 0.154. Distinct outcomes {pass, counterexample}. Reproducible: seed 1007 gives the same verdict twice. ADMITTED by the eligibility gate as STOCHASTIC.",
+    "decision": "PROMOTED",
+    "reason": "The first non-degenerate board in the corpus. Seeds are SAMPLES here, not repetition, so a committed noise criterion is meaningful for the first time. The rarity is a property of two's-complement arithmetic \u2014 (-128)x(-128) is the single asymmetric corner of an 8x8 signed multiply, 1 pair in 65536 \u2014 not a number chosen to land the statistics conveniently, and the vector count stayed at the project default rather than being tuned.",
+    "revisit_if": [
+      "the corner-rate discrepancy is explained \u2014 REQUIRED before any quantitative use of this benchmark",
+      "a second stochastic design is added; one rare corner in one arithmetic unit is a starting point, not a suite"
+    ],
+    "complexity_note": "OPEN DISCREPANCY, NOT RESOLVED: measured P(detect) = 0.450 but the arithmetic predicts 1-(1-1/65536)^20000 = 0.263, and the 95% interval [0.30, 0.60] EXCLUDES the prediction. A ~1.7x gap in the effective corner rate. Admission does not depend on it (0 < P < 1 either way), but the benchmark must NOT be used quantitatively until it is explained: a rate that differs from the model means the stimulus distribution is not what was declared. A stimulus-distribution control was added that COUNTS corner occurrences directly instead of inferring them from the detection rate, and it runs automatically when the two disagree. Also found: the testbench initially emitted 'SIM PASS checked=N' instead of the 'SIM_RESULT PASS n=N fails=N' the channel parses, so the status was 'error' rather than 'fail' \u2014 the positive control refused to characterise anything, which is the gate working.",
+    "at": 1789271002.7284517
+  },
+  {
+    "hypothesis": "CHARACTERISATION COMPLETE for the sat_mac stochastic benchmark, superseding the record above which admitted it with an OPEN discrepancy (measured P(detect) 0.450 vs arithmetic 0.263).",
+    "treatment": "sat_mac + (-128)x(-128) mutant, corrected stimulus",
+    "control": "the arithmetic prediction",
+    "evidence": "REAL Verilator, 40 seeds, 20000 vectors. P(detect) = 0.350 +/- 0.148, agreeing with the predicted 0.263. Corners 17 over 800000 vectors = 1 in 47059, 95% CI [1 in 31896 .. 1 in 89699], which CONTAINS 1 in 65536. Marginals uniform (1 in 255, 1 in 256). Joint vs independence +1.35 sigma (was +3.6 sigma before the fix). Detection occurs IFF a corner occurs \u2014 zero campaigns detected without one, zero contained one without detecting. Positive control passes on all 40 seeds. Reproducible.",
+    "decision": "PROMOTED",
+    "reason": "The benchmark's documented property now matches what it does, so the quantitative block is lifted. ROOT CAUSE of the original gap: TWO CONSECUTIVE $urandom() CALLS IN VERILATOR ARE CORRELATED. The marginals were exactly uniform while the joint ran 2x high \u2014 neither number alone could show that, only measuring both. Drawing both operands from separated bit lanes of ONE $urandom() removed it.",
+    "revisit_if": [
+      "a tighter P(detect) is needed \u2014 add seeds, do not re-model",
+      "a second stochastic design is added; one corner in one arithmetic unit is a starting point, not a suite",
+      "any new testbench uses consecutive $urandom() calls for operands that must be independent"
+    ],
+    "complexity_note": "THE PRECISION IS MODEST AND MUST BE QUOTED WITH THE VALUE. 17 events puts the corner rate within a factor of ~2.8; P(detect) = 0.350 +/- 0.148 is the operative property and is measured DIRECTLY (14/40), while the corner rate is a secondary consistency check explaining why. Anyone needing a tighter P(detect) needs more seeds, not a better model. FOUR instrument defects on the way: the TB emitted the wrong result line so the channel returned 'error' not 'fail'; Evidence.raw was populated only on errors so a PASS-time diagnostic was unreachable; corners and detections were counted on DIFFERENT seed sets and the incomparable rates were then read as evidence about the DUT; and the stimulus measurement was GATED ON the statistic it validates, so the healthy case was never confirmed. That last one is the FOURTH instance in this project of a control that is present, correct, and unable to observe \u2014 it now looks like the dominant failure mode of this kind of apparatus rather than a series of unrelated slips.",
+    "at": 1789404461.6657925
   }
 ]
