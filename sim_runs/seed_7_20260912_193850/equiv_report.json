@@ -1,0 +1,7 @@
+{
+  "schema_version": "2.1.0",
+  "agent": "equivalence_verifier",
+  "status": "skipped",
+  "reason": "no equiv_trace",
+  "pass": true
+}
