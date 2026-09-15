@@ -442,10 +442,15 @@ class SimChannel:
         if not m:
             return Evidence("sim", "error", witness=log, detail="no SIM_RESULT line", raw=out)
         verdict, n, fails = m.group(1), int(m.group(2)), int(m.group(3))
+        # `raw` on EVERY outcome, not just errors. A testbench may emit
+        # diagnostics a caller needs to read — the stimulus-distribution control
+        # counts corner-case occurrences and prints them on a PASS, which was
+        # unreachable while raw was populated only when the run failed.
         if verdict == "PASS":
-            return Evidence("sim", "pass", witness=_stamp(log), n=n, detail=f"{n} vectors, 0 fails")
+            return Evidence("sim", "pass", witness=_stamp(log), n=n,
+                            detail=f"{n} vectors, 0 fails", raw=out)
         return Evidence("sim", "counterexample", witness=_stamp(log), n=n,
-                        detail=f"{fails} mismatches over {n} vectors")
+                        detail=f"{fails} mismatches over {n} vectors", raw=out)
 
 
 # --------------------------------------------------------------------------- #
