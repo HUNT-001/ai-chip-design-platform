@@ -1311,6 +1311,156 @@ measuring apparatus — the harnesses, the policies, the experimental design —
 not one has been a kernel or RTL defect. The kernel and the RTL remain **not
 falsified, not proven correct**.
 
+## 8d. Experiment 15 — the gate that comes before all the other gates
+
+Experiment 15 produced **no scientific verdict, and that is its result.**
+
+Every control this project had built asks whether a RESULT is trustworthy — the
+vacuity gate, the positive and negative controls, the witness audit,
+pre-registration. Experiment 15 had all of them armed, on real RTL with real
+tools, and still could not answer its question. The phenomenon it intended to
+measure did not exist in the corpus.
+
+```
+experiment requires stochastic outcomes
+            |
+check whether seeds change outcomes
+            |
+mvf.sticky -> PASS on every seed
+mvf.bug    -> caught on every seed
+            |
+Var(O | a) = 0
+            |
+premise invalid  ->  NO VERDICT
+```
+
+### A third verdict state
+
+| verdict | meaning |
+|---|---|
+| MET / NOT MET | the committed rule was applied and decided |
+| UNDERPOWERED | the rule could not decide *at this sample size* — more seeds would help |
+| **NOT EVALUABLE** | the rule was never applicable — no sample size helps |
+
+`NOT MET` says the effect is absent or too small. `NOT EVALUABLE` says the
+question was never asked. Collapsing them records a benchmark mismatch as a
+scientific finding. Experiment 15 now refuses at the gate and runs **zero**
+campaigns, so the figure it briefly produced no longer exists to be quoted.
+
+### Three experiment regimes (`voe/eligibility.py`)
+
+| regime | same action -> | needed for | admission requirement |
+|---|---|---|---|
+| DETERMINISTIC | same outcome | proof correctness, risk accounting, formal-vs-sim | none — but seed counts are **repetition**, never sample size |
+| STOCHASTIC | a *distribution* | seed sensitivity, adaptive sampling, posterior learning | `Var(O \| a) > 0`, **measured** on the board |
+| SEQUENTIAL | a changed action set | diagnosis, multi-step planning, long horizons | an action whose outcome changes what is worth doing next |
+
+**Current corpus:** good for DETERMINISTIC. Demonstrated for SEQUENTIAL — the
+measured lemma dependencies on `fifo` and `mv_filter`. **Insufficient for
+STOCHASTIC.**
+
+That is a benchmark property, not a framework weakness, and it is why
+belief/posterior/world-model work is on hold: those mechanisms exploit
+stochasticity this corpus cannot present, so testing them here would measure
+nothing.
+
+### What was refused
+
+Shrinking `nvec` until the mutant is sometimes missed would have manufactured
+variance by tuning the instrument toward the desired statistics. Recorded as
+refused, not as untried. If it is ever done, the vector count must be justified
+as a realistic verification scenario *before* the fact — not chosen because it
+produces noise.
+
+### What the sixteen instrument defects actually show
+
+Sixteen instrument defects, zero exposed kernel or RTL defects. That does **not**
+prove the kernel is correct. What it supports is narrower and still worth
+stating:
+
+> The experimental and evidence-generation infrastructure has repeatedly been a
+> more fragile source of error than the system under verification, and the
+> architecture's controls are increasingly effective at catching those failures
+> before they become conclusions.
+
+Every one of the sixteen is a permanent adversarial regression test.
+
+## 8e. The stochastic benchmark — building the phenomenon the corpus lacked
+
+Experiment 15 returned NOT EVALUABLE because no board in the corpus could
+exhibit campaign-to-campaign variance. The fix is verification engineering, not
+AI work: build a benchmark whose bug random stimulus SOMETIMES catches.
+
+**`voe_stoch/` — saturating signed MAC.** The mutant breaks exactly one case:
+`(-128) x (-128)`, the single asymmetric corner of an 8x8 signed multiply, where
+the true product `+16384` has no negative counterpart. One operand pair in
+65536. **The rarity comes from two's-complement arithmetic, not from tuning** —
+the vector count stayed at the project default of 20000, and shrinking it until
+the bug is sometimes missed was considered and refused as tuning the instrument
+toward the desired statistics.
+
+### Measured, not assumed
+
+| property | measured | expected |
+|---|---|---|
+| P(detect) | 0.350 +/- 0.148 (14/40) | 0.263 |
+| corner rate | 1 in 47059, CI [1 in 31896 .. 1 in 89699] | 1 in 65536 |
+| P(a == -128) | 1 in 255 | 1 in 256 |
+| P(b == -128) | 1 in 256 | 1 in 256 |
+| joint vs independence | +1.35 sigma | consistent |
+| detection iff corner | zero exceptions either way | required |
+| positive control | passes on all 40 seeds | required |
+
+**The precision is modest and is quoted with the value.** 17 events knows the
+corner rate only to within ~2.8x. `P(detect)` is the operative property and is
+measured DIRECTLY; the corner rate is a secondary check explaining why. A
+tighter `P(detect)` needs more seeds, not a better model.
+
+### The root cause, found by measurement
+
+The first characterisation gave P(detect) = 0.450 against a predicted 0.263. The
+marginals were exactly uniform while the joint ran 2x high, +3.6 sigma:
+
+> **Two consecutive `$urandom()` calls in Verilator are correlated.**
+
+Neither number alone could have shown that — a skewed marginal and correlated
+draws produce the same joint anomaly. Drawing both operands from separated bit
+lanes of ONE draw brought it to +1.35 sigma, and P(detect) to 0.350.
+
+A guess got there first and was wrong: the ternary in the mutant looked like the
+Verilog width/signedness trap that produced the Ibex shift counterexample
+earlier in this project. Reading the actual counterexample settled it in one
+run — every failing campaign BEGINS at the corner, and the mismatches after it
+are the accumulator having diverged from that single hit.
+
+### Four instrument defects, and the recurring one
+
+1. the TB emitted the wrong result line, so the channel returned `error` (not
+   `fail`) and the positive control correctly refused to characterise anything;
+2. `Evidence.raw` was populated only on errors, so a PASS-time diagnostic was
+   structurally unreachable;
+3. corners and detections were counted on DIFFERENT seed sets, and the
+   incomparable rates were then read as evidence about the DUT;
+4. the stimulus measurement was **gated on the statistic it validates**, so the
+   healthy case was never confirmed.
+
+(4) is the **fourth instance in this project of a control that is present,
+correct, and unable to observe** — after hierarchical refs becoming undriven
+wires, a determinism guard comparing against a float that was never exactly
+zero, and a diagnostic discarded before its reader saw it. That now looks like
+the dominant failure mode of this kind of apparatus rather than a series of
+unrelated slips.
+
+### What this unlocks, and what it does not
+
+The corpus now has one board where **seeds are samples rather than repetition**,
+so a committed noise criterion is meaningful for the first time. Seed
+sensitivity, adaptive sampling, probabilistic diagnosis — and only now whether
+posterior/belief machinery earns its complexity — become askable.
+
+It does **not** make the benchmark representative. One rare corner in one
+arithmetic unit is a starting point, not a suite.
+
 ## 9. Roadmap position
 
 Phase 1 (kernel) ✅ · Phase 2 (VOE) ✅ · Phase 3 (one engineer on real evidence) ✅
