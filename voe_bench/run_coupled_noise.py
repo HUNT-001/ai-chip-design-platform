@@ -40,6 +40,7 @@ from evaluation import run_campaign, aggregate
 from institutional_memory import promotion_verdict
 from policy import STATIC_CACHED, LEMMA_FIRST
 from preregistration import Criteria, Preregistration
+from eligibility import STOCHASTIC, admit, outcome_variance
 from run_benchmark import SimRouter
 from run_coupled_two import (BOARD, COUPLINGS, TwoFamilyRouter, ReattemptWorker)
 from voe import VOE
@@ -138,6 +139,33 @@ def main():
     print(f"    committed : sha256:{prereg.digest}  "
           f"{'INTACT' if prereg.intact else 'MODIFIED — INVALID'}")
     print(f"    seeds     : {seeds}   mode = {'MOCK' if mock else 'REAL'}\n")
+
+    # ---- ELIGIBILITY, BEFORE ANY CAMPAIGN --------------------------------
+    # Experiment 15's lesson, now a gate: an experiment must demonstrate that
+    # the phenomenon it intends to measure EXISTS here, before a metric is
+    # computed. Running the campaigns first and checking afterwards still
+    # produces a number that someone may quote.
+    probe = SimRouter(mock)
+    n_distinct, outs = outcome_variance(
+        lambda sd: probe.run(inject_bug=True, seed=sd, nvec=20000,
+                             phi="mvf.bug").status,
+        (1, 7, 42, 999, 31337))
+    elig = admit("Experiment 15", STOCHASTIC, distinct_outcomes=n_distinct)
+    print(elig.render())
+    print(f"      mvf.bug across 5 seeds -> {sorted(set(outs))}\n")
+    if not elig.eligible:
+        print("=== verdict: NOT EVALUABLE ===")
+        print("  No stochastic treatment effect exists in this corpus, so the")
+        print("  committed rule was never applicable and NO metric is reported.")
+        print("  This is NOT a NOT MET: a NOT MET says the effect is absent or")
+        print("  too small; this says the question was never asked. The")
+        print("  determinism caveat on Experiments 13 and 14 therefore STANDS.")
+        print("\n  What is needed is a BENCHMARK, not a policy: a design/mutant")
+        print("  pair with 0 < P(detected by campaign) < 1 under a realistic")
+        print("  stimulus distribution. Shrinking nvec until the bug is")
+        print("  sometimes missed would tune the instrument toward the desired")
+        print("  statistics and is refused.")
+        return
 
     res, inc = {}, {}
     for p in (STATIC_CACHED, LEMMA_FIRST):
