@@ -492,3 +492,115 @@ def test_an_experiment_refuses_to_report_when_its_premise_fails():
     assert "Do not record a verdict" in body
     assert body.index("return") < body.index("prereg.decide"), \
         "the premise check must return BEFORE any verdict is computed"
+
+
+# --------------------------------------------------------------------------- #
+# Experiment 15 -> the ELIGIBILITY gate. Every other gate asks whether a RESULT #
+# is trustworthy; this asks whether the environment can OBSERVE the phenomenon. #
+# --------------------------------------------------------------------------- #
+def test_a_stochastic_experiment_is_refused_on_a_deterministic_board():
+    """The gate Experiment 15 produced. Its board had real tools, a real
+    testbench, and every control armed — and still could not answer, because
+    seed variation had nothing to act on. No sample size fixes that."""
+    from eligibility import STOCHASTIC, admit
+    e = admit("X", STOCHASTIC, distinct_outcomes=1)
+    assert not e.eligible
+    assert any("no stochastic treatment effect" in r for r in e.reasons)
+    assert admit("X", STOCHASTIC, distinct_outcomes=4).eligible
+
+
+def test_not_evaluable_is_not_not_met():
+    """Two different claims. NOT MET: the effect is absent or too small. NOT
+    EVALUABLE: the question was never asked. Collapsing them records a benchmark
+    mismatch as a scientific finding."""
+    from eligibility import NOT_EVALUABLE
+    assert NOT_EVALUABLE == "NOT EVALUABLE"
+    assert NOT_EVALUABLE not in ("NOT MET", "UNDERPOWERED", "MET")
+
+
+def test_a_stochastic_experiment_must_measure_variance_not_assume_it():
+    """Declaring a board stochastic is not evidence that it is."""
+    from eligibility import STOCHASTIC, admit
+    e = admit("X", STOCHASTIC)                      # nothing measured
+    assert not e.eligible
+    assert any("must MEASURE outcome variance" in r for r in e.reasons)
+
+
+def test_seed_count_is_not_a_sample_count_on_a_deterministic_board():
+    """Experiments 13 and 14 each ran ONE campaign N times. Their gains were
+    exact arithmetic, not estimates, and their noise criteria were vacuous."""
+    from eligibility import seeds_are_replication
+    assert not seeds_are_replication(1)
+    assert seeds_are_replication(2)
+
+
+def test_the_eligibility_gate_runs_before_any_campaign():
+    """Checking afterwards still produces a number someone may quote. Experiment
+    15 must return before a single campaign executes."""
+    import os
+    src = open(os.path.join(os.path.dirname(__file__), "..", "voe_bench",
+                            "run_coupled_noise.py")).read()
+    assert src.index("elig = admit(") < src.index("run_campaign(")
+    assert "NOT EVALUABLE" in src
+
+
+# --------------------------------------------------------------------------- #
+# The stochastic benchmark. Four defects, and the fourth is the recurring one. #
+# --------------------------------------------------------------------------- #
+def test_operands_that_must_be_independent_are_not_consecutive_urandom_calls():
+    """MEASURED: two consecutive $urandom() calls in Verilator are correlated.
+    The marginals were exactly uniform (1 in 255, 1 in 256) while the joint
+    corner ran 2x high — 25 observed against 12.2 expected, +3.6 sigma. Neither
+    number alone could reveal it; only measuring both did. Separated bit lanes
+    of ONE draw brought it to +1.35 sigma."""
+    import os
+    tb = open(os.path.join(os.path.dirname(__file__), "..", "voe_stoch",
+                           "sim", "tb_satmac.sv")).read()
+    body = "\n".join(l.split("//")[0] for l in tb.splitlines())
+    # The invariant is about the OPERANDS, which must be mutually independent.
+    # `clr` keeps its own draw: it is a separate control signal, and it cannot
+    # mask a detection because the checker compares every cycle, so a corner
+    # mismatch is caught on the corner cycle itself. (Its draw IS consecutive
+    # with the operand draw, so clr and the operands may correlate — a plausible
+    # contributor to the residual +1.35 sigma, and harmless here only because
+    # clr does not affect whether the corner occurs.)
+    assert "a   = r[7:0]" in body and "b   = r[23:16]" in body, \
+        "operands must come from separated lanes of ONE draw"
+    assert "a   = $urandom()" not in body and "b   = $urandom()" not in body
+
+
+def test_a_measurement_is_not_gated_on_the_statistic_it_validates():
+    """The fourth instance of 'a control that cannot observe'. The stimulus
+    characterisation ran only when P(detect) looked wrong, so the benchmark's
+    headline property went unmeasured whenever the derived statistic happened to
+    look fine. A check that fires only on suspicion never confirms the healthy
+    case — it can only ever fail to fire."""
+    import os
+    src = open(os.path.join(os.path.dirname(__file__), "..", "voe_stoch",
+                            "characterise.py")).read()
+    assert "UNCONDITIONAL" in src
+    # the pairing call must not sit inside a discrepancy branch
+    i = src.index("report_pairing(paired_corner_and_detect")
+    preceding = src[:i]
+    assert "if abs(p - predicted)" not in preceding.rsplit("if not mock:", 1)[-1]
+
+
+def test_a_rate_is_reported_with_its_precision():
+    """17 events knows the corner rate only to within ~2.8x. '1 in 47059' reads
+    far more precise than the sample supports, so the interval is printed with
+    it — a point estimate without its width invites exactly the overclaiming
+    this project keeps catching."""
+    import os
+    src = open(os.path.join(os.path.dirname(__file__), "..", "voe_stoch",
+                            "characterise.py")).read()
+    assert "corner rate 95% CI" in src and "known to ~" in src
+
+
+def test_the_benchmark_documents_measured_not_assumed_properties():
+    """Admission required 0 < P < 1; USE requires the documented property to
+    match the measured one. Both verdicts must exist in the source."""
+    import os
+    src = open(os.path.join(os.path.dirname(__file__), "..", "voe_stoch",
+                            "characterise.py")).read()
+    assert "quantitative block is LIFTED" in src
+    assert "NOT fully characterised" in src
