@@ -44,6 +44,7 @@ sys.path.insert(0, str(_HERE))
 from compare_commitlogs import (
     CommitEntry,
     CompareConfig,
+    _FieldComparator,
     CompareResult,
     MismatchType,
     Severity,
@@ -100,6 +101,142 @@ def _mk(
     if privilege:  e["privilege"] = privilege
     if disasm:     e["disasm"]    = disasm
     return e
+
+
+def _mk_canonical(
+    seq: int, pc: int, instr: int = 0x00000013, *,
+    mem_writes: Optional[list] = None,
+    mem_reads:  Optional[list] = None,
+    trap:       Optional[dict] = None,
+    regs:       Optional[dict] = None,
+    csrs:       Optional[dict] = None,
+    priv:       str            = "M",
+    src:        str            = "rtl",
+) -> Dict[str, Any]:
+    """Build a record in the CANONICAL schema (AGENT_A/commitlog.schema.json).
+
+    ``_mk`` above builds records in the LEGACY flat layout -- mem_addr /
+    mem_val / mem_op and top-level trap_cause.  That is the layout
+    ``CommitEntry.from_dict`` happened to read, so every fixture built with
+    ``_mk`` agreed with the implementation by construction and the suite was
+    self-consistently blind to records that real producers actually emit.
+
+    This helper exists so that at least some fixtures are derived from the
+    SCHEMA rather than from the code under test.  Anything asserted through
+    both helpers is asserted against two independent descriptions of the
+    format; anything asserted through ``_mk`` alone is only asserted against
+    the implementation's own habits.
+    """
+    e: Dict[str, Any] = {
+        "schema_version": "2.1.0",
+        "hart": 0,
+        "seq": seq,
+        "pc": f"0x{pc:08x}",
+        "instr": f"0x{instr:08x}",
+        "priv": priv,
+        "trap": trap,
+        "regs": regs or {},
+        "csrs": csrs or {},
+        "mem_writes": mem_writes,
+        "mem_reads": mem_reads,
+        "_src": src,
+    }
+    return e
+
+
+class TestCanonicalSchemaFields(unittest.TestCase):
+    """Regression tests for #1 -- the comparator silently ignored canonical
+    mem_writes / mem_reads / nested trap, and returned PASS on runs containing
+    real store-data corruption and wrong exception causes.
+
+    These are written from the schema, deliberately NOT through ``_mk``.
+    """
+
+    def _cmp(self, rtl_rec, iss_rec):
+        rtl = CommitEntry.from_dict(rtl_rec, xlen=32, lineno=1, source="rtl.jsonl")
+        iss = CommitEntry.from_dict(iss_rec, xlen=32, lineno=1, source="iss.jsonl")
+        return _FieldComparator(CompareConfig()).compare(rtl, iss)
+
+    def test_store_data_divergence_is_reported(self):
+        rtl = _mk_canonical(2, 0x80000008, 0x00A12023, mem_writes=[
+            {"addr": "0x80001000", "size": 4, "data": "0xbadbad00"}])
+        iss = _mk_canonical(2, 0x80000008, 0x00A12023, src="iss", mem_writes=[
+            {"addr": "0x80001000", "size": 4, "data": "0x0000002a"}])
+        issues = self._cmp(rtl, iss)
+        self.assertTrue(issues, "store data corruption reported as PASS")
+
+    def test_store_address_divergence_is_reported(self):
+        rtl = _mk_canonical(2, 0x80000008, 0x00A12023, mem_writes=[
+            {"addr": "0x80001000", "size": 4, "data": "0x0000002a"}])
+        iss = _mk_canonical(2, 0x80000008, 0x00A12023, src="iss", mem_writes=[
+            {"addr": "0x80002000", "size": 4, "data": "0x0000002a"}])
+        self.assertTrue(self._cmp(rtl, iss), "store address divergence missed")
+
+    def test_matching_stores_produce_no_issue(self):
+        """The mirror of the tests above.  A fix that reports a mismatch on
+        EVERY canonical record would make them pass while being useless."""
+        w = [{"addr": "0x80001000", "size": 4, "data": "0x0000002a"}]
+        rtl = _mk_canonical(2, 0x80000008, 0x00A12023, mem_writes=list(w))
+        iss = _mk_canonical(2, 0x80000008, 0x00A12023, src="iss",
+                            mem_writes=list(w))
+        self.assertEqual(self._cmp(rtl, iss), [])
+
+    def test_trap_cause_divergence_is_reported(self):
+        rtl = _mk_canonical(4, 0x80000010, 0x00000073, trap={
+            "cause": "0x00000002", "tval": "0x00000000",
+            "tvec": "0x80000100", "epc": "0x80000010", "is_interrupt": False})
+        iss = _mk_canonical(4, 0x80000010, 0x00000073, src="iss", trap={
+            "cause": "0x0000000b", "tval": "0x00000000",
+            "tvec": "0x80000100", "epc": "0x80000010", "is_interrupt": False})
+        self.assertTrue(self._cmp(rtl, iss), "trap cause divergence missed")
+
+    def test_matching_traps_produce_no_issue(self):
+        t = {"cause": "0x0000000b", "tval": "0x00000000",
+             "tvec": "0x80000100", "epc": "0x80000010", "is_interrupt": False}
+        rtl = _mk_canonical(4, 0x80000010, 0x00000073, trap=dict(t))
+        iss = _mk_canonical(4, 0x80000010, 0x00000073, src="iss", trap=dict(t))
+        self.assertEqual(self._cmp(rtl, iss), [])
+
+    def test_nested_trap_sets_the_coarse_trap_flag(self):
+        e = CommitEntry.from_dict(
+            _mk_canonical(4, 0x80000010, trap={
+                "cause": "0x00000002", "tval": "0x0", "tvec": "0x80000100",
+                "epc": "0x80000010"}), xlen=32)
+        self.assertTrue(e.trap)
+        self.assertEqual(e.trap_cause, 0x2)
+        self.assertEqual(e.trap_pc, 0x80000010)
+
+    def test_mem_reads_populate_a_load(self):
+        e = CommitEntry.from_dict(
+            _mk_canonical(3, 0x80000004, mem_reads=[
+                {"addr": "0x80001000", "size": 4, "data": "0x0000002a"}]),
+            xlen=32)
+        self.assertEqual(e.mem_op, "load")
+        self.assertEqual(e.mem_addr, 0x80001000)
+
+    def test_legacy_flat_layout_still_works(self):
+        """This change WIDENS the accepted input; it is not a migration.
+        Every existing producer emitting the flat layout must keep working."""
+        e = CommitEntry.from_dict(
+            _mk(1, 0x1000, mem_op="store", mem_addr=0x2000, mem_val=0xAB,
+                mem_size=4), xlen=32)
+        self.assertEqual(e.mem_op, "store")
+        self.assertEqual(e.mem_addr, 0x2000)
+        self.assertEqual(e.mem_val, 0xAB)
+
+    def test_unaligned_two_entry_store_is_not_silently_truncated(self):
+        """The schema permits two entries for an unaligned store.  Comparing
+        only the first would reintroduce exactly this bug for a narrower case:
+        a divergence in the second half would read as PASS.  Refusing loudly is
+        acceptable for v1; failing silently is not."""
+        rec = _mk_canonical(2, 0x80000008, mem_writes=[
+            {"addr": "0x80001002", "size": 2, "data": "0xbeef"},
+            {"addr": "0x80001004", "size": 2, "data": "0xdead"}])
+        e = CommitEntry.from_dict(rec, xlen=32, lineno=7, source="rtl.jsonl")
+        self.assertTrue(
+            e.schema_violation,
+            "a 2-entry mem_writes was accepted without flagging that only "
+            "the first entry participates in the comparison")
 
 
 class _LogPair:
