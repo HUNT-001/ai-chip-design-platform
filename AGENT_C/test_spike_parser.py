@@ -15,7 +15,9 @@ import json, re, sys, unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "sim"))
-from spike_parser import detect_format, parse_spike_log, _reg_idx, _hex, SCHEMA_VERSION
+from spike_parser import (detect_format, parse_spike_log,
+                          parse_spike_log_streaming, _reg_idx, _hex,
+                          SCHEMA_VERSION)
 
 # ── Synthetic Spike log samples ──────────────────────────────────────────────
 
@@ -196,6 +198,57 @@ class TestMemField(unittest.TestCase):
     def test_mem_addr(self):
         m = _parse(FMT_B_BASIC, "B")[2]["mem"]
         self.assertEqual(m["addr"], "0x00000004")
+
+    # ── regression tests for #2 ───────────────────────────────────────────────
+    # `mem.type` was hardcoded to "load" for every FORMAT B memory access, so
+    # every store in every commit log was mislabelled.  The fixture below was
+    # already in this file and already annotated "# sw -> mem"; only the
+    # assertion was missing, which is why CI stayed green.
+    def test_store_is_labelled_store(self):
+        r = _parse(FMT_B_BASIC, "B")[2]          # sw, encoding 0x00002223
+        self.assertEqual(r["mem"]["type"], "store")
+
+    def test_mem_type_never_contradicts_mem_order_tag(self):
+        """The invariant, not just the instance.
+
+        Both fields describe the same fact and were inferred independently,
+        which is how they drifted.  Asserting they agree catches the whole
+        class -- including any future third inference site -- rather than this
+        one mislabelled fixture.
+        """
+        _COMPATIBLE = {
+            "STORE":   {"store"},
+            "LOAD":    {"load"},
+            "AMO":     {"amo"},
+            "ACQUIRE": {"amo", "load"},
+            "RELEASE": {"amo", "store"},
+        }
+        for fixture, fmt in ((FMT_B_BASIC, "B"), (FMT_B_DISASM_THEN_WB, "B"),
+                             (FMT_A, "A")):
+            for rec in _parse(fixture, fmt):
+                mem = rec.get("mem")
+                tag = rec.get("mem_order_tag")
+                if mem is None or tag not in _COMPATIBLE:
+                    continue
+                self.assertIn(
+                    mem["type"], _COMPATIBLE[tag],
+                    f"mem.type={mem['type']!r} contradicts "
+                    f"mem_order_tag={tag!r} on pc={rec.get('pc')}")
+
+    def test_streaming_and_batch_agree(self):
+        """The two parse entry points must not diverge.
+
+        `mem.type` is resolved in a post-pass that exists separately in
+        parse_spike_log() and parse_spike_log_streaming().  Nothing else in this
+        suite exercises the streaming path, so a fix applied to one and not the
+        other would leave every store mislabelled for precisely the large runs
+        that use streaming -- and CI would stay green.
+        """
+        for fixture, fmt in ((FMT_B_BASIC, "B"), (FMT_A, "A")):
+            batch = parse_spike_log(fixture, source="iss", fmt=fmt)
+            stream = list(parse_spike_log_streaming(fixture, source="iss",
+                                                    fmt=fmt))
+            self.assertEqual(batch, stream)
 
 
 # ── FORMAT A ──────────────────────────────────────────────────────────────────
