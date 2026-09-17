@@ -31,7 +31,55 @@ log = logging.getLogger("AGENT_A.semantic")
 SCHEMA_VERSION = "2.1.0"
 AGENT_NAME = "semantic_analyzer"
 _HEX = re.compile(r"^0x[0-9a-fA-F]+$")
-_MANIFEST_STATUS = {"running", "completed", "fail", "pending"}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Manifest lifecycle status — ONE source of truth
+# ─────────────────────────────────────────────────────────────────────────────
+# This was a hand-written literal, {"running", "completed", "fail", "pending"},
+# introduced before run_manifest.schema.json existed and never reconciled with
+# it.  The two vocabularies overlapped in exactly one value ("pending"), so a
+# manifest copied verbatim from the schema's own examples block was rejected by
+# this validator, while a manifest this validator accepted would fail the
+# schema.  Both files describe "the v2.1.0 manifest contract" and both call
+# themselves the single source of truth.
+#
+# The schema wins, for three reasons: it is declarative, it is more granular
+# (the running_* states carry information "running" throws away), and this
+# module's own docstring already defers to it.
+#
+# Loaded at import time rather than copied, because a copy is what drifted.
+_SCHEMA_PATH = Path(__file__).with_name("run_manifest.schema.json")
+
+
+def _load_manifest_statuses() -> frozenset:
+    """Read the authoritative lifecycle_status enum from the JSON schema.
+
+    Raises on failure rather than falling back to a hardcoded set.  A silent
+    fallback is precisely how the drifted literal survived: validation appeared
+    to work, against the wrong vocabulary.  If the schema cannot be read, the
+    contract cannot be enforced and that must be loud.
+
+    NOTE for packaging: run_manifest.schema.json must ship as package data.  A
+    wheel that omits it will import-fail here, which is the intended behaviour
+    -- it is strictly better than validating against a stale copy -- but it
+    means MANIFEST.in / pyproject must include the schema.
+    """
+    try:
+        with open(_SCHEMA_PATH, encoding="utf-8") as fh:
+            schema = json.load(fh)
+        enum = schema["$defs"]["lifecycle_status"]["enum"]
+    except (OSError, KeyError, ValueError) as exc:
+        raise RuntimeError(
+            f"cannot read lifecycle_status enum from {_SCHEMA_PATH}: {exc}. "
+            "The manifest status vocabulary is defined by the schema; refusing "
+            "to validate against a hardcoded copy."
+        ) from exc
+    if not enum:
+        raise RuntimeError(f"lifecycle_status enum in {_SCHEMA_PATH} is empty")
+    return frozenset(enum)
+
+
+_MANIFEST_STATUS = _load_manifest_statuses()
 
 
 def _now() -> str:
