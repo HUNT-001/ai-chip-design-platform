@@ -329,7 +329,9 @@ class SimChannel:
         self.defines_for = defines_for or (lambda bug: (["INJECT_BUG=1"] if bug else []))
         self.mock = mock or not _have("verilator")
         self.workroot = workroot or tempfile.mkdtemp(prefix="phase3_sim_")
-        self._built: dict[bool, str] = {}
+        # keyed by (variant, campaign length) — see build() for why nvec must
+        # be part of the key rather than just the variant.
+        self._built: dict[tuple, str] = {}
         # A simulation run is deterministic in (variant, seed, vector count), so
         # its verdict is cached. The Verilator BUILD is cached by `_built`, which
         # matters far more: rebuilding per campaign dominated the runtime of a
@@ -348,7 +350,16 @@ class SimChannel:
         """Returns (binary_path, error_str). error_str is '' on success."""
         if self.mock:
             return "<mock-binary>", ""
-        mdir = os.path.join(self.workroot, "buggy" if inject_bug else "good")
+        # The campaign length is COMPILED IN via -DNVEC, so two campaign
+        # lengths are two different binaries and must not share a directory.
+        # `_built` was keyed on the variant alone and the directory did not
+        # mention nvec, so the first build won and every later campaign length
+        # silently re-ran the first one's binary. Nothing in the corpus could
+        # expose that while every caller asked for 20000 vectors; the moment
+        # anything sweeps campaign length it produces a perfectly flat curve
+        # and an entirely wrong conclusion about the design.
+        mdir = os.path.join(self.workroot,
+                            ("buggy" if inject_bug else "good") + f"_n{nvec}")
         os.makedirs(mdir, exist_ok=True)
         defs = [f"-D{d}" for d in self.defines_for(inject_bug)]
         cmd = ["verilator", "--binary", "--timing", "-Wno-fatal",
@@ -365,7 +376,7 @@ class SimChannel:
         if p.returncode != 0 or not os.path.exists(binp):
             tail = (p.stdout + p.stderr).strip().splitlines()[-4:]
             return None, "build failed (see %s): %s" % (blog, " | ".join(tail))
-        self._built[inject_bug] = binp
+        self._built[(inject_bug, nvec)] = binp
         return binp, ""
 
     def control_status(self, nvec: int = 20000):
@@ -423,7 +434,7 @@ class SimChannel:
             # is exactly why formal is needed (Sem-1).
             return Evidence("sim", "pass", witness=f"<mock>/sim_seed{seed}.log",
                             n=nvec, detail=f"{nvec} random vectors, 0 fails")
-        binp = self._built.get(inject_bug)
+        binp = self._built.get((inject_bug, nvec))
         if not binp:
             binp, err = self.build(inject_bug, nvec)
             if not binp:
