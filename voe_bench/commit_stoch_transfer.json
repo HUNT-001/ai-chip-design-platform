@@ -1,0 +1,39 @@
+{
+  "committed_at": 1789478315.9606106,
+  "name": "stochastic transfer S2",
+  "notes": "Committed before pfifo was ever simulated. Grids differ per board and the justification is that the statistic is scale-free: fitting 1-(1-p)^N absorbs the rate, leaving only the shape.\nKNOWN LIMITATION, stated in advance rather than discovered afterwards. Points on one board's curve share seeds, and a short campaign is a PREFIX of a long one under the same seed, so the points are positively correlated. The Clopper-Pearson interval at each point is still exact for that point, but the points are not independent observations, so this is NOT a calibrated global goodness-of-fit test and no p-value is reported for the curve as a whole. A single point excluding the fitted law is evidence; counting excluded points is description, not inference.\nIf the law fits BOTH boards, the gate does not pass and the corpus contains one stochastic phenomenon sampled twice. That outcome is reportable and is not a reason to look for another statistic.",
+  "spec": {
+    "boards": {
+      "pfifo": {
+        "grid": [
+          64,
+          128,
+          256,
+          512,
+          1024,
+          2048,
+          4096
+        ],
+        "why": "~42-state control space; 1.5 to 100 coverings"
+      },
+      "sat_mac": {
+        "grid": [
+          5000,
+          10000,
+          20000,
+          40000,
+          80000,
+          160000
+        ],
+        "why": "corner is 1 in 65536; this brackets P = 0.07 to 0.91"
+      }
+    },
+    "gate": "the two boards are DISTINCT regimes only if the law fits one and is excluded by the other at >= 1 grid point",
+    "null": "P(detect | N) = 1 - (1-p)^N, p fitted per board by maximum likelihood over that board's whole grid",
+    "question": "do the two boards' detection-vs-campaign-length curves have different shapes, or does one memoryless law fit both?",
+    "seed_base": 7000,
+    "seeds": 4,
+    "statistic": "number of grid points whose Clopper-Pearson 95% interval excludes the best-fitting memoryless curve"
+  }
+}
+// sha256:a27bea56e43c33c3
