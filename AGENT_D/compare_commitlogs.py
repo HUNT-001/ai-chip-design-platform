@@ -567,6 +567,62 @@ class CsrWrite:
         )
 
 
+
+def _mem_from_canonical(d: Dict[str, Any], mask: int):
+    """Extract (addr, val, op, size, errors) from canonical mem_writes/mem_reads.
+
+    Returns (None, None, None, None, []) when neither array is present, so the
+    caller can fall back to the legacy flat fields.
+
+    Per AGENT_A/commitlog.schema.json a store may emit TWO entries when it
+    crosses a word boundary.  CommitEntry holds a single address/value pair, so
+    only the first entry can participate in the comparison.  Truncating that
+    silently would recreate the very bug this function fixes -- a divergence in
+    the second half would read as PASS -- so the extra entries are reported as
+    a schema violation rather than dropped quietly.
+    """
+    errs: List[str] = []
+    for key, op in (("mem_writes", "store"), ("mem_reads", "load")):
+        arr = d.get(key)
+        if not arr or not isinstance(arr, list):
+            continue
+        if len(arr) > 1:
+            errs.append(
+                f"{key} has {len(arr)} entries; only the first participates in "
+                f"comparison (unaligned access: see commitlog.schema.json)")
+        first = arr[0]
+        if not isinstance(first, dict):
+            errs.append(f"{key}[0] is not an object")
+            return None, None, None, None, errs
+        addr = first.get("addr")
+        data = first.get("data")
+        return (
+            None if addr is None else _parse_hex(addr, f"{key}[0].addr") & mask,
+            None if data is None else _parse_hex(data, f"{key}[0].data") & mask,
+            op,
+            (lambda v: int(v) if v is not None else None)(first.get("size")),
+            errs,
+        )
+    return None, None, None, None, errs
+
+
+def _trap_from_canonical(d: Dict[str, Any], mask: int):
+    """Extract (cause, tval, epc) from a canonical nested trap object.
+
+    Returns (None, None, None) when `trap` is absent or is not a dict, so the
+    caller falls back to the legacy top-level trap_cause/trap_tval/trap_pc.
+    """
+    t = d.get("trap")
+    if not isinstance(t, dict):
+        return None, None, None
+
+    def _g(k: str):
+        v = t.get(k)
+        return None if v is None else _parse_hex(v, f"trap.{k}") & mask
+
+    return _g("cause"), _g("tval"), _g("epc")
+
+
 @dataclass
 class CommitEntry:
     """One decoded, XLEN-masked commit-log record.
@@ -656,6 +712,17 @@ class CommitEntry:
         raw_pc = str(d["pc"])
         pc_int = _parse_hex(raw_pc, "pc") & mask
 
+        # ── Memory: canonical "mem_writes"/"mem_reads" arrays OR legacy flat
+        #    "mem_addr"/"mem_val"/"mem_op".  Same widening pattern already used
+        #    for csrs/csr_writes and regs/rd above.  Without this branch, every
+        #    canonical record lost its memory data during parsing and the
+        #    comparator compared None to None -- reporting PASS on runs that
+        #    contained real store-data corruption.
+        c_addr, c_val, c_op, c_size, mem_errs = _mem_from_canonical(d, mask)
+
+        # ── Trap: canonical nested object OR legacy top-level fields.
+        c_cause, c_tval, c_epc = _trap_from_canonical(d, mask)
+
         # Register writeback: canonical "regs" dict OR legacy "rd"/"rd_val"
         if "regs" in d and isinstance(d["regs"], dict):
             rd, rd_val = _regs_dict_to_rd(d["regs"], mask)
@@ -668,21 +735,26 @@ class CommitEntry:
             step        = int(d.get("seq", d.get("step", 0))),
             pc          = pc_int,
             instr       = _parse_hex(d["instr"], "instr") & mask,
-            trap        = bool(d.get("trap", False)),
+            # Schema: trap is non-null when a trap is taken.  bool({}) is
+            # False, so a present-but-empty object would silently read as "no
+            # trap"; presence is the signal for the canonical nested form.
+            trap        = (isinstance(d.get("trap"), dict)
+                           or bool(d.get("trap", False))),
             rd          = int(rd) if rd is not None else None,
             rd_val      = rd_val,
             rs1         = (lambda v: int(v) if v is not None else None)(d.get("rs1")),
             rs1_val     = _h("rs1_val"),
             rs2         = (lambda v: int(v) if v is not None else None)(d.get("rs2")),
             rs2_val     = _h("rs2_val"),
-            mem_addr    = _h("mem_addr"),
-            mem_val     = _h("mem_val"),
-            mem_op      = d.get("mem_op"),
-            mem_size    = (lambda v: int(v) if v is not None else None)(d.get("mem_size")),
+            mem_addr    = c_addr if c_op else _h("mem_addr"),
+            mem_val     = c_val  if c_op else _h("mem_val"),
+            mem_op      = c_op   or d.get("mem_op"),
+            mem_size    = (c_size if c_op else
+                           (lambda v: int(v) if v is not None else None)(d.get("mem_size"))),
             csr_writes  = csr_list,
-            trap_cause  = _h("trap_cause"),
-            trap_tval   = _h("trap_tval"),
-            trap_pc     = _h("trap_pc"),
+            trap_cause  = c_cause if c_cause is not None else _h("trap_cause"),
+            trap_tval   = c_tval  if c_tval  is not None else _h("trap_tval"),
+            trap_pc     = c_epc   if c_epc   is not None else _h("trap_pc"),
             privilege   = d.get("privilege") or d.get("priv"),
             disasm      = d.get("disasm"),
             lineno      = lineno,
@@ -692,7 +764,7 @@ class CommitEntry:
             e.x0_violation = True
 
         # ── Schema validation: optional-field type/range checks ───────────────
-        schema_errs: List[str] = []
+        schema_errs: List[str] = list(mem_errs)
         if e.rd is not None and not (0 <= e.rd <= 31):
             schema_errs.append(f"rd={e.rd} out of range 0-31")
         if e.rs1 is not None and not (0 <= e.rs1 <= 31):
