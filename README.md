@@ -8,6 +8,15 @@
 A **multi-agent RISC-V RTL verification platform** powered by causal AI, formal methods, and a 14-agent extended pipeline. AVA takes a raw RTL spec and drives it through semantic analysis, tandem simulation, coverage-guided test generation, and a full extended verification suite — all without requiring a complete EDA toolchain for basic operation.
 
 ---
+## System Architecture & Features
+
+![AI Chip Design Platform Modules](assets/AI_CHIP_MODULES.png)
+
+### Key Capabilities
+* **Automated Architecture Synthesis**: Direct synthesis of NPU, ALU, and SRAM configurations.
+* **Continuous RTL & IP Verification**: Automated testbench generation and debug tracking.
+* **PPA Optimization**: Multi-objective design space exploration for Power, Performance, and Area.
+* **Toolchain Integration**: Seamless execution across Verilator, Yosys, and NextPNR.
 
 ## Architecture
 
