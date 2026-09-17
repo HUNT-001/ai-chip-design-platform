@@ -90,6 +90,26 @@ class DatabaseError(CoverageError):
     """Raised when the coverage SQLite database is inaccessible."""
 
 
+def _is_recoverable_db_error(exc: BaseException) -> bool:
+    """Is this an environment problem we can degrade past, or our own bug?
+
+    The pipeline is allowed to continue without trend tracking when the
+    database genuinely cannot be reached -- a missing file, a locked table, a
+    read-only volume.  It is NOT allowed to continue past a TypeError or an
+    AttributeError, because those mean this repository called its own API
+    wrongly, and "degrading gracefully" in response to a defect is what hides
+    the defect.
+
+    Issue #3 is the worked example: `db.record(metrics, run_id=run_id)` did not
+    match `record(self, metrics, seed=0, bug_count=0)`, raised TypeError on
+    every invocation, and was caught by `except (DatabaseError, Exception)` --
+    a clause that reads as though it is narrow and is in fact `except
+    Exception`.  The feature silently no-opped for its entire lifetime: no
+    exception, no non-zero exit, nothing in the manifest.
+    """
+    return isinstance(exc, (DatabaseError, sqlite3.Error, OSError))
+
+
 class ManifestError(CoverageError):
     """Raised when the AVA manifest.json is missing, malformed, or violates contract."""
 
@@ -1484,12 +1504,20 @@ def _run_manifest_mode(args: "argparse.Namespace") -> int:
     db: Optional[CoverageDatabase] = None
     try:
         db = CoverageDatabase(str(db_path))
-        db.record(metrics, run_id=run_id)
+        # The run identifier travels on the metrics object (CoverageMetrics.
+        # run_id is what record() inserts); it is not a parameter.  Passing it
+        # as `run_id=` raised TypeError on every call -- see #3.
+        db.record(metrics)
         plateau = db.plateau_detected()
         alert   = db.regression_alert()
         if alert:
             logger.warning(alert)
-    except (DatabaseError, Exception) as exc:
+    except Exception as exc:
+        # Degrade only past genuine database problems.  Anything else is a bug
+        # in this repository and must surface rather than be logged as though
+        # the user's environment were at fault.
+        if not _is_recoverable_db_error(exc):
+            raise
         logger.warning("DB unavailable (%s) — plateau detection skipped", exc)
 
     # Try to get ranked cold paths from coverage_database if available
