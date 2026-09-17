@@ -99,6 +99,36 @@ _AMO_PREFIXES = frozenset([
     "lr", "sc",
 ])
 
+_TAG_TO_MEM_TYPE = {
+    "STORE":   "store",
+    "LOAD":    "load",
+    "AMO":     "amo",
+    "ACQUIRE": "amo",
+    "RELEASE": "amo",
+}
+
+
+def _apply_mem_direction(commit: "RawCommit", tag: Optional[str]) -> None:
+    """Resolve mem_access["type"] from the already-computed mem_order_tag.
+
+    Deliberately derived rather than re-inferred.  mem.type and mem_order_tag
+    describe the same fact; they were computed independently, drifted, and ended
+    up contradicting each other on the same record.  Adding a third inference
+    would repeat that mistake, so this reads the tag and nothing else.
+
+    Leaves the type as-is when there is no tag to derive from (e.g. a memory
+    access on an instruction the classifier does not recognise), falling back to
+    "load" only so the field is never None in emitted output.
+    """
+    if commit.mem_access is None:
+        return
+    resolved = _TAG_TO_MEM_TYPE.get(tag or "")
+    if resolved is not None:
+        commit.mem_access["type"] = resolved
+    elif commit.mem_access.get("type") is None:
+        commit.mem_access["type"] = "load"
+
+
 def _classify_mem_order_tag(commit: "RawCommit") -> Optional[str]:
     """
     Return the mem_order_tag for this commit, or None if it is not a memory op.
@@ -378,8 +408,17 @@ def _parse_rest_b(rest: str, commit: RawCommit) -> None:
     if m:
         addr  = _hex(int(m.group(1), 16), 8)
         value = _hex(int(m.group(2), 16), 8) if m.group(2) else "0x00000000"
-        # Direction is inferred by caller context; default to load
-        commit.mem_access = {"type": "load", "addr": addr, "size": 4, "value": value}
+        # Direction is NOT known here.  For the inline-writeback sub-layout the
+        # register write may not be attached to `commit` yet, so any decision
+        # made at this point would be guessing.  It is resolved in a post-pass
+        # by _apply_mem_direction(), from the same signal _classify_mem_order_tag
+        # uses -- one inference, two consumers.
+        #
+        # The previous comment here claimed "direction is inferred by caller
+        # context", but no caller ever set it, so every store in every FORMAT B
+        # log was labelled "load" while mem_order_tag on the same record
+        # correctly said STORE.
+        commit.mem_access = {"type": None, "addr": addr, "size": 4, "value": value}
         return
 
     # Try CSR write
@@ -585,6 +624,7 @@ def parse_spike_log(
     result = []
     for c in commits_iter:
         tag = _classify_mem_order_tag(c)
+        _apply_mem_direction(c, tag)
         if tag is not None:
             c.mem_order_tag = tag
             c.mem_seq = mem_seq
@@ -606,6 +646,10 @@ def parse_spike_log_streaming(
     mem_seq = 0
     for commit in parser:
         tag = _classify_mem_order_tag(commit)
+        # The streaming path needs the same post-pass.  Fixing only the batch
+        # path would leave every store mislabelled for exactly the large runs
+        # that use streaming.
+        _apply_mem_direction(commit, tag)
         if tag is not None:
             commit.mem_order_tag = tag
             commit.mem_seq = mem_seq
