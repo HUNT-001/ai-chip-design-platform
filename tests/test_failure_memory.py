@@ -604,3 +604,226 @@ def test_the_benchmark_documents_measured_not_assumed_properties():
                             "characterise.py")).read()
     assert "quantitative block is LIFTED" in src
     assert "NOT fully characterised" in src
+
+
+# --------------------------------------------------------------------------- #
+# INCIDENT 21 — a campaign-length sweep that could not sweep.                  #
+# --------------------------------------------------------------------------- #
+# SimChannel.build() compiles the campaign length in via -DNVEC, but cached the
+# resulting binary under `self._built[inject_bug]` and built it into a directory
+# named only for the variant. The first campaign length therefore won: every
+# later length silently re-ran the first one's binary. Nothing in the corpus
+# could expose this while every caller asked for 20000 vectors. The moment the
+# cross-design transfer experiment swept campaign length it would have produced
+# a perfectly flat curve and a confident, entirely wrong conclusion about the
+# design's detection behaviour.
+#
+# Found by reading the channel before trusting it, not by a failing run — which
+# is the only way this class of defect is ever found.
+def test_build_cache_is_keyed_by_campaign_length_not_just_variant():
+    seen = []
+
+    class FakeProc:
+        returncode = 0
+        stdout = ""
+        stderr = ""
+
+    def fake_run(cmd, **kw):
+        seen.append(list(cmd))
+        # emulate verilator producing the binary where -Mdir says
+        mdir = cmd[cmd.index("-Mdir") + 1]
+        os.makedirs(mdir, exist_ok=True)
+        open(os.path.join(mdir, "Vtb"), "w").close()
+        return FakeProc()
+
+    import subprocess as _sp
+    import evidence_channels as ec
+    ch = SimChannel(mock=True, sources=["x.sv"], top="tb_x")
+    ch.mock = False                      # exercise the real build path
+    old = ec.subprocess.run
+    try:
+        ec.subprocess.run = fake_run
+        a, err_a = ch.build(False, nvec=64)
+        b, err_b = ch.build(False, nvec=4096)
+    finally:
+        ec.subprocess.run = old
+
+    assert not err_a and not err_b
+    # two campaign lengths are two different binaries, in two directories
+    assert a != b, "different campaign lengths shared one binary"
+    assert ("-DNVEC=64" in seen[0]) and ("-DNVEC=4096" in seen[1])
+    # and the cache must distinguish them
+    assert ch._built[(False, 64)] != ch._built[(False, 4096)]
+
+
+def test_testbenches_read_the_campaign_length_the_channel_passes():
+    """tb_satmac.sv defined NCYC and defaulted it to 20000 while the channel
+    passed -DNVEC. The define never matched, so nvec was inert: every sat_mac
+    campaign ran 20000 cycles regardless of what was asked for. Harmless while
+    every caller asked for 20000, and a silently flat curve otherwise."""
+    for rel in (("voe_stoch", "sim", "tb_satmac.sv"),
+                ("voe_stoch2", "sim", "tb_pfifo.sv")):
+        src = open(os.path.join(ROOT, *rel)).read()
+        # comments are stripped first: the fix is documented by name in a
+        # comment in both files, and a test that trips over its own
+        # explanation is a test that discourages writing the explanation.
+        code = "\n".join(ln.split("//")[0] for ln in src.splitlines())
+        assert "`NVEC" in code, f"{rel[-1]} does not read NVEC"
+        assert "NCYC" not in code, f"{rel[-1]} still reads the dead NCYC define"
+
+
+# --------------------------------------------------------------------------- #
+# INCIDENT 22 — a zero-width interval around a degenerate rate.                #
+# --------------------------------------------------------------------------- #
+# The first sat_mac characterisation used a Wald interval and labelled it
+# "rough". At p = 0 or p = 1 Wald reports a width of exactly zero, so a board
+# that missed the bug on all 12 seeds would have been recorded as
+# P(detect) = 0.000 +/- 0.000 — a certainty manufactured by the formula. Exact
+# intervals are not a refinement here; they are the difference between "we did
+# not see it" and "it does not happen".
+def test_exact_interval_refuses_to_manufacture_certainty():
+    from binomial import clopper_pearson, non_degenerate
+    lo, hi = clopper_pearson(0, 12)
+    assert lo == 0.0 and hi > 0.25, "0/12 must not imply P = 0"
+    lo, hi = clopper_pearson(12, 12)
+    assert hi == 1.0 and lo < 0.75, "12/12 must not imply P = 1"
+    # pinned against independently computed Clopper-Pearson values
+    lo, hi = clopper_pearson(3, 12)
+    assert abs(lo - 0.0549) < 1e-3 and abs(hi - 0.5719) < 1e-3
+
+
+def test_admission_needs_both_outcomes_not_a_point_estimate():
+    """One detection in 12 seeds is a point estimate of 0.083 and is one lucky
+    campaign away from zero. Admitting a benchmark on it would be admitting
+    noise, so admission counts OUTCOMES rather than thresholding a rate."""
+    from binomial import non_degenerate
+    assert not non_degenerate(0, 12)[0]
+    assert not non_degenerate(1, 12)[0]      # too rare to sample
+    assert not non_degenerate(12, 12)[0]     # deterministic classifier
+    assert not non_degenerate(11, 12)[0]
+    assert non_degenerate(4, 12)[0]
+
+
+# --------------------------------------------------------------------------- #
+# INCIDENT 23 — a shape statistic nobody had calibrated.                       #
+# --------------------------------------------------------------------------- #
+# Four times now this project has shipped a control that was present, correct,
+# and unable to observe. The cross-design transfer verdict rests entirely on
+# whether a curve can be excluded by its own best-fitting memoryless law, and
+# that statistic had no measured error rate until it was simulated against two
+# boards whose answers are known by construction.
+#
+# The result is worth keeping precisely because it is counterintuitive: the
+# statistic gets WORSE calibrated as seeds increase (about 5% false alarms at
+# 24 seeds, about 14% at 48), because the exact intervals shrink faster than a
+# one-parameter fit to correlated points can track. "Run it with more seeds" is
+# therefore not an available response to an ambiguous verdict, and the seed
+# count has to be committed in advance like any other configuration.
+def test_the_shape_statistic_can_actually_see_the_difference():
+    import random
+    sys.path.insert(0, os.path.join(ROOT, "voe_bench"))
+    from run_stoch_transfer import fit_memoryless, BOARDS
+    from binomial import clopper_pearson
+
+    def flagged(points):
+        p, _ = fit_memoryless(points)
+        return any(not (clopper_pearson(k, t)[0] <= 1 - (1 - p) ** n
+                        <= clopper_pearson(k, t)[1])
+                   for n, k, t in points)
+
+    p0, n = 1.0 / 65536.0, 24
+    random.seed(1)
+    memoryless = [(c, sum(random.random() < 1 - (1 - p0) ** c for _ in range(n)), n)
+                  for c in BOARDS["sat_mac"]["grid"]]
+    random.seed(1)
+    warmup = [(c, sum(random.random() < (0.0 if c < 200 else
+                                         min(1.0, (c - 200) / 1500.0))
+                      for _ in range(n)), n)
+              for c in BOARDS["pfifo"]["grid"]]
+    assert not flagged(memoryless), "a truly memoryless curve was flagged"
+    assert flagged(warmup), "the statistic cannot see a warm-up — it is blind"
+
+
+def test_seed_count_is_committed_because_more_is_worse():
+    src = open(os.path.join(ROOT, "voe_bench", "run_stoch_transfer.py")).read()
+    assert "MUST NOT BE RAISED" in src
+    assert "--calibrate" in src
+
+
+# --------------------------------------------------------------------------- #
+# INCIDENT 24 — a mutant that was not one line.                                #
+# --------------------------------------------------------------------------- #
+# Both stochastic benchmarks rest on the claim that the mutant differs from the
+# good design in exactly one line, because that is what licenses reading a
+# detection as "the stimulus reached this specific corner". The fifo coupling
+# probe already produced a reference model that had quietly inherited the
+# mutant's bug; a mutant that quietly differs in two places is the same error
+# from the other direction, and it would make the instrumentation's corner
+# count unrelated to what detection actually measures.
+def test_the_pfifo_mutant_differs_in_exactly_one_line():
+    def body(path):
+        # Strip comments and collapse whitespace before comparing. Column
+        # alignment and explanatory comments are not part of the design, and a
+        # test that counted them would fail for reasons that have nothing to do
+        # with what the two modules DO.
+        out = []
+        for ln in open(path):
+            s = ln.split("//")[0].strip()
+            if not s:
+                continue
+            out.append(" ".join(s.split()).replace("pfifo_mut", "pfifo"))
+        return out
+
+    good = body(os.path.join(ROOT, "voe_stoch2", "rtl", "pfifo.sv"))
+    mut = body(os.path.join(ROOT, "voe_stoch2", "rtl", "pfifo_mut.sv"))
+    assert len(good) == len(mut), "the two designs differ in structure, not one line"
+    diffs = [(a, b) for a, b in zip(good, mut) if a != b]
+    assert len(diffs) == 1, f"expected exactly one differing line, got {diffs}"
+    assert "wr_q" in diffs[0][0], "the difference is not on the write pointer"
+
+
+def test_pfifo_depth_is_not_a_power_of_two():
+    """The mutant drops the explicit wrap. On a depth-8 FIFO the 3-bit pointer
+    wraps by itself, so the mutant would be bit-identical to the good design and
+    the entire benchmark would measure nothing while looking perfectly healthy."""
+    src = open(os.path.join(ROOT, "voe_stoch2", "rtl", "pfifo.sv")).read()
+    assert "DEPTH = 6" in src
+    assert "LOAD-BEARING" in src
+
+
+# --------------------------------------------------------------------------- #
+# INCIDENT 25 — the refused move, in a new costume.                            #
+# --------------------------------------------------------------------------- #
+# Experiment 15 refused to shrink nvec until the bug was sometimes missed. The
+# second board cannot inherit a campaign length the way sat_mac did, so the same
+# temptation returns as "pick a principled N". It is defused by committing a
+# GRID and publishing the whole curve: there is no point to select, because
+# every point is reported, including the degenerate ones.
+def test_the_second_board_commits_a_grid_not_a_chosen_length():
+    src = open(os.path.join(ROOT, "voe_stoch2", "characterise.py")).read()
+    assert "GRID = (" in src
+    assert "degenerate points included" in src or "degenerate" in src
+    # and the refusal must remain explicit rather than implied
+    assert "refused" in src
+
+
+def test_a_degenerate_grid_is_not_answered_by_extending_the_grid():
+    for rel in (("voe_stoch2", "characterise.py"),
+                ("voe_bench", "run_stoch_transfer.py")):
+        src = open(os.path.join(ROOT, *rel)).read()
+        assert "wearing a different hat" in src, rel
+
+
+def test_benchmark_commitments_are_tamper_evident():
+    """A configuration hashed before the data is only a control if something
+    re-checks it afterwards. A stamp nothing verifies is decoration — the same
+    reasoning that made witnesses re-hashed rather than merely recorded."""
+    import tempfile
+    from preregistration import Commitment
+    d = tempfile.mkdtemp()
+    path = os.path.join(d, "c.json")
+    c = Commitment("t", path, {"grid": [1, 2, 3]}, "notes").commit()
+    assert Commitment.load(path).intact
+    text = open(path).read().replace("[\n      1,", "[\n      9,")
+    open(path, "w").write(text)
+    assert not Commitment.load(path).intact
