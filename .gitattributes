@@ -1,0 +1,3 @@
+* text=auto eol=lf
+*.sv text eol=lf
+*.v  text eol=lf
