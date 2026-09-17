@@ -1,0 +1,37 @@
+{
+  "committed_at": 1789478219.6509125,
+  "name": "pfifo S1 characterisation",
+  "notes": "Committed before any pfifo campaign ran. The grid exists so that no single campaign length can be selected after seeing detection rates; the whole curve is reported, degenerate points included. Grid range was set from the design's control state space (~42 states: 7 occupancies x 6 read-pointer positions), spanning roughly 1.5 to 100 coverings. Shrinking vectors until the bug is sometimes missed was refused in Experiment 15 and is refused here; the defence is that there is nothing to shrink TO, because every point is published.\nStimulus rates model a prefetch buffer: an eager producer, a slower consumer, branch-misprediction-rate flush_but_first, rarer full flush. They were chosen for realism and are MEASURED by the instrumentation counters rather than assumed.",
+  "spec": {
+    "admission": {
+      "at_least_one_grid_point": true,
+      "instrumentation": "no campaign may detect without reaching the corner",
+      "min_detections": 2,
+      "min_misses": 2,
+      "positive_control": "good DUT passes on every seed at every grid point",
+      "reproducibility": "same seed, same campaign length, same verdict"
+    },
+    "campaign_grid_cycles": [
+      64,
+      128,
+      256,
+      512,
+      1024,
+      2048,
+      4096
+    ],
+    "design": "pfifo (depth 6, 16-bit, flush + flush_but_first)",
+    "interval": "Clopper-Pearson 95%, shared implementation (voe/binomial.py)",
+    "mutant": "missing pointer wrap on the flush_but_first write-pointer update",
+    "seed_base": 5000,
+    "seeds": 6,
+    "stimulus_rates": {
+      "flush": "1/1024",
+      "flush_but_first": "1/256",
+      "pop": "8/16",
+      "push": "10/16",
+      "source": "one $urandom() draw, separated bit lanes"
+    }
+  }
+}
+// sha256:3303e122755ce446
