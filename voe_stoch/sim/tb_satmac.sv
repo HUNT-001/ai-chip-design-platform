@@ -11,8 +11,15 @@
 `ifndef DUT
 `define DUT satmac_wrap
 `endif
-`ifndef NCYC
-`define NCYC 20000
+// CAMPAIGN LENGTH. This originally read NCYC with a local default of 20000,
+// but SimChannel.build() passes the caller's campaign length as -DNVEC. The
+// define never matched, so nvec was inert and every campaign ran 20000 cycles
+// whatever was asked for. Harmless while every caller asked for 20000 -- and a
+// silently flat curve the moment anything swept campaign length, which is
+// exactly what the cross-design transfer experiment does. Found by reading the
+// channel, not by a failing run: nothing in the corpus could have exposed it.
+`ifndef NVEC
+`define NVEC 20000
 `endif
 
 module tb_satmac;
@@ -53,7 +60,7 @@ module tb_satmac;
     ref_acc = 0;
     @(posedge clk);
 
-    for (int i = 0; i < `NCYC; i++) begin
+    for (int i = 0; i < `NVEC; i++) begin
       // Two CONSECUTIVE $urandom() calls are not independent in Verilator.
       // Measured: marginals exactly uniform (P(a==-128) = P(b==-128) = 1/256),
       // but the joint corner appeared 25 times where independence predicts
