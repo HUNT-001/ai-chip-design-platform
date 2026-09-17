@@ -1,5 +1,6 @@
 # AVA — Autonomic Verification Agent v3.0
 
+![AI Chip Design Platform Architecture](assets/AI_CHIP_SYMBOL.png)
 [![CI](https://github.com/HUNT-001/ai-chip-design-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/HUNT-001/ai-chip-design-platform/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
