@@ -1477,3 +1477,121 @@ and is now the highest-value work, because the platform can finally see what it
 is missing. **Phase 5** (leads, review/sign-off authority via the witness gate,
 cross-specialist planning, conflict resolution by kernel merge) follows, and is
 worth more once the board is large.
+
+## 8f. The Stochastic Generalization Gate — built, committed, not yet measured
+
+Section 8e ended with one admitted stochastic board (`voe_stoch/sat_mac`). That
+was enough to say the phenomenon exists somewhere in this corpus. It was not
+enough to say anything about verification, because a single board cannot
+separate *"this is real"* from *"this is a property of that design"* — which is
+precisely the failure Experiment 10 caught one level down, when policy `L`
+looked good on the full board and lost on the held-out one.
+
+So H stays closed behind an explicit milestone:
+
+> **Stochastic Generalization Gate.** Two structurally distinct real designs
+> exhibit reproducible non-degenerate verification stochasticity under the same
+> pre-registered methodology.
+
+### The second board
+
+`voe_stoch2/pfifo` — a depth-6, 16-bit synchronous FIFO with `flush` and
+`flush_but_first`. The mutant differs in exactly one line: the write pointer on
+the `flush_but_first` path does not wrap.
+
+Two details are load-bearing rather than incidental:
+
+- **Depth 6, not 8.** With a power-of-two depth the 3-bit pointer wraps by
+  itself, the mutant becomes bit-identical to the good design, and the whole
+  benchmark measures nothing while looking perfectly healthy.
+- **Eight physical slots behind a 3-bit pointer.** Slots 6 and 7 are addressable
+  and writable but unreachable by the always-wrapping read pointer, so the
+  missing wrap loses data silently instead of trapping — which is what makes it
+  a realistic defect rather than a crash.
+
+The structural contrast with `sat_mac` is the point. `sat_mac`'s rarity is
+**memoryless**: every vector independently hits `(-128) x (-128)`, so
+`P(detect | N) = 1 - (1-p)^N` exactly. `pfifo`'s requires the occupancy random
+walk to sit at the last read-pointer slot when a rare `flush_but_first` arrives,
+*and* the corruption to survive to an output. Correlated across cycles, with a
+warm-up during which the corner is unreachable at all.
+
+### Why a grid of campaign lengths, not a chosen one
+
+Experiment 15 refused, by name, to shrink `nvec` until the bug was sometimes
+missed. `sat_mac` sidestepped the temptation by inheriting a campaign length
+that predated the question. `pfifo` cannot: 20000 cycles on a six-deep FIFO is
+roughly five hundred coverings of its control space. Any single number would be
+a number *chosen*, and "I picked it for structural reasons" is exactly what
+someone tuning the instrument would also say.
+
+So nothing is picked. A grid — 64 to 4096 cycles — is committed and hashed in
+advance and the **entire curve is published, degenerate points included**. There
+is no post-hoc selection available because there is nothing to select.
+
+This turned out to be a better measurement, not just a safer one. Two point
+estimates of `P(detect)` can coincide by accident; two *curve shapes* are a much
+sharper test. S2 fits each board's best memoryless law and asks whether the
+board's own data excludes it.
+
+### Four instrument defects found while building it — zero in the kernel or RTL
+
+The count is now twenty-four, and the ratio is unchanged.
+
+1. **`tb_satmac.sv` read `NCYC`; the channel passes `-DNVEC`.** The define never
+   matched, so `nvec` was inert and every `sat_mac` campaign ran 20000 cycles
+   regardless of what was asked for. Harmless while every caller asked for
+   20000 — and a silently flat curve the instant anything swept campaign length.
+2. **`SimChannel` cached builds by variant alone.** Campaign length is compiled
+   in, so the first length won and every later one re-ran its binary. The same
+   defect as (1), one level up, and it would have produced the same flat curve.
+3. **The Wald interval manufactures certainty at the endpoints.** A board that
+   missed the bug on all 12 seeds would have been recorded as
+   `P(detect) = 0.000 +/- 0.000`. Replaced by exact Clopper-Pearson in a single
+   shared implementation (`voe/binomial.py`), so a cross-design difference
+   cannot be an artifact of two boards computing intervals differently.
+4. **The shape statistic had no measured error rate.** This is the fifth time
+   this project has shipped a control that was present, correct, and unable to
+   observe, so the statistic was simulated against two boards whose answers are
+   known by construction before it was allowed to decide anything.
+
+The calibration result is worth recording because it points the wrong way:
+
+| seeds | false alarm (memoryless board) | power (warm-up board) |
+|------:|-------------------------------:|----------------------:|
+| 12    | 6%                             | 10%                   |
+| 24    | 5%                             | 99%                   |
+| 48    | 14%                            | 100%                  |
+
+The statistic gets **worse** calibrated as seeds increase: the exact intervals
+shrink faster than a one-parameter fit to correlated points can track, so a
+genuinely memoryless curve starts falling outside its own fit. "Run it with more
+seeds" is therefore *not* an available response to an ambiguous verdict here,
+and the seed count is committed like any other configuration. (24 was written
+into the file before the calibration was run. That it survived is luck, not
+design, and it is recorded that way.)
+
+### Status
+
+Built, hashed, and **not yet measured**. `S2` was deliberately written *before*
+`S1` was run, so its choice of statistic, null and threshold could not be made
+with the answer visible.
+
+Three outcomes are reachable and all three are reportable:
+
+- **Distinct regimes** — the memoryless law fits one board and is excluded by
+  the other. The gate passes, and the minimal posterior mechanism becomes
+  testable against `M-static-cached` on two boards whose uncertainty has
+  different structure.
+- **One regime** — the law fits both. The gate does *not* pass; the corpus has
+  a second design but not a second phenomenon, and the structural argument above
+  is wrong. The response is a different board, committed before measurement —
+  not a hunt for a statistic that separates these two.
+- **Not evaluable** — a board is degenerate everywhere on its grid, or the null
+  fits neither. No verdict exists.
+
+Until the gate passes, H remains closed. When it passes, the next experiment is
+the *minimal* mechanism — observations to `p(detection | a)` to decision — with
+no VoD, no lookahead, no coupled ordering, and no learned model. The incumbent
+is the adversary, and five attempts to add machinery have already lost to rules
+that remove it.
