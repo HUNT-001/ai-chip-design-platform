@@ -49,4 +49,26 @@ fi
 
 echo "test interpreter: $PY  ($("$PY" -c 'import sys;print(sys.version.split()[0])'))"
 export PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
-exec "$PY" -m pytest -p pytest_asyncio.plugin "${@:-tests/}"
+# The default target set is EXACTLY what .github/workflows/ci.yml runs.
+#
+# It used to be `tests/` alone, which meant a contributor could get a clean
+# local run and a red PR: AGENT_C, AGENT_D and AGENT_E carry 314 tests between
+# them that this script never touched. A local entry point that checks less than
+# CI is worse than none, because it produces false confidence rather than no
+# confidence.
+#
+# --import-mode=importlib matches CI too, and is load-bearing: under the default
+# "prepend" mode pytest puts each test file's directory on sys.path, and
+# ava_patched.py exists both at the repo root and in AGENT_F/, so collecting an
+# AGENT_F test silently shadows the root module with an older copy.
+DEFAULT_TARGETS=(
+    tests/
+    AGENT_C/test_spike_parser.py
+    AGENT_C/test_run_iss_integration.py
+    AGENT_D/test_comparator.py
+    AGENT_E/test_compliance_runner.py
+)
+
+exec "$PY" -m pytest -p pytest_asyncio.plugin \
+    --import-mode=importlib \
+    "${@:-${DEFAULT_TARGETS[@]}}"
