@@ -94,6 +94,15 @@ Where relevant, contributors should:
 
 If a change cannot easily be tested yet, explain that clearly in the pull request.
 
+## Fixing a bug
+
+When fixing a bug, prefer a **two-commit** pattern so reviewers can verify the failure first:
+
+1. **Commit a failing test** that encodes the expected behavior from the schema, spec, or issue — not from the buggy code under test. Check out that commit alone and confirm the test goes red.
+2. **Commit the fix** so the same test turns green.
+
+"Add a test" alone is not enough if the suite already agreed with the bug. Demonstrate red before green whenever practical, and call out in the PR which commit shows the failure.
+
 ## Commit Message Guidelines
 
 Use clear commit messages.
