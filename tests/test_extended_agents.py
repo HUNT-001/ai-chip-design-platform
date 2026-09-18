@@ -3544,8 +3544,41 @@ class TestSM4Verifier:
 class TestSemanticAnalyzer:
     _REC = {"schema_version": "2.1.0", "seq": 0, "pc": "0x80000000",
             "disasm": "addi x1,x0,1", "regs": {"x1": "0x1"}, "csrs": {}}
+    # "passed", not "completed".  This fixture used the drifted hand-written
+    # vocabulary that validate_manifest() happened to accept, so the suite
+    # agreed with the bug and a manifest copied from the schema's own examples
+    # block was rejected without CI noticing.  See #4.
     _MAN = {"schema_version": "2.1.0", "run_id": "r", "run_dir": "/tmp",
-            "status": "completed", "outputs": {}}
+            "status": "passed", "outputs": {}}
+
+    def test_manifest_status_vocabulary_matches_the_schema(self):
+        """The validator's accepted set must EQUAL the schema enum.
+
+        This is the test that makes #4 unrepeatable.  Fixing the literal alone
+        would leave nothing stopping the next person from adding a status to
+        one file and not the other -- which is exactly how the two vocabularies
+        came to overlap in a single value.
+        """
+        import json as _json
+        from pathlib import Path as _Path
+        from AGENT_A import semantic_analyzer as sa
+        schema = _json.loads(
+            (_Path(sa.__file__).with_name("run_manifest.schema.json")).read_text())
+        assert set(sa._MANIFEST_STATUS) == set(
+            schema["$defs"]["lifecycle_status"]["enum"])
+
+    def test_schema_examples_validate(self):
+        """A manifest taken from the schema's own examples must pass.
+
+        Issue #4's repro was exactly this: the example block and the validator
+        disagreed.  Deriving the fixture from the schema rather than writing it
+        by hand is what stops the fixture drifting with the code again.
+        """
+        from AGENT_A.semantic_analyzer import validate_manifest
+        for status in ("pending", "running_rtl", "passed", "failed",
+                       "cancelled"):
+            man = dict(self._MAN, status=status)
+            assert validate_manifest(man) == [], f"{status} rejected"
 
     def test_record_validation(self):
         from AGENT_A.semantic_analyzer import validate_record
@@ -3586,7 +3619,7 @@ class TestSemanticAnalyzer:
         (tmp_path / "rtl_commit.jsonl").write_text(json.dumps({"seq": 0}))
         (tmp_path / "core.v").write_text("module core(input clk, output q); endmodule")
         man = {"schema_version": "2.1.0", "run_id": "r", "run_dir": str(tmp_path),
-               "status": "completed", "outputs": {"rtl_commit_log": "rtl_commit.jsonl"},
+               "status": "passed", "outputs": {"rtl_commit_log": "rtl_commit.jsonl"},
                "rtl": "core.v"}
         mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
         assert run_from_manifest(str(mp)) == 1
