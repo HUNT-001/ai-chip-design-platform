@@ -40,11 +40,89 @@ jobs:
 
       - name: Run pytest (pure-Python agents, no EDA tools)
         run: |
-          python -m pytest tests/test_agents.py \
-            -k "not test_ava_generate_suite_smoke" \
+          # Previously this ran tests/test_agents.py and nothing else, so
+          # test_extended_agents.py (206 tests), test_comparator.py,
+          # test_spike_parser.py and the rest never executed on a pull
+          # request.  Four real bugs -- #1 #2 #3 #4 -- all shipped green,
+          # every one of them in code whose tests CI was not running.
+          #
+          # --import-mode=importlib is load-bearing, not cosmetic: under the
+          # default "prepend" mode pytest puts each test file's directory on
+          # sys.path, and `ava_patched.py` exists BOTH at the repo root and in
+          # AGENT_F/, so collecting an AGENT_F test silently shadows the root
+          # module with an older copy and unrelated tests fail.
+          # The -k "not test_ava_generate_suite_smoke" deselect that used to
+          # live here has been REMOVED, not relocated.  That test passes under
+          # importlib; it was only failing because of the sys.path shadowing
+          # described above.  A test disabled by name in CI config is invisible
+          # to everyone reading the test file itself -- if one genuinely must
+          # be skipped, mark it in code with a reason and an issue link.
+          python -m pytest \
+            tests/ \
+            AGENT_C/test_spike_parser.py \
+            AGENT_C/test_run_iss_integration.py \
+            AGENT_D/test_comparator.py \
+            AGENT_E/test_compliance_runner.py \
             --import-mode=importlib \
             -p no:cacheprovider \
             --tb=short -q
+
+      - name: Guard - every test file on disk is actually collected
+        run: |
+          python - << 'PYEOF'
+          # A test suite CI does not execute is not a regression test.
+          #
+          # This is the control for the step above.  Adding a test file that CI
+          # does not run is exactly how the gap this PR closes opened, and it is
+          # invisible by construction: the build stays green because the new
+          # tests simply never ran.  This fails the build instead.
+          #
+          # It deliberately does NOT parse pytest's output.  The first version
+          # of this guard scraped `--collect-only -q` for "::" lines; pytest 9
+          # prints only a count there, so it matched nothing, reported zero
+          # collected files, and would have been a control that could not
+          # observe -- the very thing it exists to prevent.  Comparing paths is
+          # dumber and cannot silently see nothing.
+          import sys
+          from pathlib import Path
+
+          RUN = [
+              "tests/",
+              "AGENT_C/test_spike_parser.py",
+              "AGENT_C/test_run_iss_integration.py",
+              "AGENT_D/test_comparator.py",
+              "AGENT_E/test_compliance_runner.py",
+          ]
+          EXCLUDED = {
+              # path: why, with an issue link.  Empty is the goal.
+          }
+          # Vendored third-party RTL corpora carry their own tests; they are not
+          # ours to run or to keep green.
+          VENDORED = ("corpus/", "_legacy/", ".git/")
+
+          def covered(path: str) -> bool:
+              return any(path == r or path.startswith(r) for r in RUN)
+
+          on_disk = sorted(
+              p.as_posix() for p in Path(".").rglob("test_*.py")
+              if not p.as_posix().startswith(VENDORED)
+          )
+          missing = [p for p in on_disk
+                     if not covered(p) and p not in EXCLUDED]
+
+          for p in on_disk:
+              mark = "run" if covered(p) else ("excluded" if p in EXCLUDED
+                                               else "NOT RUN")
+              print(f"  {mark:<9} {p}")
+
+          if missing:
+              print("\nTest files present on disk that CI does not run:")
+              for m in missing:
+                  print(f"  {m}")
+              print("\nAdd them to RUN above, or to EXCLUDED with a reason.")
+              sys.exit(1)
+          print(f"\nAll {len(on_disk)} first-party test files are run by CI")
+          PYEOF
 
       - name: Validate JSON schemas
         run: |
