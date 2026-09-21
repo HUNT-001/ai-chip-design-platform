@@ -475,7 +475,7 @@ def run_from_manifest(manifest_path: Path) -> int:
     with open(tmp, "w") as f:
         json.dump(manifest, f, indent=2)
         f.write("\n")
-    tmp.rename(manifest_path)
+    tmp.replace(manifest_path)
 
     logger.info("bitmanip_verifier: %d B-ext ops, %d violations, band=%s",
                 report["bitmanip_ops"], report["total_violations"], report["band"])

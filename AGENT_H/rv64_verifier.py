@@ -540,7 +540,7 @@ def run_from_manifest(manifest_path: Path) -> int:
     with open(tmp, "w") as f:
         json.dump(manifest, f, indent=2)
         f.write("\n")
-    tmp.rename(manifest_path)
+    tmp.replace(manifest_path)
 
     logger.info("rv64_verifier: rv64=%s, %d ops, %d violations, band=%s",
                 report["rv64_detected"], report["ops_checked"],

@@ -114,7 +114,7 @@ def patch_manifest(path: Path, updates: Dict[str, Any]) -> None:
     tmp = path.with_suffix(".tmp")
     with open(tmp, "w") as f:
         json.dump(data, f, indent=2)
-    os.replace(tmp, path)   # atomic on POSIX
+    os.replace(tmp, path)   # atomic on POSIX and Windows alike
 
 
 def _deep_merge(base: dict, overlay: dict) -> None:

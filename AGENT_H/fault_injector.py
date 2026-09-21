@@ -390,7 +390,7 @@ def run_from_manifest(manifest_path: Path, n: int = 30) -> int:
     with open(tmp, "w") as f:
         json.dump(manifest, f, indent=2)
         f.write("\n")
-    tmp.rename(manifest_path)
+    tmp.replace(manifest_path)
 
     logger.info("fault_injector: %d faults, detection_rate=%s, band=%s",
                 report["faults_injected"], report["detection_rate"], report["band"])

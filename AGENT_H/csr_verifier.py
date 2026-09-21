@@ -534,7 +534,7 @@ def run_from_manifest(manifest_path: Path) -> int:
     with open(tmp, "w") as f:
         json.dump(manifest, f, indent=2)
         f.write("\n")
-    tmp.rename(manifest_path)
+    tmp.replace(manifest_path)
 
     logger.info("csr_verifier: %d CSR ops, %d violations, band=%s",
                 report["csr_ops"], report["total_violations"], report["band"])
