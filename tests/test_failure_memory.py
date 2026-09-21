@@ -827,3 +827,49 @@ def test_benchmark_commitments_are_tamper_evident():
     text = open(path).read().replace("[\n      1,", "[\n      9,")
     open(path, "w").write(text)
     assert not Commitment.load(path).intact
+
+
+# --------------------------------------------------------------------------- #
+# INCIDENT 26 — a prose comment that stopped the compiler.                     #
+# --------------------------------------------------------------------------- #
+# The pfifo header paragraph wrapped so that one line began with the word
+# "Verilator". The simulator parses a comment starting with that word as a
+# pragma, did not recognise this one, and refused to compile. Every campaign in
+# the S1 grid then returned status 'error'; the positive control correctly
+# reported an unvalidated checker and the whole run was discarded.
+#
+# Two things make this worth a permanent test rather than a one-line fix.
+# First, the failure was invisible at the level anyone was looking: the verdict
+# said "the testbench does not pass on correct RTL", which sends a reader to the
+# checker, and the checker was fine. Second, it is pure prose — no amount of
+# care about the DESIGN would have prevented it, and it will recur the moment
+# someone rewraps a paragraph.
+def test_no_comment_line_starts_with_the_pragma_word():
+    import re
+    bad = []
+    for sub in ("voe_stoch", "voe_stoch2", "voe_fifo", "voe_heldout", "phase3"):
+        base = os.path.join(ROOT, sub)
+        for dirpath, _dirs, files in os.walk(base):
+            for fn in files:
+                if not fn.endswith((".sv", ".v")):
+                    continue
+                path = os.path.join(dirpath, fn)
+                for i, ln in enumerate(open(path, errors="replace"), 1):
+                    # a real pragma is fine; an unrecognised one is fatal, and
+                    # prose is never a recognised one.
+                    m = re.match(r"\s*(?://|/\*)\s*verilator\b(.*)", ln, re.I)
+                    if not m:
+                        continue
+                    rest = m.group(1).strip().lower()
+                    known = ("lint_off", "lint_on", "lint_save", "lint_restore",
+                             "public", "public_flat", "public_flat_rd",
+                             "public_flat_rw", "no_inline", "coverage_off",
+                             "coverage_on", "tracing_off", "tracing_on",
+                             "isolate_assignments", "sc_bv", "clocker",
+                             "no_clocker", "split_var", "timing", "no_timing",
+                             "hier_block", "inline_module", "unroll_disable",
+                             "unroll_full", "forceable")
+                    if not rest.startswith(known):
+                        bad.append(f"{path}:{i}: {ln.strip()[:70]}")
+    assert not bad, ("comment lines beginning with the pragma word are parsed "
+                     "as pragmas and abort the build:\n" + "\n".join(bad))

@@ -143,9 +143,11 @@ def trigger_count(ev):
     return tuple(int(g) for g in m.groups()) if m else None
 
 
-def sweep(mock, seeds):
+def sweep(mock, seeds, rows_detail=None):
     """Run the committed grid. Returns rows of per-campaign-length results."""
     rows = []
+    if rows_detail is None:
+        rows_detail = {}
     for nvec in GRID:
         ch = channel(mock, nvec)
         hits = 0
@@ -160,6 +162,16 @@ def sweep(mock, seeds):
             # as evidence about the DUT; pairing removes that entirely.
             g = ch.run(inject_bug=False, seed=seed, nvec=nvec, phi="pfifo.order")
             good_status.append(g.status)
+            # Keep the DETAIL of the first non-pass, not just its status. A
+            # control that reports FAIL without saying why sends the reader to
+            # the wrong place: a Verilator build error and a genuine checker
+            # disagreement both arrive as "not pass", and they have nothing to
+            # do with each other. The first version of this script printed only
+            # the grid points where the control failed, which was enough to stop
+            # the run and not enough to act on.
+            if g.status != "pass" and rows_detail.get(nvec) is None:
+                rows_detail[nvec] = (g.status, g.detail,
+                                     (g.raw or "").strip().splitlines()[-6:])
             tc = trigger_count(g)
             trig, fbf, full = tc[:3] if tc else (0, 0, 0)
             trig_total += trig
@@ -209,13 +221,29 @@ def main():
         print("          cannot characterise anything. Use --real.")
 
     print("\n  running the committed grid...")
-    rows = sweep(mock, seeds)
+    detail = {}
+    rows = sweep(mock, seeds, detail)
 
     # ---- positive control, across the WHOLE grid ---------------------------
     bad_ctrl = [r["nvec"] for r in rows if r["good"] != ["pass"]]
     print(f"\n  positive control (good DUT passes everywhere) : "
           f"{'PASS' if not bad_ctrl else 'FAIL at ' + str(bad_ctrl)}")
     if bad_ctrl:
+        # Say WHICH failure this is before saying what it means. Build errors
+        # and checker disagreements are both "not pass" and are diagnosed in
+        # completely different places.
+        for nvec in bad_ctrl[:2]:
+            st, det, tail = detail.get(nvec, ("?", "", []))
+            print(f"\n    n={nvec}: status={st}  detail={det}")
+            for ln in tail:
+                print(f"      | {ln}")
+        statuses = {r for nvec in bad_ctrl
+                    for r in [detail.get(nvec, ("?",))[0]]}
+        if statuses == {"error"}:
+            print("\n  Every control run ERRORED rather than failing. That is a")
+            print("  harness fault, not a checker disagreement: the DUT never")
+            print("  ran, or produced no parseable SIM_RESULT line. Diagnose the")
+            print("  build before forming any opinion about the design.")
         print("\n  The testbench does not reliably pass on correct RTL, so every")
         print("  P(detect) below was measured with an unvalidated checker and")
         print("  none of it means anything. Fix the bench, not the DUT.")

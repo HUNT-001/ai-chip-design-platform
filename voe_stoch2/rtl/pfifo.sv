@@ -2,8 +2,8 @@
 // flush-but-first, written to be the SECOND stochastic benchmark.
 //
 // WHY A SECOND BOARD AT ALL. voe_stoch/sat_mac established that this project
-// finally has a non-degenerate stochastic regime: 0 < P(detect) < 1 under real
-// Verilator execution with no probability injected by the harness. It did NOT
+// finally has a non-degenerate stochastic regime: 0 < P(detect) < 1 under a
+// real simulator, with no probability injected by the harness. It did NOT
 // establish that stochastic verification behaviour GENERALISES. One board
 // cannot separate "this phenomenon is real" from "this phenomenon is a property
 // of that particular design" — which is exactly the trap Experiment 10 caught
@@ -39,6 +39,15 @@
 // CHECKER never reads them — only the counters do. That separation is the point:
 // an earlier reference model in this project read a DUT output, inherited the
 // mutant's bug, and made a negative control silently vacuous.
+//
+// A NOTE ON COMMENT WRAPPING, because it cost a full experiment run. The
+// paragraph above originally wrapped so that a line began with the word
+// "Verilator". The simulator parses a comment starting with that word as a
+// pragma, did not recognise this one, and refused to compile the file. Every
+// campaign then returned status 'error', the positive control correctly
+// reported that the checker was unvalidated, and the whole grid was discarded
+// -- all from prose. The word is kept away from the start of a comment line
+// throughout this corpus and a regression test now pins that.
 module pfifo #(
     parameter int unsigned DW    = 16,
     parameter int unsigned DEPTH = 6

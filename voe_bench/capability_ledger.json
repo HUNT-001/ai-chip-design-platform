@@ -1,219 +1,241 @@
 [
-  {
-    "hypothesis": "Explicit Bayesian belief over verification regimes plus a priced Value of Diagnosis selects actions better than a one-line diagnostic heuristic.",
-    "treatment": "H-uncertainty",
-    "control": "G-diagnostic",
-    "evidence": "12 independent seeds, 6 design families, 20 obligations. G 1.256 +/- 0.000; H 1.291 +/- 0.038 (+2.7% relative). Pre-registered threshold 5%; H's worst run 1.229 fell below G's mean. Probing cost 1.00 -> 2.75.",
-    "decision": "REJECTED",
-    "reason": "benefit +2.8% vs bar 11.5% (threshold 5% + uncertainty 3.0% + complexity 3.5%). The simpler policy already meets the requirement, so the additional machinery is not paid for by the evidence.",
-    "revisit_if": [
-      "LONG-HORIZON boards: the best first action has low immediate value but unlocks later value, so a one-step expected-value rule cannot see the chain",
-      "COUPLED obligations: one action affects many properties at once, so per-obligation greedy choices can be globally poor",
-      "NON-STATIONARY environments: an RTL commit changes which channel pays, faster than a realised-rate heuristic re-learns",
-      "LARGE action spaces: thousands of candidate stimuli, assertions or decompositions, where a heuristic becomes too coarse to rank",
-      "MULTI-STEP diagnosis: probe -> interpret -> probe again, which requires reasoning about future information rather than one probe"
-    ],
-    "complexity_note": "~3x probing spend; a belief model, sampler and VoD calculation to maintain and to keep correct.",
-    "at": 1788016174.8746188
-  },
-  {
-    "hypothesis": "A SEQUENCE of cheap real diagnostic actions (short Verilator run, then rtl_graph structural analysis) allocates verification effort better than a one-step diagnostic policy, on real RTL with real tools.",
-    "treatment": "K-multistep",
-    "control": "G-diagnostic",
-    "evidence": "REAL tools, 12 seeds, 6 design families. G 0.998 +/-0.012, K 1.149 +/-0.031, realisable 1.324. Relative +15.0%, absolute 0.150 > 2x0.031, CI width 0.036. prereg sha256:618e564d5497168e INTACT.",
-    "decision": "PROMOTED",
-    "reason": "Met the committed rule. But the control never obtained structural information AT ALL, so this number confounds two things: acquiring real structural facts, and acquiring them conditionally. Experiment 9 was run to separate them and found 56% of the gain is the information alone. This record must not be cited as evidence for planning depth; cite Experiment 9 for that.",
-    "revisit_if": [
-      "a regime appears where the chain must exceed depth 2",
-      "structural facts stop being obtainable by static reading"
-    ],
-    "complexity_note": "Four defects were found in the arm before this number was trusted: free structural facts (charged for what it already held, -52.6%); the branch was dead code behind a copied hasattr(self,'belief') guard while still reporting +39.2%; the step-2 gate used _uncertain(sig), false by construction after step 1; and hard->sim had no cap, the 162-sim-pass loop returning. Every one is now a permanent adversarial test.",
-    "at": 1788035000.3767974
-  },
-  {
-    "hypothesis": "The SEQUENCING earns Experiment 8's gain, rather than the mere acquisition of structural information.",
-    "treatment": "K-multistep",
-    "control": "L-static-onestep",
-    "evidence": "REAL tools, 12 seeds, 6 design families. L 1.083 +/-0.000, K 1.149 +/-0.031. Sequencing alone +6.1%, absolute 0.066 vs a noise floor of 0.062 \u2014 a 6% margin. 56% of Experiment 8's gain is information, not sequencing. prereg sha256:d53c2aadc4d29c3b INTACT.",
-    "decision": "UNDERPOWERED",
-    "reason": "The two rules disagree and the project should not pretend otherwise. The pre-registered rule returns MET (+6.1% > 5%). The promotion rule, which adds the measured spread to the bar, returns NOT MET (+6.1% vs 7.9%). Consistency also cuts toward K: its worst run (1.123) sits above L's mean (1.083), which is the same dominance argument used to REJECT H. The effect is real and small, and which way it falls depends entirely on how machinery is priced. Recording it as a clean win or a clean loss would both be false.",
-    "revisit_if": [
-      "K beats L by >5% with the spread charged, on >=24 seeds",
-      "a regime requires a chain deeper than 2 steps",
-      "structure becomes expensive to obtain, making WHEN to buy it matter"
-    ],
-    "complexity_note": "Decisive for the actual question regardless of how this resolves: the chain that won is HAND-WRITTEN and two steps deep. Nothing here shows the chain must be LEARNED. A learned dynamics model is a far larger complexity jump than 6.1% of sequencing value can justify. DO NOT BUILD THE WORLD MODEL.",
-    "at": 1788035000.3797405
-  },
-  {
-    "hypothesis": "L-static-onestep (one structural read per OBLIGATION, no probe, no chain) should replace G-diagnostic as the default policy.",
-    "treatment": "L-static-onestep",
-    "control": "G-diagnostic",
-    "evidence": "REAL tools, 24 seeds, 6 families. Full board L 1.083 vs G 0.998 (+8.5%, cleared the bar). HELD-OUT (lfsr, mv_filter) L 1.226 vs G 1.299 (-5.6%). prereg sha256:2158cdcd9a28fe05 INTACT.",
-    "decision": "REJECTED",
-    "reason": "Failed committed side condition (2): worse on the designs it had never seen. I first read this as overfitting to the dev designs. That was WRONG, and the aggregate number could not have told me \u2014 only per-read instrumentation could. L paid 0.5 per OBLIGATION for a fact that belongs to a DESIGN: 6 of 11 reads redundant on the full board, 4 of 6 on held-out. The overhead amortises over 20 obligations and dominates over 7, which produced a win on the full board and a loss on the small split. A cost-model error and overfitting are indistinguishable from E alone.",
-    "revisit_if": [
-      "never as specified \u2014 superseded by M-static-cached"
-    ],
-    "complexity_note": "Third appearance of ONE recurring defect: being charged for information already held. It cost Experiment 8 a -52.6% result, then hid inside L disguised as overfitting. Now a permanent test, plus an in-run instrument check.",
-    "at": 1788063286.668961
-  },
-  {
-    "hypothesis": "M-static-cached (one structural read per DESIGN, no probe, no chain) should replace G-diagnostic as the default policy.",
-    "treatment": "M-static-cached",
-    "control": "G-diagnostic",
-    "evidence": "REAL tools, 24 seeds, 6 families. Full board M 1.120 +/-0.000 vs G 0.998 +/-0.012 (+12.2%, bar 6.2%, CI width 0.010). Held-out M 1.310 vs G 1.299 (+0.9%, NOT WORSE). Closed weight equal at 98.0. Zero redundant structural reads in the worst run. realisable 1.324. prereg sha256:03795d3516b2d507 INTACT.",
-    "decision": "PROMOTED",
-    "reason": "All four committed conditions held, including the held-out split that rejected L and the in-run instrument check confirming the diagnosed defect was actually fixed. RECOMMENDED changed from G-diagnostic to M-static-cached.",
-    "revisit_if": [
-      "held-out margin fails to replicate on a corpus with >=3 held-out design families",
-      "a design appears whose structure is not statically readable",
-      "any future candidate beats M on held-out, not merely on the full board"
-    ],
-    "complexity_note": "M is the THIRD default candidate tested (H, L, M), and testing until something wins manufactures false positives. Mitigating: M is not a new hypothesis but L with a defect removed, diagnosed BEFORE the fix was written; and the held-out condition \u2014 the guard against exactly this \u2014 was re-committed unchanged and passed. NOT mitigated: the held-out margin is +0.9% across only 2 design families. The claim is 'better on the full board, not worse on held-out'. It is NOT 'better everywhere'.",
-    "at": 1788063286.6790707
-  },
-  {
-    "hypothesis": "REVISIT CONDITION DISCHARGED \u2014 'MULTI-STEP diagnosis: probe -> interpret -> probe again' was recorded as a condition under which H-uncertainty (posteriors + priced Value-of-Diagnosis) should be reconsidered. Experiments 8 and 9 tested that regime directly.",
-    "treatment": "H-uncertainty (reconsideration)",
-    "control": "G-diagnostic",
-    "evidence": "Experiment 8: a real two-step chain (Verilator probe -> rtl_graph read) beat the one-step control by +15.0%. Experiment 9 ablated it: 56% of that was the INFORMATION, and sequencing alone was worth +6.1%, which failed the complexity-priced bar. No posterior and no VoD calculation was involved in the chain that won.",
-    "decision": "REJECTED",
-    "reason": "The multi-step regime turned out to exist and to matter slightly, but it did not vindicate H. What paid in that regime was a hand-written two-step chain over real tool output, not sampled P(a is best) over a learned posterior. The condition is discharged WITHOUT reinstating H: a revisit trigger firing is permission to re-test, not a verdict.",
-    "revisit_if": [
-      "a regime requires a chain deeper than 2 steps",
-      "a chain must be LEARNED rather than written, which is the only thing that would justify a dynamics model"
-    ],
-    "complexity_note": "Four of H's five revisit conditions remain open and untested: long-horizon boards, coupled obligations, non-stationarity, and large action spaces. The horizon and coupling results so far are SYNTHETIC/STRUCTURAL stress tests indicating substantial vulnerability of the current planner to long-horizon and coupled-obligation structure; real-tool validation remains pending.",
-    "at": 1788063394.9109304
-  },
-  {
-    "hypothesis": "COUPLED OBLIGATIONS EXIST AND ARE MEASURABLE. Experiments 6 and 7 DECLARED their dependency structure, which is why their +14.9% and +72.4% are synthetic structural stress tests. This probe declares nothing: it asks the solver whether proving one obligation makes a second one provable, on the real cv32e40p_fifo with yosys/z3.",
-    "treatment": "lemma-decomposed proof",
-    "control": "direct proof",
-    "evidence": "REAL tools (SymbiYosys + z3, k-induction, depth 12) on the vendored cv32e40p_fifo. tap_control PASS (observation ports real). cnt_lemma PASS. state_match PASS standalone (pointers + count + memory). integrity_state PASS by k-induction GIVEN the lemma. integrity alone UNKNOWN (base case passes 12 steps, induction fails). integrity_lemma (cnt<=DEPTH assumed) UNKNOWN \u2014 identical failure. integrity_mut FAILS at step 7 (negative control armed).",
-    "decision": "PROMOTED",
-    "reason": "A genuine coupled-obligation structure, MEASURED rather than declared: a data-integrity property that is true but not inductive becomes provable once a state-matching lemma is proved first. Also a real negative result on the way: `cnt <= DEPTH` is sound, proves easily, and does NOT help \u2014 induction fails identically with and without it. The lemma that works relates the two machines' pointers, count AND memory. This is the ground Experiments 6/7 lacked.",
-    "revisit_if": [
-      "a design appears whose lemma cannot be expressed over exposed state",
-      "the coupling structure must be DISCOVERED automatically rather than hand-written \u2014 that is the real Experiment 12"
-    ],
-    "complexity_note": "FIVE instrument defects found, every one of which made a broken instrument look green: (1) the model gated updates on testmode, which this FIFO never uses in its datapath; (2) it skipped flush cycles instead of mirroring them; (3) hierarchical references silently became UNDRIVEN wires in both yosys and sv2v, so the lemma was assumed against floating signals and constrained nothing; (4) the lemma task also asserted the property it supports, so it could never be proved \u2014 circular; (5) WORST: the reference model decided push acceptance from the DUT's own full_o, so it inherited the mutant's bug and the negative control detected nothing. (5) was invisible until (1) and (2) were fixed \u2014 each repair removed a spurious divergence until the control finally revealed it had never been checking. Fixed in the other order, this would have shipped a vacuous proof under a green negative control. All five are now permanent tests.",
-    "at": 1788084973.2139847
-  },
-  {
-    "hypothesis": "On a board carrying a MEASURED lemma dependency, ordering an obligation by what it UNLOCKS beats ordering by immediate utility.",
-    "treatment": "N-lemmafirst",
-    "control": "M-static-cached",
-    "evidence": "REAL tools (SymbiYosys + z3) on the cv32e40p_fifo coupling board. M 1.167, N 1.400, +20.0%. Both close 28.0 weight. M wasted 12/12 direct proof attempts on fifo.integrity (inconclusive); N wasted 0. Action traces: M runs 6 formal actions (integrity, cnt_bound, no_overflow, flags, state_match, integrity), N runs 5 (state_match, integrity, cnt_bound, no_overflow, flags). prereg sha256:33efa91c898c31b5 INTACT.",
-    "decision": "PROMOTED",
-    "reason": "The dependency was MEASURED by the coupling probe, not declared: fifo.integrity is true but not inductive, and only becomes provable once fifo.state_match is proved. Both arms had identical channels, identical lemma-aware routing, and the same re-attempt rule, so the ONLY difference is order. The committed instrument check confirmed the coupling was exercised (12 inconclusive direct attempts).",
-    "revisit_if": [
-      "a second design acquires a measured lemma dependency, which would allow a non-deterministic multi-family version of this test",
-      "the coupling structure must be DISCOVERED rather than hand-written"
-    ],
-    "complexity_note": "THE GAIN IS EXACT, NOT ESTIMATED, AND '12 SEEDS' IS NOT REPLICATION. The board is fully deterministic \u2014 every action is formal and memoised, neither ordering uses randomness \u2014 so 12 campaigns are 1 campaign repeated 12 times. M pays 24.0 (6 formal actions), N pays 20.0 (5); 24/20 = 1.20 exactly. The committed noise criterion (absolute > 2x std) is VACUOUS here. A related defect was found writing the warning: the determinism guard tested `std == 0.0`, but variance over 12 identical values returns 2.3e-16, so the guard never fired and the caveat stayed invisible \u2014 a silent check that reads as 'handled' in the source. Now detected by counting distinct outcomes. ALSO: one design family, below the usual three, because only the FIFO has a measured lemma dependency. This shows the mechanism is real; it does NOT show it generalises.",
-    "at": 1788090508.1931806
-  },
-  {
-    "hypothesis": "REVISIT CONDITION PARTIALLY DISCHARGED \u2014 'COUPLED obligations' was recorded as a condition for reconsidering H-uncertainty.",
-    "treatment": "H-uncertainty (reconsideration)",
-    "control": "M-static-cached",
-    "evidence": "Experiment 13 tested the coupled regime on a measured dependency. What paid was ORDERING by what an obligation unlocks (+20.0%, exact). No posterior, no sampled P(a is best), no priced VoD was involved.",
-    "decision": "REJECTED",
-    "reason": "The coupled regime exists and matters, and it did NOT vindicate H. A one-line ordering rule captured the whole effect. Two of H's five revisit conditions are now discharged without reinstating it (multi-step diagnosis, coupled obligations); three remain untested: long-horizon boards, non-stationarity, and large action spaces.",
-    "revisit_if": [
-      "long-horizon boards",
-      "non-stationary environments",
-      "large action spaces"
-    ],
-    "complexity_note": "Experiment 7's +72.4% for coupling-aware ordering STILL stands only as a synthetic structural stress test \u2014 its dependency was declared. Experiment 13 does not retroactively validate it; it replaces it on one design family.",
-    "at": 1788090508.2133098
-  },
-  {
-    "hypothesis": "The lemma dependency measured on the FIFO RECURS on a second, held-out design \u2014 i.e. it is a property of verification, not an artifact of one DUT or one invariant shape.",
-    "treatment": "mv_filter coupling probe",
-    "control": "the FIFO coupling probe",
-    "evidence": "REAL tools (SymbiYosys + z3, k-induction, depth 24) on the pulp mv_filter, a HELD-OUT design no policy was developed against. mvf_tap PASS (tap wired). mvf_state PASS standalone (s_cnt == counter_q). mvf_equiv_lemma PASS by k-induction GIVEN the lemma. mvf_equiv UNKNOWN (base case passes 24 steps, induction fails). mvf_equiv_mut FAILS at step 13 (negative control armed).",
-    "decision": "PROMOTED",
-    "reason": "Two designs, two measured lemma dependencies, and the lemma SHAPES differ: the FIFO needed pointers + count + memory, mv_filter needs a single scalar counter. So the recurring thing is the phenomenon \u2014 a true-but-not-inductive property closed by a separately proved lemma \u2014 not one invariant that happened to work twice. This discharges the revisit condition recorded against Experiment 13 ('a second design acquires a measured lemma dependency').",
-    "revisit_if": [
-      "a design is found whose dependent property is inductive alone, which would bound how common the phenomenon is",
-      "the coupling structure must be DISCOVERED automatically rather than hand-written \u2014 still the open problem"
-    ],
-    "complexity_note": "THE PROBE WORKED FIRST TRY, where the FIFO took six attempts. Nothing was smarter here; the five defects the FIFO probe exposed were applied as design rules up front \u2014 tap as a PORT (no hierarchical refs), a connectivity control read before anything else, the lemma asserted ALONE, the reference model reading only the DUT's INPUTS so it cannot inherit the mutation, and shadow storage reset to match the DUT. That is what the failure memory is FOR, and it is the first direct evidence that it transfers to new work rather than only preventing repeats. STILL TRUE: both boards are formal-only and therefore DETERMINISTIC, so seed counts on them remain repetition rather than replication.",
-    "at": 1788096319.974556
-  },
-  {
-    "hypothesis": "Lemma-aware ordering generalises across design families carrying measured dependencies with DIFFERENT lemma shapes.",
-    "treatment": "N-lemmafirst",
-    "control": "M-static-cached",
-    "evidence": "REAL tools, 2 design families, 12 campaigns. Both families: M 1.136, N 1.389 (+22.2%), closed weight equal at 50.0. HELD-OUT family alone (mv_filter): M 1.100, N 1.375 (+25.0%). Coupling exercised on BOTH families (12 inconclusive direct attempts each). prereg sha256:17d0923baca393f6 INTACT.",
-    "decision": "PROMOTED",
-    "reason": "All four committed conditions held, including the two written to stop overclaiming: the dependency had to be exercised on BOTH families (not a FIFO-driven win with extra obligations attached), and the effect had to survive on the held-out family considered alone. It did, and it was LARGER there (+25.0% vs +22.2%) \u2014 the opposite of the overfitting signature that rejected L-static-onestep in Experiment 10. This discharges Experiment 13's single-family caveat.",
-    "revisit_if": [
-      "a board mixing simulation and formal makes this non-deterministic, which would let stability be measured rather than assumed",
-      "a third family with a measured dependency",
-      "the coupling structure must be DISCOVERED rather than hand-written"
-    ],
-    "complexity_note": "STILL DETERMINISTIC. Both boards are formal-only with no randomness in either ordering rule, so 12 campaigns remain 1 campaign repeated 12 times and the committed noise criterion is still vacuous. Two families answers GENERALISATION ACROSS DESIGNS; it does not answer STABILITY UNDER NOISE, and those are different questions. Experiment 7's +72.4% is NOT revived \u2014 its dependency was declared and it remains a structural stress test. What is promoted is a one-line ordering rule (value an obligation by what it unlocks), not a planner.",
-    "at": 1788101866.353213
-  },
-  {
-    "hypothesis": "Wiring in mv_filter's real testbench makes the coupled board stochastic, so the determinism caveat on Experiments 13 and 14 can be discharged and their noise criterion made meaningful.",
-    "treatment": "N-lemmafirst on a mixed sim+formal board",
-    "control": "M-static-cached on the same board",
-    "evidence": "REAL tools, 24 seeds. Committed condition (1) \u2014 the campaigns must actually DIFFER \u2014 FAILED: 1 distinct outcome per arm, std 0.000, and the real numbers were byte-identical to mock. Direct check of the cause: SimRouter.run over seeds {1,7,42,999,31337} returns 'pass' for mvf.sticky on every seed and 'counterexample' for mvf.bug on every seed. prereg sha256:9f0816e89b5bc104 INTACT.",
-    "decision": "UNDERPOWERED",
-    "reason": "NO VERDICT RECORDED, by the committed rule. The board did not become stochastic, so the run cannot answer the question it was written to ask, and E=0.765 vs 1.480 is not reported as a result. The cause is the CORPUS, not the policy: these testbenches are effective enough that 20k random vectors never change a verdict \u2014 true properties pass every time, the mutant is caught every time. Seed variation has nothing to act on.",
-    "revisit_if": [
-      "a design/mutant pair enters the corpus whose bug random vectors genuinely sometimes miss \u2014 rare-corner, not directed",
-      "a testbench with constrained-random stimulus replaces the directed benches, which would make seeds matter by construction"
-    ],
-    "complexity_note": "THE DETERMINISM CAVEAT ON EXPERIMENTS 13 AND 14 THEREFORE STANDS, UNDISCHARGED. Their +20.0% and +22.2% remain exact arithmetic on deterministic boards rather than sampled estimates, and their noise criteria remain vacuous. Two defects were found building this: every obligation was initially a TRUE property, so the board could never have varied (fixed by adding the mutant-refuted mvf.bug, named explicitly in source); and per-obligation counters were initialised in attach_features rather than __init__, so any featureless worker crashed on its first simulation \u2014 latent for as long as every such experiment was formal-only. TEMPTING AND REFUSED: shrinking nvec until the mutant is sometimes missed would manufacture variance by tuning the instrument toward the desired result. If that is done it must be pre-registered with the vector count justified as realistic, not chosen because it produces noise.",
-    "at": 1788120858.0167363
-  },
-  {
-    "hypothesis": "CORRECTION to the Experiment 15 record above, which was filed as UNDERPOWERED. That was the wrong state. UNDERPOWERED means the committed rule could not decide AT THIS SAMPLE SIZE \u2014 it implies more seeds would help. Here no sample size helps, because the environment cannot exhibit the phenomenon at all.",
-    "treatment": "Experiment 15",
-    "control": "(no comparison was admissible)",
-    "evidence": "Eligibility gate, run BEFORE any campaign: the same action (simulate mvf.bug) yields 1 distinct outcome across seeds {1,7,42,999,31337} \u2014 'counterexample' every time. Var(O|a) = 0.",
-    "decision": "NOT EVALUABLE",
-    "reason": "A third verdict state, distinct from MET / NOT MET / UNDERPOWERED. NOT MET says the effect is absent or too small. NOT EVALUABLE says the question was never asked: the committed rule was never applicable, so no metric is reported and none should be quoted. Experiment 15 now refuses at the eligibility gate and runs zero campaigns, so the 0.765-vs-1.480 figure no longer exists to be misread. A validly rejected experiment is a successful experiment-control outcome, not a failure.",
-    "revisit_if": [
-      "a benchmark with 0 < P(bug detected per campaign) < 1 under a realistic stimulus distribution is admitted to the corpus",
-      "ONLY THEN do belief/posterior/world-model questions become askable \u2014 those mechanisms exploit stochasticity this corpus cannot present, so testing them here would measure nothing"
-    ],
-    "complexity_note": "GENERALISED INTO voe/eligibility.py as a permanent gate that runs BEFORE the pre-registered rule, alongside the vacuity gate, positive control, negative control and witness audit. Those all ask whether a RESULT is trustworthy; this asks whether the environment can OBSERVE the phenomenon at all. Three regimes are now explicit: DETERMINISTIC (admits freely, but seed counts are repetition and must never be reported as sample size), STOCHASTIC (requires Var(O|a) > 0 demonstrated on the actual board), SEQUENTIAL (requires an action whose outcome changes what is worth doing next). Current corpus: good for DETERMINISTIC, demonstrated for SEQUENTIAL (fifo and mv_filter lemma dependencies), INSUFFICIENT for STOCHASTIC.",
-    "at": 1789241908.650664
-  },
-  {
-    "hypothesis": "A benchmark can be built whose bug random stimulus SOMETIMES catches and sometimes misses, admitting the STOCHASTIC experiment class that Experiment 15 showed the corpus could not support.",
-    "treatment": "sat_mac (saturating signed MAC) + (-128)x(-128) mutant",
-    "control": "the existing corpus, which is a deterministic classifier",
-    "evidence": "REAL Verilator, 40 seeds, 20000 vectors (project default, unchanged). Positive control: good DUT passes on ALL 40 seeds. Mutant caught in 18/40 campaigns -> P(detect) = 0.450 +/- 0.154. Distinct outcomes {pass, counterexample}. Reproducible: seed 1007 gives the same verdict twice. ADMITTED by the eligibility gate as STOCHASTIC.",
-    "decision": "PROMOTED",
-    "reason": "The first non-degenerate board in the corpus. Seeds are SAMPLES here, not repetition, so a committed noise criterion is meaningful for the first time. The rarity is a property of two's-complement arithmetic \u2014 (-128)x(-128) is the single asymmetric corner of an 8x8 signed multiply, 1 pair in 65536 \u2014 not a number chosen to land the statistics conveniently, and the vector count stayed at the project default rather than being tuned.",
-    "revisit_if": [
-      "the corner-rate discrepancy is explained \u2014 REQUIRED before any quantitative use of this benchmark",
-      "a second stochastic design is added; one rare corner in one arithmetic unit is a starting point, not a suite"
-    ],
-    "complexity_note": "OPEN DISCREPANCY, NOT RESOLVED: measured P(detect) = 0.450 but the arithmetic predicts 1-(1-1/65536)^20000 = 0.263, and the 95% interval [0.30, 0.60] EXCLUDES the prediction. A ~1.7x gap in the effective corner rate. Admission does not depend on it (0 < P < 1 either way), but the benchmark must NOT be used quantitatively until it is explained: a rate that differs from the model means the stimulus distribution is not what was declared. A stimulus-distribution control was added that COUNTS corner occurrences directly instead of inferring them from the detection rate, and it runs automatically when the two disagree. Also found: the testbench initially emitted 'SIM PASS checked=N' instead of the 'SIM_RESULT PASS n=N fails=N' the channel parses, so the status was 'error' rather than 'fail' \u2014 the positive control refused to characterise anything, which is the gate working.",
-    "at": 1789271002.7284517
-  },
-  {
-    "hypothesis": "CHARACTERISATION COMPLETE for the sat_mac stochastic benchmark, superseding the record above which admitted it with an OPEN discrepancy (measured P(detect) 0.450 vs arithmetic 0.263).",
-    "treatment": "sat_mac + (-128)x(-128) mutant, corrected stimulus",
-    "control": "the arithmetic prediction",
-    "evidence": "REAL Verilator, 40 seeds, 20000 vectors. P(detect) = 0.350 +/- 0.148, agreeing with the predicted 0.263. Corners 17 over 800000 vectors = 1 in 47059, 95% CI [1 in 31896 .. 1 in 89699], which CONTAINS 1 in 65536. Marginals uniform (1 in 255, 1 in 256). Joint vs independence +1.35 sigma (was +3.6 sigma before the fix). Detection occurs IFF a corner occurs \u2014 zero campaigns detected without one, zero contained one without detecting. Positive control passes on all 40 seeds. Reproducible.",
-    "decision": "PROMOTED",
-    "reason": "The benchmark's documented property now matches what it does, so the quantitative block is lifted. ROOT CAUSE of the original gap: TWO CONSECUTIVE $urandom() CALLS IN VERILATOR ARE CORRELATED. The marginals were exactly uniform while the joint ran 2x high \u2014 neither number alone could show that, only measuring both. Drawing both operands from separated bit lanes of ONE $urandom() removed it.",
-    "revisit_if": [
-      "a tighter P(detect) is needed \u2014 add seeds, do not re-model",
-      "a second stochastic design is added; one corner in one arithmetic unit is a starting point, not a suite",
-      "any new testbench uses consecutive $urandom() calls for operands that must be independent"
-    ],
-    "complexity_note": "THE PRECISION IS MODEST AND MUST BE QUOTED WITH THE VALUE. 17 events puts the corner rate within a factor of ~2.8; P(detect) = 0.350 +/- 0.148 is the operative property and is measured DIRECTLY (14/40), while the corner rate is a secondary consistency check explaining why. Anyone needing a tighter P(detect) needs more seeds, not a better model. FOUR instrument defects on the way: the TB emitted the wrong result line so the channel returned 'error' not 'fail'; Evidence.raw was populated only on errors so a PASS-time diagnostic was unreachable; corners and detections were counted on DIFFERENT seed sets and the incomparable rates were then read as evidence about the DUT; and the stimulus measurement was GATED ON the statistic it validates, so the healthy case was never confirmed. That last one is the FOURTH instance in this project of a control that is present, correct, and unable to observe \u2014 it now looks like the dominant failure mode of this kind of apparatus rather than a series of unrelated slips.",
-    "at": 1789404461.6657925
-  }
+ {
+  "hypothesis": "Explicit Bayesian belief over verification regimes plus a priced Value of Diagnosis selects actions better than a one-line diagnostic heuristic.",
+  "treatment": "H-uncertainty",
+  "control": "G-diagnostic",
+  "evidence": "12 independent seeds, 6 design families, 20 obligations. G 1.256 +/- 0.000; H 1.291 +/- 0.038 (+2.7% relative). Pre-registered threshold 5%; H's worst run 1.229 fell below G's mean. Probing cost 1.00 -> 2.75.",
+  "decision": "REJECTED",
+  "reason": "benefit +2.8% vs bar 11.5% (threshold 5% + uncertainty 3.0% + complexity 3.5%). The simpler policy already meets the requirement, so the additional machinery is not paid for by the evidence.",
+  "revisit_if": [
+   "LONG-HORIZON boards: the best first action has low immediate value but unlocks later value, so a one-step expected-value rule cannot see the chain",
+   "COUPLED obligations: one action affects many properties at once, so per-obligation greedy choices can be globally poor",
+   "NON-STATIONARY environments: an RTL commit changes which channel pays, faster than a realised-rate heuristic re-learns",
+   "LARGE action spaces: thousands of candidate stimuli, assertions or decompositions, where a heuristic becomes too coarse to rank",
+   "MULTI-STEP diagnosis: probe -> interpret -> probe again, which requires reasoning about future information rather than one probe"
+  ],
+  "complexity_note": "~3x probing spend; a belief model, sampler and VoD calculation to maintain and to keep correct.",
+  "at": 1788016174.8746188
+ },
+ {
+  "hypothesis": "A SEQUENCE of cheap real diagnostic actions (short Verilator run, then rtl_graph structural analysis) allocates verification effort better than a one-step diagnostic policy, on real RTL with real tools.",
+  "treatment": "K-multistep",
+  "control": "G-diagnostic",
+  "evidence": "REAL tools, 12 seeds, 6 design families. G 0.998 +/-0.012, K 1.149 +/-0.031, realisable 1.324. Relative +15.0%, absolute 0.150 > 2x0.031, CI width 0.036. prereg sha256:618e564d5497168e INTACT.",
+  "decision": "PROMOTED",
+  "reason": "Met the committed rule. But the control never obtained structural information AT ALL, so this number confounds two things: acquiring real structural facts, and acquiring them conditionally. Experiment 9 was run to separate them and found 56% of the gain is the information alone. This record must not be cited as evidence for planning depth; cite Experiment 9 for that.",
+  "revisit_if": [
+   "a regime appears where the chain must exceed depth 2",
+   "structural facts stop being obtainable by static reading"
+  ],
+  "complexity_note": "Four defects were found in the arm before this number was trusted: free structural facts (charged for what it already held, -52.6%); the branch was dead code behind a copied hasattr(self,'belief') guard while still reporting +39.2%; the step-2 gate used _uncertain(sig), false by construction after step 1; and hard->sim had no cap, the 162-sim-pass loop returning. Every one is now a permanent adversarial test.",
+  "at": 1788035000.3767974
+ },
+ {
+  "hypothesis": "The SEQUENCING earns Experiment 8's gain, rather than the mere acquisition of structural information.",
+  "treatment": "K-multistep",
+  "control": "L-static-onestep",
+  "evidence": "REAL tools, 12 seeds, 6 design families. L 1.083 +/-0.000, K 1.149 +/-0.031. Sequencing alone +6.1%, absolute 0.066 vs a noise floor of 0.062 \u2014 a 6% margin. 56% of Experiment 8's gain is information, not sequencing. prereg sha256:d53c2aadc4d29c3b INTACT.",
+  "decision": "UNDERPOWERED",
+  "reason": "The two rules disagree and the project should not pretend otherwise. The pre-registered rule returns MET (+6.1% > 5%). The promotion rule, which adds the measured spread to the bar, returns NOT MET (+6.1% vs 7.9%). Consistency also cuts toward K: its worst run (1.123) sits above L's mean (1.083), which is the same dominance argument used to REJECT H. The effect is real and small, and which way it falls depends entirely on how machinery is priced. Recording it as a clean win or a clean loss would both be false.",
+  "revisit_if": [
+   "K beats L by >5% with the spread charged, on >=24 seeds",
+   "a regime requires a chain deeper than 2 steps",
+   "structure becomes expensive to obtain, making WHEN to buy it matter"
+  ],
+  "complexity_note": "Decisive for the actual question regardless of how this resolves: the chain that won is HAND-WRITTEN and two steps deep. Nothing here shows the chain must be LEARNED. A learned dynamics model is a far larger complexity jump than 6.1% of sequencing value can justify. DO NOT BUILD THE WORLD MODEL.",
+  "at": 1788035000.3797405
+ },
+ {
+  "hypothesis": "L-static-onestep (one structural read per OBLIGATION, no probe, no chain) should replace G-diagnostic as the default policy.",
+  "treatment": "L-static-onestep",
+  "control": "G-diagnostic",
+  "evidence": "REAL tools, 24 seeds, 6 families. Full board L 1.083 vs G 0.998 (+8.5%, cleared the bar). HELD-OUT (lfsr, mv_filter) L 1.226 vs G 1.299 (-5.6%). prereg sha256:2158cdcd9a28fe05 INTACT.",
+  "decision": "REJECTED",
+  "reason": "Failed committed side condition (2): worse on the designs it had never seen. I first read this as overfitting to the dev designs. That was WRONG, and the aggregate number could not have told me \u2014 only per-read instrumentation could. L paid 0.5 per OBLIGATION for a fact that belongs to a DESIGN: 6 of 11 reads redundant on the full board, 4 of 6 on held-out. The overhead amortises over 20 obligations and dominates over 7, which produced a win on the full board and a loss on the small split. A cost-model error and overfitting are indistinguishable from E alone.",
+  "revisit_if": [
+   "never as specified \u2014 superseded by M-static-cached"
+  ],
+  "complexity_note": "Third appearance of ONE recurring defect: being charged for information already held. It cost Experiment 8 a -52.6% result, then hid inside L disguised as overfitting. Now a permanent test, plus an in-run instrument check.",
+  "at": 1788063286.668961
+ },
+ {
+  "hypothesis": "M-static-cached (one structural read per DESIGN, no probe, no chain) should replace G-diagnostic as the default policy.",
+  "treatment": "M-static-cached",
+  "control": "G-diagnostic",
+  "evidence": "REAL tools, 24 seeds, 6 families. Full board M 1.120 +/-0.000 vs G 0.998 +/-0.012 (+12.2%, bar 6.2%, CI width 0.010). Held-out M 1.310 vs G 1.299 (+0.9%, NOT WORSE). Closed weight equal at 98.0. Zero redundant structural reads in the worst run. realisable 1.324. prereg sha256:03795d3516b2d507 INTACT.",
+  "decision": "PROMOTED",
+  "reason": "All four committed conditions held, including the held-out split that rejected L and the in-run instrument check confirming the diagnosed defect was actually fixed. RECOMMENDED changed from G-diagnostic to M-static-cached.",
+  "revisit_if": [
+   "held-out margin fails to replicate on a corpus with >=3 held-out design families",
+   "a design appears whose structure is not statically readable",
+   "any future candidate beats M on held-out, not merely on the full board"
+  ],
+  "complexity_note": "M is the THIRD default candidate tested (H, L, M), and testing until something wins manufactures false positives. Mitigating: M is not a new hypothesis but L with a defect removed, diagnosed BEFORE the fix was written; and the held-out condition \u2014 the guard against exactly this \u2014 was re-committed unchanged and passed. NOT mitigated: the held-out margin is +0.9% across only 2 design families. The claim is 'better on the full board, not worse on held-out'. It is NOT 'better everywhere'.",
+  "at": 1788063286.6790707
+ },
+ {
+  "hypothesis": "REVISIT CONDITION DISCHARGED \u2014 'MULTI-STEP diagnosis: probe -> interpret -> probe again' was recorded as a condition under which H-uncertainty (posteriors + priced Value-of-Diagnosis) should be reconsidered. Experiments 8 and 9 tested that regime directly.",
+  "treatment": "H-uncertainty (reconsideration)",
+  "control": "G-diagnostic",
+  "evidence": "Experiment 8: a real two-step chain (Verilator probe -> rtl_graph read) beat the one-step control by +15.0%. Experiment 9 ablated it: 56% of that was the INFORMATION, and sequencing alone was worth +6.1%, which failed the complexity-priced bar. No posterior and no VoD calculation was involved in the chain that won.",
+  "decision": "REJECTED",
+  "reason": "The multi-step regime turned out to exist and to matter slightly, but it did not vindicate H. What paid in that regime was a hand-written two-step chain over real tool output, not sampled P(a is best) over a learned posterior. The condition is discharged WITHOUT reinstating H: a revisit trigger firing is permission to re-test, not a verdict.",
+  "revisit_if": [
+   "a regime requires a chain deeper than 2 steps",
+   "a chain must be LEARNED rather than written, which is the only thing that would justify a dynamics model"
+  ],
+  "complexity_note": "Four of H's five revisit conditions remain open and untested: long-horizon boards, coupled obligations, non-stationarity, and large action spaces. The horizon and coupling results so far are SYNTHETIC/STRUCTURAL stress tests indicating substantial vulnerability of the current planner to long-horizon and coupled-obligation structure; real-tool validation remains pending.",
+  "at": 1788063394.9109304
+ },
+ {
+  "hypothesis": "COUPLED OBLIGATIONS EXIST AND ARE MEASURABLE. Experiments 6 and 7 DECLARED their dependency structure, which is why their +14.9% and +72.4% are synthetic structural stress tests. This probe declares nothing: it asks the solver whether proving one obligation makes a second one provable, on the real cv32e40p_fifo with yosys/z3.",
+  "treatment": "lemma-decomposed proof",
+  "control": "direct proof",
+  "evidence": "REAL tools (SymbiYosys + z3, k-induction, depth 12) on the vendored cv32e40p_fifo. tap_control PASS (observation ports real). cnt_lemma PASS. state_match PASS standalone (pointers + count + memory). integrity_state PASS by k-induction GIVEN the lemma. integrity alone UNKNOWN (base case passes 12 steps, induction fails). integrity_lemma (cnt<=DEPTH assumed) UNKNOWN \u2014 identical failure. integrity_mut FAILS at step 7 (negative control armed).",
+  "decision": "PROMOTED",
+  "reason": "A genuine coupled-obligation structure, MEASURED rather than declared: a data-integrity property that is true but not inductive becomes provable once a state-matching lemma is proved first. Also a real negative result on the way: `cnt <= DEPTH` is sound, proves easily, and does NOT help \u2014 induction fails identically with and without it. The lemma that works relates the two machines' pointers, count AND memory. This is the ground Experiments 6/7 lacked.",
+  "revisit_if": [
+   "a design appears whose lemma cannot be expressed over exposed state",
+   "the coupling structure must be DISCOVERED automatically rather than hand-written \u2014 that is the real Experiment 12"
+  ],
+  "complexity_note": "FIVE instrument defects found, every one of which made a broken instrument look green: (1) the model gated updates on testmode, which this FIFO never uses in its datapath; (2) it skipped flush cycles instead of mirroring them; (3) hierarchical references silently became UNDRIVEN wires in both yosys and sv2v, so the lemma was assumed against floating signals and constrained nothing; (4) the lemma task also asserted the property it supports, so it could never be proved \u2014 circular; (5) WORST: the reference model decided push acceptance from the DUT's own full_o, so it inherited the mutant's bug and the negative control detected nothing. (5) was invisible until (1) and (2) were fixed \u2014 each repair removed a spurious divergence until the control finally revealed it had never been checking. Fixed in the other order, this would have shipped a vacuous proof under a green negative control. All five are now permanent tests.",
+  "at": 1788084973.2139847
+ },
+ {
+  "hypothesis": "On a board carrying a MEASURED lemma dependency, ordering an obligation by what it UNLOCKS beats ordering by immediate utility.",
+  "treatment": "N-lemmafirst",
+  "control": "M-static-cached",
+  "evidence": "REAL tools (SymbiYosys + z3) on the cv32e40p_fifo coupling board. M 1.167, N 1.400, +20.0%. Both close 28.0 weight. M wasted 12/12 direct proof attempts on fifo.integrity (inconclusive); N wasted 0. Action traces: M runs 6 formal actions (integrity, cnt_bound, no_overflow, flags, state_match, integrity), N runs 5 (state_match, integrity, cnt_bound, no_overflow, flags). prereg sha256:33efa91c898c31b5 INTACT.",
+  "decision": "PROMOTED",
+  "reason": "The dependency was MEASURED by the coupling probe, not declared: fifo.integrity is true but not inductive, and only becomes provable once fifo.state_match is proved. Both arms had identical channels, identical lemma-aware routing, and the same re-attempt rule, so the ONLY difference is order. The committed instrument check confirmed the coupling was exercised (12 inconclusive direct attempts).",
+  "revisit_if": [
+   "a second design acquires a measured lemma dependency, which would allow a non-deterministic multi-family version of this test",
+   "the coupling structure must be DISCOVERED rather than hand-written"
+  ],
+  "complexity_note": "THE GAIN IS EXACT, NOT ESTIMATED, AND '12 SEEDS' IS NOT REPLICATION. The board is fully deterministic \u2014 every action is formal and memoised, neither ordering uses randomness \u2014 so 12 campaigns are 1 campaign repeated 12 times. M pays 24.0 (6 formal actions), N pays 20.0 (5); 24/20 = 1.20 exactly. The committed noise criterion (absolute > 2x std) is VACUOUS here. A related defect was found writing the warning: the determinism guard tested `std == 0.0`, but variance over 12 identical values returns 2.3e-16, so the guard never fired and the caveat stayed invisible \u2014 a silent check that reads as 'handled' in the source. Now detected by counting distinct outcomes. ALSO: one design family, below the usual three, because only the FIFO has a measured lemma dependency. This shows the mechanism is real; it does NOT show it generalises.",
+  "at": 1788090508.1931806
+ },
+ {
+  "hypothesis": "REVISIT CONDITION PARTIALLY DISCHARGED \u2014 'COUPLED obligations' was recorded as a condition for reconsidering H-uncertainty.",
+  "treatment": "H-uncertainty (reconsideration)",
+  "control": "M-static-cached",
+  "evidence": "Experiment 13 tested the coupled regime on a measured dependency. What paid was ORDERING by what an obligation unlocks (+20.0%, exact). No posterior, no sampled P(a is best), no priced VoD was involved.",
+  "decision": "REJECTED",
+  "reason": "The coupled regime exists and matters, and it did NOT vindicate H. A one-line ordering rule captured the whole effect. Two of H's five revisit conditions are now discharged without reinstating it (multi-step diagnosis, coupled obligations); three remain untested: long-horizon boards, non-stationarity, and large action spaces.",
+  "revisit_if": [
+   "long-horizon boards",
+   "non-stationary environments",
+   "large action spaces"
+  ],
+  "complexity_note": "Experiment 7's +72.4% for coupling-aware ordering STILL stands only as a synthetic structural stress test \u2014 its dependency was declared. Experiment 13 does not retroactively validate it; it replaces it on one design family.",
+  "at": 1788090508.2133098
+ },
+ {
+  "hypothesis": "The lemma dependency measured on the FIFO RECURS on a second, held-out design \u2014 i.e. it is a property of verification, not an artifact of one DUT or one invariant shape.",
+  "treatment": "mv_filter coupling probe",
+  "control": "the FIFO coupling probe",
+  "evidence": "REAL tools (SymbiYosys + z3, k-induction, depth 24) on the pulp mv_filter, a HELD-OUT design no policy was developed against. mvf_tap PASS (tap wired). mvf_state PASS standalone (s_cnt == counter_q). mvf_equiv_lemma PASS by k-induction GIVEN the lemma. mvf_equiv UNKNOWN (base case passes 24 steps, induction fails). mvf_equiv_mut FAILS at step 13 (negative control armed).",
+  "decision": "PROMOTED",
+  "reason": "Two designs, two measured lemma dependencies, and the lemma SHAPES differ: the FIFO needed pointers + count + memory, mv_filter needs a single scalar counter. So the recurring thing is the phenomenon \u2014 a true-but-not-inductive property closed by a separately proved lemma \u2014 not one invariant that happened to work twice. This discharges the revisit condition recorded against Experiment 13 ('a second design acquires a measured lemma dependency').",
+  "revisit_if": [
+   "a design is found whose dependent property is inductive alone, which would bound how common the phenomenon is",
+   "the coupling structure must be DISCOVERED automatically rather than hand-written \u2014 still the open problem"
+  ],
+  "complexity_note": "THE PROBE WORKED FIRST TRY, where the FIFO took six attempts. Nothing was smarter here; the five defects the FIFO probe exposed were applied as design rules up front \u2014 tap as a PORT (no hierarchical refs), a connectivity control read before anything else, the lemma asserted ALONE, the reference model reading only the DUT's INPUTS so it cannot inherit the mutation, and shadow storage reset to match the DUT. That is what the failure memory is FOR, and it is the first direct evidence that it transfers to new work rather than only preventing repeats. STILL TRUE: both boards are formal-only and therefore DETERMINISTIC, so seed counts on them remain repetition rather than replication.",
+  "at": 1788096319.974556
+ },
+ {
+  "hypothesis": "Lemma-aware ordering generalises across design families carrying measured dependencies with DIFFERENT lemma shapes.",
+  "treatment": "N-lemmafirst",
+  "control": "M-static-cached",
+  "evidence": "REAL tools, 2 design families, 12 campaigns. Both families: M 1.136, N 1.389 (+22.2%), closed weight equal at 50.0. HELD-OUT family alone (mv_filter): M 1.100, N 1.375 (+25.0%). Coupling exercised on BOTH families (12 inconclusive direct attempts each). prereg sha256:17d0923baca393f6 INTACT.",
+  "decision": "PROMOTED",
+  "reason": "All four committed conditions held, including the two written to stop overclaiming: the dependency had to be exercised on BOTH families (not a FIFO-driven win with extra obligations attached), and the effect had to survive on the held-out family considered alone. It did, and it was LARGER there (+25.0% vs +22.2%) \u2014 the opposite of the overfitting signature that rejected L-static-onestep in Experiment 10. This discharges Experiment 13's single-family caveat.",
+  "revisit_if": [
+   "a board mixing simulation and formal makes this non-deterministic, which would let stability be measured rather than assumed",
+   "a third family with a measured dependency",
+   "the coupling structure must be DISCOVERED rather than hand-written"
+  ],
+  "complexity_note": "STILL DETERMINISTIC. Both boards are formal-only with no randomness in either ordering rule, so 12 campaigns remain 1 campaign repeated 12 times and the committed noise criterion is still vacuous. Two families answers GENERALISATION ACROSS DESIGNS; it does not answer STABILITY UNDER NOISE, and those are different questions. Experiment 7's +72.4% is NOT revived \u2014 its dependency was declared and it remains a structural stress test. What is promoted is a one-line ordering rule (value an obligation by what it unlocks), not a planner.",
+  "at": 1788101866.353213
+ },
+ {
+  "hypothesis": "Wiring in mv_filter's real testbench makes the coupled board stochastic, so the determinism caveat on Experiments 13 and 14 can be discharged and their noise criterion made meaningful.",
+  "treatment": "N-lemmafirst on a mixed sim+formal board",
+  "control": "M-static-cached on the same board",
+  "evidence": "REAL tools, 24 seeds. Committed condition (1) \u2014 the campaigns must actually DIFFER \u2014 FAILED: 1 distinct outcome per arm, std 0.000, and the real numbers were byte-identical to mock. Direct check of the cause: SimRouter.run over seeds {1,7,42,999,31337} returns 'pass' for mvf.sticky on every seed and 'counterexample' for mvf.bug on every seed. prereg sha256:9f0816e89b5bc104 INTACT.",
+  "decision": "UNDERPOWERED",
+  "reason": "NO VERDICT RECORDED, by the committed rule. The board did not become stochastic, so the run cannot answer the question it was written to ask, and E=0.765 vs 1.480 is not reported as a result. The cause is the CORPUS, not the policy: these testbenches are effective enough that 20k random vectors never change a verdict \u2014 true properties pass every time, the mutant is caught every time. Seed variation has nothing to act on.",
+  "revisit_if": [
+   "a design/mutant pair enters the corpus whose bug random vectors genuinely sometimes miss \u2014 rare-corner, not directed",
+   "a testbench with constrained-random stimulus replaces the directed benches, which would make seeds matter by construction"
+  ],
+  "complexity_note": "THE DETERMINISM CAVEAT ON EXPERIMENTS 13 AND 14 THEREFORE STANDS, UNDISCHARGED. Their +20.0% and +22.2% remain exact arithmetic on deterministic boards rather than sampled estimates, and their noise criteria remain vacuous. Two defects were found building this: every obligation was initially a TRUE property, so the board could never have varied (fixed by adding the mutant-refuted mvf.bug, named explicitly in source); and per-obligation counters were initialised in attach_features rather than __init__, so any featureless worker crashed on its first simulation \u2014 latent for as long as every such experiment was formal-only. TEMPTING AND REFUSED: shrinking nvec until the mutant is sometimes missed would manufacture variance by tuning the instrument toward the desired result. If that is done it must be pre-registered with the vector count justified as realistic, not chosen because it produces noise.",
+  "at": 1788120858.0167363
+ },
+ {
+  "hypothesis": "CORRECTION to the Experiment 15 record above, which was filed as UNDERPOWERED. That was the wrong state. UNDERPOWERED means the committed rule could not decide AT THIS SAMPLE SIZE \u2014 it implies more seeds would help. Here no sample size helps, because the environment cannot exhibit the phenomenon at all.",
+  "treatment": "Experiment 15",
+  "control": "(no comparison was admissible)",
+  "evidence": "Eligibility gate, run BEFORE any campaign: the same action (simulate mvf.bug) yields 1 distinct outcome across seeds {1,7,42,999,31337} \u2014 'counterexample' every time. Var(O|a) = 0.",
+  "decision": "NOT EVALUABLE",
+  "reason": "A third verdict state, distinct from MET / NOT MET / UNDERPOWERED. NOT MET says the effect is absent or too small. NOT EVALUABLE says the question was never asked: the committed rule was never applicable, so no metric is reported and none should be quoted. Experiment 15 now refuses at the eligibility gate and runs zero campaigns, so the 0.765-vs-1.480 figure no longer exists to be misread. A validly rejected experiment is a successful experiment-control outcome, not a failure.",
+  "revisit_if": [
+   "a benchmark with 0 < P(bug detected per campaign) < 1 under a realistic stimulus distribution is admitted to the corpus",
+   "ONLY THEN do belief/posterior/world-model questions become askable \u2014 those mechanisms exploit stochasticity this corpus cannot present, so testing them here would measure nothing"
+  ],
+  "complexity_note": "GENERALISED INTO voe/eligibility.py as a permanent gate that runs BEFORE the pre-registered rule, alongside the vacuity gate, positive control, negative control and witness audit. Those all ask whether a RESULT is trustworthy; this asks whether the environment can OBSERVE the phenomenon at all. Three regimes are now explicit: DETERMINISTIC (admits freely, but seed counts are repetition and must never be reported as sample size), STOCHASTIC (requires Var(O|a) > 0 demonstrated on the actual board), SEQUENTIAL (requires an action whose outcome changes what is worth doing next). Current corpus: good for DETERMINISTIC, demonstrated for SEQUENTIAL (fifo and mv_filter lemma dependencies), INSUFFICIENT for STOCHASTIC.",
+  "at": 1789241908.650664
+ },
+ {
+  "hypothesis": "A benchmark can be built whose bug random stimulus SOMETIMES catches and sometimes misses, admitting the STOCHASTIC experiment class that Experiment 15 showed the corpus could not support.",
+  "treatment": "sat_mac (saturating signed MAC) + (-128)x(-128) mutant",
+  "control": "the existing corpus, which is a deterministic classifier",
+  "evidence": "REAL Verilator, 40 seeds, 20000 vectors (project default, unchanged). Positive control: good DUT passes on ALL 40 seeds. Mutant caught in 18/40 campaigns -> P(detect) = 0.450 +/- 0.154. Distinct outcomes {pass, counterexample}. Reproducible: seed 1007 gives the same verdict twice. ADMITTED by the eligibility gate as STOCHASTIC.",
+  "decision": "PROMOTED",
+  "reason": "The first non-degenerate board in the corpus. Seeds are SAMPLES here, not repetition, so a committed noise criterion is meaningful for the first time. The rarity is a property of two's-complement arithmetic \u2014 (-128)x(-128) is the single asymmetric corner of an 8x8 signed multiply, 1 pair in 65536 \u2014 not a number chosen to land the statistics conveniently, and the vector count stayed at the project default rather than being tuned.",
+  "revisit_if": [
+   "the corner-rate discrepancy is explained \u2014 REQUIRED before any quantitative use of this benchmark",
+   "a second stochastic design is added; one rare corner in one arithmetic unit is a starting point, not a suite"
+  ],
+  "complexity_note": "OPEN DISCREPANCY, NOT RESOLVED: measured P(detect) = 0.450 but the arithmetic predicts 1-(1-1/65536)^20000 = 0.263, and the 95% interval [0.30, 0.60] EXCLUDES the prediction. A ~1.7x gap in the effective corner rate. Admission does not depend on it (0 < P < 1 either way), but the benchmark must NOT be used quantitatively until it is explained: a rate that differs from the model means the stimulus distribution is not what was declared. A stimulus-distribution control was added that COUNTS corner occurrences directly instead of inferring them from the detection rate, and it runs automatically when the two disagree. Also found: the testbench initially emitted 'SIM PASS checked=N' instead of the 'SIM_RESULT PASS n=N fails=N' the channel parses, so the status was 'error' rather than 'fail' \u2014 the positive control refused to characterise anything, which is the gate working.",
+  "at": 1789271002.7284517
+ },
+ {
+  "hypothesis": "CHARACTERISATION COMPLETE for the sat_mac stochastic benchmark, superseding the record above which admitted it with an OPEN discrepancy (measured P(detect) 0.450 vs arithmetic 0.263).",
+  "treatment": "sat_mac + (-128)x(-128) mutant, corrected stimulus",
+  "control": "the arithmetic prediction",
+  "evidence": "REAL Verilator, 40 seeds, 20000 vectors. P(detect) = 0.350 +/- 0.148, agreeing with the predicted 0.263. Corners 17 over 800000 vectors = 1 in 47059, 95% CI [1 in 31896 .. 1 in 89699], which CONTAINS 1 in 65536. Marginals uniform (1 in 255, 1 in 256). Joint vs independence +1.35 sigma (was +3.6 sigma before the fix). Detection occurs IFF a corner occurs \u2014 zero campaigns detected without one, zero contained one without detecting. Positive control passes on all 40 seeds. Reproducible.",
+  "decision": "PROMOTED",
+  "reason": "The benchmark's documented property now matches what it does, so the quantitative block is lifted. ROOT CAUSE of the original gap: TWO CONSECUTIVE $urandom() CALLS IN VERILATOR ARE CORRELATED. The marginals were exactly uniform while the joint ran 2x high \u2014 neither number alone could show that, only measuring both. Drawing both operands from separated bit lanes of ONE $urandom() removed it.",
+  "revisit_if": [
+   "a tighter P(detect) is needed \u2014 add seeds, do not re-model",
+   "a second stochastic design is added; one corner in one arithmetic unit is a starting point, not a suite",
+   "any new testbench uses consecutive $urandom() calls for operands that must be independent"
+  ],
+  "complexity_note": "THE PRECISION IS MODEST AND MUST BE QUOTED WITH THE VALUE. 17 events puts the corner rate within a factor of ~2.8; P(detect) = 0.350 +/- 0.148 is the operative property and is measured DIRECTLY (14/40), while the corner rate is a secondary consistency check explaining why. Anyone needing a tighter P(detect) needs more seeds, not a better model. FOUR instrument defects on the way: the TB emitted the wrong result line so the channel returned 'error' not 'fail'; Evidence.raw was populated only on errors so a PASS-time diagnostic was unreachable; corners and detections were counted on DIFFERENT seed sets and the incomparable rates were then read as evidence about the DUT; and the stimulus measurement was GATED ON the statistic it validates, so the healthy case was never confirmed. That last one is the FOURTH instance in this project of a control that is present, correct, and unable to observe \u2014 it now looks like the dominant failure mode of this kind of apparatus rather than a series of unrelated slips.",
+  "at": 1789404461.6657925
+ },
+ {
+  "hypothesis": "pfifo (depth-6 FIFO, missing wrap on the flush_but_first write pointer) is a SECOND admissible STOCHASTIC benchmark: 0 < P(detect) < 1 under real tools with no probability injected by the harness.",
+  "treatment": "pfifo + single-line wrap mutant, campaign-length GRID committed and hashed before any campaign (sha256:3303e122755ce446)",
+  "control": "positive control on the good DUT at every grid point; reproducibility; instrumentation coherence (no detection without reaching the mutated line)",
+  "evidence": "REAL Verilator, 24 seeds, grid 64..4096 cycles. P(detect) = 0.000, 0.000, 0.083, 0.333, 0.458, 0.625, 0.875. Non-degenerate (>=2 hits and >=2 misses) at 256, 512, 1024, 2048, 4096. Positive control PASSES at every grid point; reproducible; ZERO campaigns detected without reaching the corner. Corner counts 0/0/2/9/16/29/52 track detections. Exact Clopper-Pearson intervals throughout.",
+  "decision": "PROMOTED",
+  "reason": "Admitted as a stochastic benchmark. The corpus now has two designs on which the same action genuinely sometimes catches a bug and sometimes does not, so seeds are samples rather than repetition on both. Admission of the BOARD is separate from, and weaker than, the generalisation claim tested in the next record.",
+  "at": "2026-09-17",
+  "complexity_note": "The board adds no machinery to any policy. It is a benchmark, not a mechanism.",
+  "revisit_if": "the mutant is shown to differ from the good design anywhere other than the one documented line, or a campaign detects without reaching the corner."
+ },
+ {
+  "hypothesis": "STOCHASTIC GENERALIZATION GATE \u2014 the two admitted boards constitute two structurally DISTINCT stochastic regimes, not one phenomenon sampled twice.",
+  "treatment": "pfifo detection-vs-campaign-length curve",
+  "control": "sat_mac curve; null = P(detect|N) = 1-(1-p)^N fitted per board by maximum likelihood. Protocol committed BEFORE S1 was run (sha256:a27bea56e43c33c3).",
+  "evidence": "REAL Verilator, 24 seeds, per-board grids. The memoryless law is CONSISTENT with every grid point on BOTH boards: sat_mac fitted p = 1.12e-05 (0 of 6 points excluded), pfifo fitted p = 5.77e-04 (0 of 7 points excluded). The shape statistic was calibrated in advance against boards with known answers: at 24 seeds it has ~5% false-alarm and ~99% power against a sharp warm-up alternative.",
+  "decision": "NOT MET",
+  "reason": "The gate does NOT pass. The structural prediction \u2014 that a stateful design's correlated events and warm-up would break the memoryless law \u2014 was WRONG, and the reason is quantitative rather than accidental: pfifo's occupancy chain mixes in ~12 cycles while its corner arrives once in ~1556 cycles, a ratio of ~130. The state is forgotten many times over between opportunities, so successive trials are effectively independent and the process is memoryless however stateful the design is. Statefulness is NOT the variable that produces a distinct stochastic regime; the ratio of mixing time to rare-event interval is. H REMAINS CLOSED. Recorded limit: this is not 'pfifo is memoryless' but 'any departure is smaller than this statistic can resolve at 24 seeds', and raising seeds is not available because the statistic's calibration DEGRADES with more seeds (14% false alarm at 48).",
+  "at": "2026-09-17",
+  "complexity_note": "No mechanism was added or promoted. A predicted structural difference failed to appear.",
+  "revisit_if": "a third board is built whose rare event is NOT slow relative to its state mixing time -- either detection requiring a sustained conjunction or a sequence, or rarity arising from state REACHABILITY rather than input coincidence. The design rule this record establishes: a distinct stochastic regime requires mixing-time / rare-event-interval to be O(1), not O(1/100)."
+ }
 ]
