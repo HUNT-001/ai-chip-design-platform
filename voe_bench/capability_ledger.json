@@ -237,5 +237,16 @@
   "at": "2026-09-17",
   "complexity_note": "No mechanism was added or promoted. A predicted structural difference failed to appear.",
   "revisit_if": "a third board is built whose rare event is NOT slow relative to its state mixing time -- either detection requiring a sustained conjunction or a sequence, or rarity arising from state REACHABILITY rather than input coincidence. The design rule this record establishes: a distinct stochastic regime requires mixing-time / rare-event-interval to be O(1), not O(1/100)."
+ },
+ {
+  "at": "2026-09-20",
+  "hypothesis": "dfifo (depth-24 balanced occupancy walk, over-push-at-full mutant) is an admissible REACHABILITY-LIMITED stochastic benchmark, under commitment sha256:370416898ea34b4a.",
+  "treatment": "dfifo + one-character >= to > mutation on the full comparison",
+  "control": "positive control, stimulus characterisation (marginals + lag-1 correlation), cross-variant T_hit identity, cross-horizon T_hit identity, KS against the exactly-solved kernel",
+  "evidence": "REAL Verilator, 24 seeds, B = 668 = ceil(E[T_hit]). Positive control PASS. Stimulus clean: p_push +1.00 sigma, p_pop -0.97, p_idle -0.06, lag-1 correlation -0.0089 (-1.13 sigma) over 16032 steps \u2014 the steps ARE independent and the chain is the one the theory solves. P(detect) = 0.625 [0.406, 0.812]. First-passage distribution consistent with the kernel: KS D = 0.146 vs 0.278 critical; 24/24 reached depth by 3000 (theory 0.995); T_hit identical across variants and across horizons.",
+  "decision": "NOT ADMITTED",
+  "reason": "The committed COHERENCE criterion was violated: one seed (9023) reached DEPTH without being detected, and the commitment asserted detection occurs IFF the occupancy reaches DEPTH. The board is not at fault. The CRITERION was wrong, and wrong in an instructive way: a pre-registration is allowed to encode assumptions about the DUT, and those assumptions are not themselves pre-registered. This one assumed that once the walk touches the boundary detection follows within ~2 cycles. It does not \u2014 the mutant diverges only when a push is ACCEPTED at full, and the draw after reaching the boundary is equally likely to be a pop, returning the walk to DEPTH-1 where the designs are bit-identical. Detection needs repeated returns to the boundary, each costing O(D). Measured lag: mean 35.7, max 278. The corrected detection kernel predicts 55.7, and E[T_detect] = 723.5 against E[T_hit] = 667.8.",
+  "complexity_note": "No mechanism was added or promoted. A benchmark failed its own admission on a criterion that encoded an unverified claim about the design.",
+  "revisit_if": "Superseded by commitment sha256:70e8407936c0fb83 (S1b): budget from the DETECTION kernel (B' = 724 = ceil(E[T_detect])), coherence stated as an implication rather than an equivalence, and FRESH seeds from 11000 because 9000-9023 have been seen. The first commitment file is kept rather than edited."
  }
 ]

@@ -1,0 +1,38 @@
+{
+  "committed_at": 1789857737.0347195,
+  "name": "dfifo S1 characterisation",
+  "notes": "Committed before any dfifo campaign ran. B comes from the transition kernel, not from observed seeds; theory.py was solved first and the RTL written afterwards.\nThe initial-state distribution is committed because it selects the question: cold start measures first passage, stationary start measures recurrence of a rare state. Reporting one as the other would be a category error, so both run.\nFALSIFIABLE IN A WAY THE EARLIER BOARDS WERE NOT: the kernel predicts a full first-passage distribution, four level milestones scaling as k^2, and P(T_hit <= B) = 0.630. Any of those can come out wrong, and if they do the board is broken rather than uninteresting. Extending B or redrawing the stimulus to rescue a disagreement is the Experiment 15 refusal wearing a different hat.",
+  "spec": {
+    "activation": "iff occupancy reaches DEPTH; designs bit-identical below it",
+    "admission": {
+      "coherence": "detection IMPLIES the occupancy reached DEPTH (one direction only). The converse is false and its rate is predicted, not forbidden.",
+      "min_detections": 2,
+      "min_misses": 2,
+      "positive_control": "good DUT passes on every seed in every condition",
+      "stimulus_identity": "T_hit must agree between variants on the same seed"
+    },
+    "budget_B": 724,
+    "budget_derivation": "ceil(E[T_detect | q0=0]) from the DETECTION kernel, by exact linear solve",
+    "conditions": {
+      "control": "q0 ~ Uniform{0..24}, the exact stationary law (recurrence)",
+      "primary": "cold start, q0 = 0 (first passage)"
+    },
+    "design": "dfifo \u2014 depth-24 FIFO, balanced push/pop occupancy walk",
+    "kernel": {
+      "depth": 24,
+      "p_idle": 0.1015625,
+      "p_pop": 0.44921875,
+      "p_push": 0.44921875,
+      "pop_threshold": 230,
+      "push_threshold": 115
+    },
+    "mutant": "full comparison >= written as > (one character)",
+    "observed_quantity": "T_detect \u2014 the first push accepted at full. Reaching DEPTH is necessary but NOT sufficient: the next draw is as likely to be a pop, which returns the walk to DEPTH-1 where the designs are bit-identical.",
+    "predicted_P_detect_at_B": 0.6299,
+    "seed_base": 11000,
+    "seeds": 2,
+    "shape_horizon": 3000,
+    "supersedes": "commit_dfifo_s1.json, whose coherence criterion asserted detection iff reaching DEPTH. That is false in one direction and the run came back NOT ADMITTED on a seed that reached the boundary without a subsequent push."
+  }
+}
+// sha256:70e8407936c0fb83

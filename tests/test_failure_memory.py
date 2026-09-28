@@ -832,44 +832,257 @@ def test_benchmark_commitments_are_tamper_evident():
 # --------------------------------------------------------------------------- #
 # INCIDENT 26 — a prose comment that stopped the compiler.                     #
 # --------------------------------------------------------------------------- #
-# The pfifo header paragraph wrapped so that one line began with the word
+# A header paragraph in pfifo.sv wrapped so that one line began with the word
 # "Verilator". The simulator parses a comment starting with that word as a
 # pragma, did not recognise this one, and refused to compile. Every campaign in
-# the S1 grid then returned status 'error'; the positive control correctly
-# reported an unvalidated checker and the whole run was discarded.
+# the S1 grid returned status 'error'; the positive control correctly reported
+# an unvalidated checker and the whole run was discarded.
 #
-# Two things make this worth a permanent test rather than a one-line fix.
-# First, the failure was invisible at the level anyone was looking: the verdict
-# said "the testbench does not pass on correct RTL", which sends a reader to the
-# checker, and the checker was fine. Second, it is pure prose — no amount of
-# care about the DESIGN would have prevented it, and it will recur the moment
-# someone rewraps a paragraph.
+# Two things make this worth a permanent test. The failure was invisible at the
+# level anyone was looking — the verdict said "the testbench does not pass on
+# correct RTL", which sends a reader to the checker, and the checker was fine.
+# And it is pure prose: no amount of care about the DESIGN prevents it, and it
+# recurs the moment someone rewraps a paragraph.
+#
+# NOTE ON THIS TEST'S OWN HISTORY. It was written once, lost during a series of
+# branch switches and stashes while unrelated pull requests were being prepared,
+# and restored here. The suite stayed green throughout, because a deleted test
+# does not fail — it simply stops existing. That is why
+# test_incident_numbering_has_no_gaps exists below.
 def test_no_comment_line_starts_with_the_pragma_word():
     import re
+    # DISCOVERED, not listed. An earlier version named five directories
+    # explicitly; voe_stoch3 was added later and the guard silently stopped
+    # covering the newest board — the one most likely to hold freshly written
+    # prose. A control with a hardcoded inventory goes stale exactly when new
+    # work appears, which is when it is most needed.
+    subs = sorted(
+        d for d in os.listdir(ROOT)
+        if os.path.isdir(os.path.join(ROOT, d))
+        and (d.startswith("voe") or d in ("phase3", "AGENT_B", "AGENT_C"))
+    )
+    assert any(d.startswith("voe_stoch") for d in subs), subs
+    known = ("lint_off", "lint_on", "lint_save", "lint_restore", "public",
+             "public_flat", "public_flat_rd", "public_flat_rw", "no_inline",
+             "coverage_off", "coverage_on", "tracing_off", "tracing_on",
+             "isolate_assignments", "sc_bv", "clocker", "no_clocker",
+             "split_var", "timing", "no_timing", "hier_block",
+             "inline_module", "unroll_disable", "unroll_full", "forceable")
     bad = []
-    for sub in ("voe_stoch", "voe_stoch2", "voe_fifo", "voe_heldout", "phase3"):
-        base = os.path.join(ROOT, sub)
-        for dirpath, _dirs, files in os.walk(base):
+    for sub in subs:
+        for dirpath, _dirs, files in os.walk(os.path.join(ROOT, sub)):
             for fn in files:
                 if not fn.endswith((".sv", ".v")):
                     continue
                 path = os.path.join(dirpath, fn)
                 for i, ln in enumerate(open(path, errors="replace"), 1):
-                    # a real pragma is fine; an unrecognised one is fatal, and
-                    # prose is never a recognised one.
                     m = re.match(r"\s*(?://|/\*)\s*verilator\b(.*)", ln, re.I)
-                    if not m:
-                        continue
-                    rest = m.group(1).strip().lower()
-                    known = ("lint_off", "lint_on", "lint_save", "lint_restore",
-                             "public", "public_flat", "public_flat_rd",
-                             "public_flat_rw", "no_inline", "coverage_off",
-                             "coverage_on", "tracing_off", "tracing_on",
-                             "isolate_assignments", "sc_bv", "clocker",
-                             "no_clocker", "split_var", "timing", "no_timing",
-                             "hier_block", "inline_module", "unroll_disable",
-                             "unroll_full", "forceable")
-                    if not rest.startswith(known):
+                    if m and not m.group(1).strip().lower().startswith(known):
                         bad.append(f"{path}:{i}: {ln.strip()[:70]}")
     assert not bad, ("comment lines beginning with the pragma word are parsed "
                      "as pragmas and abort the build:\n" + "\n".join(bad))
+
+
+def test_incident_numbering_has_no_gaps():
+    """The meta-control, and the reason it exists.
+
+    INCIDENT 26 was written, lost in git churn while unrelated pull requests
+    were being prepared, and only noticed days later because the numbering
+    jumped from 25 to 27. Nothing failed when it vanished: a deleted test does
+    not go red, it stops existing, and the suite total quietly drops by one.
+
+    This is the same shape as every other defect recorded in this file — an
+    absence that no control could observe — so it gets a control of its own.
+    """
+    import re
+    src = open(__file__).read()
+    nums = sorted(int(n) for n in re.findall(r"^# INCIDENT (\d+)", src, re.M))
+    assert nums, "no incidents recorded"
+    missing = [n for n in range(nums[0], nums[-1] + 1) if n not in nums]
+    assert not missing, (
+        f"incident(s) {missing} are missing from the failure memory. A test "
+        f"that disappears does not fail — check git history for a lost block.")
+
+
+# --------------------------------------------------------------------------- #
+# INCIDENT 27 — a budget that could have been chosen after the fact.           #
+# --------------------------------------------------------------------------- #
+# Experiment 15 refused to shrink nvec until the bug was sometimes missed, and
+# pfifo defused the same temptation by committing a GRID and publishing the
+# whole curve. dfifo cannot use either dodge: it needs a single horizon, because
+# the quantity of interest is a first-passage distribution against a predicted
+# one.
+#
+# So the horizon is derived from the transition kernel by exact linear solve,
+# before the RTL existed. These tests pin that the derivation is real -- that B
+# is a computed consequence of the chain rather than a number typed in and
+# justified afterwards, which is what tuning would look like from the outside.
+def test_the_campaign_budget_is_derived_from_the_kernel():
+    sys.path.insert(0, os.path.join(ROOT, "voe_stoch3"))
+    import theory
+    et = theory.expected_first_passage()[0]
+    assert theory.BUDGET == int(-(-et // 1)), (
+        f"BUDGET {theory.BUDGET} is not ceil(E[T_hit]) = {-(-et // 1)}; it has "
+        f"drifted from the kernel it claims to come from")
+
+
+def test_the_board_sits_in_the_regime_it_was_built_for():
+    """pfifo failed the gate because mixing time over rare-event interval was
+    ~1/130 -- the chain forgot its state many times between opportunities, so
+    the memoryless law fitted. dfifo exists to put that ratio at O(1). If a
+    later edit to the stimulus rates breaks that, the board silently stops being
+    the thing it was built to be while still looking healthy."""
+    sys.path.insert(0, os.path.join(ROOT, "voe_stoch3"))
+    import theory
+    tmix = theory.mixing_time()
+    if tmix is None:
+        pytest.skip("numpy unavailable")
+    ratio = theory.expected_first_passage()[0] / tmix
+    assert 1.0 < ratio < 20.0, (
+        f"E[T_hit]/t_mix = {ratio:.1f}; the board is no longer in the "
+        f"reachability-limited regime it was constructed for")
+
+
+def test_first_passage_scales_as_k_squared():
+    """The signature of a balanced walk, and the thing that distinguishes this
+    board from a Bernoulli one. Checked at four levels rather than at the top
+    alone: a board that reached the top on schedule by accident would still have
+    to get the interior milestones right."""
+    sys.path.insert(0, os.path.join(ROOT, "voe_stoch3"))
+    import theory
+    lv = theory.level_first_passage()
+    ratios = [lv[k] / (k * k) for k in sorted(lv)]
+    assert all(1.0 < r < 1.6 for r in ratios), ratios
+    # and it must converge, not wander
+    assert ratios[0] > ratios[-1]
+
+
+def test_the_dfifo_mutant_differs_in_exactly_one_line():
+    def body(path):
+        out = []
+        for ln in open(path):
+            s = ln.split("//")[0].strip()
+            if s:
+                out.append(" ".join(s.split()).replace("dfifo_mut", "dfifo"))
+        return out
+
+    good = body(os.path.join(ROOT, "voe_stoch3", "rtl", "dfifo.sv"))
+    mut = body(os.path.join(ROOT, "voe_stoch3", "rtl", "dfifo_mut.sv"))
+    assert len(good) == len(mut)
+    diffs = [(a, b) for a, b in zip(good, mut) if a != b]
+    assert len(diffs) == 1, f"expected one differing line, got {diffs}"
+    assert "full_o" in diffs[0][0], "the difference is not on the full flag"
+
+
+def test_the_initial_state_distribution_is_part_of_the_commitment():
+    """Cold start measures first passage; a stationary start measures recurrence
+    of a rare state. They are different questions, and quietly substituting the
+    second for the first would change what the number means while leaving it
+    looking like the same measurement."""
+    src = open(os.path.join(ROOT, "voe_stoch3", "characterise.py")).read()
+    assert '"primary": "cold start' in src
+    assert '"control": "q0 ~ Uniform' in src
+    tb = open(os.path.join(ROOT, "voe_stoch3", "sim", "tb_dfifo.sv")).read()
+    assert "Q0_MODE" in tb and "STATIONARY" in tb
+
+
+# --------------------------------------------------------------------------- #
+# INCIDENT 28 — a comment describing a stimulus the code did not implement.    #
+# --------------------------------------------------------------------------- #
+# tb_dfifo.sv said "ONE draw, separated bit lanes" and then called $urandom()
+# TWICE per iteration — once for the decision, once for the data — so
+# consecutive decisions came from every-other call. The sat_mac measurement had
+# established that two CONSECUTIVE calls are correlated (joint corner rate 2x
+# prediction, ~3.6 sigma, marginals exactly uniform); whether every-other calls
+# are correlated was never measured.
+#
+# That matters here in a way it did not on the earlier boards: dfifo's whole
+# claim is a first-passage distribution compared against an exactly-solved
+# kernel, and the kernel assumes INDEPENDENT steps. Correlated steps would make
+# every predicted number describe a different chain than the one that ran.
+#
+# Same defect class as `# Direction is inferred by caller context` in the spike
+# parser: a comment asserting a property nobody checked, which then gets read as
+# though it were a guarantee.
+def test_the_dfifo_stimulus_draws_once_per_cycle():
+    src = open(os.path.join(ROOT, "voe_stoch3", "sim", "tb_dfifo.sv")).read()
+    body = "\n".join(ln.split("//")[0] for ln in src.splitlines())
+    loop = body.split("for (int i = 0", 1)[1].split("$display", 1)[0]
+    calls = loop.count("$urandom")
+    assert calls == 1, (
+        f"the stimulus loop makes {calls} $urandom() calls; the comment claims "
+        f"one draw, and consecutive decisions drawn from every-other call have "
+        f"an unmeasured correlation the kernel assumes away")
+
+
+def test_the_dfifo_stimulus_is_characterised_unconditionally():
+    """Five times now this project has shipped a control that was present,
+    correct, and unable to observe — including one that ran only when a derived
+    statistic already looked wrong, so it never confirmed the healthy case."""
+    src = open(os.path.join(ROOT, "voe_stoch3", "characterise.py")).read()
+    assert "always run, not only on suspicion" in src
+    # the call must not sit inside a conditional
+    i = src.index("report_stimulus(cold")
+    preceding = src[:i].rsplit("\n", 3)[-3:]
+    assert not any(ln.strip().startswith("if ") for ln in preceding), preceding
+
+
+# --------------------------------------------------------------------------- #
+# INCIDENT 29 — a committed criterion that asserted an unchecked DUT property. #
+# --------------------------------------------------------------------------- #
+# dfifo's first pre-registration said detection occurs "iff the occupancy
+# reaches DEPTH", and derived the campaign budget from E[T_hit]. Both rest on
+# the same assumption: that once the walk touches the boundary, detection
+# follows almost immediately. The estimate offered was ~2 cycles.
+#
+# It is false. The mutant diverges only when a push is ACCEPTED at full, and the
+# draw after reaching the boundary is as likely to be a pop — which returns the
+# walk to DEPTH-1, where the two designs are bit-identical again. Detection
+# needs a push drawn WHILE AT the boundary, so it requires repeated returns,
+# each costing O(D). Measured lag: mean 35.7, max 278. Predicted by the
+# corrected kernel: 55.7.
+#
+# One campaign in 24 reached the boundary and ended before a push landed there —
+# exactly the case the false "iff" ruled out — so the run came back NOT
+# ADMITTED. The board was fine. The criterion was wrong, and it was wrong
+# because a pre-registration is allowed to encode assumptions about the DUT, and
+# those assumptions are not themselves pre-registered.
+def test_detection_is_slower_than_reaching_the_boundary():
+    sys.path.insert(0, os.path.join(ROOT, "voe_stoch3"))
+    import theory
+    t_hit = theory.expected_first_passage()[0]
+    t_det = theory.expected_detection()
+    assert t_det > t_hit, (
+        "detection cannot be faster than reaching the state that enables it")
+    lag = t_det - t_hit
+    assert 10 < lag < 200, (
+        f"lag {lag:.1f} — the first commitment assumed ~2 cycles and was wrong; "
+        f"if this drifts far, the budget derived from it is wrong too")
+
+
+def test_both_kernels_are_row_stochastic():
+    """Trivial, and it would have caught a real error immediately.
+
+    The first draft of detection_kernel() added the pop mass at q=0 to the hold
+    and then added an idle term that already contained it. Rows summed above 1,
+    the propagated 'probabilities' grew without bound, and P(T <= 668) printed
+    as 4e51. That was caught only because the number was absurd on its face. A
+    kernel wrong by two percent would have looked like a finding.
+    """
+    sys.path.insert(0, os.path.join(ROOT, "voe_stoch3"))
+    import theory
+    assert theory.rows_are_stochastic(theory.kernel())
+    assert theory.rows_are_stochastic(theory.detection_kernel())
+    # and the absorbing state must actually absorb
+    P = theory.detection_kernel()
+    a = theory.D + 1
+    assert P[a][a] == 1.0 and sum(P[a]) == 1.0
+
+
+def test_the_detection_budget_is_derived_from_the_detection_kernel():
+    sys.path.insert(0, os.path.join(ROOT, "voe_stoch3"))
+    import theory
+    et = theory.expected_detection()
+    assert theory.BUDGET_DETECT == int(-(-et // 1)), (
+        f"BUDGET_DETECT {theory.BUDGET_DETECT} is not ceil(E[T_detect]) = "
+        f"{-(-et // 1)}")
