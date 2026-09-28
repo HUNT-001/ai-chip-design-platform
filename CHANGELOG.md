@@ -1758,7 +1758,7 @@ Major release — AVA v2.0 introduces a full **Phase 6 Extended Verification Pip
 ### Documentation
 
 - **`README.md`** — complete rewrite with 6-phase pipeline diagram, full agent table, capabilities matrix, quick-start examples
-- **`CLAUDE.md`** — AI assistant context file with schema, architecture rules, key files, common task recipes
+- **`CONTEXT.md`** — project context file with schema, architecture rules, key files, common task recipes
 
 ### Confidence Score Bands
 

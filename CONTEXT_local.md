@@ -1,6 +1,6 @@
-# CLAUDE.md — AVA Verification Platform
+# CONTEXT.md — AVA Verification Platform
 
-This file gives AI assistants (Claude, etc.) the context needed to work
+This file gives contributors the context needed to work
 effectively in this codebase without re-reading every file.
 
 ---
