@@ -39,15 +39,6 @@
 // CHECKER never reads them — only the counters do. That separation is the point:
 // an earlier reference model in this project read a DUT output, inherited the
 // mutant's bug, and made a negative control silently vacuous.
-//
-// A NOTE ON COMMENT WRAPPING, because it cost a full experiment run. The
-// paragraph above originally wrapped so that a line began with the word
-// "Verilator". The simulator parses a comment starting with that word as a
-// pragma, did not recognise this one, and refused to compile the file. Every
-// campaign then returned status 'error', the positive control correctly
-// reported that the checker was unvalidated, and the whole grid was discarded
-// -- all from prose. The word is kept away from the start of a comment line
-// throughout this corpus and a regression test now pins that.
 module pfifo #(
     parameter int unsigned DW    = 16,
     parameter int unsigned DEPTH = 6
