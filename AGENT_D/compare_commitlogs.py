@@ -59,6 +59,8 @@ from __future__ import annotations
 
 import argparse
 import bz2
+import contextlib
+import errno
 import gzip
 import hashlib
 import io
@@ -1955,7 +1957,57 @@ def atomic_write(path: Path, content: str) -> None:
         raise
 
 
+@contextlib.contextmanager
+def _manifest_lock(manifest_path: Path):
+    """Hold an exclusive OS lock on ``<manifest>.lock`` for one read-modify-write.
+
+    The lock is on a sidecar, not on the manifest: the manifest is replaced on
+    every write, so a lock on it would be on a file nobody else opens.  The
+    sidecar is never deleted -- removing it while another process waits on it
+    would hand the two of them different locks.
+    """
+    lock_path = Path(str(manifest_path) + ".lock")
+    with open(lock_path, "a+b") as f:
+        if sys.platform == "win32":
+            import msvcrt
+            f.seek(0)
+            while True:
+                try:
+                    msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)
+                    break
+                except OSError as exc:
+                    # LK_LOCK gives up after ~10 s with EDEADLOCK; keep waiting.
+                    if exc.errno != errno.EDEADLOCK:
+                        raise
+            try:
+                yield
+            finally:
+                f.seek(0)
+                msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+
+
 def atomic_update_manifest(manifest_path: Path, updates: Dict[str, Any]) -> None:
+    """Apply *updates* to the manifest, serialised against other writers.
+
+    Without the lock, two processes each read the same manifest, apply their
+    own updates and write back, and the second write silently discards the
+    first (#23).
+    """
+    manifest_path = Path(manifest_path)
+    if not manifest_path.parent.is_dir():   # keep ConfigError, not the lock's OSError
+        raise ConfigError(f"Cannot read manifest {manifest_path}: no such directory")
+    with _manifest_lock(manifest_path):
+        _update_manifest_unlocked(manifest_path, updates)
+
+
+def _update_manifest_unlocked(manifest_path: Path, updates: Dict[str, Any]) -> None:
     """Merge *updates* into the JSON manifest at *manifest_path* atomically.
 
     Keys may use dot-notation to address nested fields::
