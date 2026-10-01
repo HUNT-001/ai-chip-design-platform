@@ -46,7 +46,7 @@ from run_compliance import (
     _write_linker_script, _EMBEDDED_TESTS, _ASM_MACROS,
     _deep_merge, patch_manifest,
     parse_signature, compare_signatures,
-    probe_spike, probe_toolchain,
+    probe_spike, probe_spike_signature, probe_toolchain,
     compute_exit_code, run_compliance_manifest,
     BuildCache, RetryPolicy,
     SpikeDUTBackend, ExternalDUTBackend,
@@ -954,6 +954,21 @@ def _tools_ok() -> bool:
     return ok and gcc is not None
 
 
+def _golden_ok() -> bool:
+    """Can this machine produce golden signatures at all?
+
+    Tests that assert tests *passed* need ``spike --signature``; without it
+    every golden run fails and they fail for a reason that has nothing to do
+    with the code under test (#35).  Gated on the same capability probe the
+    runner uses, so the gate cannot disagree with the behaviour.
+
+    This is deliberately per-test rather than on the class: the other pipeline
+    tests assert only that a run produces a well-formed report and a documented
+    exit code, which holds whether or not Spike can sign.
+    """
+    return _tools_ok() and probe_spike_signature("spike")
+
+
 @unittest.skipUnless(_tools_ok(), "riscv-gcc and/or spike not found on PATH")
 class TestFullPipeline(unittest.TestCase):
 
@@ -969,10 +984,14 @@ class TestFullPipeline(unittest.TestCase):
             timeout_run_s=30, use_cache=False, **kw,
         ))
 
+    @unittest.skipUnless(_golden_ok(),
+                         "needs a spike that supports --signature (see #35)")
     def test_definition_of_done(self):
         report = self._runner().run()
         self.assertGreaterEqual(report.summary["pass"], 5)
 
+    @unittest.skipUnless(_golden_ok(),
+                         "needs a spike that supports --signature (see #35)")
     def test_exit_code_zero_on_all_pass(self):
         report = self._runner().run()
         self.assertEqual(compute_exit_code(report), EXIT_PASS)
@@ -1002,7 +1021,10 @@ class TestFullPipeline(unittest.TestCase):
             "workers":  1,
         }))
         rc = run_compliance_manifest(mp)
-        self.assertIn(rc, (EXIT_PASS, EXIT_FAIL, EXIT_CRASH))
+        # EXIT_TOOL is included because it is the right answer on a machine whose
+        # Spike cannot sign (#35); the assertion is that manifest mode always ends
+        # on a documented exit code, never an undocumented one.
+        self.assertIn(rc, (EXIT_PASS, EXIT_FAIL, EXIT_CRASH, EXIT_TOOL))
         updated = json.loads(mp.read_text())
         self.assertNotEqual(
             updated.get("phases", {}).get("compliance", {}).get("status"), "running"
