@@ -124,7 +124,7 @@ Every agent reads from and writes to the **shared manifest** (`run_manifest.json
 
 ### 4.1 The Orchestrator (AVA core)
 
-**File:** `ava.py`
+**File:** `ava_patched.py`
 
 The orchestrator (`class AVA`) is the top-level controller. It runs the full verification pipeline as an `async` task graph:
 
@@ -191,7 +191,7 @@ A complete, synthesisable, single-cycle RV32IM processor provided as the default
 
 ### 4.3 Agent C — ISS Golden Model
 
-**File:** `ava.py` → `SpikeISS._simulate_iss()`
+**File:** `ava_patched.py` → `SpikeISS._simulate_iss()`
 
 Agent C runs the same ELF under **Spike**, the official RISC-V reference ISS developed alongside the ISA specification. Spike's output is parsed line-by-line into the same v2.0.0 commit log schema as Agent B, so Agent D can compare them field-by-field.
 
@@ -203,7 +203,7 @@ The critical property of Spike: it is the **oracle**. Its behaviour is, by defin
 
 ### 4.4 Agent D — Differential Comparator
 
-**File:** `ava.py` → `SpikeISS._compare_results()`
+**File:** `ava_patched.py` → `SpikeISS._compare_results()`
 
 Agent D receives the two commit logs (RTL and ISS) and walks them instruction by instruction. For each `seq` index it checks:
 
@@ -228,7 +228,7 @@ This provides a fast pass/fail gate before the longer differential verification 
 
 ### 4.6 Agent F — Coverage Director
 
-**File:** `ava.py` → `CoverageDirector`
+**File:** `ava_patched.py` → `CoverageDirector`
 
 Agent F reads `coverage.dat` from the run directory (the convention is `<rundir>/coverage.dat` — this is why the filename was standardised in v2.0.0) and identifies coverage gaps. It maps each gap to a targeted instruction category:
 
@@ -344,7 +344,7 @@ Every record in `rtl.commitlog.jsonl` and `iss.commitlog.jsonl` conforms to `sch
 
 ```
 ava/
-├── ava.py                          # Orchestrator + all agent coordination
+├── ava_patched.py                  # Orchestrator + all agent coordination
 │
 ├── backends/
 │   ├── run_rtl.py                  # Agent B CLI — build, simulate, patch manifest

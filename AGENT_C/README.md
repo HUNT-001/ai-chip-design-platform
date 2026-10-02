@@ -743,9 +743,9 @@ Agent D reads both `rtl.commitlog.jsonl` and `iss.commitlog.jsonl` and finds the
 
 Agent D produces `diff_report.json` with mismatch type, severity, sequence number, and a context window of surrounding commits.
 
-### AVA Orchestrator (`ava.py`)
+### AVA Orchestrator (`ava_patched.py`)
 
-The `SpikeISS` class in `ava.py` calls `run_iss_manifest()` (via `run_iss.py`) when a real ELF is provided. The orchestrator passes `elf_path`, `run_dir`, `seed`, and `isa` through `generate_suite()` → `_tandem_simulation()` → `spike_iss.run_tandem()` → `_simulate_iss()`.
+The `SpikeISS` class in `ava_patched.py` invokes `spike` directly as a subprocess (`--isa=<isa> --log-commits -l <elf>`) when a real ELF is provided, and parses the result with `parse_spike_commit_log()`. It does not go through `run_iss_manifest()`; that function (`run_iss.py`) is Agent C's standalone CLI contract, documented in §5 and §8. The orchestrator passes `elf_path`, `run_dir`, `seed`, and `isa` through `generate_suite()` → `_tandem_simulation()` → `spike_iss.run_tandem()` → `_simulate_iss()`.
 
 When Agent B has already written `rtl.commitlog.jsonl` to `run_dir`, the `_simulate_rtl()` stub is bypassed and the real RTL data is used. The full diff pipeline then runs with real data from both sides.
 

@@ -58,9 +58,16 @@ export PYTEST_DISABLE_PLUGIN_AUTOLOAD=1
 # confidence.
 #
 # --import-mode=importlib matches CI too, and is load-bearing: under the default
-# "prepend" mode pytest puts each test file's directory on sys.path, and
-# ava_patched.py exists both at the repo root and in AGENT_F/, so collecting an
-# AGENT_F test silently shadows the root module with an older copy.
+# "prepend" mode pytest puts each test file's directory on sys.path, so two
+# same-named modules in different directories can shadow each other.  The
+# instance that originally forced this flag -- ava_patched.py at both the repo
+# root and in AGENT_F/ -- is gone as of #51, but the flag stays: characterise.py
+# still exists in voe_stoch/, voe_stoch2/ and voe_stoch3/, and
+# ava_coverage_patch.py and run_rtl.py each have a live copy plus a dead one
+# under _legacy/.  Those are latent only because voe_stoch* is not in
+# pyproject's testpaths and _legacy/ holds no test files; widening either makes
+# them real.  Re-measure before changing this line:
+#   git ls-files '*.py' | grep -v corpus/ | xargs -n1 basename | sort | uniq -d
 DEFAULT_TARGETS=(
     tests/
     AGENT_C/test_spike_parser.py

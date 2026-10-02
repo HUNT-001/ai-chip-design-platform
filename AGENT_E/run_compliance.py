@@ -4,7 +4,7 @@
 run_compliance.py — Agent E: RISC-V Architectural Compliance Runner
 ====================================================================
 RISCOF / riscv-arch-test style compliance verification integrated with
-the AVA verification platform (ava.py).
+the AVA verification platform (ava_patched.py).
 
 Architecture
 ------------
