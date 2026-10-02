@@ -248,6 +248,23 @@ NON_GATING_REPORT_KEYS = frozenset({"verification_twin"})
 #: Where the extended pipeline records exit codes that no report file captures.
 VERDICT_KEY = "_verdict"
 
+#: Industrial-grade thresholds.  AGENT_F's CoverageMetrics.is_industrial_grade
+#: (coverage_pipeline.py:245) is the authoritative definition and these are its
+#: defaults; `test_the_two_definitions_of_industrial_grade_agree` pins them to it
+#: so the orchestrator cannot drift into a second definition (#34, #42).
+#:
+#: Note `toggle`, which the old rule had no equivalent of: it graded on `line` and
+#: the derived `functional`.  Toggle coverage cannot be synthesised from line and
+#: branch, so requiring it is what makes the grade answerable only by measurement.
+INDUSTRIAL_GRADE_THRESHOLDS = {"line": 95.0, "branch": 90.0, "toggle": 85.0}
+
+#: `source_file` values the coverage backend uses when nothing was measured.
+#: "legacy_dict" means the numbers came from a coverage_data dict, "NO_DATA" that
+#: no coverage existed at all (coverage_pipeline.py:1213, :1232); "fallback_dict"
+#: is this file's own synthesiser below.  A run whose coverage carries one of
+#: these has no measured toggle or expression data, so it cannot be graded.
+UNMEASURED_COVERAGE_SOURCES = frozenset({"legacy_dict", "NO_DATA", "fallback_dict", ""})
+
 #: Bug severities that do NOT fail a run.
 #:
 #: Empty is a decision, not an oversight: **every severity gates.**  A run that
@@ -432,11 +449,33 @@ class VerificationResult:
         self.metadata.setdefault("timestamp", datetime.now(timezone.utc).isoformat())
         self.metadata["bug_count"]     = len(self.bugs)
         self.metadata["warning_count"] = len(self.warnings)
-        if self.coverage:
-            self.industrial_grade = (
-                self.coverage.get("line",       0.0) >= 95.0
-                and self.coverage.get("functional", 0.0) >= 90.0
-            )
+        self.industrial_grade = self._grade_industrial()
+
+    def _grade_industrial(self) -> bool:
+        """Industrial grade requires coverage that was *measured* (#42).
+
+        The old rule was `line >= 95 and functional >= 90`.  `functional` is
+        derived — the backend blends a weighted composite with instruction-mix
+        coverage, and the fallback below computes (line + branch) / 2 with toggle
+        and expression hardcoded 0 — so the grade was answering a question nobody
+        had measured.  It now asks AGENT_F's question, against AGENT_F's
+        thresholds, and only when the numbers came from a real coverage database.
+
+        A run with unmeasured coverage is not graded NO because it is bad; it is
+        not graded because it was not measured.  `coverage_measured` in the
+        metadata says which, so the two are distinguishable from outside.
+        """
+        if not self.coverage:
+            return False
+        source   = str(self.metadata.get("coverage_source", "") or "")
+        measured = source not in UNMEASURED_COVERAGE_SOURCES
+        self.metadata["coverage_measured"] = measured
+        if not measured:
+            return False
+        return all(
+            self.coverage.get(metric, 0.0) >= threshold
+            for metric, threshold in INDUSTRIAL_GRADE_THRESHOLDS.items()
+        )
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -1039,6 +1078,7 @@ class SpikeISS:
         self._run_dir      = Path(run_dir)
         self._run_dir.mkdir(parents=True, exist_ok=True)
         self.simulation_count = 0
+        self._last_coverage_source = ""
         self._comparator   = CommitLogComparator()
         self._security     = SecurityAnalyzer()
         self._test_gen     = RV32IMTestGenerator()
@@ -1117,6 +1157,9 @@ class SpikeISS:
                     "iss_instructions": iss_results.get("instructions", 0),
                     "seed": tb_suite.get("seed", 0),
                     "run_dir": str(self._run_dir),
+                    # Where the coverage numbers came from, so the grade can ask
+                    # whether they were measured at all (#42).
+                    "coverage_source": self._last_coverage_source,
                 },
             )
 
@@ -1437,7 +1480,15 @@ class SpikeISS:
           3. Zeros + explicit warning
         """
         if self._cov_backend is not None:
-            return self._cov_backend.get_coverage(rtl_results)
+            cov = self._cov_backend.get_coverage(rtl_results)
+            # to_ava_dict() returns only the five numbers, so provenance is read
+            # from the metrics object.  It must not go into `cov` itself: that
+            # dict is Dict[str, float] and _print_summary bars every value.
+            metrics = self._cov_backend.metrics
+            self._last_coverage_source = (
+                getattr(metrics, "source_file", "") if metrics is not None else ""
+            )
+            return cov
 
         # No coverage pipeline — use legacy dict or zeros
         cov_data = rtl_results.get("coverage_data") or {}
@@ -1449,6 +1500,7 @@ class SpikeISS:
             line_pct   = round(100.0 * lines_hit / total_lines, 2)
             branch_pct = round(100.0 * branches_hit / total_branches, 2)
             logger.info("Coverage from rtl_results dict (coverage_pipeline unavailable)")
+            self._last_coverage_source = "fallback_dict"
             return {
                 "line":       min(line_pct, 100.0),
                 "branch":     min(branch_pct, 100.0),
@@ -1461,6 +1513,7 @@ class SpikeISS:
             "No coverage data — all metrics 0.0. "
             "Install coverage_pipeline.py and wire Verilator --coverage."
         )
+        self._last_coverage_source = "NO_DATA"
         return {"line": 0.0, "branch": 0.0, "toggle": 0.0,
                 "expression": 0.0, "functional": 0.0}
 
