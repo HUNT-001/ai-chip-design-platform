@@ -434,14 +434,16 @@ def _load_log(run_dir: Path, outputs: Dict, key: str, default: str) -> List[Dict
 
 
 def run_from_manifest(manifest_path: Path) -> int:
-    """Pipeline entry point. Returns 0 on pass, 1 on any violation."""
+    """Pipeline entry point. Returns 0 on pass, 1 on any violation,
+    3 if the manifest cannot be read."""
     manifest_path = Path(manifest_path)
     try:
         with open(manifest_path) as f:
             manifest = json.load(f)
     except Exception as exc:
         logger.warning("branch_predictor_verifier: cannot read manifest: %s", exc)
-        return 0
+        # 3: could not verify -- nothing was checked (#36), unlike 1 = violation found
+        return 3
 
     run_dir = Path(manifest.get("run_dir", manifest_path.parent))
     outputs = manifest.get("outputs", {})

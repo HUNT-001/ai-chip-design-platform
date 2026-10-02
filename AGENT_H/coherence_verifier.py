@@ -341,13 +341,15 @@ def _load_events(run_dir: Path, manifest: Dict[str, Any]) -> List[Dict[str, Any]
 
 def run_from_manifest(manifest_path: str) -> int:
     """Load the multicore coherence trace, run the checker, write
-    ``coherence_report.json``. Returns 0 on pass/skip, 1 on HIGH violations."""
+    ``coherence_report.json``. Returns 0 on pass/skip, 1 on HIGH violations,
+    3 if the manifest cannot be read."""
     mp = Path(manifest_path)
     try:
         manifest = json.loads(mp.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError) as exc:
         log.warning("coherence_verifier: cannot read manifest: %s", exc)
-        return 0
+        # 3: could not verify -- nothing was checked (#36), unlike 1 = violation found
+        return 3
     run_dir = Path(manifest.get("run_dir", mp.parent))
     events = _load_events(run_dir, manifest)
     if not events:

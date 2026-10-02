@@ -670,7 +670,8 @@ def run_from_manifest(manifest_path: Path) -> int:
             manifest = json.load(f)
     except Exception as exc:
         logger.warning("atomics_verifier: cannot read manifest: %s", exc)
-        return 0
+        # 3: could not verify -- nothing was checked (#36), unlike 1 = violation found
+        return 3
 
     run_dir = Path(manifest.get("run_dir", manifest_path.parent))
     outputs = manifest.get("outputs", {})

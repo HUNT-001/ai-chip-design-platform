@@ -681,13 +681,15 @@ def _load_jsonl(path: Path) -> List[Dict[str, Any]]:
 
 def run_from_manifest(manifest_path: str) -> int:
     """Standalone entry: load the RTL commit log, run the checker, write
-    ``vector_report.json``. Returns 0 on pass / skip, 1 on HIGH violations."""
+    ``vector_report.json``. Returns 0 on pass / skip, 1 on HIGH violations,
+    3 if the manifest cannot be read."""
     mp = Path(manifest_path)
     try:
         manifest = json.loads(mp.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError) as exc:
         log.warning("vector_verifier: cannot read manifest: %s", exc)
-        return 0
+        # 3: could not verify -- nothing was checked (#36), unlike 1 = violation found
+        return 3
     run_dir = Path(manifest.get("run_dir", mp.parent))
     outputs = manifest.get("outputs", {})
     rtl_name = outputs.get("rtl_commit_log", "rtl_commit.jsonl")

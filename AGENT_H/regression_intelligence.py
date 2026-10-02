@@ -371,7 +371,8 @@ def run_from_manifest(manifest_path: str) -> int:
         manifest = json.loads(mp.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError) as exc:
         log.warning("regression_intelligence: cannot read manifest: %s", exc)
-        return 0
+        # 3: could not verify -- nothing was checked (#36), unlike 1 = violation found
+        return 3
     run_dir = Path(manifest.get("run_dir", mp.parent))
     cov = manifest.get("test_coverage")
     res = manifest.get("test_results")
