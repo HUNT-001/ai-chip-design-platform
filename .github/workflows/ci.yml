@@ -242,8 +242,16 @@ jobs:
                   seed=1,
                   save_results=False,
               )
+              # The status is now the run's verdict, not just "it finished" (#40):
+              # "completed" only if every gating verifier ran and found nothing.
+              # Assert the expected value, not merely a truthy one -- this step is
+              # the control that the verdict does not fail (or pass) everything.
               assert result["status"] == "completed", f"status={result['status']}"
+              assert ava_patched.exit_code_for_status(result["status"]) == 0
               assert "extended_reports" in result
+              verdict = result["extended_reports"].get("_verdict")
+              assert verdict is not None, "extended pipeline recorded no verdict"
+              assert verdict["violations"] == [] and verdict["incomplete"] == [], verdict
               print(f"AVA smoke test PASSED")
               print(f"  extended agents ran: {list(result['extended_reports'].keys())}")
               conf = result['extended_reports'].get('confidence', {})
