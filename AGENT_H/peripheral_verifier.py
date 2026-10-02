@@ -590,7 +590,8 @@ def run_from_manifest(manifest_path: Path) -> int:
             manifest = json.load(f)
     except Exception as exc:
         logger.warning("peripheral_verifier: cannot read manifest: %s", exc)
-        return 0
+        # 3: could not verify -- nothing was checked (#36), unlike 1 = violation found
+        return 3
 
     dut_class = str(manifest.get("agent_config", {}).get("dut_class", "cpu")).lower()
     if dut_class in ("cpu", "custom"):

@@ -463,7 +463,8 @@ def run_from_manifest(manifest_path: str) -> int:
         manifest = json.loads(mp.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError) as exc:
         log.warning("verification_twin: cannot read manifest: %s", exc)
-        return 0
+        # 3: could not verify -- nothing was checked (#36), unlike 1 = violation found
+        return 3
     run_dir = Path(manifest.get("run_dir", mp.parent))
     reports = manifest.get("reports") or {}
     if not reports:
