@@ -1086,3 +1086,91 @@ def test_the_detection_budget_is_derived_from_the_detection_kernel():
     assert theory.BUDGET_DETECT == int(-(-et // 1)), (
         f"BUDGET_DETECT {theory.BUDGET_DETECT} is not ceil(E[T_detect]) = "
         f"{-(-et // 1)}")
+
+
+# --------------------------------------------------------------------------- #
+# INCIDENT 30 — a verdict aggregator that was correct, tested, and wired to    #
+#               nothing.                                                      #
+# --------------------------------------------------------------------------- #
+# #40 fixed the run status: it had been the literal "completed" whenever the
+# orchestrator did not raise, so a run whose verifiers found violations reported
+# what a clean run reports. The fix added verdict_from_reports, five tests, and a
+# CI control asserting the recorded verdict was empty on a clean run. All green,
+# on three Python versions.
+#
+# It was also, for the comparator, wired to nothing. Running the #44 repro
+# against that merged tree gave `_verdict == {'violations': [], 'incomplete': []}`
+# for a clean run AND for a run carrying a critical pc_mismatch from the real
+# comparator — byte-identical. status "completed", exit 0, both times. The
+# aggregator was correct. It simply never saw VerificationResult.bugs, because
+# nothing passed them to it.
+#
+# What makes this worth remembering is that every control was pointed at the
+# wrong half. The tests asserted the aggregator folded its inputs correctly; the
+# CI control asserted the verdict was empty on a clean run — which is exactly
+# what an aggregator receiving no evidence at all also reports. A verdict that
+# sees nothing and a verdict that sees nothing wrong are indistinguishable from
+# the outside, and every test written was of the second kind.
+#
+# The lesson generalises past verdicts: a green, tested aggregator proves nothing
+# about whether the evidence is wired into it. The question is never "is the
+# aggregation logic correct" but "which evidence reaches it" — and the way to
+# answer it is to inject a failure at each source and watch the output move.
+# Unit-testing the fold cannot answer it, because the fold is innocent.
+#
+# So this gets two controls, because either one alone is what already failed:
+# the fold is sensitive to each channel, AND every call site actually hands it
+# that channel.
+def test_each_evidence_channel_can_move_the_verdict():
+    """Sensitivity, not correctness. Each source of evidence must be able to
+    change the verdict on its own — a channel the fold ignores is the #40/#44
+    defect, and it reads as a clean run."""
+    import ava_patched as av
+
+    assert av.verdict_from_reports({}) == "completed", "empty is the baseline"
+
+    channels = {
+        "a report's pass key":
+            ({"cas": {"pass": False}}, None),
+        "a recorded exit code":
+            ({av.VERDICT_KEY: {"violations": ["agent_j"], "incomplete": []}}, None),
+        "a comparator finding":
+            ({}, [{"kind": "pc_mismatch", "severity": "critical"}]),
+    }
+    for name, (reports, bugs) in channels.items():
+        assert av.verdict_from_reports(reports, bugs) == "failed", (
+            f"{name} did not move the verdict — that channel is wired to "
+            f"nothing, which is indistinguishable from a clean run")
+
+    # The incident itself: these two inputs must not agree.
+    clean = av.verdict_from_reports({}, [])
+    dirty = av.verdict_from_reports({}, [{"kind": "pc_mismatch",
+                                          "severity": "critical"}])
+    assert clean != dirty, (
+        "a clean run and a run with a critical mismatch produced the same "
+        "verdict — this is #44 exactly as it happened")
+
+
+def test_every_verdict_call_site_is_handed_the_comparator_findings():
+    """The other half, and the half the #40 tests could not see.
+
+    A correct fold reached by a call that omits the evidence is still a silent
+    pass. Checked by AST rather than by running a pipeline, so a NEW call site
+    added later is held to it the day it lands — the shape #36's verifier
+    contract uses, for the same reason.
+    """
+    import ast
+    src = open(os.path.join(ROOT, "ava_patched.py")).read()
+    calls = [n for n in ast.walk(ast.parse(src))
+             if isinstance(n, ast.Call)
+             and isinstance(n.func, ast.Name)
+             and n.func.id == "verdict_from_reports"]
+    assert len(calls) >= 2, (
+        f"expected the run status and the manifest status to be decided by "
+        f"verdict_from_reports; found {len(calls)} call(s)")
+    for c in calls:
+        got = len(c.args) + len(c.keywords)
+        assert got >= 2, (
+            f"verdict_from_reports called at line {c.lineno} with only "
+            f"{got} argument(s): the comparator's findings are not passed, so "
+            f"this call site cannot fail a run on a mismatch (#44)")
