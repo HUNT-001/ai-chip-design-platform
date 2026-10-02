@@ -929,6 +929,40 @@ def probe_spike(spike_bin: str) -> Tuple[bool, str]:
     return result
 
 
+_SPIKE_SIGNATURE_CACHE: Dict[str, bool] = {}
+
+def probe_spike_signature(spike_bin: str) -> bool:
+    """Return True if *spike_bin* supports ``--signature=<file>``.
+
+    Existence on PATH is not enough: every golden run in this module invokes
+    ``spike --signature=<file>`` (see run_spike_golden), and builds that lack
+    the option reject it with "unrecognized option".  Such a Spike can do none
+    of this runner's work, so it is a missing tool, not a crashing one.
+
+    The option is read from ``--help`` rather than by trial-running Spike,
+    which would need a built ELF -- and the point is to decide this *before*
+    building anything.  Anything unexpected (timeout, no output, a build whose
+    help text we cannot read) counts as unsupported: refusing to run is
+    recoverable for the caller, reporting every test as a crash is not.
+    """
+    if spike_bin in _SPIKE_SIGNATURE_CACHE:
+        return _SPIKE_SIGNATURE_CACHE[spike_bin]
+    supported = False
+    try:
+        proc = subprocess.run(
+            [spike_bin, "--help"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,     # some builds print help to stderr
+            timeout=5,
+            text=True,
+        )
+        supported = "--signature" in (proc.stdout or "")
+    except (OSError, subprocess.SubprocessError):
+        supported = False
+    _SPIKE_SIGNATURE_CACHE[spike_bin] = supported
+    return supported
+
+
 _TOOLCHAIN_CACHE: Optional[Tuple[Optional[str], Optional[str]]] = None
 
 def probe_toolchain() -> Tuple[Optional[str], Optional[str]]:
@@ -1589,6 +1623,9 @@ class ComplianceRunner:
     def __init__(self, cfg: RunConfig) -> None:
         self.cfg         = cfg
         self.spike_found, self.spike_ver = probe_spike(cfg.spike_bin)
+        self.spike_signature             = (
+            probe_spike_signature(cfg.spike_bin) if self.spike_found else False
+        )
         self.gcc, self.objdump           = probe_toolchain()
         self.retry                       = RetryPolicy(cfg.retry_max, cfg.retry_delay_s)
         self.dut_backend                 = _make_dut_backend(cfg)
@@ -1596,7 +1633,9 @@ class ComplianceRunner:
             "ComplianceRunner isa=%s spike=%s(%s) gcc=%s dut=%s workers=%d",
             cfg.isa,
             cfg.spike_bin,
-            "ok" if self.spike_found else "MISSING",
+            "ok" if self.spike_signature
+            else "no --signature" if self.spike_found
+            else "MISSING",
             Path(self.gcc).name if self.gcc else "MISSING",
             self.dut_backend.name,
             cfg.workers,
@@ -1643,6 +1682,13 @@ class ComplianceRunner:
             errors.append(
                 f"Spike ISS not found: '{self.cfg.spike_bin}'. "
                 "Install from https://github.com/riscv-software-src/riscv-isa-sim"
+            )
+        elif not self.spike_signature:
+            errors.append(
+                f"Spike at '{self.cfg.spike_bin}' ({self.spike_ver}) does not support "
+                "--signature, which every golden run needs. Build a Spike with "
+                "signature support from "
+                "https://github.com/riscv-software-src/riscv-isa-sim"
             )
         if not self.gcc:
             errors.append(
