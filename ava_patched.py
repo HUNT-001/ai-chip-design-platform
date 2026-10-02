@@ -229,6 +229,25 @@ NON_GATING_REPORT_KEYS = frozenset({"verification_twin"})
 #: Where the extended pipeline records exit codes that no report file captures.
 VERDICT_KEY = "_verdict"
 
+#: Bug severities that do NOT fail a run.
+#:
+#: Empty is a decision, not an oversight: **every severity gates.**  A run that
+#: found any RTL/ISS divergence fails, which is what AGENT_D's own CLI already
+#: does for the identical finding -- `passed = len(results) == 0`
+#: (compare_commitlogs.py:1838) ignores severity too, and :2187 turns that into
+#: EXIT_MISMATCH.  Today only "critical" and "high" are reachable anyway, from
+#: the single producer CommitLogComparator.compare.
+#:
+#: The set lists what is *advisory*, so the default direction is to fail: a
+#: severity nobody enumerated -- a new level, a typo, an empty string -- gates
+#: rather than slipping through as a pass.  That is the direction #35 got wrong.
+#:
+#: **If you add a genuinely advisory finding to VerificationResult.bugs, decide
+#: the policy HERE and test both ends** -- one case that gates and one that does
+#: not.  Do not leave an unenumerated severity to pass silently, and do not add
+#: a passing severity to this set without the test that pins it.
+ADVISORY_BUG_SEVERITIES = frozenset()
+
 
 def exit_code_for_status(status: str) -> int:
     """Process exit code for a run status.  An unknown status is not success."""
@@ -250,14 +269,53 @@ def gating_report_items(reports: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def verdict_from_reports(reports: Dict[str, Any]) -> str:
-    """Fold the extended pipeline's reports into one run status."""
+def gating_bugs(bugs: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    """The comparator findings that fail a run (#44).
+
+    VerificationResult.bugs is written by exactly one producer,
+    CommitLogComparator.compare, and every entry is a divergence between the
+    RTL and the ISS.  Severity decides what the summary says, not whether the
+    run passes -- see ADVISORY_BUG_SEVERITIES.
+    """
+    return [
+        b for b in (bugs or ())
+        if isinstance(b, dict)
+        and str(b.get("severity", "")).lower() not in ADVISORY_BUG_SEVERITIES
+    ]
+
+
+def violation_labels(
+    reports: Dict[str, Any],
+    bugs:    Optional[List[Dict[str, Any]]] = None,
+) -> List[str]:
+    """Everything that makes this run a failure, named.
+
+    One fold, used by both the verdict and the printed summary, so the two
+    cannot disagree about what failed.
+    """
+    recorded = reports.get(VERDICT_KEY) or {}
+    labels   = set(recorded.get("violations", []))
+    labels  |= {k for k, v in gating_report_items(reports).items()
+                if not v.get("pass", True)}
+    labels  |= {"comparator:" + str(b.get("kind", "mismatch"))
+                for b in gating_bugs(bugs)}
+    return sorted(labels)
+
+
+def verdict_from_reports(
+    reports: Dict[str, Any],
+    bugs:    Optional[List[Dict[str, Any]]] = None,
+) -> str:
+    """Fold the extended pipeline's reports and the comparator's findings into
+    one run status.
+
+    `bugs` is VerificationResult.bugs.  A comparator mismatch is a finding, so
+    it ranks with the verifier violations: it fails the run even when a
+    verifier separately could not verify (#44).
+    """
     recorded   = reports.get(VERDICT_KEY) or {}
-    violations = list(recorded.get("violations", []))
     incomplete = list(recorded.get("incomplete", []))
-    violations.extend(k for k, v in gating_report_items(reports).items()
-                      if not v.get("pass", True))
-    if violations:
+    if violation_labels(reports, bugs):
         return STATUS_FAILED      # a finding outranks "could not check"
     if incomplete:
         return STATUS_INCOMPLETE
@@ -1618,7 +1676,8 @@ class AVA:
                 "extended_reports": extended_reports,
                 "industrial_grade": results.industrial_grade,
                 "execution_time":   round(exec_time, 3),
-                "status":           verdict_from_reports(extended_reports),
+                "status":           verdict_from_reports(extended_reports,
+                                                        results.bugs),
                 "metadata": {
                     "microarch":      microarch,
                     "model_used":     self.model_name if self.enable_llm else "rule_based",
@@ -3366,11 +3425,14 @@ endclass
         try:
             with open(mpath) as f:
                 manifest_dict = json.load(f)
-            manifest_dict["status"] = verdict_from_reports({
-                **reports,
-                VERDICT_KEY: {"violations": sorted(set(_violations)),
-                              "incomplete": sorted(set(_incomplete))},
-            })
+            manifest_dict["status"] = verdict_from_reports(
+                {
+                    **reports,
+                    VERDICT_KEY: {"violations": sorted(set(_violations)),
+                                  "incomplete": sorted(set(_incomplete))},
+                },
+                results.bugs,
+            )
             manifest_dict["finished_at"] = datetime.now(timezone.utc).strftime(
                 "%Y-%m-%dT%H:%M:%SZ"
             )
@@ -3483,9 +3545,10 @@ endclass
         print(f"  Run ID        : {results['run_id']}")
         print(f"  Status        : {results['status']}")
         _v = (results.get("extended_reports") or {}).get(VERDICT_KEY) or {}
-        _failed = sorted(set(_v.get("violations", [])) | {
-            k for k, e in gating_report_items(results.get("extended_reports") or {}).items()
-            if not e.get("pass", True)})
+        _failed = violation_labels(
+            results.get("extended_reports") or {},
+            (results.get("initial_results") or {}).get("bugs"),
+        )
         if _failed:
             print(f"  Violations in : {', '.join(_failed)}")
         if _v.get("incomplete"):
