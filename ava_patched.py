@@ -148,8 +148,18 @@ EXTENDED_AGENTS_AVAILABLE = any([
 ])
 
 # ── Agent F: real Verilator coverage backend ──────────────────────────────────
+# Imported by package path.  coverage_pipeline.py lives in AGENT_F/, so a bare
+# `from coverage_pipeline import ...` resolves only when something has already put
+# that directory on sys.path — true under pytest (pyproject's pythonpath lists
+# AGENT_F) and false in a real run from the repo root, where the import silently
+# failed and every coverage number came from the fallback synthesiser (#41).
+#
+# Deliberately NOT fixed by appending AGENT_F/ to sys.path: ava_patched.py exists
+# at the root and in AGENT_F/, and that copy is older, so putting the directory on
+# the path invites the #7 shadowing.
+_COVERAGE_PIPELINE_PATH = Path(__file__).resolve().parent / "AGENT_F" / "coverage_pipeline.py"
 try:
-    from coverage_pipeline import (
+    from AGENT_F.coverage_pipeline import (
         VerilatorCoverageBackend,
         CoverageDatabase,
         ParseError,
@@ -159,9 +169,18 @@ try:
     )
     COVERAGE_PIPELINE_AVAILABLE = True
 except ImportError:
+    # The backend ships with the repo, so if the file is there and the import
+    # still failed, that is a broken module or a missing dependency — a real
+    # failure, and it must be loud.  Degrading here is only correct when the file
+    # genuinely is absent, which is the deployment this warning was written for.
+    # Swallowing both is what kept #41 invisible for as long as it was.
+    if _COVERAGE_PIPELINE_PATH.exists():
+        raise
     COVERAGE_PIPELINE_AVAILABLE = False
     logging.getLogger(__name__).warning(
-        "coverage_pipeline.py not found — add it alongside ava_patched.py"
+        "coverage_pipeline.py not found at %s — the real Verilator coverage "
+        "backend is unavailable and coverage will be synthesised",
+        _COVERAGE_PIPELINE_PATH,
     )
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -1545,8 +1564,9 @@ class AVA:
         self._db: Optional[CoverageDatabase] = None
         if enable_database and COVERAGE_PIPELINE_AVAILABLE:
             try:
-                from coverage_pipeline import CoverageDatabase as _CDB
-                self._db = _CDB(self._run_base / "coverage_trend.sqlite")
+                # CoverageDatabase is bound at import time; COVERAGE_PIPELINE_AVAILABLE
+                # in the guard above is exactly the condition for that.
+                self._db = CoverageDatabase(self._run_base / "coverage_trend.sqlite")
             except Exception as exc:
                 logger.warning("Coverage DB init failed: %s", exc)
 
