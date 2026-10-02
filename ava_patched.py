@@ -199,6 +199,71 @@ class MismatchKind(str, Enum):
     TERMINATION= "termination_mismatch"
 
 
+# ── Run verdict ───────────────────────────────────────────────────────────────
+# A run's status is its verifiers' verdict, not merely "did the orchestrator
+# finish".  The exit codes follow the convention the agent CLIs already use
+# (AGENT_C/run_iss.py:97, AGENT_D/compare_commitlogs.py:113,
+# AGENT_E/run_compliance.py:1947): 0 nothing wrong, 1 a check found a violation,
+# 3 a check could not run.  2 is left to argparse.
+STATUS_COMPLETED  = "completed"   # every gating check ran and found nothing
+STATUS_FAILED     = "failed"      # a gating check found a violation
+STATUS_INCOMPLETE = "incomplete"  # a gating check could not verify
+
+EXIT_PASS       = 0
+EXIT_VIOLATION  = 1
+EXIT_INCOMPLETE = 3
+
+_STATUS_EXIT_CODES = {
+    STATUS_COMPLETED:  EXIT_PASS,
+    STATUS_FAILED:     EXIT_VIOLATION,
+    STATUS_INCOMPLETE: EXIT_INCOMPLETE,
+}
+
+#: Report entries that carry a "pass" key which is not a violation verdict.
+#: verification_twin's pass is `readiness["band"] != "NOT_READY"`
+#: (AGENT_H/verification_twin.py:456) — a tapeout-readiness judgement computed
+#: *from* the other reports, and False on any immature run.  Folding it in would
+#: fail every run and double-count the reports it is derived from.
+NON_GATING_REPORT_KEYS = frozenset({"verification_twin"})
+
+#: Where the extended pipeline records exit codes that no report file captures.
+VERDICT_KEY = "_verdict"
+
+
+def exit_code_for_status(status: str) -> int:
+    """Process exit code for a run status.  An unknown status is not success."""
+    return _STATUS_EXIT_CODES.get(status, EXIT_VIOLATION)
+
+
+def gating_report_items(reports: Dict[str, Any]) -> Dict[str, Any]:
+    """The report entries whose "pass" key is a violation verdict.
+
+    A verifier marks itself gating by reporting a "pass" field: the advisory
+    modules (coverage, fault_injection, self_evolving, stimulus) and the analysis
+    outputs (confidence, root_cause, economics, ...) have none.  So this needs no
+    list of verifier names, and a verifier added tomorrow is covered the day it
+    lands.
+    """
+    return {
+        k: v for k, v in reports.items()
+        if isinstance(v, dict) and "pass" in v and k not in NON_GATING_REPORT_KEYS
+    }
+
+
+def verdict_from_reports(reports: Dict[str, Any]) -> str:
+    """Fold the extended pipeline's reports into one run status."""
+    recorded   = reports.get(VERDICT_KEY) or {}
+    violations = list(recorded.get("violations", []))
+    incomplete = list(recorded.get("incomplete", []))
+    violations.extend(k for k, v in gating_report_items(reports).items()
+                      if not v.get("pass", True))
+    if violations:
+        return STATUS_FAILED      # a finding outranks "could not check"
+    if incomplete:
+        return STATUS_INCOMPLETE
+    return STATUS_COMPLETED
+
+
 class AVAError(Exception):
     """Base AVA exception."""
 
@@ -1553,7 +1618,7 @@ class AVA:
                 "extended_reports": extended_reports,
                 "industrial_grade": results.industrial_grade,
                 "execution_time":   round(exec_time, 3),
-                "status":           "completed",
+                "status":           verdict_from_reports(extended_reports),
                 "metadata": {
                     "microarch":      microarch,
                     "model_used":     self.model_name if self.enable_llm else "rule_based",
@@ -1992,6 +2057,21 @@ endclass
         run_id = run_dir.name
         reports: Dict[str, Any] = {}
 
+        # Verifier exit codes that no report file captures (#40).  rc used to be
+        # assigned at 17 sites here and read at none of them.
+        _violations: List[str] = []
+        _incomplete: List[str] = []
+
+        def _note_exit_code(label: str, rc: Any) -> None:
+            if not isinstance(rc, int) or isinstance(rc, bool) or rc == EXIT_PASS:
+                return
+            if rc == EXIT_INCOMPLETE:
+                _incomplete.append(label)
+                logger.warning("  %s could not verify (exit %d)", label, rc)
+            else:
+                _violations.append(label)
+                logger.warning("  %s reported a violation (exit %d)", label, rc)
+
         # Save commit logs
         rtl_path, iss_path = self._save_commit_logs(run_dir, results)
 
@@ -2011,7 +2091,16 @@ endclass
                 result = fn(*args, **kwargs)
                 elapsed = round(time.monotonic() - t0, 3)
                 logger.info("  ✓ %s completed in %.2fs", label, elapsed)
-                return result if isinstance(result, dict) else {"status": "ok", "duration_s": elapsed}
+                if isinstance(result, dict):
+                    return result
+                # Agents I-L return a bare int exit code.  This used to report
+                # {"status": "ok"} whatever the code was (#40).
+                _note_exit_code(label, result)
+                return {
+                    "status":    "ok" if result == EXIT_PASS else "violation",
+                    "exit_code": result,
+                    "duration_s": elapsed,
+                }
             except Exception as exc:
                 logger.warning("  ✗ %s failed (non-fatal): %s", label, exc)
                 return {"status": "error", "error": str(exc)}
@@ -2470,6 +2559,7 @@ endclass
             try:
                 rc = _vaes.run_from_manifest(str(mpath)) \
                     if hasattr(_vaes, "run_from_manifest") else 0
+                _note_exit_code("vaes", rc)
                 vp = run_dir / "vaes_report.json"
                 if vp.exists():
                     with open(vp) as f:
@@ -2491,6 +2581,7 @@ endclass
             try:
                 rc = _vsha.run_from_manifest(str(mpath)) \
                     if hasattr(_vsha, "run_from_manifest") else 0
+                _note_exit_code("vsha", rc)
                 vp = run_dir / "vsha_report.json"
                 if vp.exists():
                     with open(vp) as f:
@@ -2512,6 +2603,7 @@ endclass
             try:
                 rc = _vsm3.run_from_manifest(str(mpath)) \
                     if hasattr(_vsm3, "run_from_manifest") else 0
+                _note_exit_code("vsm3", rc)
                 vp = run_dir / "vsm3_report.json"
                 if vp.exists():
                     with open(vp) as f:
@@ -2533,6 +2625,7 @@ endclass
             try:
                 rc = _vaeskf.run_from_manifest(str(mpath)) \
                     if hasattr(_vaeskf, "run_from_manifest") else 0
+                _note_exit_code("vaeskf", rc)
                 vp = run_dir / "vaeskf_report.json"
                 if vp.exists():
                     with open(vp) as f:
@@ -2554,6 +2647,7 @@ endclass
             try:
                 rc = _vsm4.run_from_manifest(str(mpath)) \
                     if hasattr(_vsm4, "run_from_manifest") else 0
+                _note_exit_code("vsm4", rc)
                 vp = run_dir / "vsm4_report.json"
                 if vp.exists():
                     with open(vp) as f:
@@ -2575,6 +2669,7 @@ endclass
             try:
                 rc = _vghash.run_from_manifest(str(mpath)) \
                     if hasattr(_vghash, "run_from_manifest") else 0
+                _note_exit_code("vghash", rc)
                 vp = run_dir / "vghash_report.json"
                 if vp.exists():
                     with open(vp) as f:
@@ -2613,6 +2708,7 @@ endclass
             try:
                 rc = _mod.run_from_manifest(str(mpath)) \
                     if hasattr(_mod, "run_from_manifest") else 0
+                _note_exit_code(_label, rc)
                 _p = run_dir / _rep_name
                 if _p.exists():
                     with open(_p) as f:
@@ -2634,6 +2730,7 @@ endclass
             try:
                 rc = _cas.run_from_manifest(str(mpath)) \
                     if hasattr(_cas, "run_from_manifest") else 0
+                _note_exit_code("cas", rc)
                 cp = run_dir / "cas_report.json"
                 if cp.exists():
                     with open(cp) as f:
@@ -2655,6 +2752,7 @@ endclass
             try:
                 rc = _coherence.run_from_manifest(str(mpath)) \
                     if hasattr(_coherence, "run_from_manifest") else 0
+                _note_exit_code("coherence", rc)
                 cp = run_dir / "coherence_report.json"
                 if cp.exists():
                     with open(cp) as f:
@@ -2677,6 +2775,7 @@ endclass
             try:
                 rc = _memmodel.run_from_manifest(str(mpath)) \
                     if hasattr(_memmodel, "run_from_manifest") else 0
+                _note_exit_code("memmodel", rc)
                 mmp = run_dir / "memory_model_report.json"
                 if mmp.exists():
                     with open(mmp) as f:
@@ -2700,6 +2799,7 @@ endclass
             try:
                 rc = _interrupt.run_from_manifest(str(mpath)) \
                     if hasattr(_interrupt, "run_from_manifest") else 0
+                _note_exit_code("interrupt", rc)
                 ip = run_dir / "interrupt_report.json"
                 if ip.exists():
                     with open(ip) as f:
@@ -2721,6 +2821,7 @@ endclass
             try:
                 rc = _debug.run_from_manifest(str(mpath)) \
                     if hasattr(_debug, "run_from_manifest") else 0
+                _note_exit_code("debug", rc)
                 dp = run_dir / "debug_report.json"
                 if dp.exists():
                     with open(dp) as f:
@@ -2742,6 +2843,7 @@ endclass
             try:
                 rc = _reset.run_from_manifest(str(mpath)) \
                     if hasattr(_reset, "run_from_manifest") else 0
+                _note_exit_code("reset", rc)
                 rrp = run_dir / "reset_report.json"
                 if rrp.exists():
                     with open(rrp) as f:
@@ -2763,6 +2865,7 @@ endclass
             try:
                 rc = _hyp.run_from_manifest(str(mpath)) \
                     if hasattr(_hyp, "run_from_manifest") else 0
+                _note_exit_code("hyp", rc)
                 hp = run_dir / "hypervisor_report.json"
                 if hp.exists():
                     with open(hp) as f:
@@ -2784,6 +2887,7 @@ endclass
             try:
                 rc = _aia.run_from_manifest(str(mpath)) \
                     if hasattr(_aia, "run_from_manifest") else 0
+                _note_exit_code("aia", rc)
                 ap = run_dir / "aia_report.json"
                 if ap.exists():
                     with open(ap) as f:
@@ -3262,7 +3366,11 @@ endclass
         try:
             with open(mpath) as f:
                 manifest_dict = json.load(f)
-            manifest_dict["status"] = "completed"
+            manifest_dict["status"] = verdict_from_reports({
+                **reports,
+                VERDICT_KEY: {"violations": sorted(set(_violations)),
+                              "incomplete": sorted(set(_incomplete))},
+            })
             manifest_dict["finished_at"] = datetime.now(timezone.utc).strftime(
                 "%Y-%m-%dT%H:%M:%SZ"
             )
@@ -3276,9 +3384,16 @@ endclass
         except Exception as exc:
             logger.warning("Failed to update manifest: %s", exc)
 
+        # Published last: verification_twin and the dashboards walk `reports`,
+        # and this entry is not a module report.
+        reports[VERDICT_KEY] = {
+            "violations": sorted(set(_violations)),
+            "incomplete": sorted(set(_incomplete)),
+        }
+
         logger.info(
             "Extended pipeline complete: %d agent modules ran",
-            len(reports),
+            len(reports) - 1,
         )
         return reports
 
@@ -3367,6 +3482,14 @@ endclass
         print(f"  DUT Module    : {results['semantic_map']['dut_module']}")
         print(f"  Run ID        : {results['run_id']}")
         print(f"  Status        : {results['status']}")
+        _v = (results.get("extended_reports") or {}).get(VERDICT_KEY) or {}
+        _failed = sorted(set(_v.get("violations", [])) | {
+            k for k, e in gating_report_items(results.get("extended_reports") or {}).items()
+            if not e.get("pass", True)})
+        if _failed:
+            print(f"  Violations in : {', '.join(_failed)}")
+        if _v.get("incomplete"):
+            print(f"  Could not run : {', '.join(sorted(set(_v['incomplete'])))}")
         print(f"  Execution Time: {results['execution_time']:.2f}s")
         print(f"  Industrial Grade: {'YES' if results['industrial_grade'] else 'NO'}")
 
@@ -3497,7 +3620,7 @@ async def _main_async() -> int:
             seed=args.seed,
             save_results=True,
         )
-        return 0 if result["status"] == "completed" else 1
+        return exit_code_for_status(result["status"])
     except AVAError as exc:
         logger.error("AVA failed: %s", exc)
         return 1
