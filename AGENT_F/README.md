@@ -280,17 +280,26 @@ mkdir -p schemas
 cp schemas/commitlog.schema.json schemas/run_manifest.schema.json schemas/
 ```
 
-### Patch an existing ava.py (from paste.txt)
+### Patch an existing ava.py (historical — no longer runnable)
+
+`ava_coverage_patch.py` applied the 8 coverage integration hunks to the v2.1
+`ava.py`, writing `ava_patched.py` as its output. **Both its input and that
+output are gone**: `ava.py` and `AGENT_F/ava_patched.py` were deleted in #51 as
+a superseded generation, and the live orchestrator is the hand-maintained root
+`ava_patched.py`, which descends from that artifact but has long outgrown it.
+
+The tool is kept for reference only. It cannot patch the live orchestrator —
+`python ava_coverage_patch.py ava_patched.py --status` reports all 8 hunks as
+`? not found`, because their anchors no longer match current code. Run against
+the file it was written for, it now exits 2 with `ERROR: ava.py not found`.
+Nothing imports or invokes it, and no test exercises it.
 
 ```bash
-# Apply all 8 coverage integration hunks
-python ava_coverage_patch.py ava.py
-
-# Preview without writing
-python ava_coverage_patch.py ava.py --dry-run
-
-# Check which hunks are already applied
-python ava_coverage_patch.py ava.py --status
+# Historical usage, for reference. <ava.py> was the v2.1 orchestrator,
+# removed in #51; the output was ava_patched.py.
+python ava_coverage_patch.py <ava.py>            # apply all 8 hunks
+python ava_coverage_patch.py <ava.py> --dry-run  # preview without writing
+python ava_coverage_patch.py <ava.py> --status   # which hunks are applied
 ```
 
 ### Parse a Verilator .dat directly
@@ -962,7 +971,7 @@ usage: ava_coverage_patch ava_py [--dry-run] [--status]
 Options:
   --dry-run       Preview all 8 hunks without writing
   --status        Show which hunks are applied vs pending
-  --backup-dir    Where to write ava.py.bak_<timestamp> (default: same dir)
+  --backup-dir    Where to write <ava_py>.bak_<timestamp> (default: same dir)
   --output FILE   Write patched file here (default: ava_patched.py)
 ```
 

@@ -611,7 +611,6 @@ root causes and reproducers.
 ```
 ai-chip-design-platform/
 ├── ava_patched.py            # main entry point (AVA orchestrator)
-├── ava.py                    # core orchestrator
 ├── run_tests.sh              # deterministic test entry point
 │
 ├── AGENT_A/ … AGENT_L/       # the 12 pipeline agents

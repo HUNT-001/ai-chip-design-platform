@@ -48,9 +48,20 @@ jobs:
           #
           # --import-mode=importlib is load-bearing, not cosmetic: under the
           # default "prepend" mode pytest puts each test file's directory on
-          # sys.path, and `ava_patched.py` exists BOTH at the repo root and in
-          # AGENT_F/, so collecting an AGENT_F test silently shadows the root
-          # module with an older copy and unrelated tests fail.
+          # sys.path, so two same-named modules in different directories can
+          # shadow each other and unrelated tests fail.  The instance that
+          # originally forced this flag -- `ava_patched.py` at BOTH the repo
+          # root and in AGENT_F/ -- is gone as of #51, which deleted the stale
+          # AGENT_F copy.  The flag stays because the collisions it guards are
+          # not gone: `characterise.py` exists in voe_stoch/, voe_stoch2/ and
+          # voe_stoch3/, and `ava_coverage_patch.py` and `run_rtl.py` each have
+          # a live copy plus a dead one under _legacy/.  All three are LATENT
+          # today -- voe_stoch* is not in pyproject's testpaths and _legacy/
+          # holds zero test files, so pytest collects neither -- and each turns
+          # active the moment testpaths widens or a voe_stoch board grows a
+          # test_*.py.  Re-measure before changing this line:
+          #   git ls-files '*.py' | grep -v corpus/ | xargs -n1 basename \
+          #     | sort | uniq -d
           # The -k "not test_ava_generate_suite_smoke" deselect that used to
           # live here has been REMOVED, not relocated.  That test passes under
           # importlib; it was only failing because of the sys.path shadowing
