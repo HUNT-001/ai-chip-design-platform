@@ -1,10 +1,11 @@
 # Demo rendering (asciinema + agg)
 
-The `.tape` files in `docs/media/` are written for [vhs], but vhs drives a
-headless Chromium and cannot render in every environment (e.g. a WSL box with
-only a snap Chromium and no root). These driver scripts reproduce the same
-demos with a **browser-free** toolchain — [asciinema] to record a terminal
-session and [agg] to turn the recording into a GIF.
+The `.tape` files in `docs/media/` are the declarative source of record for
+each demo, written for [vhs]. vhs is Chromium-bound, and in this WSL
+environment it does not work at all: it **exits 0 and writes a zero-byte
+GIF** — a silent failure, not an error. These driver scripts reproduce the
+same demos with a **browser-free** toolchain — [asciinema] to record a
+terminal session and [agg] to turn the recording into a GIF.
 
 They are the scripts that actually produced the published GIFs.
 
@@ -32,8 +33,9 @@ Produces `/tmp/verdict-exit-code.gif`. Render all four by repeating with
   normal run. They derive the repo root from their own location and regenerate
   their own scratch inputs, so they work from a clean clone with no EDA tools.
 
-**Always verify a render with `file <gif>` (expect "GIF image data … WxH"), not
-the exit code** — vhs in particular can exit 0 while writing nothing.
+**Verify every render with `file <gif>` — expect `GIF image data, version 89a,
+WxH`. Never trust the exit code**: vhs exits 0 while writing a zero-byte GIF, so
+a "successful" run tells you nothing about whether a usable GIF exists.
 
 [vhs]: https://github.com/charmbracelet/vhs
 [asciinema]: https://asciinema.org
