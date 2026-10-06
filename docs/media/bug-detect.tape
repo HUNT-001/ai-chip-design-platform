@@ -56,6 +56,6 @@ Sleep 2500ms
 Enter
 Enter
 
-Type "python3 -m pytest AGENT_D/test_comparator.py -q --tb=no" Enter
+Type "bash run_tests.sh -q AGENT_D/test_comparator.py" Enter
 Sleep 8s
 Sleep 3s
