@@ -41,7 +41,7 @@ Sleep 1s
 Enter
 Sleep 25s
 
-Type "# Phases 1-5 are the core loop; phase 6 runs the 14 extended modules"
+Type "# Phases 1-5 are the core loop; phase 6 runs the extended tier — 7 agent modules ran"
 Sleep 2s
 Enter
 Sleep 3s

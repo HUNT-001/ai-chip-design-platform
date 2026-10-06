@@ -19,6 +19,7 @@ Set Padding 20
 
 Hide
 Type "cd ../.." Enter
+Type "unset PYTHONPATH" Enter
 Type "clear" Enter
 Show
 
