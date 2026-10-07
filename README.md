@@ -65,20 +65,36 @@ is not the crash. It is the green result that means nothing.
 
 ## Demos
 
-Three scripted demos live in [`docs/media/`](docs/media). Each is one command
-and needs no EDA toolchain:
+Four demos, each one command and needing no EDA toolchain.
 
-| Demo | Command | What it shows |
-|---|---|---|
-| **Full pipeline** | `vhs docs/media/ava-pipeline.tape` | the six phases running on a sample core |
-| **Bug detection** | `vhs docs/media/bug-detect.tape` | the comparator catching store-data corruption that used to read as PASS |
-| **Eligibility gate** | `vhs docs/media/voe-eligibility.tape` | VOE **refusing** to report a result, because the board cannot exhibit the effect |
+![The AVA pipeline running end to end on a sample core](docs/media/ava-pipeline.gif)
 
-They are kept as scripts rather than checked-in recordings on purpose. A GIF is
-a claim about behaviour with no way to re-check it: the tool changes, the output
-changes, and the recording keeps showing what the project used to do. A demo you
-can run is stronger evidence than one you can only watch — which is the same
-argument as the [reproducibility tables](#reproducibility) below.
+*The six phases running on a sample core, on the no-EDA-tools path.*
+
+![The comparator catching store-data corruption](docs/media/bug-detect.gif)
+
+*The comparator catching store-data corruption that used to read as PASS, then
+its own unit tests passing.*
+
+![The comparator returning a non-zero exit code on an RTL/ISS divergence](docs/media/verdict-exit-code.gif)
+
+*The AGENT_D commit-log comparator returning `EXIT_MISMATCH = 1` on a real
+RTL/ISS divergence and `0` on a clean pair — the exit code that feeds the run
+verdict.*
+
+![VOE refusing to report a result on an ineligible board](docs/media/voe-eligibility.gif)
+
+*VOE **refusing** to report a result, because the board cannot exhibit the
+effect it would be asked to measure.*
+
+The `.tape` files in [`docs/media/`](docs/media) are the source of record for
+what each demo shows; the GIFs above are rendered from them by the scripts in
+[`docs/media/drivers/`](docs/media/drivers). A recording on its own is a claim
+about behaviour with no way to re-check it — the tool changes, the output
+changes, and the GIF keeps showing what the project used to do. Committing the
+script that produces it is what keeps the demo re-runnable rather than merely
+watchable, which is the same argument as the
+[reproducibility tables](#reproducibility) below.
 
 ---
 
@@ -527,19 +543,32 @@ before reporting anything. A modified commitment invalidates the run.
 
 ### Recording the demos
 
-The GIFs are produced with [vhs](https://github.com/charmbracelet/vhs):
+The `.tape` files are written for [vhs](https://github.com/charmbracelet/vhs),
+but vhs is Chromium-bound and does not render everywhere: in a WSL environment
+with only a snap Chromium it **exits 0 and writes a zero-byte GIF**, a silent
+failure rather than an error. The committed GIFs are produced by the
+browser-free driver scripts instead — [asciinema](https://asciinema.org) to
+record a terminal session, [agg](https://github.com/asciinema/agg) to turn the
+recording into a GIF:
 
 ```bash
-go install github.com/charmbracelet/vhs@latest   # or: brew install vhs
-
-cd docs/media
-vhs ava-pipeline.tape      # -> ava-pipeline.gif
-vhs bug-detect.tape        # -> bug-detect.gif
-vhs voe-eligibility.tape   # -> voe-eligibility.gif
+ASCIINEMA_PYTHON=python3 bash docs/media/drivers/render_demo.sh \
+    ava-pipeline docs/media/drivers/driver_ava.sh docs/media
 ```
 
-Each `.tape` is a plain-text script, so a demo can be regenerated when behaviour
-changes instead of quietly becoming a screenshot of a version nobody runs.
+Repeat with `driver_bug.sh` → `bug-detect`, `driver_verdict.sh` →
+`verdict-exit-code` and `driver_voe.sh` → `voe-eligibility`. The drivers record
+inside a fixed 100x40 pty and render with `agg --font-size 16 --theme
+asciinema`, so the whole set shares one look; see
+[`docs/media/drivers/README.md`](docs/media/drivers/README.md) for the
+toolchain and install notes.
+
+**Verify every render with `file <gif>` — expect `GIF image data, version 89a,
+WxH`. Never trust the exit code.**
+
+Each `.tape` stays the plain-text source of record, so a demo can be
+regenerated when behaviour changes instead of quietly becoming a screenshot of
+a version nobody runs.
 
 ---
 
