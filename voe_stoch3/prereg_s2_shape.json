@@ -1,0 +1,54 @@
+{
+  "committed_at": 1791335185.070776,
+  "name": "S2 shape comparison",
+  "notes": "THE GATE IS ONE-SIDED AND THE RECORD SHOULD SAY SO. sat_mac's geometric is exact by construction, so the fit arm cannot meaningfully fail; all falsifiable content sits on the dfifo exclusion arm. Reading this as a two-sided result would overstate it. The fit arm's job is size control, and its detection window (12.6%-28% of the mean) is recorded above as a declared limitation so a non-rejection cannot be mistaken for evidence.\n\nBOARD PROVENANCE. dfifo was designed after pfifo failed the gate, from the E[T_hit]/t_mix ratio argument in theory.py -- pfifo's ratio was ~130, so its chain forgot its state between rare-event opportunities and successive trials were effectively independent. No pfifo detection numbers entered that choice. Theory-driven board design, not data-driven tuning.\n\nWHAT WAS CORRECTED BEFORE COMMITMENT, on the record: the hazard denominator was first written N / sum(T_i), which assumes every seed detects. Negligible for dfifo (0.5% censoring; power 0.9027 -> 0.9031, critical value 0.2026 -> 0.2030, committed N unchanged) but it would have overstated sat_mac's global hazard ~4x and flattered the fit arm. See 4729648.\n\nTHE WINDOW RULE DOES NOT REACH THE FIT ARM UNAIDED. See spec.window_rule_limit: sat_mac's committed W comes from the dead-zone alternative at the detectability boundary, not from the rule applied to a pre-specified law, because a board that is memoryless by construction offers the rule nothing to measure 1% of. The rule applied to its null gives a window at which the test cannot exist at any N.",
+  "spec": {
+    "N": 79,
+    "N_derivation": "Smallest N with power >= 0.90 against dfifo's exact first-passage law, from theory.py and the geometric null only -- no board was run, no simulator touched. Taken from the rule as-is: not rounded up, no higher-margin neighbour substituted. Raising N would make the EXCLUSION arm easier to clear, i.e. tuning toward the hypothesis.",
+    "alpha": 0.001,
+    "alpha_note": "One instrument, one threshold, both arms. Direction stated plainly: a tighter alpha makes rejection harder, so 1e-3 is the LENIENT choice for the fit arm. Symmetry here is not neutrality. The repo's other S2 shape test uses per-point Clopper-Pearson at 95% and states it reports no calibrated p-value, so there was nothing to inherit.",
+    "arms": {
+      "exclusion_dfifo": {
+        "C": 3000,
+        "W": 86,
+        "attained_alpha": 0.001,
+        "critical_Lambda": 0.203,
+        "power": 0.9031,
+        "power_mc_se": 0.0005,
+        "role": "the arm that can fail; all of the gate's content is here",
+        "tightness": "N-1 = 78 is below target; gap to N-1 is 25x the MC SE, so the crossover is resolved, not noise"
+      },
+      "fit_sat_mac": {
+        "C": 20000,
+        "C_over_mean": 0.305,
+        "P_detect": 0.263,
+        "W": 8865,
+        "alternative_family": "dead-zone geometric, mean held at 65536 so the deviation is purely shape. delta depends on this family; a different one-parameter family gives a different number.",
+        "campaign_not_tuned": "C stays at 20000, the project default. Raising it to buy uncensored samples is Experiment 15's refusal verbatim and is recorded as refused in the capability ledger. The crippling is reported, not designed away.",
+        "critical_Lambda": 0.3015,
+        "declared_limitation": "Had sat_mac's hazard in fact departed from constant, this arm would detect only a dead zone between ~12.6% (d = 8,289) and ~28% of the mean, under the dead-zone-geometric alternative family. Below delta ~8% NO rejection region exists at all -- attained size 0, power 0 against every alternative. Above ~30% detectability collapses again (0.843 at 0.28, 0.359 at 0.30, 0 at 0.35) because a large dead zone leaves no in-campaign detections: E[D] falls 9.7 -> 2.7 -> 0.6. Detectability is a bounded WINDOW, not a threshold. A non-rejection here is therefore NOT positive evidence of memorylessness and must never be read as such.",
+        "expected_detections": 20.78,
+        "role": "SIZE CONTROL, not power. sat_mac's geometric is exact by construction -- one operand pair in 65536 from two's-complement arithmetic -- so there is no genuine alternative to have power against. This arm shows the instrument does not reject where the law is known-true."
+      }
+    },
+    "boards": [
+      "sat_mac (voe_stoch)",
+      "dfifo (voe_stoch3)"
+    ],
+    "environment": "/usr/bin/python3 3.12.3, numpy 1.26.4; MC-exact critical values, not normal-approximated. A re-run under a different numpy that disagrees with the committed Lambda thresholds declares itself rather than quietly replacing them.",
+    "gate_passes_iff": "the null is NOT rejected on sat_mac AND IS rejected on dfifo, both at alpha = 1e-3 with N = 79.",
+    "losing_outcomes": "Each of these is NOT MET, reported as-is, and H stays closed: (1) both boards fit; (2) both excluded; (3) the roles invert. The response to any of them is a NEW board with fresh seeds and a new commitment -- never a widened window, a longer SHAPE_HORIZON, a larger N, or a re-registered alpha.",
+    "null": "constant hazard (geometric), rate fitted per board as the right-censored exponential MLE D / sum(min(T_i, C)), D = detection count. Scale-free by construction: the rate is a nuisance parameter, so the boards' different means cannot carry the result.",
+    "observable": "index of first detection: vector index on sat_mac, cycle count T_detect on dfifo. Cold start only; dfifo's near-stationary control is reported separately and never pooled -- first passage and recurrence are different questions, per commit_dfifo_s1b.json.",
+    "seed_base": {
+      "dfifo": 31000,
+      "sat_mac": 32000
+    },
+    "statistic": "Lambda = [S / sum(min(T_i, W))] / [D / sum(min(T_i, C))] -- early-window hazard over fitted global hazard. Reject the null when Lambda <= the board's committed critical value. Lambda has an atom at 0 and that atom is load-bearing: a dead zone makes S=0 a positive-probability event under the alternative and near-impossible under the null, which is where most of the power lives.",
+    "stopping_rule": "Fixed N = 79 per board. No extension after looking, no seed replacement, no re-run under a different W.",
+    "study": "S2 - cross-board shape comparison (Stochastic Generalization Gate)",
+    "window_rule": "W is the smallest t with F_exact(t) >= 1% of the board's own theoretical mass. A round 1% -- fixed before any search, and NOT chosen for the N it yields.",
+    "window_rule_limit": "The rule is only self-sufficient where an alternative law exists to apply it to. dfifo has one, so W = 86 is fixed before any observation. sat_mac is memoryless by construction and has no alternative law, so the rule applied to its NULL gives W = 659, at which NO rejection region exists at any N. The committed W = 8,865 is the 1% window of the dead-zone alternative at the detectability boundary (d = 8,289), which the power analysis produced -- not the rule acting alone. Weaker provenance than dfifo's W, recorded as such."
+  }
+}
+// sha256:255c9dcba9a532ca
