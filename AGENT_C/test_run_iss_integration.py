@@ -239,7 +239,7 @@ class TestAtomicUpdateManifest(unittest.TestCase):
             p = Path(d) / "manifest.json"
             p.write_text(json.dumps({"x": 1}))
             run_iss.atomic_update_manifest(p, {"x": 2})
-            # .tmp file must be gone (rename is atomic on POSIX)
+            # .tmp file must be gone (replace() consumes it atomically)
             self.assertFalse(p.with_suffix(".tmp").exists())
 
     def test_idempotent(self):

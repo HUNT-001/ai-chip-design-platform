@@ -547,7 +547,7 @@ def _save_manifest(manifest_path: Path, manifest: dict) -> None:
     with open(tmp, "w") as f:
         json.dump(manifest, f, indent=2)
         f.write("\n")
-    tmp.rename(manifest_path)
+    tmp.replace(manifest_path)
 
 
 def run_from_manifest(
@@ -626,7 +626,7 @@ def run_from_manifest(
         with open(tmp_path, "w") as f:
             json.dump(report, f, indent=2)
             f.write("\n")
-        tmp_path.rename(report_path)
+        tmp_path.replace(report_path)
         logger.info("Litmus report written to %s", report_path)
 
         violations_found = report["violations_found"]

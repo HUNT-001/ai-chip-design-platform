@@ -8,11 +8,36 @@ on:
 
 jobs:
   lint-and-test:
-    name: Syntax check & pytest
-    runs-on: ubuntu-latest
+    name: Syntax check & pytest (${{ matrix.os }}, py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        # Linux across the supported interpreter range, plus ONE Windows leg.
+        #
+        # Windows is here because a whole class of defect in this repository is
+        # invisible without it.  Every agent persists its manifest with
+        # "write a temp file, then move it over the target"; 37 of those call
+        # sites used Path.rename(), which on POSIX overwrites silently and on
+        # Windows raises FileExistsError the moment the target exists -- that
+        # is, on every run after the first.  An all-Linux matrix reported that
+        # as green.  See the commit that follows this one.
+        #
+        # One leg, not a full cross-product: the goal is to keep the platform
+        # assumption honest, not to triple the bill.
+        include:
+          - {os: ubuntu-latest,  python-version: "3.10"}
+          - {os: ubuntu-latest,  python-version: "3.11"}
+          - {os: ubuntu-latest,  python-version: "3.12"}
+          - {os: windows-latest, python-version: "3.12"}
+
+    defaults:
+      run:
+        # The steps below are bash: heredocs, process substitution, `find -print0`.
+        # Windows runners default to pwsh, where every one of those is a parse
+        # error.  Git Bash ships on the Windows image, so pinning the shell
+        # keeps a single copy of each step rather than a per-OS fork.
+        shell: bash
 
     steps:
       - uses: actions/checkout@v4

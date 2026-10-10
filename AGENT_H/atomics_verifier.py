@@ -700,7 +700,7 @@ def run_from_manifest(manifest_path: Path) -> int:
     with open(tmp, "w") as f:
         json.dump(manifest, f, indent=2)
         f.write("\n")
-    tmp.rename(manifest_path)
+    tmp.replace(manifest_path)
 
     logger.info("atomics_verifier: %d atomics examined, %d violations, band=%s",
                 report["atomics_examined"], report["total_violations"], report["band"])
