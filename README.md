@@ -63,22 +63,27 @@ is not the crash. It is the green result that means nothing.
 
 ---
 
-## Demos
+## Demo
 
-Three scripted demos live in [`docs/media/`](docs/media). Each is one command
-and needs no EDA toolchain:
+**Full pipeline** — the six phases running on a sample core.
 
-| Demo | Command | What it shows |
-|---|---|---|
-| **Full pipeline** | `vhs docs/media/ava-pipeline.tape` | the six phases running on a sample core |
-| **Bug detection** | `vhs docs/media/bug-detect.tape` | the comparator catching store-data corruption that used to read as PASS |
-| **Eligibility gate** | `vhs docs/media/voe-eligibility.tape` | VOE **refusing** to report a result, because the board cannot exhibit the effect |
+![AVA pipeline](docs/media/ava-pipeline.gif)
 
-They are kept as scripts rather than checked-in recordings on purpose. A GIF is
-a claim about behaviour with no way to re-check it: the tool changes, the output
-changes, and the recording keeps showing what the project used to do. A demo you
-can run is stronger evidence than one you can only watch — which is the same
-argument as the [reproducibility tables](#reproducibility) below.
+**Bug detection** — the comparator catching store-data corruption that used to read as PASS.
+
+![Bug detection](docs/media/bug-detect.gif)
+
+**Verdict exit code** — the verdict is carried in the process exit code, so CI can gate on it.
+
+![Verdict exit code](docs/media/verdict-exit-code.gif)
+
+**Eligibility gate** — VOE refusing to report a result because the board cannot exhibit the effect.
+
+![VOE eligibility gate](docs/media/voe-eligibility.gif)
+
+Each GIF is regenerated from a driver script in [`docs/media/drivers/`](docs/media/drivers),
+so a demo can be re-rendered when behaviour changes instead of quietly becoming
+a screenshot of a version nobody runs (see [Recording the demos](#recording-the-demos)).
 
 ---
 
@@ -527,19 +532,20 @@ before reporting anything. A modified commitment invalidates the run.
 
 ### Recording the demos
 
-The GIFs are produced with [vhs](https://github.com/charmbracelet/vhs):
+The GIFs are recorded with [asciinema](https://asciinema.org) and rendered
+with [agg](https://github.com/asciinema/agg), via `docs/media/drivers/render_demo.sh`:
 
 ```bash
-go install github.com/charmbracelet/vhs@latest   # or: brew install vhs
-
-cd docs/media
-vhs ava-pipeline.tape      # -> ava-pipeline.gif
-vhs bug-detect.tape        # -> bug-detect.gif
-vhs voe-eligibility.tape   # -> voe-eligibility.gif
+cd docs/media/drivers
+./render_demo.sh ava-pipeline      driver_ava.sh      ..
+./render_demo.sh bug-detect        driver_bug.sh      ..
+./render_demo.sh verdict-exit-code driver_verdict.sh  ..
+./render_demo.sh voe-eligibility   driver_voe.sh      ..
 ```
 
-Each `.tape` is a plain-text script, so a demo can be regenerated when behaviour
-changes instead of quietly becoming a screenshot of a version nobody runs.
+Check each output with `file`, not the exit code. The drivers are plain shell
+scripts, so a demo can be regenerated when behaviour changes instead of quietly
+becoming a screenshot of a version nobody runs.
 
 ---
 
