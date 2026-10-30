@@ -529,7 +529,7 @@ def run_from_manifest(manifest_path: Path) -> int:
     with open(tmp, "w") as f:
         json.dump(manifest, f, indent=2)
         f.write("\n")
-    tmp.rename(manifest_path)
+    tmp.replace(manifest_path)
 
     logger.info("vm_verifier: Sv32=%s, %d translations, %d violations, band=%s",
                 report["sv32_enabled"], report["translations"],

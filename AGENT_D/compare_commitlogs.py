@@ -1934,9 +1934,17 @@ def _load_manifest(path: str) -> List[BatchEntry]:
 def atomic_write(path: Path, content: str) -> None:
     """Write *content* to *path* crash-safely via a unique sibling temp file.
 
-    Uses ``tempfile.mkstemp`` in the same directory so the rename is guaranteed
-    to be on the same filesystem.  On POSIX, ``rename()`` is atomic.  On
-    Windows, we unlink the target first (NTFS requirement).
+    Uses ``tempfile.mkstemp`` in the same directory so the replace is
+    guaranteed to be on the same filesystem, then ``Path.replace()``, which
+    maps to ``os.replace()`` and is atomic on POSIX *and* on Windows.
+
+    It deliberately does NOT unlink the target first.  An earlier version did,
+    guarded by ``sys.platform == "win32"``, on the belief that NTFS requires
+    it; it does not -- ``MoveFileEx(MOVEFILE_REPLACE_EXISTING)``, which is what
+    ``os.replace`` calls, overwrites in one operation.  The unlink opened a
+    window in which the destination did not exist at all, so a crash between
+    the two calls destroyed the manifest rather than leaving the previous
+    version intact.  That is the exact failure atomic_write exists to prevent.
     """
     import tempfile as _tf
     path = Path(path)
@@ -1946,9 +1954,7 @@ def atomic_write(path: Path, content: str) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(content)
-        if sys.platform == "win32" and path.exists():
-            path.unlink()
-        tmp.rename(path)
+        tmp.replace(path)          # atomic on POSIX and Windows alike
     except Exception:
         try:
             tmp.unlink(missing_ok=True)

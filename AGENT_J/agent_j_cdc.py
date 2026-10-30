@@ -456,7 +456,7 @@ def _save_manifest(path: Path, manifest: dict) -> None:
     with open(tmp, "w") as f:
         json.dump(manifest, f, indent=2)
         f.write("\n")
-    tmp.rename(path)
+    tmp.replace(path)
 
 
 # ─────────────────────────────────────────────────────────
@@ -660,7 +660,7 @@ def run_from_manifest(
         with open(tmp_path, "w") as f:
             json.dump(report, f, indent=2)
             f.write("\n")
-        tmp_path.rename(report_path)
+        tmp_path.replace(report_path)
 
         violations = report.get("violations", [])
         exit_code  = 1 if violations else 0

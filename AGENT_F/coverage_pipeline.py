@@ -1332,7 +1332,7 @@ def atomic_write(path: Union[str, Path], content: str, encoding: str = "utf-8") 
 
     try:
         tmp.write_text(content, encoding=encoding)
-        tmp.replace(path)          # atomic on POSIX; atomic-ish on Win32
+        tmp.replace(path)          # atomic on POSIX and Windows alike
     except Exception:
         with contextlib.suppress(OSError):
             tmp.unlink(missing_ok=True)

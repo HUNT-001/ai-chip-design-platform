@@ -437,7 +437,7 @@ def run_from_manifest(manifest_path: Path) -> int:
     with open(tmp, "w") as f:
         json.dump(manifest, f, indent=2)
         f.write("\n")
-    tmp.rename(manifest_path)
+    tmp.replace(manifest_path)
 
     logger.info("tlb_verifier: %d translations, %d sfence, %d violations, band=%s",
                 report["translations"], report["stats"]["sfence"],

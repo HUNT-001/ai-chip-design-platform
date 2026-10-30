@@ -456,7 +456,11 @@ def _update_manifest_unlocked(manifest_path: Path, updates: Dict) -> None:
         manifest["phases"]["iss"]["status"] = "completed"
         manifest["outputs"]["iss_commitlog"] = "foo.jsonl"
 
-    Uses write-to-tmp then rename for crash safety on POSIX filesystems.
+    Uses write-to-tmp then ``Path.replace()`` for crash safety.  ``replace()``
+    maps to ``os.replace()``, which overwrites an existing destination
+    atomically on POSIX and on Windows; ``rename()`` does not -- it raises
+    FileExistsError on Windows whenever the manifest already exists, which
+    is every call after the first.
     """
     manifest = json.loads(manifest_path.read_text())
 
@@ -469,7 +473,7 @@ def _update_manifest_unlocked(manifest_path: Path, updates: Dict) -> None:
 
     tmp = manifest_path.with_suffix(".tmp")
     tmp.write_text(json.dumps(manifest, indent=2, default=str))
-    tmp.rename(manifest_path)   # atomic on POSIX
+    tmp.replace(manifest_path)   # atomic on POSIX and Windows alike
 
 
 def run_iss_manifest(manifest_path: Path) -> int:
