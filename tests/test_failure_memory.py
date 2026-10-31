@@ -947,11 +947,18 @@ def test_incident_numbering_has_no_gaps():
     This is the same shape as every other defect recorded in this file — an
     absence that no control could observe — so it gets a control of its own.
     """
-    import re
-    src = open(__file__).read()
-    nums = sorted(int(n) for n in re.findall(r"^# INCIDENT (\d+)", src, re.M))
-    assert nums, "no incidents recorded"
-    missing = [n for n in range(nums[0], nums[-1] + 1) if n not in nums]
+    src = open(__file__, encoding="utf-8").read()
+    # The range comes from the committed floors, not from the file: an
+    # endpoint that vanished would otherwise shrink the range it is checked
+    # against (#48). Both numbered conventions are covered.
+    problems = _incident_floor_problems(src)
+    assert not problems, "failure memory has shrunk: " + "; ".join(problems)
+    nums = set(_discover_incidents(src))
+    # 9-20 were never written (the banner convention starts at 21), so the
+    # gap check runs within each convention's own committed span.
+    missing = ([n for n in range(1, 9) if n not in nums]
+               + [n for n in range(21, max(nums | {INCIDENT_FLOOR_MAX}) + 1)
+                  if n not in nums])
     assert not missing, (
         f"incident(s) {missing} are missing from the failure memory. A test "
         f"that disappears does not fail — check git history for a lost block.")
