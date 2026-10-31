@@ -54,6 +54,14 @@ from typing import Any, Dict, List, Optional, Tuple
 logger = logging.getLogger(__name__)
 
 if __package__:
+    from .record_types import is_well_typed
+else:
+    from record_types import is_well_typed
+
+# Fields this verifier trips over when mistyped; see record_types (#10).
+_FIELD_TYPES = {"disasm": str, "csrs": dict}
+
+if __package__:
     from .manifest_merge import commit_manifest, snapshot_manifest
 else:
     from manifest_merge import commit_manifest, snapshot_manifest
@@ -268,6 +276,7 @@ class PrivilegeVerifier:
         self._sstatus = 0
         self._pending_ret: Optional[Tuple[int, str]] = None   # (expected_priv, kind)
         self._violations: List[PrivViolation] = []
+        self._unchecked = 0   # records the checker could not process (#10)
         self._stats = {"priv_records": 0, "pmp_checks": 0, "xret": 0, "ecall": 0}
 
     def _flag(self, v: PrivViolation) -> None:
@@ -398,6 +407,9 @@ class PrivilegeVerifier:
                 break
             if not isinstance(rec, dict):
                 continue
+            if not is_well_typed(rec, _FIELD_TYPES):   # wrongly typed field: counted, not checked (#10)
+                self._unchecked += 1
+                continue
             seq    = rec.get("seq", i)
             disasm = (rec.get("disasm") or "").strip().lower()
             priv   = parse_priv(rec)
@@ -408,7 +420,8 @@ class PrivilegeVerifier:
                 self._check_ret_target(rec, priv, seq)
                 self._check_priv_instr(rec, disasm, priv, seq)
                 self._check_pmp(rec, priv, seq)
-            except Exception as exc:               # never crash the pipeline
+            except (ValueError, KeyError, IndexError) as exc:   # malformed record: counted, never a pass (#10)
+                self._unchecked += 1
                 logger.warning("privilege_verifier: record %d raised: %s", seq, exc)
 
             # fold state for subsequent records
@@ -452,7 +465,8 @@ class PrivilegeVerifier:
             "high_violations":  len(high),
             "severity_score":   score,
             "band":             band,
-            "pass":             len(self._violations) == 0,
+            "records_unchecked": self._unchecked,
+            "pass":             len(self._violations) == 0 and self._unchecked == 0,
             "violations":       [v.to_dict() for v in self._violations[:50]],
             "started_at":       started.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "finished_at":      finished.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -482,7 +496,7 @@ def _load_log(run_dir: Path, outputs: Dict, key: str, default: str) -> List[Dict
 
 def run_from_manifest(manifest_path: Path) -> int:
     """Pipeline entry point. Returns 0 on pass, 1 on any violation,
-    3 if the manifest cannot be read."""
+    3 if the manifest cannot be read or a record could not be checked."""
     manifest_path = Path(manifest_path)
     try:
         with open(manifest_path) as f:
@@ -518,7 +532,9 @@ def run_from_manifest(manifest_path: Path) -> int:
     logger.info("privilege_verifier: %d priv records, %d PMP checks, %d violations, band=%s",
                 report["stats"]["priv_records"], report["stats"]["pmp_checks"],
                 report["total_violations"], report["band"])
-    return 0 if report["pass"] else 1
+    if report["total_violations"]:
+        return 1
+    return 0 if report["pass"] else 3   # unchecked records: could not verify (#36)
 
 
 # ─────────────────────────────────────────────────────────

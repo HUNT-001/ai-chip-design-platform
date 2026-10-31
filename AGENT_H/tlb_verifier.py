@@ -62,6 +62,14 @@ from .vm_verifier import Sv32MMU, PTE_G, _to_int
 logger = logging.getLogger(__name__)
 
 if __package__:
+    from .record_types import is_well_typed
+else:
+    from record_types import is_well_typed
+
+# Fields this verifier trips over when mistyped; see record_types (#10).
+_FIELD_TYPES = {"disasm": str, "regs": dict, "csrs": dict}
+
+if __package__:
     from .manifest_merge import commit_manifest, snapshot_manifest
 else:
     from manifest_merge import commit_manifest, snapshot_manifest
@@ -178,6 +186,7 @@ class TLBVerifier:
         # golden TLB: (asid, vpn) -> TLBEntry
         self._tlb: Dict[Tuple[int, int], TLBEntry] = {}
         self._violations: List[TLBViolation] = []
+        self._unchecked = 0   # records the checker could not process (#10)
         self._stats = {"translations": 0, "fills": 0, "sfence": 0,
                        "permitted_stale": 0}
 
@@ -342,10 +351,14 @@ class TLBVerifier:
                 break
             if not isinstance(rec, dict):
                 continue
+            if not is_well_typed(rec, _FIELD_TYPES):   # wrongly typed field: counted, not checked (#10)
+                self._unchecked += 1
+                continue
             seq = rec.get("seq", i)
             try:
                 self._check_record(rec, seq)
-            except Exception as exc:               # never crash the pipeline
+            except (ValueError, KeyError, IndexError) as exc:   # malformed record: counted, never a pass (#10)
+                self._unchecked += 1
                 logger.warning("tlb_verifier: record %d raised: %s", seq, exc)
         finished = datetime.now(timezone.utc)
         return self._report(n, started, finished)
@@ -377,7 +390,8 @@ class TLBVerifier:
             "high_violations":  len(high),
             "severity_score":   score,
             "band":             band,
-            "pass":             len(self._violations) == 0,
+            "records_unchecked": self._unchecked,
+            "pass":             len(self._violations) == 0 and self._unchecked == 0,
             "violations":       [v.to_dict() for v in self._violations[:50]],
             "started_at":       started.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "finished_at":      finished.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -407,7 +421,7 @@ def _load_log(run_dir: Path, outputs: Dict, key: str, default: str) -> List[Dict
 
 def run_from_manifest(manifest_path: Path) -> int:
     """Pipeline entry point. Returns 0 on pass, 1 on any violation,
-    3 if the manifest cannot be read."""
+    3 if the manifest cannot be read or a record could not be checked."""
     manifest_path = Path(manifest_path)
     try:
         with open(manifest_path) as f:
@@ -444,7 +458,9 @@ def run_from_manifest(manifest_path: Path) -> int:
     logger.info("tlb_verifier: %d translations, %d sfence, %d violations, band=%s",
                 report["translations"], report["stats"]["sfence"],
                 report["total_violations"], report["band"])
-    return 0 if report["pass"] else 1
+    if report["total_violations"]:
+        return 1
+    return 0 if report["pass"] else 3   # unchecked records: could not verify (#36)
 
 
 # ─────────────────────────────────────────────────────────

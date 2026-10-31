@@ -38,32 +38,52 @@ CASES = [
     ("fp", "fp_verifier", "FPVerifier", "_check", "log", "fadd.s f1,f2,f3"),
     ("peripheral", "peripheral_verifier", "PeripheralVerifier", "check_record",
      "periph", None),
+    # group a2
+    ("peripheral_finalize", "peripheral_verifier", "PeripheralVerifier",
+     "finalize", "periph", None),
+    ("pipeline", "pipeline_verifier", "PipelineVerifier", "_classify",
+     "log", "addi x1,x1,1"),
+    ("privilege", "privilege_verifier", "PrivilegeVerifier", "_check_ret_target",
+     "log", "mret"),
+    ("rv64_atomics", "rv64_atomics_verifier", "RV64AtomicsVerifier", "_check_amo",
+     "log", "amoadd.d x5,x6,(x10)"),
+    ("rv64", "rv64_verifier", "RV64Verifier", "_check", "log", "addw x1,x2,x3"),
+    ("rvc", "rvc_verifier", "RVCVerifier", "_check_reg_constraint",
+     "log", "c.addi x1,1"),
+    ("sv_mmu", "sv_mmu_verifier", "SvMMUVerifier", "_check_record",
+     "log", "lw x5,0(x6)"),
+    ("tlb", "tlb_verifier", "TLBVerifier", "_check_record",
+     "log", "lw x5,0(x6)"),
+    ("vm", "vm_verifier", "VMVerifier", "_check_record", "log", "lw x5,0(x6)"),
 ]
 IDS = [c[0] for c in CASES]
 CACHE_CFG = {"sets": 64, "ways": 4, "line_size": 64, "policy": "lru"}
 BUS_TXN = {"protocol": "axi", "channel": "AW", "addr": "0x100", "seq": 0}
 RAW = [{"channel": 0, "op": "READ", "src_addr": "0x1000", "length": 64},
+       {"channel": 0, "op": "WRITE", "dst_addr": "0x2000", "length": 64},
        {"channel": 0, "op": "DONE"}]
 
 
 def _rec(disasm):
     return {"schema_version": "2.1.0", "seq": 0, "pc": "0x80000000",
-            "insn": "0x00000013", "disasm": disasm or "nop",
+            "insn": "0x4505" if (disasm or "").startswith("c.") else "0x00000013",
+            "disasm": disasm or "nop",
             "regs": {"x5": "0x1"}, "csrs": {},
             "reads": [{"addr": "0x100", "size": 4, "value": "0x1"}],
             "writes": [{"addr": "0x100", "size": 4, "value": "0x2"}],
             "bus": BUS_TXN}
 
 
-def _build(case):
+def _build(case, extra=None):
     _, modname, clsname, _, kind, disasm = case
     mod = importlib.import_module(f"AGENT_H.{modname}")
     cls = getattr(mod, clsname)
     rec = _rec(disasm)
+    recs = [rec] + ([extra] if extra is not None else [])
     if kind == "log":
-        return mod, cls, lambda: cls([rec], [rec])
+        return mod, cls, lambda: cls(recs, recs)
     if kind == "cache":
-        return mod, cls, lambda: cls([rec], [rec], config=CACHE_CFG)
+        return mod, cls, lambda: cls(recs, recs, config=CACHE_CFG)
     if kind == "bus":
         return mod, cls, lambda: cls([BUS_TXN])
     return mod, cls, lambda: cls(RAW, "dma")
@@ -139,3 +159,57 @@ def test_run_from_manifest_says_could_not_verify(case, tmp_path, monkeypatch):
     assert rc == 3, (
         f"AGENT_H/{case[1]}.py: run_from_manifest returned {rc} for a run that "
         f"skipped a record it could not check; 3 means 'could not verify' (#36)")
+
+
+# --------------------------------------------------------------------------- #
+# Type-confused records: a field of the wrong type (an int where a string or   #
+# dict is expected) makes the checker raise AttributeError or TypeError. That  #
+# is a bad record, not a defect in the checker, so it must be counted as       #
+# unchecked and skipped, not crash the run. A well-typed record whose checker  #
+# raises AttributeError is a defect and still propagates (the first test above #
+# covers it for every case).                                                   #
+# The fields are the ones that crash each verifier today when mistyped, found  #
+# by feeding it a wrongly typed value per field. bus, rvc and peripheral do    #
+# not crash on any, so they have no case here.                                 #
+# --------------------------------------------------------------------------- #
+
+CONFUSED = {
+    "atomics": [("disasm", 5), ("regs", 5)],
+    "bitmanip": [("disasm", 5), ("regs", 5)],
+    "branch_predictor": [("disasm", 5), ("regs", 5)],
+    "cache": [("mem_reads", 5), ("mem_writes", 5)],
+    "csr": [("disasm", 5), ("regs", 5), ("csrs", 5)],
+    "fp": [("disasm", 5), ("regs", 5), ("csrs", 5)],
+    "pipeline": [("disasm", 5), ("regs", 5), ("perf_counters", 5), ("seq", "zz")],
+    "privilege": [("disasm", 5), ("csrs", 5)],
+    "rv64_atomics": [("disasm", 5), ("regs", 5)],
+    "rv64": [("disasm", 5), ("regs", 5)],
+    "sv_mmu": [("csrs", 5)],
+    "tlb": [("disasm", 5), ("regs", 5), ("csrs", 5)],
+    "vm": [("csrs", 5)],
+}
+CONFUSED_PARAMS = [(c, f, v) for c in CASES for f, v in CONFUSED.get(c[0], [])]
+
+
+def test_every_verifier_with_a_confusable_field_has_a_case():
+    covered = {c[0] for c, _, _ in CONFUSED_PARAMS}
+    assert len(covered) == 13, covered     # floor: the 13 found by the field survey
+
+
+@pytest.mark.parametrize("case,field,value", CONFUSED_PARAMS,
+                         ids=[f"{c[0]}-{f}" for c, f, _ in CONFUSED_PARAMS])
+def test_type_confused_record_is_counted_not_crashed(case, field, value):
+    # one well-typed record beside the confused one: rv64 only checks a log it
+    # recognises as RV64 from well-typed evidence, and the count must be exact
+    confused = dict(_rec(case[5]), **{field: value})
+    mod, cls, make = _build(case, extra=confused)
+    try:
+        report = make().run()
+    except Exception as exc:
+        pytest.fail(f"AGENT_H/{case[1]}.py: {field}={value!r} crashed the run with "
+                    f"{type(exc).__name__}: {exc}")
+    assert report.get("records_unchecked") == 1, (
+        f"AGENT_H/{case[1]}.py: a record with {field}={value!r} was not counted "
+        f"as unchecked (records_unchecked={report.get('records_unchecked')!r})")
+    assert report["pass"] is False, (
+        f"AGENT_H/{case[1]}.py: reported a pass over a record it could not check")

@@ -43,6 +43,14 @@ from typing import Any, Dict, List, Optional, Tuple
 logger = logging.getLogger(__name__)
 
 if __package__:
+    from .record_types import is_well_typed
+else:
+    from record_types import is_well_typed
+
+# Fields this verifier trips over when mistyped; see record_types (#10).
+_FIELD_TYPES = {"disasm": str, "regs": dict}
+
+if __package__:
     from .manifest_merge import commit_manifest, snapshot_manifest
 else:
     from manifest_merge import commit_manifest, snapshot_manifest
@@ -379,6 +387,9 @@ class BitmanipVerifier:
             if len(self._violations) >= self.max_violations:
                 break
             if not isinstance(rec, dict):
+                continue
+            if not is_well_typed(rec, _FIELD_TYPES):   # wrongly typed field: counted, not checked (#10)
+                self._unchecked += 1
                 continue
             seq = rec.get("seq", i)
             d = decode_bitmanip((rec.get("disasm") or "").strip().lower())

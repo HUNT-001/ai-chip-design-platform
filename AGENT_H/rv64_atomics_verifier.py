@@ -45,6 +45,14 @@ from .atomics_verifier import decode_atomic   # shared decoder (handles .d)
 logger = logging.getLogger(__name__)
 
 if __package__:
+    from .record_types import is_well_typed
+else:
+    from record_types import is_well_typed
+
+# Fields this verifier trips over when mistyped; see record_types (#10).
+_FIELD_TYPES = {"disasm": str, "regs": dict}
+
+if __package__:
     from .manifest_merge import commit_manifest, snapshot_manifest
 else:
     from manifest_merge import commit_manifest, snapshot_manifest
@@ -170,6 +178,7 @@ class RV64AtomicsVerifier:
         self._resv_addr: Optional[int] = None
         self._resv_seq:  Optional[int] = None
         self._violations: List[RV64AtomViolation] = []
+        self._unchecked = 0   # records the checker could not process (#10)
         self._stats = {"lr_d": 0, "sc_d": 0, "amo_d": 0,
                        "sc_success": 0, "sc_fail": 0, "misaligned": 0}
 
@@ -325,6 +334,9 @@ class RV64AtomicsVerifier:
                 break
             if not isinstance(rec, dict):
                 continue
+            if not is_well_typed(rec, _FIELD_TYPES):   # wrongly typed field: counted, not checked (#10)
+                self._unchecked += 1
+                continue
             seq = rec.get("seq", i)
             disasm = (rec.get("disasm") or "").strip()
             d = decode_atomic(disasm)
@@ -336,7 +348,8 @@ class RV64AtomicsVerifier:
                         self._check_sc(rec, d, seq)
                     else:
                         self._check_amo(rec, d, seq)
-                except Exception as exc:           # never crash the pipeline
+                except (ValueError, KeyError, IndexError) as exc:   # malformed record: counted, never a pass (#10)
+                    self._unchecked += 1
                     logger.warning("rv64_atomics_verifier: record %d raised: %s", seq, exc)
             self._apply_regs(rec)
         finished = datetime.now(timezone.utc)
@@ -370,7 +383,8 @@ class RV64AtomicsVerifier:
             "high_violations":  len(high),
             "severity_score":   score,
             "band":             band,
-            "pass":             len(self._violations) == 0,
+            "records_unchecked": self._unchecked,
+            "pass":             len(self._violations) == 0 and self._unchecked == 0,
             "violations":       [v.to_dict() for v in self._violations[:50]],
             "started_at":       started.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "finished_at":      finished.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -400,7 +414,7 @@ def _load_log(run_dir: Path, outputs: Dict, key: str, default: str) -> List[Dict
 
 def run_from_manifest(manifest_path: Path) -> int:
     """Pipeline entry point. Returns 0 on pass, 1 on any violation,
-    3 if the manifest cannot be read."""
+    3 if the manifest cannot be read or a record could not be checked."""
     manifest_path = Path(manifest_path)
     try:
         with open(manifest_path) as f:
@@ -420,7 +434,7 @@ def run_from_manifest(manifest_path: Path) -> int:
         return 0
 
     report = RV64AtomicsVerifier(rtl_log, iss_log).run()
-    if report["atomics_d_examined"] == 0:
+    if report["atomics_d_examined"] == 0 and not report["records_unchecked"]:
         return 0                                  # no .D atomics -> nothing to write
 
     report_path = run_dir / "rv64_atomics_report.json"
@@ -437,7 +451,9 @@ def run_from_manifest(manifest_path: Path) -> int:
 
     logger.info("rv64_atomics_verifier: %d .D atomics, %d violations, band=%s",
                 report["atomics_d_examined"], report["total_violations"], report["band"])
-    return 0 if report["pass"] else 1
+    if report["total_violations"]:
+        return 1
+    return 0 if report["pass"] else 3   # unchecked records: could not verify (#36)
 
 
 # ─────────────────────────────────────────────────────────
