@@ -60,6 +60,7 @@ IDS = [c[0] for c in CASES]
 CACHE_CFG = {"sets": 64, "ways": 4, "line_size": 64, "policy": "lru"}
 BUS_TXN = {"protocol": "axi", "channel": "AW", "addr": "0x100", "seq": 0}
 RAW = [{"channel": 0, "op": "READ", "src_addr": "0x1000", "length": 64},
+       {"channel": 0, "op": "WRITE", "dst_addr": "0x2000", "length": 64},
        {"channel": 0, "op": "DONE"}]
 
 
@@ -73,15 +74,16 @@ def _rec(disasm):
             "bus": BUS_TXN}
 
 
-def _build(case, rec=None):
+def _build(case, extra=None):
     _, modname, clsname, _, kind, disasm = case
     mod = importlib.import_module(f"AGENT_H.{modname}")
     cls = getattr(mod, clsname)
-    rec = rec if rec is not None else _rec(disasm)
+    rec = _rec(disasm)
+    recs = [rec] + ([extra] if extra is not None else [])
     if kind == "log":
-        return mod, cls, lambda: cls([rec], [rec])
+        return mod, cls, lambda: cls(recs, recs)
     if kind == "cache":
-        return mod, cls, lambda: cls([rec], [rec], config=CACHE_CFG)
+        return mod, cls, lambda: cls(recs, recs, config=CACHE_CFG)
     if kind == "bus":
         return mod, cls, lambda: cls([BUS_TXN])
     return mod, cls, lambda: cls(RAW, "dma")
@@ -197,8 +199,10 @@ def test_every_verifier_with_a_confusable_field_has_a_case():
 @pytest.mark.parametrize("case,field,value", CONFUSED_PARAMS,
                          ids=[f"{c[0]}-{f}" for c, f, _ in CONFUSED_PARAMS])
 def test_type_confused_record_is_counted_not_crashed(case, field, value):
-    rec = dict(_rec(case[5]), **{field: value})
-    mod, cls, make = _build(case, rec=rec)
+    # one well-typed record beside the confused one: rv64 only checks a log it
+    # recognises as RV64 from well-typed evidence, and the count must be exact
+    confused = dict(_rec(case[5]), **{field: value})
+    mod, cls, make = _build(case, extra=confused)
     try:
         report = make().run()
     except Exception as exc:

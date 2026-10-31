@@ -524,7 +524,8 @@ class PeripheralVerifier:
                 logger.warning("peripheral_verifier: record %d raised: %s", seq, exc)
         try:
             self.checker.finalize()
-        except Exception as exc:
+        except (ValueError, KeyError, IndexError) as exc:   # end-of-run check could not run: counted, never a pass (#10)
+            self._unchecked += 1
             logger.warning("peripheral_verifier: finalize raised: %s", exc)
 
         finished = datetime.now(timezone.utc)
