@@ -354,6 +354,7 @@ class RV64Verifier:
         self.rtl_log        = rtl_log or []
         self.iss_log        = iss_log or []
         self.max_violations = max_violations
+        self._prescan_skipped = 0   # mistyped records the mode scan could not read (#10)
         self._is_rv64       = force or self._detect_rv64()
         self._reg: Dict[int, int] = {0: 0}
         self._violations: List[RV64Violation] = []
@@ -364,7 +365,8 @@ class RV64Verifier:
         for rec in self.rtl_log:
             if not isinstance(rec, dict):
                 continue
-            if not is_well_typed(rec, _FIELD_TYPES):   # pre-scan: counted once, in the check loop (#10)
+            if not is_well_typed(rec, _FIELD_TYPES):   # pre-scan: counted in run() (#10)
+                self._prescan_skipped += 1
                 continue
             d = (rec.get("disasm") or "").strip().lower()
             if d and d.split()[0] in _WORD_MNEMS:
@@ -468,6 +470,11 @@ class RV64Verifier:
                     self._unchecked += 1
                     logger.warning("rv64_verifier: record %d raised: %s", seq, exc)
                 self._commit(rec, seq)
+        else:
+            # Not RV64: the check loop does not run, so a mistyped record the
+            # mode scan skipped was never counted. It could have been the
+            # evidence that made this an RV64 log; say so rather than pass.
+            self._unchecked += self._prescan_skipped
         finished = datetime.now(timezone.utc)
         return self._report(n, started, finished)
 
