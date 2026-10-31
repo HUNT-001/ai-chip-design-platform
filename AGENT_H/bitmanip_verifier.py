@@ -317,6 +317,7 @@ class BitmanipVerifier:
         self.max_violations = max_violations
         self._regs: Dict[str, int] = {}
         self._violations: List[BMViolation] = []
+        self._unchecked = 0   # records the checker could not process (#10)
         self._stats = {"bitmanip_ops": 0, "checked": 0, "skipped": 0}
 
     def _flag(self, v: BMViolation) -> None:
@@ -385,7 +386,8 @@ class BitmanipVerifier:
                 self._stats["bitmanip_ops"] += 1
                 try:
                     self._check(rec, d, seq)
-                except Exception as exc:           # never crash the pipeline
+                except (ValueError, KeyError, IndexError) as exc:   # malformed record: counted, never a pass (#10)
+                    self._unchecked += 1
                     logger.warning("bitmanip_verifier: record %d raised: %s", seq, exc)
             self._apply_regs(rec)
 
@@ -418,7 +420,8 @@ class BitmanipVerifier:
             "high_violations":  len(high),
             "severity_score":   score,
             "band":             band,
-            "pass":             len(self._violations) == 0,
+            "records_unchecked": self._unchecked,
+            "pass":             len(self._violations) == 0 and self._unchecked == 0,
             "violations":       [v.to_dict() for v in self._violations[:50]],
             "started_at":       started.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "finished_at":      finished.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -448,7 +451,7 @@ def _load_log(run_dir: Path, outputs: Dict, key: str, default: str) -> List[Dict
 
 def run_from_manifest(manifest_path: Path) -> int:
     """Pipeline entry point. Returns 0 on pass, 1 on any violation,
-    3 if the manifest cannot be read."""
+    3 if the manifest cannot be read or a record could not be checked."""
     manifest_path = Path(manifest_path)
     try:
         with open(manifest_path) as f:
@@ -483,7 +486,9 @@ def run_from_manifest(manifest_path: Path) -> int:
 
     logger.info("bitmanip_verifier: %d B-ext ops, %d violations, band=%s",
                 report["bitmanip_ops"], report["total_violations"], report["band"])
-    return 0 if report["pass"] else 1
+    if report["total_violations"]:
+        return 1
+    return 0 if report["pass"] else 3   # unchecked records: could not verify (#36)
 
 
 # ─────────────────────────────────────────────────────────

@@ -292,6 +292,7 @@ class CSRVerifier:
         self._regs: Dict[str, int] = {}
         self._csr:  Dict[str, int] = {}
         self._violations: List[CSRViolation] = []
+        self._unchecked = 0   # records the checker could not process (#10)
         self._stats = {"csr_ops": 0, "writes": 0, "reads": 0, "fence_i": 0}
 
         # Zifencei: code words written since the last FENCE.I
@@ -437,7 +438,8 @@ class CSRVerifier:
                 d = decode_csr(disasm)
                 if d is not None:
                     self._check_csr(rec, d, seq)
-            except Exception as exc:               # never crash the pipeline
+            except (ValueError, KeyError, IndexError) as exc:   # malformed record: counted, never a pass (#10)
+                self._unchecked += 1
                 logger.warning("csr_verifier: record %d raised: %s", seq, exc)
 
             self._apply_regs(rec)
@@ -473,7 +475,8 @@ class CSRVerifier:
             "high_violations":  len(high),
             "severity_score":   score,
             "band":             band,
-            "pass":             len(self._violations) == 0,
+            "records_unchecked": self._unchecked,
+            "pass":             len(self._violations) == 0 and self._unchecked == 0,
             "violations":       [v.to_dict() for v in self._violations[:50]],
             "started_at":       started.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "finished_at":      finished.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -541,7 +544,9 @@ def run_from_manifest(manifest_path: Path) -> int:
 
     logger.info("csr_verifier: %d CSR ops, %d violations, band=%s",
                 report["csr_ops"], report["total_violations"], report["band"])
-    return 0 if report["pass"] else 1
+    if report["total_violations"]:
+        return 1
+    return 0 if report["pass"] else 3   # unchecked records: could not verify (#36)
 
 
 # ─────────────────────────────────────────────────────────

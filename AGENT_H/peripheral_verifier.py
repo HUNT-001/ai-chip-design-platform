@@ -489,6 +489,7 @@ class PeripheralVerifier:
         self.records   = records or []
         self.dut_class = str(getattr(dut_class, "value", dut_class)).lower()
         self.checker   = get_checker(self.dut_class)
+        self._unchecked = 0   # records the checker could not process (#10)
 
     def run(self) -> Dict[str, Any]:
         started = datetime.now(timezone.utc)
@@ -513,9 +514,13 @@ class PeripheralVerifier:
 
         for i, rec in enumerate(self.records):
             seq = rec.get("seq", i) if isinstance(rec, dict) else i
+            if not isinstance(rec, dict):     # malformed: counted, not checked (#10)
+                self._unchecked += 1
+                continue
             try:
                 self.checker.check_record(rec, seq)
-            except Exception as exc:          # never crash the pipeline
+            except (ValueError, KeyError, IndexError) as exc:   # malformed record: counted, never a pass (#10)
+                self._unchecked += 1
                 logger.warning("peripheral_verifier: record %d raised: %s", seq, exc)
         try:
             self.checker.finalize()
@@ -554,7 +559,8 @@ class PeripheralVerifier:
             "high_violations":  len(high),
             "severity_score":   score,
             "band":             band,
-            "pass":             len(viols) == 0,
+            "records_unchecked": self._unchecked,
+            "pass":             len(viols) == 0 and self._unchecked == 0,
             "violations":       [v.to_dict() for v in viols[:50]],
             "started_at":       started.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "finished_at":      finished.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -628,7 +634,9 @@ def run_from_manifest(manifest_path: Path) -> int:
     logger.info("peripheral_verifier: %s %d records, %d violations, band=%s",
                 dut_class, report["records_checked"],
                 report["total_violations"], report["band"])
-    return 0 if report["pass"] else 1
+    if report["total_violations"]:
+        return 1
+    return 0 if report["pass"] else 3   # unchecked records: could not verify (#36)
 
 
 # ─────────────────────────────────────────────────────────
