@@ -62,22 +62,25 @@ def changed_keys(base: Dict[str, Any], manifest: Dict[str, Any]) -> Dict[str, An
     exists to avoid. A section the verifier created empty is not written.
     """
     updates: Dict[str, Any] = {}
+    # The dotted-key check applies only to what is being written: a key the
+    # verifier did not touch is never sent to the updater, so its name is moot.
     for key, value in manifest.items():
-        if "." in key:
-            raise ValueError(f"manifest key {key!r} contains '.', which the "
-                             f"dotted-key updater cannot address")
         old = base.get(key)
         if value == old:
             continue
         if isinstance(value, dict) and (old is None or isinstance(old, dict)):
             old = old or {}
             for sub, sub_value in value.items():
-                if "." in sub:
+                if sub in old and old[sub] == sub_value:
+                    continue
+                if "." in key or "." in sub:
                     raise ValueError(f"manifest key {key}.{sub!r} contains '.', "
                                      f"which the dotted-key updater cannot address")
-                if sub not in old or old[sub] != sub_value:
-                    updates[f"{key}.{sub}"] = sub_value
+                updates[f"{key}.{sub}"] = sub_value
         else:
+            if "." in key:
+                raise ValueError(f"manifest key {key!r} contains '.', which the "
+                                 f"dotted-key updater cannot address")
             updates[key] = value
     return updates
 

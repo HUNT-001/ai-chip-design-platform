@@ -231,3 +231,6 @@ def test_a_dotted_key_the_verifier_writes_is_still_refused():
         changed_keys({"run_dir": "x"}, {"run_dir": "x", "a.b": 1})
     with pytest.raises(ValueError, match="contains '.'"):
         changed_keys({"outputs": {}}, {"outputs": {"foo.bar": "x"}})
+    # a changed section whose own name has a "." must not be split either
+    with pytest.raises(ValueError, match="contains '.'"):
+        changed_keys({"run_dir": "x"}, {"run_dir": "x", "a.b": {"c": 1}})
