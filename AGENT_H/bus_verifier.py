@@ -202,6 +202,7 @@ class BusVerifier:
         self.transactions   = transactions or []
         self.max_violations = max_violations
         self._violations: List[BusViolation] = []
+        self._unchecked = 0   # records the checker could not process (#10)
         self._stats = {"transactions": 0, "reads": 0, "writes": 0,
                        "beats": 0, "error_responses": 0, "checked": 0}
 
@@ -298,7 +299,8 @@ class BusVerifier:
                 break
             try:
                 self._check_txn(txn, txn.get("seq", i) if isinstance(txn, dict) else i)
-            except Exception as exc:               # never crash the pipeline
+            except (ValueError, KeyError, IndexError) as exc:   # malformed record: counted, never a pass (#10)
+                self._unchecked += 1
                 logger.warning("bus_verifier: txn %d raised: %s", i, exc)
         finished = datetime.now(timezone.utc)
         return self._report(n, started, finished)
@@ -330,7 +332,8 @@ class BusVerifier:
             "high_violations":  len(high),
             "severity_score":   score,
             "band":             band,
-            "pass":             len(self._violations) == 0,
+            "records_unchecked": self._unchecked,
+            "pass":             len(self._violations) == 0 and self._unchecked == 0,
             "violations":       [v.to_dict() for v in self._violations[:50]],
             "started_at":       started.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "finished_at":      finished.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -373,7 +376,7 @@ def _extract_bus(rtl_log: List[Dict]) -> List[Dict]:
 
 def run_from_manifest(manifest_path: Path) -> int:
     """Pipeline entry point. Returns 0 on pass, 1 on any violation,
-    3 if the manifest cannot be read."""
+    3 if the manifest cannot be read or a record could not be checked."""
     manifest_path = Path(manifest_path)
     try:
         with open(manifest_path) as f:
@@ -411,7 +414,9 @@ def run_from_manifest(manifest_path: Path) -> int:
 
     logger.info("bus_verifier: %d transactions, %d violations, band=%s",
                 report["transactions"], report["total_violations"], report["band"])
-    return 0 if report["pass"] else 1
+    if report["total_violations"]:
+        return 1
+    return 0 if report["pass"] else 3   # unchecked records: could not verify (#36)
 
 
 # ─────────────────────────────────────────────────────────

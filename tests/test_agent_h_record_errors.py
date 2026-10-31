@@ -114,9 +114,10 @@ def test_malformed_record_is_counted_and_never_a_pass(case, exc, monkeypatch):
     assert calls["n"] >= 1, (
         f"setup: {case[0]}'s checker {case[3]} was never reached, so this case "
         f"proves nothing")
-    assert report.get("records_unchecked") == 1, (
+    assert report.get("records_unchecked") == calls["n"], (
         f"AGENT_H/{case[1]}.py: a record the checker could not process was not "
-        f"counted as unchecked (records_unchecked={report.get('records_unchecked')!r})")
+        f"counted as unchecked (records_unchecked={report.get('records_unchecked')!r}, "
+        f"checker failures={calls['n']})")
     assert report["pass"] is False, (
         f"AGENT_H/{case[1]}.py: reported a pass over a record it never checked")
 

@@ -295,6 +295,7 @@ class FPVerifier:
         self._flen          = flen or self._detect_flen()
         self._freg: Dict[str, int] = {}    # shadow FP regs (raw bit patterns)
         self._violations: List[FPViolation] = []
+        self._unchecked = 0   # records the checker could not process (#10)
         self._stats = {"fp_ops": 0, "checked": 0, "skipped": 0}
 
     # -- setup ----------------------------------------------------------------
@@ -650,7 +651,8 @@ class FPVerifier:
                 self._stats["fp_ops"] += 1
                 try:
                     self._check(rec, d, seq)
-                except Exception as exc:           # never crash the pipeline
+                except (ValueError, KeyError, IndexError) as exc:   # malformed record: counted, never a pass (#10)
+                    self._unchecked += 1
                     logger.warning("fp_verifier: record %d raised: %s", seq, exc)
             # fold this record's FP writebacks into the shadow register file
             for name, bits in self._fp_map(rec).items():
@@ -688,7 +690,8 @@ class FPVerifier:
             "high_violations":  len(high),
             "severity_score":   score,
             "band":             band,
-            "pass":             len(self._violations) == 0,
+            "records_unchecked": self._unchecked,
+            "pass":             len(self._violations) == 0 and self._unchecked == 0,
             "violations":       [v.to_dict() for v in self._violations[:50]],
             "started_at":       started.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "finished_at":      finished.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -718,7 +721,7 @@ def _load_log(run_dir: Path, outputs: Dict, key: str, default: str) -> List[Dict
 
 def run_from_manifest(manifest_path: Path) -> int:
     """Pipeline entry point. Returns 0 on pass, 1 on any violation,
-    3 if the manifest cannot be read."""
+    3 if the manifest cannot be read or a record could not be checked."""
     manifest_path = Path(manifest_path)
     try:
         with open(manifest_path) as f:
@@ -754,7 +757,9 @@ def run_from_manifest(manifest_path: Path) -> int:
     logger.info("fp_verifier: FLEN=%d, %d FP ops, %d violations, band=%s",
                 report["flen"], report["fp_ops"],
                 report["total_violations"], report["band"])
-    return 0 if report["pass"] else 1
+    if report["total_violations"]:
+        return 1
+    return 0 if report["pass"] else 3   # unchecked records: could not verify (#36)
 
 
 # ─────────────────────────────────────────────────────────

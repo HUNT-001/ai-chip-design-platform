@@ -287,6 +287,8 @@ class AtomicsVerifier:
         self._resv_seq:  Optional[int] = None
 
         self._violations: List[AtomicViolation] = []
+
+        self._unchecked = 0   # records the checker could not process (#10)
         self._stats = {
             "lr": 0, "sc": 0, "amo": 0,
             "sc_success": 0, "sc_fail": 0,
@@ -592,7 +594,8 @@ class AtomicsVerifier:
                             self._check_sc(rec, d, seq)
                         else:
                             self._check_amo(rec, d, seq)
-                    except Exception as exc:           # never crash the pipeline
+                    except (ValueError, KeyError, IndexError) as exc:   # malformed record: counted, never a pass (#10)
+                        self._unchecked += 1
                         logger.warning("atomics_verifier: record %d raised: %s", seq, exc)
 
             # fold writeback / memory effects into shadow state for later records
@@ -634,7 +637,8 @@ class AtomicsVerifier:
             "high_violations":  len(high),
             "severity_score":   score,
             "band":             band,
-            "pass":             len(self._violations) == 0,
+            "records_unchecked": self._unchecked,
+            "pass":             len(self._violations) == 0 and self._unchecked == 0,
             "violations":       [v.to_dict() for v in self._violations[:50]],
             "started_at":       started.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "finished_at":      finished.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -706,7 +710,9 @@ def run_from_manifest(manifest_path: Path) -> int:
 
     logger.info("atomics_verifier: %d atomics examined, %d violations, band=%s",
                 report["atomics_examined"], report["total_violations"], report["band"])
-    return 0 if report["pass"] else 1
+    if report["total_violations"]:
+        return 1
+    return 0 if report["pass"] else 3   # unchecked records: could not verify (#36)
 
 
 # ─────────────────────────────────────────────────────────
