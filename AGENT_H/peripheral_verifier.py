@@ -52,6 +52,11 @@ from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
+if __package__:
+    from .manifest_merge import commit_manifest, snapshot_manifest
+else:
+    from manifest_merge import commit_manifest, snapshot_manifest
+
 SCHEMA_VERSION = "2.1.0"
 
 
@@ -588,6 +593,7 @@ def run_from_manifest(manifest_path: Path) -> int:
     try:
         with open(manifest_path) as f:
             manifest = json.load(f)
+            base_manifest = snapshot_manifest(manifest)
     except Exception as exc:
         logger.warning("peripheral_verifier: cannot read manifest: %s", exc)
         # 3: could not verify -- nothing was checked (#36), unlike 1 = violation found
@@ -617,11 +623,7 @@ def run_from_manifest(manifest_path: Path) -> int:
         "status": "pass" if report["pass"] else "fail",
         "violations": report["total_violations"],
     }
-    tmp = manifest_path.with_suffix(".json.tmp")
-    with open(tmp, "w") as f:
-        json.dump(manifest, f, indent=2)
-        f.write("\n")
-    tmp.rename(manifest_path)
+    commit_manifest(manifest_path, base_manifest, manifest)
 
     logger.info("peripheral_verifier: %s %d records, %d violations, band=%s",
                 dut_class, report["records_checked"],

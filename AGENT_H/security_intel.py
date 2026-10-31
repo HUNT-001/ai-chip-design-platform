@@ -36,6 +36,11 @@ from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
+if __package__:
+    from .manifest_merge import commit_manifest, snapshot_manifest
+else:
+    from manifest_merge import commit_manifest, snapshot_manifest
+
 SCHEMA_VERSION = "2.1.0"
 
 
@@ -355,6 +360,7 @@ class SecurityIntelligence:
 def run_from_manifest(manifest_path: Path) -> int:
     with open(manifest_path) as f:
         manifest = json.load(f)
+        base_manifest = snapshot_manifest(manifest)
 
     run_dir = Path(manifest["run_dir"])
     outputs = manifest.get("outputs", {})
@@ -396,9 +402,5 @@ def run_from_manifest(manifest_path: Path) -> int:
             "message": f"Security band {report['band']}: {report['total_findings']} findings",
         }
 
-    tmp = manifest_path.with_suffix(".json.tmp")
-    with open(tmp, "w") as f:
-        json.dump(manifest, f, indent=2)
-        f.write("\n")
-    tmp.rename(manifest_path)
+    commit_manifest(manifest_path, base_manifest, manifest)
     return 0 if report["band"] in ("CLEAN", "LOW") else 1

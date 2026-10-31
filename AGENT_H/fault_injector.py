@@ -46,6 +46,11 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
+if __package__:
+    from .manifest_merge import commit_manifest, snapshot_manifest
+else:
+    from manifest_merge import commit_manifest, snapshot_manifest
+
 SCHEMA_VERSION = "2.1.0"
 _M32 = 0xFFFFFFFF
 
@@ -363,6 +368,7 @@ def run_from_manifest(manifest_path: Path, n: int = 30) -> int:
     try:
         with open(manifest_path) as f:
             manifest = json.load(f)
+            base_manifest = snapshot_manifest(manifest)
     except Exception as exc:
         logger.warning("fault_injector: cannot read manifest: %s", exc)
         return 0
@@ -386,11 +392,7 @@ def run_from_manifest(manifest_path: Path, n: int = 30) -> int:
         "detection_rate": report["detection_rate"],
         "band": report["band"],
     }
-    tmp = manifest_path.with_suffix(".json.tmp")
-    with open(tmp, "w") as f:
-        json.dump(manifest, f, indent=2)
-        f.write("\n")
-    tmp.rename(manifest_path)
+    commit_manifest(manifest_path, base_manifest, manifest)
 
     logger.info("fault_injector: %d faults, detection_rate=%s, band=%s",
                 report["faults_injected"], report["detection_rate"], report["band"])
