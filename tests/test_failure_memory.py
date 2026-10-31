@@ -883,6 +883,59 @@ def test_no_comment_line_starts_with_the_pragma_word():
                      "as pragmas and abort the build:\n" + "\n".join(bad))
 
 
+# Committed floors for the incident record. They are constants, not values
+# derived from the file, because a floor computed from the data it guards
+# shrinks with it: deleting the newest or oldest incident would lower the
+# expected range and the control would stay green (#48). Raise these when an
+# incident is added; lowering them is a decision that needs a reason.
+INCIDENT_FLOOR_COUNT = 20   # 10 "# INCIDENT N" banners + 10 def test_incident_N_*
+INCIDENT_FLOOR_MAX = 30     # the highest recorded incident number
+
+
+def _discover_incidents(src):
+    """Incident numbers recorded in `src`, in both numbered conventions.
+
+    `# INCIDENT <N>` banners (21+) and `def test_incident_<N>_...` functions
+    (1-8). A lettered variant such as 6b or 8b folds into its number but still
+    counts as its own entry. The unnumbered thematic banners have no identity
+    and are not covered here (#48).
+    """
+    import re
+    return ([int(n) for n in re.findall(r"^# INCIDENT (\d+)", src, re.M)]
+            + [int(n) for n in re.findall(r"^def test_incident_(\d+)", src, re.M)])
+
+
+def _incident_floor_problems(src):
+    found = _discover_incidents(src)
+    problems = []
+    if len(found) < INCIDENT_FLOOR_COUNT:
+        problems.append(f"only {len(found)} incidents recorded, floor is "
+                        f"{INCIDENT_FLOOR_COUNT}")
+    top = max(found, default=0)
+    if top < INCIDENT_FLOOR_MAX:
+        problems.append(f"highest incident is {top}, floor is "
+                        f"{INCIDENT_FLOOR_MAX}")
+    return problems
+
+
+def test_incident_floor_and_discovery():
+    """The record may not shrink, whichever end the deletion is at.
+
+    The gap control below derives its range from the file it checks, so it
+    cannot see an endpoint disappear. This one compares against numbers
+    committed in this file. Discovery must also keep finding both conventions:
+    a floor over a grep that silently matches nothing would pass vacuously.
+    """
+    src = open(__file__, encoding="utf-8").read()
+    found = _discover_incidents(src)
+    assert any(n <= 8 for n in found), "function-named incidents (1-8) not found"
+    assert any(n >= 21 for n in found), "banner incidents (21+) not found"
+    problems = _incident_floor_problems(src)
+    assert not problems, (
+        "failure memory has shrunk: " + "; ".join(problems) + ". A deleted "
+        "test does not go red — check git history for a lost block.")
+
+
 def test_incident_numbering_has_no_gaps():
     """The meta-control, and the reason it exists.
 
