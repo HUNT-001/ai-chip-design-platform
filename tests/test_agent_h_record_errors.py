@@ -74,12 +74,12 @@ def _rec(disasm):
             "bus": BUS_TXN}
 
 
-def _build(case, extra=None):
+def _build(case, extra=None, only=None):
     _, modname, clsname, _, kind, disasm = case
     mod = importlib.import_module(f"AGENT_H.{modname}")
     cls = getattr(mod, clsname)
     rec = _rec(disasm)
-    recs = [rec] + ([extra] if extra is not None else [])
+    recs = [only] if only is not None else [rec] + ([extra] if extra is not None else [])
     if kind == "log":
         return mod, cls, lambda: cls(recs, recs)
     if kind == "cache":
@@ -213,3 +213,46 @@ def test_type_confused_record_is_counted_not_crashed(case, field, value):
         f"as unchecked (records_unchecked={report.get('records_unchecked')!r})")
     assert report["pass"] is False, (
         f"AGENT_H/{case[1]}.py: reported a pass over a record it could not check")
+
+
+# --------------------------------------------------------------------------- #
+# The pre-scan gap. atomics, fp and rv64 scan the whole log in the constructor #
+# to pick a mode, and skip a mistyped record there. For rv64 the mode decides  #
+# whether the check loop runs at all, so a mistyped record that was the only   #
+# evidence left the verifier "not RV64", checked nothing, counted nothing and  #
+# returned 0. The log below has no well-typed record to carry the mode.        #
+# atomics and fp run their loop whatever the mode, so they are controls.       #
+# --------------------------------------------------------------------------- #
+
+PRESCAN = [("rv64", "addw x1,x2,x3", "regs", 5),
+           ("atomics", "amoadd.d x5,x6,(x10)", "regs", 5),
+           ("fp", "fld f1,0(x2)", "regs", 5)]
+
+
+@pytest.mark.parametrize("name,disasm,field,value", PRESCAN,
+                         ids=[p[0] for p in PRESCAN])
+def test_only_evidence_record_mistyped_is_not_a_pass(name, disasm, field, value,
+                                                     tmp_path):
+    case = next(c for c in CASES if c[0] == name)
+    confused = dict(_rec(disasm), **{field: value})
+    mod, cls, make = _build(case, only=confused)
+    report = make().run()
+    assert len(make().rtl_log) == 1, "setup: the confused record must be the whole log"
+    if "rv64_detected" in report:
+        assert report["rv64_detected"] is False, (
+            "setup: mode was detected, so this is not the pre-scan case")
+    assert report.get("records_unchecked", 0) >= 1, (
+        f"AGENT_H/{case[1]}.py: the only record was mistyped and was not counted "
+        f"as unchecked (records_unchecked={report.get('records_unchecked')!r})")
+    assert report["pass"] is False, (
+        f"AGENT_H/{case[1]}.py: reported a pass over a log it could not check")
+    line = json.dumps(confused) + chr(10)
+    (tmp_path / "rtl_commit.jsonl").write_text(line)
+    (tmp_path / "iss_commit.jsonl").write_text(line)
+    m = tmp_path / "run_manifest.json"
+    m.write_text(json.dumps({"schema_version": "2.1.0", "run_id": "r10",
+                             "run_dir": str(tmp_path)}))
+    rc = mod.run_from_manifest(m)
+    assert rc == 3, (
+        f"AGENT_H/{case[1]}.py: run_from_manifest returned {rc} for a log whose "
+        f"only record could not be checked; 3 means 'could not verify' (#36)")
