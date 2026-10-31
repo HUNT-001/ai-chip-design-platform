@@ -297,6 +297,7 @@ class SecurityIntelligence:
         n         = min(len(self.rtl_log), len(self.iss_log))
         findings: List[SecurityFinding] = []
         window:   List[Tuple[Dict, Dict]] = []
+        detector_errors = 0             # detections that raised: not analysed, not clean (#10)
 
         for i in range(n):
             if len(findings) >= self.max_findings:
@@ -310,7 +311,8 @@ class SecurityIntelligence:
                     f = det.detect(rtl_r, iss_r, window[-self.window_size:], seq)
                     if f:
                         findings.append(f)
-                except Exception as exc:
+                except (ValueError, KeyError, IndexError) as exc:   # record it could not read (#10)
+                    detector_errors += 1
                     logger.warning("SecurityDetector %s raised: %s", det.name, exc)
             window.append((rtl_r, iss_r))
 
@@ -335,6 +337,7 @@ class SecurityIntelligence:
             "agent":            "security_intel",
             "records_analysed": n,
             "total_findings":   len(findings),
+            "detector_errors":  detector_errors,
             "leak_score":       round(agg_score, 4),
             "band":             band,
             "categories":       list({f.category for f in findings}),
@@ -403,4 +406,6 @@ def run_from_manifest(manifest_path: Path) -> int:
         }
 
     commit_manifest(manifest_path, base_manifest, manifest)
-    return 0 if report["band"] in ("CLEAN", "LOW") else 1
+    if report["band"] not in ("CLEAN", "LOW"):
+        return 1
+    return 3 if report["detector_errors"] else 0   # a detector could not run: could not verify (#36)

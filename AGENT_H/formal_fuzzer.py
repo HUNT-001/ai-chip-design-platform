@@ -193,6 +193,7 @@ class FormalFuzzBridge:
         self.witness_path = Path(witness_path)
         self.outdir       = Path(outdir) if outdir else None
         self.max_seeds    = max_seeds
+        self.witness_error: Optional[str] = None   # why an existing witness was not used (#10)
 
     def _load_witness(self) -> List[Dict]:
         """Load SymbiYosys witness JSON (list of step dicts)."""
@@ -245,7 +246,8 @@ class FormalFuzzBridge:
                     ))
                     logger.info("FormalFuzzBridge: extracted %d instruction words from witness",
                                 len(words))
-            except Exception as exc:
+            except (OSError, ValueError, KeyError, IndexError) as exc:   # unreadable / not JSON / bad word
+                self.witness_error = f"{type(exc).__name__}: {exc}"
                 logger.warning("FormalFuzzBridge: failed to parse witness: %s", exc)
 
         # Hardcoded corner seeds (always included for coverage)
@@ -326,6 +328,7 @@ class FormalFuzzBridge:
             "schema_version": SCHEMA_VERSION,
             "agent": "formal_fuzzer",
             "witness_path": str(self.witness_path),
+            "witness_error": self.witness_error,
             "seeds_extracted": len(seeds),
             "files_written": len(paths),
             "seed_names": [s.name for s in seeds],
@@ -361,4 +364,4 @@ def run_from_manifest(manifest_path: Path) -> int:
     manifest.setdefault("outputs", {})["formal_seeds_dir"]   = "formal_seeds"
 
     commit_manifest(manifest_path, base_manifest, manifest)
-    return 0
+    return 3 if report["witness_error"] else 0   # the witness was not used: could not verify (#36)

@@ -74,6 +74,7 @@ class DUTAdapter(ABC):
 
     dut_class: DUTClass = DUTClass.CUSTOM
     name:      str      = "base"
+    dropped:   int      = 0     # raw records translate() could not convert (#10)
 
     @abstractmethod
     def translate_record(self, raw: Dict[str, Any], seq: int) -> Dict[str, Any]:
@@ -97,7 +98,8 @@ class DUTAdapter(ABC):
             try:
                 translated = self.translate_record(rec, i)
                 result.append(translated)
-            except Exception as exc:
+            except (ValueError, KeyError, IndexError) as exc:   # malformed raw record
+                self.dropped += 1       # counted, so the caller can say it was not all checked
                 logger.warning("Adapter %s: failed to translate record %d: %s",
                                self.name, i, exc)
         return result
@@ -382,6 +384,7 @@ def run_from_manifest(manifest_path: Path) -> int:
         "adapter":        adapter.name,
         "rtl_records":    n_rtl,
         "iss_records":    n_iss,
+        "dropped_records": adapter.dropped,
         "translated_at":  datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
     with open(run_dir / "cross_domain_report.json", "w") as f:
@@ -389,4 +392,4 @@ def run_from_manifest(manifest_path: Path) -> int:
         f.write("\n")
 
     commit_manifest(manifest_path, base_manifest, manifest)
-    return 0
+    return 3 if adapter.dropped else 0   # records were lost in translation: could not verify (#36)
