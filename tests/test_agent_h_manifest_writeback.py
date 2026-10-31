@@ -190,3 +190,44 @@ def test_concurrent_update_survives(name, tmp_path, monkeypatch):
     assert after.get("phases", {}).get("compare") == {"status": "passed"}, (
         f"AGENT_H/{name}.py: a locked manifest update made while the verifier "
         f"ran was erased by its write-back (#32). phases={after.get('phases')}")
+
+
+# --------------------------------------------------------------------------- #
+# Keys with a "." in them. The updater addresses nested fields with dotted     #
+# paths, so it cannot write such a key -- but it never has to for a key the    #
+# verifier did not touch, and refusing those would crash a write-back that     #
+# worked before #32 was fixed.                                                 #
+# --------------------------------------------------------------------------- #
+
+def _run_cache_verifier(tmp_path, extra):
+    mod = importlib.import_module("AGENT_H.cache_verifier")
+    m, base = _build_run(tmp_path)
+    manifest = dict(base, **extra)
+    m.write_text(json.dumps(manifest))
+    rc = mod.run_from_manifest(m)
+    return rc, manifest, json.loads(m.read_text())
+
+
+def test_untouched_top_level_dotted_key_survives(tmp_path):
+    rc, before, after = _run_cache_verifier(tmp_path, {"vendor.tag": "keep-me"})
+    assert after.get("outputs", {}).get("cache_report"), (
+        "the verifier never wrote its own keys, so the case proves nothing")
+    assert after["vendor.tag"] == "keep-me"
+
+
+def test_untouched_dotted_key_under_a_touched_section_survives(tmp_path):
+    rc, before, after = _run_cache_verifier(
+        tmp_path, {"outputs": {"foo.bar": "keep-me.json"}})
+    assert after["outputs"].get("cache_report"), (
+        "the verifier never wrote its own keys, so the case proves nothing")
+    assert after["outputs"]["foo.bar"] == "keep-me.json"
+
+
+def test_a_dotted_key_the_verifier_writes_is_still_refused():
+    """The guard stays for what is actually being written: the updater would
+    split the key into a path and write somewhere else."""
+    from AGENT_H.manifest_merge import changed_keys
+    with pytest.raises(ValueError, match="contains '.'"):
+        changed_keys({"run_dir": "x"}, {"run_dir": "x", "a.b": 1})
+    with pytest.raises(ValueError, match="contains '.'"):
+        changed_keys({"outputs": {}}, {"outputs": {"foo.bar": "x"}})
