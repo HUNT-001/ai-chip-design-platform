@@ -451,15 +451,15 @@ def main(argv: Optional[List[str]] = None) -> int:
         os.environ["AGENT_B_RTL"] = args.agent_b
 
     # ── Auto-resolve signature addresses from ELF symbols ────────────────────
-    sig_begin = args.sig_begin
-    sig_end   = args.sig_end
-    if sig_begin.lower() == "auto" or sig_end.lower() == "auto":
+    # Only a side given as "auto" comes from nm; an explicit address on the
+    # command line is never replaced (#81).
+    sig_begin  = args.sig_begin
+    sig_end    = args.sig_end
+    auto_begin = sig_begin.lower() == "auto"
+    auto_end   = sig_end.lower() == "auto"
+    if auto_begin or auto_end:
         b, e = _nm_sig_addresses(elf)
-        if b and e:
-            sig_begin = b
-            sig_end   = e
-            log.info("Signature addresses from nm: begin=%s  end=%s", b, e)
-        else:
+        if (auto_begin and not b) or (auto_end and not e):
             # Guessed addresses can lie outside the signature region and give a
             # wrong compliance signature, so an unresolved "auto" is a failure.
             log.error(
@@ -468,6 +468,13 @@ def main(argv: Optional[List[str]] = None) -> int:
                 "absent); refusing to guess the signature region", elf,
             )
             return EXIT_TOOL
+        if auto_begin:
+            sig_begin = b
+        if auto_end:
+            sig_end = e
+        log.info("Signature addresses: begin=%s (%s)  end=%s (%s)",
+                 sig_begin, "nm" if auto_begin else "explicit",
+                 sig_end, "nm" if auto_end else "explicit")
 
     log.info(
         "Adapter: elf=%s  sig=%s  isa=%s  seed=%d  begin=%s  end=%s",
