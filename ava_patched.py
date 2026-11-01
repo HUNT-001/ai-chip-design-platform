@@ -2761,7 +2761,7 @@ endclass
 
         # -- Vector AES key-schedule checker (Zvkned, FIPS-197-validated) — gated on trace
         if _vaeskf:
-            try:
+            with run_stage("Vector-AES-keysched verifier", _incomplete):
                 rc = _vaeskf.run_from_manifest(str(mpath)) \
                     if hasattr(_vaeskf, "run_from_manifest") else 0
                 _note_exit_code("vaeskf", rc)
@@ -2778,12 +2778,10 @@ endclass
                         }
                         logger.info("  Vector AES key-sched: %d violations, band=%s",
                                     vr.get("total_violations", 0), vr.get("band"))
-            except Exception as exc:
-                logger.warning("  Vector-AES-keysched verifier failed: %s", exc)
 
         # -- Vector SM4 checker (Zvksed, GB/T-32907-validated) — gated on a vsm4 trace
         if _vsm4:
-            try:
+            with run_stage("Vector-SM4 verifier", _incomplete):
                 rc = _vsm4.run_from_manifest(str(mpath)) \
                     if hasattr(_vsm4, "run_from_manifest") else 0
                 _note_exit_code("vsm4", rc)
@@ -2800,12 +2798,10 @@ endclass
                         }
                         logger.info("  Vector SM4: %d violations, band=%s",
                                     vr.get("total_violations", 0), vr.get("band"))
-            except Exception as exc:
-                logger.warning("  Vector-SM4 verifier failed: %s", exc)
 
         # -- Vector GHASH checker (Zvkg, NIST-GCM-validated) — gated on a vghash trace
         if _vghash:
-            try:
+            with run_stage("Vector-GHASH verifier", _incomplete):
                 rc = _vghash.run_from_manifest(str(mpath)) \
                     if hasattr(_vghash, "run_from_manifest") else 0
                 _note_exit_code("vghash", rc)
@@ -2822,8 +2818,6 @@ endclass
                         }
                         logger.info("  Vector GHASH: %d violations, band=%s",
                                     vr.get("total_violations", 0), vr.get("band"))
-            except Exception as exc:
-                logger.warning("  Vector-GHASH verifier failed: %s", exc)
 
         # -- Power-aware / CDC / equivalence checkers — each gated on its trace
         for _mod, _label, _rep_name, _key in (
@@ -2864,7 +2858,7 @@ endclass
 
         # -- Zacas compare-and-swap checker — gated on a CAS trace
         if _cas:
-            try:
+            with run_stage("CAS verifier", _incomplete):
                 rc = _cas.run_from_manifest(str(mpath)) \
                     if hasattr(_cas, "run_from_manifest") else 0
                 _note_exit_code("cas", rc)
@@ -2881,12 +2875,10 @@ endclass
                         }
                         logger.info("  Zacas CAS: %d violations, band=%s",
                                     cr.get("total_violations", 0), cr.get("band"))
-            except Exception as exc:
-                logger.warning("  CAS verifier failed: %s", exc)
 
         # -- Multicore cache-coherence checker — gated on a coherence trace
         if _coherence:
-            try:
+            with run_stage("Coherence verifier", _incomplete):
                 rc = _coherence.run_from_manifest(str(mpath)) \
                     if hasattr(_coherence, "run_from_manifest") else 0
                 _note_exit_code("coherence", rc)
@@ -2904,12 +2896,10 @@ endclass
                         logger.info("  Coherence: %d cores, %d violations, band=%s",
                                     chr_.get("metrics", {}).get("cores", 0),
                                     chr_.get("total_violations", 0), chr_.get("band"))
-            except Exception as exc:
-                logger.warning("  Coherence verifier failed: %s", exc)
 
         # -- Memory-consistency (SC/TSO/RVWMO) checker — gated on an execution trace
         if _memmodel:
-            try:
+            with run_stage("Memory-model verifier", _incomplete):
                 rc = _memmodel.run_from_manifest(str(mpath)) \
                     if hasattr(_memmodel, "run_from_manifest") else 0
                 _note_exit_code("memmodel", rc)
@@ -2928,12 +2918,10 @@ endclass
                         logger.info("  Memory model (%s): %d violations, band=%s",
                                     mmr.get("model"), mmr.get("total_violations", 0),
                                     mmr.get("band"))
-            except Exception as exc:
-                logger.warning("  Memory-model verifier failed: %s", exc)
 
         # -- Interrupt-controller (PLIC/CLINT) checker — gated on an event trace
         if _interrupt:
-            try:
+            with run_stage("Interrupt verifier", _incomplete):
                 rc = _interrupt.run_from_manifest(str(mpath)) \
                     if hasattr(_interrupt, "run_from_manifest") else 0
                 _note_exit_code("interrupt", rc)
@@ -2950,12 +2938,10 @@ endclass
                         }
                         logger.info("  Interrupt controller: %d violations, band=%s",
                                     ir.get("total_violations", 0), ir.get("band"))
-            except Exception as exc:
-                logger.warning("  Interrupt verifier failed: %s", exc)
 
         # -- Debug & Trigger module checker — gated on a debug trace
         if _debug:
-            try:
+            with run_stage("Debug verifier", _incomplete):
                 rc = _debug.run_from_manifest(str(mpath)) \
                     if hasattr(_debug, "run_from_manifest") else 0
                 _note_exit_code("debug", rc)
@@ -2972,12 +2958,10 @@ endclass
                         }
                         logger.info("  Debug/Trigger: %d violations, band=%s",
                                     dr.get("total_violations", 0), dr.get("band"))
-            except Exception as exc:
-                logger.warning("  Debug verifier failed: %s", exc)
 
         # -- Reset-state checker — gated on a reset snapshot
         if _reset:
-            try:
+            with run_stage("Reset verifier", _incomplete):
                 rc = _reset.run_from_manifest(str(mpath)) \
                     if hasattr(_reset, "run_from_manifest") else 0
                 _note_exit_code("reset", rc)
@@ -2994,12 +2978,10 @@ endclass
                         }
                         logger.info("  Reset state: %d violations, band=%s",
                                     rr.get("total_violations", 0), rr.get("band"))
-            except Exception as exc:
-                logger.warning("  Reset verifier failed: %s", exc)
 
         # -- Hypervisor two-stage translation checker — gated on a hyp trace
         if _hyp:
-            try:
+            with run_stage("Hypervisor verifier", _incomplete):
                 rc = _hyp.run_from_manifest(str(mpath)) \
                     if hasattr(_hyp, "run_from_manifest") else 0
                 _note_exit_code("hyp", rc)
@@ -3016,12 +2998,10 @@ endclass
                         }
                         logger.info("  Hypervisor: %d violations, band=%s",
                                     hr.get("total_violations", 0), hr.get("band"))
-            except Exception as exc:
-                logger.warning("  Hypervisor verifier failed: %s", exc)
 
         # -- AIA / IMSIC checker — gated on an AIA trace
         if _aia:
-            try:
+            with run_stage("AIA verifier", _incomplete):
                 rc = _aia.run_from_manifest(str(mpath)) \
                     if hasattr(_aia, "run_from_manifest") else 0
                 _note_exit_code("aia", rc)
@@ -3038,12 +3018,10 @@ endclass
                         }
                         logger.info("  AIA/IMSIC: %d violations, band=%s",
                                     ar.get("total_violations", 0), ar.get("band"))
-            except Exception as exc:
-                logger.warning("  AIA verifier failed: %s", exc)
 
         # -- Cache subsystem verifier (gated on cache_config + events)
         if _cache and rtl_log:
-            try:
+            with run_stage("Cache verifier", _incomplete):
                 cfg = getattr(semantic_map, "raw", {}).get("cache_config") \
                     if hasattr(semantic_map, "raw") else None
                 cv = _cache.CacheVerifier(rtl_log, iss_log, config=cfg)
@@ -3061,12 +3039,10 @@ endclass
                 logger.info("  Cache: enabled=%s, %d violations, band=%s",
                             r.get("cache_enabled", False),
                             r.get("total_violations", 0), r.get("band"))
-            except Exception as exc:
-                logger.warning("  Cache verifier failed: %s", exc)
 
         # -- Bus protocol verifier (AXI/AHB/APB; gated on bus transaction events)
         if _bus and rtl_log:
-            try:
+            with run_stage("Bus verifier", _incomplete):
                 bus_txns = _bus._extract_bus(rtl_log)
                 if bus_txns:
                     bv = _bus.BusVerifier(bus_txns)
@@ -3083,12 +3059,10 @@ endclass
                     logger.info("  Bus: %d transactions, %d violations, band=%s",
                                 r.get("transactions", 0),
                                 r.get("total_violations", 0), r.get("band"))
-            except Exception as exc:
-                logger.warning("  Bus verifier failed: %s", exc)
 
         # -- Fault-injection campaign (measures detection coverage of the panel)
         if _faultinj and rtl_log:
-            try:
+            with run_stage("Fault injector", _incomplete):
                 fc = _faultinj.FaultCampaign(rtl_log, seed=1)
                 r = fc.run(n=30)
                 rp = run_dir / "fault_report.json"
@@ -3102,8 +3076,6 @@ endclass
                 logger.info("  Fault injection: %d faults, detection_rate=%s, band=%s",
                             r.get("faults_injected", 0),
                             r.get("detection_rate"), r.get("band"))
-            except Exception as exc:
-                logger.warning("  Fault injector failed: %s", exc)
 
         # -- RV64 datapath verifier (auto-detects RV64; no-op on RV32)
         if _rv64 and rtl_log:
