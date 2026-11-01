@@ -125,8 +125,9 @@ def probe_structure(rtl_path: str | None):
             raw = f.read()
     except OSError:
         return False, False, "small"
+    # A repo module: a broken or missing one must raise, not fall back to regex.
+    from AGENT_H import rtl_graph as rg
     try:
-        from AGENT_H import rtl_graph as rg
         src = rg.strip_comments(raw)
     except Exception:
         src = re.sub(r"/\*.*?\*/", " ", raw, flags=re.S)
@@ -135,7 +136,6 @@ def probe_structure(rtl_path: str | None):
     sequential = bool(_SEQ.search(src))
     signals = 0
     try:
-        from AGENT_H import rtl_graph as rg
         mods = rg.parse_module(raw, rtl_path)
         if mods:
             signals = len(max(mods, key=lambda x: len(x.signals)).signals)

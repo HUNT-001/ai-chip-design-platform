@@ -1036,8 +1036,9 @@ def run_from_manifest(manifest_path: str) -> int:
     out = run_dir / "generated_tb"
     reports = []
     if rtl_dir and Path(rtl_dir).exists():
+        # A repo module: a broken or missing one must raise, not read as "skipped".
+        from AGENT_H.rtl_graph import RTLGraphAnalyzer
         try:
-            from AGENT_H.rtl_graph import RTLGraphAnalyzer
             mods = RTLGraphAnalyzer.from_dir(str(rtl_dir)).modules
             targets = manifest.get("tb_targets")
             for m in mods:
