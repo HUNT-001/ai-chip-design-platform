@@ -208,13 +208,28 @@ class EconomicsEngine:
         """Append this campaign to the persistent ledger file."""
         ledger_path = self.run_dir.parent / "verification_ledger.json"
         campaigns: List[Dict] = []
-        if ledger_path.exists():
-            try:
-                with open(ledger_path) as f:
-                    data = json.load(f)
-                    campaigns = data.get("campaigns", [])
-            except Exception:
-                pass
+        unreadable = None
+        try:
+            with open(ledger_path) as f:
+                data = json.load(f)
+            if not isinstance(data, dict) or not isinstance(data.get("campaigns", []), list):
+                raise ValueError("unexpected ledger shape")
+            campaigns = data.get("campaigns", [])
+        except FileNotFoundError:
+            pass                      # first run: nothing to preserve
+        except (OSError, ValueError) as exc:
+            unreadable = exc
+        if unreadable is not None:
+            # The ledger is the cross-run record: move it aside rather than
+            # overwrite it. If the move fails the OSError propagates.
+            backup = ledger_path.with_name(ledger_path.name + ".corrupt")
+            n = 0
+            while backup.exists():
+                n += 1
+                backup = ledger_path.with_name(f"{ledger_path.name}.corrupt.{n}")
+            ledger_path.rename(backup)
+            logger.warning("EconomicsEngine: ledger %s unreadable (%s); moved to %s, "
+                           "starting a fresh ledger", ledger_path, unreadable, backup)
         campaigns.append(report)
         with open(ledger_path, "w") as f:
             json.dump({
