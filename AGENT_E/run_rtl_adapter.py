@@ -362,7 +362,7 @@ def _nm_sig_addresses(elf: Path, objdump_bin: str = "") -> Tuple[Optional[str], 
         out = subprocess.check_output(
             [nm, str(elf)], text=True, timeout=10, stderr=subprocess.DEVNULL
         )
-    except Exception:
+    except (OSError, subprocess.SubprocessError):
         return None, None
 
     begin = end = None
@@ -460,13 +460,14 @@ def main(argv: Optional[List[str]] = None) -> int:
             sig_end   = e
             log.info("Signature addresses from nm: begin=%s  end=%s", b, e)
         else:
-            log.warning(
-                "Could not resolve signature addresses from ELF symbols; "
-                "falling back to defaults (%s .. %s)",
-                args.sig_begin, args.sig_end,
+            # Guessed addresses can lie outside the signature region and give a
+            # wrong compliance signature, so an unresolved "auto" is a failure.
+            log.error(
+                "Could not resolve begin_signature/end_signature from the symbol "
+                "table of %s (nm missing, unreadable ELF, failed, or symbols "
+                "absent); refusing to guess the signature region", elf,
             )
-            sig_begin = "0x80002000" if sig_begin.lower() == "auto" else sig_begin
-            sig_end   = "0x80002040" if sig_end.lower() == "auto"   else sig_end
+            return EXIT_TOOL
 
     log.info(
         "Adapter: elf=%s  sig=%s  isa=%s  seed=%d  begin=%s  end=%s",
