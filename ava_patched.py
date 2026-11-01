@@ -2491,7 +2491,7 @@ endclass
 
         # -- Sv32 virtual-memory verifier (gated on satp + page-table image)
         if _vm and rtl_log:
-            try:
+            with run_stage("VM verifier", _incomplete):
                 phys_mem = (semantic_map.raw.get("phys_mem")
                             if hasattr(semantic_map, "raw") else None)
                 vmv = _vm.VMVerifier(rtl_log, iss_log, phys_mem=phys_mem)
@@ -2509,12 +2509,10 @@ endclass
                 logger.info("  VM (Sv32): %d translations, %d violations, band=%s",
                             r.get("translations", 0),
                             r.get("total_violations", 0), r.get("band"))
-            except Exception as exc:
-                logger.warning("  VM verifier failed: %s", exc)
 
         # -- TLB coherence / sfence.vma verifier (gated on satp + page-table image)
         if _tlb and rtl_log:
-            try:
+            with run_stage("TLB verifier", _incomplete):
                 phys_mem = (semantic_map.raw.get("phys_mem")
                             if hasattr(semantic_map, "raw") else None)
                 tv = _tlb.TLBVerifier(rtl_log, iss_log, phys_mem=phys_mem)
@@ -2531,12 +2529,10 @@ endclass
                 logger.info("  TLB: %d translations, %d violations, band=%s",
                             r.get("translations", 0),
                             r.get("total_violations", 0), r.get("band"))
-            except Exception as exc:
-                logger.warning("  TLB verifier failed: %s", exc)
 
         # -- Pipeline & hazard verifier
         if _pipeline and rtl_log:
-            try:
+            with run_stage("Pipeline verifier", _incomplete):
                 ph = _pipeline.PipelineVerifier(rtl_log, iss_log)
                 r = ph.run()
                 rp = run_dir / "pipeline_report.json"
@@ -2552,12 +2548,10 @@ endclass
                 logger.info("  Pipeline: %d ALU checked, hazards=%s, %d violations, band=%s",
                             r.get("alu_checked", 0), r.get("hazards", {}),
                             r.get("total_violations", 0), r.get("band"))
-            except Exception as exc:
-                logger.warning("  Pipeline verifier failed: %s", exc)
 
         # -- Branch predictor verifier (recovery + prediction metrics)
         if _branchp and rtl_log:
-            try:
+            with run_stage("Branch predictor verifier", _incomplete):
                 bpv = _branchp.BranchPredictorVerifier(rtl_log, iss_log)
                 r = bpv.run()
                 if r.get("metrics", {}).get("branches", 0) > 0:
@@ -2573,12 +2567,10 @@ endclass
                     logger.info("  Branch predictor: %d branches, %d violations, band=%s",
                                 r.get("metrics", {}).get("branches", 0),
                                 r.get("total_violations", 0), r.get("band"))
-            except Exception as exc:
-                logger.warning("  Branch predictor verifier failed: %s", exc)
 
         # -- Vector (RVV) verifier — gated on vector activity in the log
         if _vector and rtl_log:
-            try:
+            with run_stage("Vector verifier", _incomplete):
                 vlen = None
                 if hasattr(semantic_map, "raw"):
                     vlen = (semantic_map.raw or {}).get("vlen")
@@ -2598,12 +2590,10 @@ endclass
                     logger.info("  Vector (RVV): %d vector instrs, %d violations, band=%s",
                                 r.get("metrics", {}).get("vector_instrs", 0),
                                 r.get("total_violations", 0), r.get("band"))
-            except Exception as exc:
-                logger.warning("  Vector verifier failed: %s", exc)
 
         # -- Performance-counter checker (mcycle/minstret/mcountinhibit)
         if _perfcnt and rtl_log:
-            try:
+            with run_stage("Perf-counter verifier", _incomplete):
                 pv = _perfcnt.PerfCounterVerifier(rtl_log, iss_log)
                 r = pv.run()
                 if r.get("perf_active"):
@@ -2618,12 +2608,10 @@ endclass
                     logger.info("  Perf counters: %d violations, IPC=%s, band=%s",
                                 r.get("total_violations", 0),
                                 r.get("metrics", {}).get("ipc"), r.get("band"))
-            except Exception as exc:
-                logger.warning("  Perf-counter verifier failed: %s", exc)
 
         # -- Out-of-order scoreboard checker — gated on OOO scheduling fields
         if _ooo and rtl_log:
-            try:
+            with run_stage("OOO verifier", _incomplete):
                 ov = _ooo.OOOVerifier(rtl_log)
                 r = ov.run()
                 if r.get("ooo_active"):
@@ -2638,12 +2626,10 @@ endclass
                     logger.info("  OOO scoreboard: %d violations, reorder-depth=%s, band=%s",
                                 r.get("total_violations", 0),
                                 r.get("metrics", {}).get("max_inflight"), r.get("band"))
-            except Exception as exc:
-                logger.warning("  OOO verifier failed: %s", exc)
 
         # -- Load/store-queue checker (store-to-load forwarding / disambiguation)
         if _lsq and rtl_log:
-            try:
+            with run_stage("LSQ verifier", _incomplete):
                 lv = _lsq.LSQVerifier(rtl_log)
                 r = lv.run()
                 if r.get("lsq_active"):
@@ -2658,12 +2644,10 @@ endclass
                     logger.info("  LSQ: %d violations, %d forwards checked, band=%s",
                                 r.get("total_violations", 0),
                                 r.get("metrics", {}).get("forwards_checked"), r.get("band"))
-            except Exception as exc:
-                logger.warning("  LSQ verifier failed: %s", exc)
 
         # -- Scalar-crypto checker (SHA/SM3 transforms) — gated on crypto ops
         if _crypto and rtl_log:
-            try:
+            with run_stage("Crypto verifier", _incomplete):
                 cyv = _crypto.CryptoVerifier(rtl_log)
                 r = cyv.run()
                 if r.get("crypto_active"):
@@ -2678,12 +2662,10 @@ endclass
                     logger.info("  Scalar crypto: %d violations, %d checked, band=%s",
                                 r.get("total_violations", 0),
                                 r.get("metrics", {}).get("checked"), r.get("band"))
-            except Exception as exc:
-                logger.warning("  Crypto verifier failed: %s", exc)
 
         # -- AES scalar-crypto checker (FIPS-197-validated golden) — gated on AES ops
         if _aes and rtl_log:
-            try:
+            with run_stage("AES verifier", _incomplete):
                 av = _aes.AESVerifier(rtl_log)
                 r = av.run()
                 if r.get("aes_active"):
@@ -2698,12 +2680,10 @@ endclass
                     logger.info("  AES crypto: %d violations, %d checked, band=%s",
                                 r.get("total_violations", 0),
                                 r.get("metrics", {}).get("checked"), r.get("band"))
-            except Exception as exc:
-                logger.warning("  AES verifier failed: %s", exc)
 
         # -- SM4 scalar-crypto checker (GB/T-32907-validated golden) — gated on SM4 ops
         if _sm4 and rtl_log:
-            try:
+            with run_stage("SM4 verifier", _incomplete):
                 sv = _sm4.SM4Verifier(rtl_log)
                 r = sv.run()
                 if r.get("sm4_active"):
@@ -2718,12 +2698,10 @@ endclass
                     logger.info("  SM4 crypto: %d violations, %d checked, band=%s",
                                 r.get("total_violations", 0),
                                 r.get("metrics", {}).get("checked"), r.get("band"))
-            except Exception as exc:
-                logger.warning("  SM4 verifier failed: %s", exc)
 
         # -- Vector AES checker (Zvkned, FIPS-197-validated core) — gated on a vaes trace
         if _vaes:
-            try:
+            with run_stage("Vector-AES verifier", _incomplete):
                 rc = _vaes.run_from_manifest(str(mpath)) \
                     if hasattr(_vaes, "run_from_manifest") else 0
                 _note_exit_code("vaes", rc)
@@ -2740,12 +2718,10 @@ endclass
                         }
                         logger.info("  Vector AES: %d violations, band=%s",
                                     vr.get("total_violations", 0), vr.get("band"))
-            except Exception as exc:
-                logger.warning("  Vector-AES verifier failed: %s", exc)
 
         # -- Vector SHA-2 checker (Zvknha/b, hashlib-validated) — gated on a vsha trace
         if _vsha:
-            try:
+            with run_stage("Vector-SHA-2 verifier", _incomplete):
                 rc = _vsha.run_from_manifest(str(mpath)) \
                     if hasattr(_vsha, "run_from_manifest") else 0
                 _note_exit_code("vsha", rc)
@@ -2762,12 +2738,10 @@ endclass
                         }
                         logger.info("  Vector SHA-2: %d violations, band=%s",
                                     vr.get("total_violations", 0), vr.get("band"))
-            except Exception as exc:
-                logger.warning("  Vector-SHA-2 verifier failed: %s", exc)
 
         # -- Vector SM3 checker (Zvksh, GB/T-32905-validated) — gated on a vsm3 trace
         if _vsm3:
-            try:
+            with run_stage("Vector-SM3 verifier", _incomplete):
                 rc = _vsm3.run_from_manifest(str(mpath)) \
                     if hasattr(_vsm3, "run_from_manifest") else 0
                 _note_exit_code("vsm3", rc)
@@ -2784,8 +2758,6 @@ endclass
                         }
                         logger.info("  Vector SM3: %d violations, band=%s",
                                     vr.get("total_violations", 0), vr.get("band"))
-            except Exception as exc:
-                logger.warning("  Vector-SM3 verifier failed: %s", exc)
 
         # -- Vector AES key-schedule checker (Zvkned, FIPS-197-validated) — gated on trace
         if _vaeskf:

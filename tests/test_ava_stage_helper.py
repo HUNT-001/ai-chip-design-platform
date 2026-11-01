@@ -291,3 +291,81 @@ def test_batch1_stage_failing_with_a_programming_error_propagates(
     assert hit["n"] >= 1, "setup: the failing stage was never reached"
     assert any(isinstance(e, TypeError) and "injected by test" in str(e)
                for e in _chain(ei.value)), repr(ei.value)
+
+
+# ── batch 2: the next fourteen stages ─────────────────────────────────────────
+#
+# Eleven are class-invoked (`Cls(rtl_log, ...).run()`), three are modules driven
+# through `run_from_manifest` (vaes, vsha, vsm3).  `after` is the stage that runs
+# next; it is stubbed to count its calls.
+
+def _stub_stage(monkeypatch, target, calls, exc):
+    attr, kind, name = target
+    mod = getattr(ava_patched, attr)
+    if mod is None:
+        pytest.skip(f"{attr} not importable")
+    if kind == "cls":
+        monkeypatch.setattr(mod, name, _RunStub(calls, exc))
+    else:
+        monkeypatch.setattr(mod, name, _raiser(exc, calls) if exc
+                            else _counting_module_fn(calls))
+
+
+BATCH2 = [  # (stage, the stage that runs after it)
+    (("_vm",        "cls", "VMVerifier"),            ("_tlb",       "cls", "TLBVerifier")),
+    (("_tlb",       "cls", "TLBVerifier"),           ("_pipeline",  "cls", "PipelineVerifier")),
+    (("_pipeline",  "cls", "PipelineVerifier"),      ("_branchp",   "cls", "BranchPredictorVerifier")),
+    (("_branchp",   "cls", "BranchPredictorVerifier"), ("_vector",  "cls", "VectorVerifier")),
+    (("_vector",    "cls", "VectorVerifier"),        ("_perfcnt",   "cls", "PerfCounterVerifier")),
+    (("_perfcnt",   "cls", "PerfCounterVerifier"),   ("_ooo",       "cls", "OOOVerifier")),
+    (("_ooo",       "cls", "OOOVerifier"),           ("_lsq",       "cls", "LSQVerifier")),
+    (("_lsq",       "cls", "LSQVerifier"),           ("_crypto",    "cls", "CryptoVerifier")),
+    (("_crypto",    "cls", "CryptoVerifier"),        ("_aes",       "cls", "AESVerifier")),
+    (("_aes",       "cls", "AESVerifier"),           ("_sm4",       "cls", "SM4Verifier")),
+    (("_sm4",       "cls", "SM4Verifier"),           ("_vaes",      "fn", "run_from_manifest")),
+    (("_vaes",      "fn",  "run_from_manifest"),     ("_vsha",      "fn", "run_from_manifest")),
+    (("_vsha",      "fn",  "run_from_manifest"),     ("_vsm3",      "fn", "run_from_manifest")),
+    (("_vsm3",      "fn",  "run_from_manifest"),     ("_vaeskf",    "fn", "run_from_manifest")),
+]
+BATCH2_IDS = [b[0][0].lstrip("_") for b in BATCH2]
+
+
+def _stub_pair2(monkeypatch, spec, exc):
+    stage, after_stage = spec
+    hit, after = {"n": 0}, {"n": 0}
+    _stub_stage(monkeypatch, stage, hit, exc)
+    _stub_stage(monkeypatch, after_stage, after, None)
+    return hit, after
+
+
+@pytest.mark.parametrize("spec", BATCH2, ids=BATCH2_IDS)
+def test_batch2_stage_that_works_still_passes(tmp_path, monkeypatch, spec):
+    hit, after = _stub_pair2(monkeypatch, spec, None)
+    result = _run(tmp_path)
+    assert hit["n"] >= 1, "setup: the stage was never reached"
+    assert result["status"] == "completed"
+    assert _exit_code(result) == 0
+
+
+@pytest.mark.parametrize("spec", BATCH2, ids=BATCH2_IDS)
+def test_batch2_stage_failing_with_an_environment_error_makes_the_run_incomplete(
+        tmp_path, monkeypatch, spec):
+    hit, after = _stub_pair2(monkeypatch, spec, OSError)
+    result = _run(tmp_path)
+    assert hit["n"] >= 1, "setup: the failing stage was never reached"
+    assert result["status"] == "incomplete", (
+        f"stage {spec[0][0]!r} raised OSError and the run still says "
+        f"status={result['status']!r}")
+    assert _exit_code(result) == 3
+    assert after["n"] >= 1, "the stage after the failure did not run"
+
+
+@pytest.mark.parametrize("spec", BATCH2, ids=BATCH2_IDS)
+def test_batch2_stage_failing_with_a_programming_error_propagates(
+        tmp_path, monkeypatch, spec):
+    hit, _ = _stub_pair2(monkeypatch, spec, TypeError)
+    with pytest.raises(Exception) as ei:
+        _run(tmp_path)
+    assert hit["n"] >= 1, "setup: the failing stage was never reached"
+    assert any(isinstance(e, TypeError) and "injected by test" in str(e)
+               for e in _chain(ei.value)), repr(ei.value)
