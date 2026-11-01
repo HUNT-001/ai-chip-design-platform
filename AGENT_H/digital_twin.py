@@ -263,6 +263,7 @@ class DigitalTwin:
     ) -> None:
         self._seen  = seen_fingerprints or set()
         self._steps = max_steps
+        self.screen_errors: List[Tuple[str, Exception]] = []   # batch_screen failures (#10)
 
     def _parse_asm(self, source: str) -> List[str]:
         """Extract assembly mnemonic lines (skip directives / labels / comments)."""
@@ -393,7 +394,8 @@ class DigitalTwin:
                         "total_instrs": r.total_instrs,
                         "fractions":    r.fractions,
                     })
-            except Exception as exc:
+            except (OSError, ValueError, KeyError, IndexError) as exc:   # unreadable / malformed program
+                self.screen_errors.append((str(p), exc))   # recorded, so the batch is not silently short
                 logger.warning("DigitalTwin: error screening %s: %s", p, exc)
         return sorted(results, key=lambda x: x["top_score"], reverse=True)
 

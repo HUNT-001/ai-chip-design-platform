@@ -295,6 +295,7 @@ class ContractRunner:
         n          = min(len(rtl_log), len(iss_log))
         violations: List[ContractViolation] = []
         window: List[Tuple[Dict, Dict]] = []
+        contracts_errored = 0           # evaluations that raised: not checked, not a pass (#10)
 
         contract_stats = {c.name: {"checked": 0, "skipped": 0, "violated": 0}
                           for c in self.contracts}
@@ -330,7 +331,8 @@ class ContractRunner:
                         disasm=disasm_,
                         message=gf.message,
                     ))
-                except Exception as exc:
+                except (ValueError, KeyError, IndexError) as exc:   # record it could not read (#10)
+                    contracts_errored += 1
                     logger.warning("Contract %s raised: %s", c.name, exc)
 
             window.append((rtl_r, iss_r))
@@ -345,7 +347,8 @@ class ContractRunner:
             "contracts_run":    len(self.contracts),
             "total_violations": len(violations),
             "high_violations":  len(high_viols),
-            "pass":             len(violations) == 0,
+            "contracts_errored": contracts_errored,
+            "pass":             len(violations) == 0 and contracts_errored == 0,
             "contract_stats":   contract_stats,
             "violations": [
                 {
@@ -404,4 +407,6 @@ def run_from_manifest(manifest_path: Path) -> int:
         "status": "pass" if report["pass"] else "fail",
     }
     commit_manifest(manifest_path, base_manifest, manifest)
-    return 0 if report["pass"] else 1
+    if report["total_violations"]:
+        return 1
+    return 0 if report["pass"] else 3   # a contract could not be evaluated: could not verify (#36)

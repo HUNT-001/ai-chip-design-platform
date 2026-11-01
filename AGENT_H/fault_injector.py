@@ -190,13 +190,16 @@ def default_detectors() -> List[Callable[[List[Dict]], bool]]:
     return panel
 
 
-def _detected(log: List[Dict], detectors: List[Callable]) -> bool:
+def _detected(log: List[Dict], detectors: List[Callable],
+              errors: Optional[List[Exception]] = None) -> bool:
     for d in detectors:
         try:
             if d(log):
                 return True
-        except Exception as exc:           # a detector must never crash the campaign
+        except (ValueError, KeyError, IndexError) as exc:   # log the detector could not read (#10)
             logger.warning("fault_injector: detector raised: %s", exc)
+            if errors is not None:
+                errors.append(exc)         # a campaign with a blind detector is not a measurement
     return False
 
 
@@ -281,6 +284,7 @@ class FaultCampaign:
         injected = 0
         detected = 0
         undetected: List[Dict[str, Any]] = []
+        detector_errors: List[Exception] = []
 
         for _ in range(max(0, n)):
             fault = self._random_fault()
@@ -291,7 +295,7 @@ class FaultCampaign:
                 continue                       # no-op mutation, skip
             injected += 1
             per_model[fault.model]["injected"] += 1
-            if _detected(faulted, self.detectors):
+            if _detected(faulted, self.detectors, detector_errors):
                 detected += 1
                 per_model[fault.model]["detected"] += 1
             else:
@@ -316,7 +320,9 @@ class FaultCampaign:
             "per_model":       per_model,
             "undetected":      undetected,
             "band":            _coverage_band(rate),
-            "pass":            True,           # a measurement, not a DUT pass/fail
+            "detector_errors": len(detector_errors),
+            # a measurement, not a DUT pass/fail -- but not a valid one if a detector could not run
+            "pass":            not detector_errors,
             "started_at":      started.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "finished_at":     finished.strftime("%Y-%m-%dT%H:%M:%SZ"),
             "duration_s":      round((finished - started).total_seconds(), 3),
@@ -369,9 +375,10 @@ def run_from_manifest(manifest_path: Path, n: int = 30) -> int:
         with open(manifest_path) as f:
             manifest = json.load(f)
             base_manifest = snapshot_manifest(manifest)
-    except Exception as exc:
+    except (OSError, ValueError) as exc:    # unreadable file, or not JSON (JSONDecodeError)
         logger.warning("fault_injector: cannot read manifest: %s", exc)
-        return 0
+        # 3: could not verify -- nothing was run (#36), unlike 0 = ran and passed
+        return 3
 
     run_dir = Path(manifest.get("run_dir", manifest_path.parent))
     outputs = manifest.get("outputs", {})
@@ -396,7 +403,7 @@ def run_from_manifest(manifest_path: Path, n: int = 30) -> int:
 
     logger.info("fault_injector: %d faults, detection_rate=%s, band=%s",
                 report["faults_injected"], report["detection_rate"], report["band"])
-    return 0
+    return 3 if report["detector_errors"] else 0   # 3: a detector could not run (#36)
 
 
 # ─────────────────────────────────────────────────────────

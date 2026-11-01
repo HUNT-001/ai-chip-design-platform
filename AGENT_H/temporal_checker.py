@@ -290,6 +290,7 @@ class TemporalChecker:
         started    = datetime.now(timezone.utc)
         n          = min(len(self.rtl_log), len(self.iss_log))
         violations: List[TemporalViolation] = []
+        monitors_errored = 0            # steps that raised: not checked, not a pass (#10)
 
         for i in range(n):
             if len(violations) >= self.max_violations:
@@ -302,7 +303,8 @@ class TemporalChecker:
             for mon in self._monitors:
                 try:
                     err = mon.step(rtl_r, iss_r, seq)
-                except Exception as exc:
+                except (ValueError, KeyError, IndexError) as exc:   # record it could not read (#10)
+                    monitors_errored += 1
                     logger.warning("Monitor %s raised: %s", mon.name, exc)
                     err = None
                 if err:
@@ -325,7 +327,8 @@ class TemporalChecker:
             "monitors_run":     len(self._monitors),
             "total_violations": len(violations),
             "high_violations":  len(high_viols),
-            "pass":             len(violations) == 0,
+            "monitors_errored": monitors_errored,
+            "pass":             len(violations) == 0 and monitors_errored == 0,
             "violations": [
                 {
                     "property":  v.property_name,
@@ -382,4 +385,6 @@ def run_from_manifest(manifest_path: Path) -> int:
         "status": "pass" if report["pass"] else "fail",
     }
     commit_manifest(manifest_path, base_manifest, manifest)
-    return 0 if report["pass"] else 1
+    if report["total_violations"]:
+        return 1
+    return 0 if report["pass"] else 3   # a monitor could not run: could not verify (#36)
