@@ -28,6 +28,7 @@ reached, so a setup that never gets there fails as a setup error.
 import asyncio
 import importlib
 import json
+import logging
 import pathlib
 import sys
 
@@ -640,3 +641,206 @@ def test_batch4_bug_stage_failing_with_a_programming_error_propagates(
     with pytest.raises(TypeError, match="injected by test"):
         _direct(tmp_path)
     assert hit["n"] >= 1, "setup: the failing stage was never reached"
+
+
+# ── final batch: the nested-try stages and the manifest update ────────────────
+#
+# RTL graph analysis and testbench generation run only when the manifest names an
+# `rtl_dir`, which a run does not write by itself, so the manifest is given one.
+# The shared analyzer is stubbed; the failing input is, per stage, the one call
+# that raises.  `after` is the stage that runs next, stubbed to count its calls.
+# Dashboards is the last stage, so what runs after it is the manifest update, and
+# the case reads the status that update wrote.
+
+class _Graph:
+    """RTLGraphAnalyzer.from_dir(...) result: run() and .modules."""
+    def __init__(self, calls, exc, modules):
+        self.calls, self.exc, self.modules = calls, exc, modules
+
+    def run(self):
+        self.calls["n"] += 1
+        if self.exc:
+            raise self.exc("injected by test")
+        return {"metrics": {"modules": 0, "fsms_found": 0, "clone_pairs": 0},
+                "fsm_defs": [], "pass": True}
+
+
+class _Analyzer:
+    def __init__(self, graph):
+        self.graph = graph
+
+    def from_dir(self, path):
+        return self.graph
+
+
+class _TBG:
+    """TestbenchGenerator(module).write(out)."""
+    calls, exc = {"n": 0}, None
+
+    def __init__(self, module):
+        pass
+
+    def write(self, out):
+        type(self).calls["n"] += 1
+        if type(self).exc:
+            raise type(self).exc("injected by test")
+        return []
+
+
+class _Twin:
+    calls, exc = {"n": 0}, None
+
+    def __init__(self, *a, **k):
+        pass
+
+    def run(self, goal):
+        type(self).calls["n"] += 1
+        if type(self).exc:
+            raise type(self).exc("injected by test")
+        return {"tapeout_readiness": {"band": "READY"},
+                "live_status": {"overall_health": 0.9}, "pass": True}
+
+
+def _with_rtl_dir(monkeypatch, tmp_path):
+    """The manifest the pipeline writes, plus an rtl_dir that exists."""
+    rtl_dir = tmp_path / "rtl_src"
+    rtl_dir.mkdir()
+    orig = AVA._write_run_manifest
+
+    def write(self, *a, **k):
+        mp = orig(self, *a, **k)
+        d = json.loads(pathlib.Path(mp).read_text())
+        d["rtl_dir"] = str(rtl_dir)
+        pathlib.Path(mp).write_text(json.dumps(d))
+        return mp
+    monkeypatch.setattr(AVA, "_write_run_manifest", write)
+
+
+class _Counter:
+    """A tiny stand-in with a call count."""
+    def __init__(self, exc=None):
+        self.calls, self.exc = {"n": 0}, exc
+
+
+def _final(monkeypatch, tmp_path, stage, exc):
+    """Stub everything the final stages touch, make `stage` raise `exc`.
+    Returns {'stage': calls-of-the-failing-call, 'after': calls-of-the-next-stage}."""
+    _with_rtl_dir(monkeypatch, tmp_path)
+    rg = importlib.import_module("AGENT_H.rtl_graph")
+    tb = importlib.import_module("AGENT_B.testbench_generator")
+    vt = importlib.import_module("AGENT_H.verification_twin")
+    db = importlib.import_module("AGENT_H.dashboard")
+    for name in ("_rtlgraph", "_tbgen", "_vtwin", "_dashboard"):
+        if getattr(ava_patched, name) is None:
+            pytest.skip(f"{name} not importable")
+    graph = _Graph({"n": 0}, exc if stage == "rtlgraph" else None,
+                   [type("M", (), {"name": "m", "ports": [1]})()])
+    monkeypatch.setattr(rg, "RTLGraphAnalyzer", _Analyzer(graph))
+    tbg = type("TBG", (_TBG,), {"calls": {"n": 0},
+                                "exc": exc if stage == "tbgen" else None})
+    twin = type("Twin", (_Twin,), {"calls": {"n": 0},
+                                   "exc": exc if stage == "vtwin" else None})
+    monkeypatch.setattr(tb, "TestbenchGenerator", tbg)
+    monkeypatch.setattr(vt, "VerificationTwin", twin)
+    dash = {"n": 0}
+
+    def write_dashboards(*a, **k):
+        dash["n"] += 1
+        if stage == "dashboard" and exc:
+            raise exc("injected by test")
+        return []
+    monkeypatch.setattr(db, "write_dashboards", write_dashboards)
+    return {"rtlgraph": (graph.calls, tbg.calls), "tbgen": (tbg.calls, twin.calls),
+            "vtwin": (twin.calls, dash), "dashboard": (dash, None)}[stage]
+
+
+FINAL = ["rtlgraph", "tbgen", "vtwin", "dashboard"]
+
+
+def _manifest_status(tmp_path):
+    found = list(tmp_path.glob("**/run_manifest.json"))
+    assert found, "setup: no run manifest was written"
+    return json.loads(found[0].read_text())["status"]
+
+
+@pytest.mark.parametrize("stage", FINAL)
+def test_final_stage_that_works_still_passes(tmp_path, monkeypatch, stage):
+    hit, _ = _final(monkeypatch, tmp_path, stage, None)
+    result = _run(tmp_path)
+    assert hit["n"] >= 1, "setup: the stage was never reached"
+    assert result["status"] == "completed"
+    assert _exit_code(result) == 0
+
+
+@pytest.mark.parametrize("stage", FINAL)
+def test_final_stage_failing_with_an_environment_error_makes_the_run_incomplete(
+        tmp_path, monkeypatch, stage):
+    hit, after = _final(monkeypatch, tmp_path, stage, OSError)
+    result = _run(tmp_path)
+    assert hit["n"] >= 1, "setup: the failing stage was never reached"
+    assert result["status"] == "incomplete", (
+        f"stage {stage!r} raised OSError and the run still says "
+        f"status={result['status']!r}")
+    assert _exit_code(result) == 3
+    if after is not None:
+        assert after["n"] >= 1, "the stage after the failure did not run"
+    else:
+        assert _manifest_status(tmp_path) == "incomplete", \
+            "the manifest update after the last stage did not record it"
+
+
+@pytest.mark.parametrize("stage", FINAL)
+def test_final_stage_failing_with_a_programming_error_propagates(
+        tmp_path, monkeypatch, stage):
+    hit, _ = _final(monkeypatch, tmp_path, stage, TypeError)
+    with pytest.raises(Exception) as ei:
+        _run(tmp_path)
+    assert hit["n"] >= 1, "setup: the failing stage was never reached"
+    assert any(isinstance(e, TypeError) and "injected by test" in str(e)
+               for e in _chain(ei.value)), repr(ei.value)
+
+
+# The manifest update is not a stage: it writes the verdict.  A write that fails
+# must not leave a run that reads as a pass.  The first verdict_from_reports call
+# is the one inside that update, so that is where the failure is injected.
+
+def _fail_manifest_update(monkeypatch, exc, calls):
+    real = ava_patched.verdict_from_reports
+
+    def once(*a, **k):
+        if calls["n"] == 0:
+            calls["n"] += 1
+            raise exc("injected by test")
+        return real(*a, **k)
+    monkeypatch.setattr(ava_patched, "verdict_from_reports", once)
+
+
+def test_manifest_update_that_works_still_passes(tmp_path):
+    result = _run(tmp_path)
+    assert result["status"] == "completed"
+    assert result["extended_reports"][ava_patched.VERDICT_KEY]["incomplete"] == []
+
+
+def test_manifest_update_failing_with_an_environment_error_makes_the_run_incomplete(
+        tmp_path, monkeypatch, caplog):
+    calls = {"n": 0}
+    _fail_manifest_update(monkeypatch, OSError, calls)
+    with caplog.at_level(logging.WARNING, logger="AVA"):
+        result = _run(tmp_path)
+    assert calls["n"] == 1, "setup: the manifest update was never reached"
+    assert result["status"] == "incomplete", (
+        "the manifest update failed and the run still says "
+        f"status={result['status']!r}")
+    assert _exit_code(result) == 3
+    assert any("run_manifest.json" in r.getMessage() and r.levelno >= logging.WARNING
+               for r in caplog.records), "the warning does not name the manifest path"
+
+
+def test_manifest_update_failing_with_a_programming_error_propagates(tmp_path, monkeypatch):
+    calls = {"n": 0}
+    _fail_manifest_update(monkeypatch, TypeError, calls)
+    with pytest.raises(Exception) as ei:
+        _run(tmp_path)
+    assert calls["n"] == 1, "setup: the manifest update was never reached"
+    assert any(isinstance(e, TypeError) and "injected by test" in str(e)
+               for e in _chain(ei.value)), repr(ei.value)

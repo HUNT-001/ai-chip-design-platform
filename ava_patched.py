@@ -3338,7 +3338,7 @@ endclass
         # feeds every *extracted* FSM into the RTL-basics checker so real RTL
         # can be checked for illegal transitions with no hand-written model.
         if _rtlgraph:
-            try:
+            with run_stage("RTL graph analysis", _incomplete):
                 rtl_dir = None
                 try:
                     with open(mpath) as f:
@@ -3358,12 +3358,10 @@ endclass
                     logger.info("  RTL graph: %d modules, %d FSMs, %d clone pairs",
                                 gr["metrics"]["modules"], gr["metrics"]["fsms_found"],
                                 gr["metrics"]["clone_pairs"])
-            except Exception as exc:
-                logger.warning("  RTL graph analysis failed: %s", exc)
 
         # -- AGENT_B testbench generation — gated on an rtl_dir --------------
         if _tbgen:
-            try:
+            with run_stage("Testbench generation", _incomplete):
                 rtl_dir = None
                 try:
                     with open(mpath) as f:
@@ -3387,12 +3385,10 @@ endclass
                     if gen:
                         reports["testbench_gen"] = {"modules": gen, "pass": True}
                         logger.info("  AGENT_B: generated %d testbench env(s)", gen)
-            except Exception as exc:
-                logger.warning("  Testbench generation failed: %s", exc)
 
         # -- Verification digital twin: live status + forecast + readiness ---
         if _vtwin:
-            try:
+            with run_stage("Verification twin", _incomplete):
                 from AGENT_H.verification_twin import VerificationTwin as _VT
                 _mj2 = {}
                 try:
@@ -3414,12 +3410,10 @@ endclass
                 logger.info("  Verification twin: readiness=%s health=%.2f",
                             tw["tapeout_readiness"]["band"],
                             tw["live_status"]["overall_health"])
-            except Exception as exc:
-                logger.warning("  Verification twin failed: %s", exc)
 
         # -- Dashboards (runs last: needs every other report) ----------------
         if _dashboard:
-            try:
+            with run_stage("Dashboard generation", _incomplete):
                 from AGENT_H.dashboard import write_dashboards as _wd
 
                 def _rd(nm):
@@ -3442,11 +3436,9 @@ endclass
                 if files:
                     reports["dashboard"] = {"files": files, "pass": True}
                     logger.info("  Dashboards: %d file(s) written", len(files))
-            except Exception as exc:
-                logger.warning("  Dashboard generation failed: %s", exc)
 
         # Update manifest status
-        try:
+        with run_stage(f"Manifest update ({mpath})", _incomplete):
             with open(mpath) as f:
                 manifest_dict = json.load(f)
             manifest_dict["status"] = verdict_from_reports(
@@ -3467,8 +3459,6 @@ endclass
             with open(mpath, "w") as f:
                 json.dump(manifest_dict, f, indent=2)
                 f.write("\n")
-        except Exception as exc:
-            logger.warning("Failed to update manifest: %s", exc)
 
         # Published last: verification_twin and the dashboards walk `reports`,
         # and this entry is not a module report.
