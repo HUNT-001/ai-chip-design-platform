@@ -380,6 +380,39 @@ def verdict_from_reports(
     return STATUS_COMPLETED
 
 
+#: What means a stage could not run: the environment (a file, a process, a
+#: timeout, unreadable JSON), not a bug.  Anything else -- TypeError,
+#: AttributeError, NameError -- is a defect in this repo and propagates.
+STAGE_ENVIRONMENT_ERRORS = (OSError, subprocess.SubprocessError, json.JSONDecodeError)
+
+
+class StageOutcome:
+    """What `run_stage` hands the body; `error` is set if the stage was lost."""
+    error: Optional[BaseException] = None
+
+
+@contextlib.contextmanager
+def run_stage(name: str, incomplete: List[str]):
+    """Run one pipeline stage so that failing to run cannot read as passing (#10).
+
+    A stage that raises one of STAGE_ENVIRONMENT_ERRORS is recorded in
+    `incomplete` -- the list `verdict_from_reports` reads through VERDICT_KEY, so
+    the run becomes `incomplete` (exit 3, "could not verify"), the same outcome
+    `_note_exit_code` gives a verifier that exits 3 (#43).  It is logged at
+    WARNING and the run carries on with the next stage.  Any other exception
+    propagates.  Code after the `with` block runs only if the stage was lost, so
+    a body that returns on success can use it for its fallback value.
+    """
+    outcome = StageOutcome()
+    try:
+        yield outcome
+    except STAGE_ENVIRONMENT_ERRORS as exc:
+        outcome.error = exc
+        incomplete.append(name)
+        logger.warning("  ✗ %s could not run (%s), the run is incomplete: %s",
+                       name, type(exc).__name__, exc)
+
+
 class AVAError(Exception):
     """Base AVA exception."""
 
@@ -2237,7 +2270,7 @@ endclass
         def _call(label: str, module, fn_name: str, *args, **kwargs) -> Optional[Dict]:
             if module is None:
                 return None
-            try:
+            with run_stage(label, _incomplete) as stage:
                 fn = getattr(module, fn_name, None)
                 if fn is None:
                     return None
@@ -2255,9 +2288,7 @@ endclass
                     "exit_code": result,
                     "duration_s": elapsed,
                 }
-            except Exception as exc:
-                logger.warning("  ✗ %s failed (non-fatal): %s", label, exc)
-                return {"status": "error", "error": str(exc)}
+            return {"status": "error", "error": str(stage.error)}
 
         # Load commit logs for in-process agents
         rtl_log: List[Dict] = []
@@ -2326,7 +2357,7 @@ endclass
 
         # -- Contract DSL
         if _contract and rtl_log and iss_log:
-            try:
+            with run_stage("Contracts", _incomplete):
                 runner = _contract.ContractRunner()
                 r = runner.check(rtl_log, iss_log)
                 rp = run_dir / "contract_report.json"
@@ -2337,8 +2368,6 @@ endclass
                     "pass": r.get("pass", True),
                 }
                 logger.info("  Contracts: %d violations", r.get("total_violations", 0))
-            except Exception as exc:
-                logger.warning("  Contract runner failed: %s", exc)
 
         # -- Temporal checker
         if _temporal and rtl_log and iss_log:
@@ -2859,7 +2888,7 @@ endclass
         ):
             if not _mod:
                 continue
-            try:
+            with run_stage(_label, _incomplete):
                 rc = _mod.run_from_manifest(str(mpath)) \
                     if hasattr(_mod, "run_from_manifest") else 0
                 _note_exit_code(_label, rc)
@@ -2876,8 +2905,6 @@ endclass
                         }
                         logger.info("  %s: %d violations, band=%s", _label,
                                     _r.get("total_violations", 0), _r.get("band"))
-            except Exception as exc:
-                logger.warning("  %s verifier failed: %s", _label, exc)
 
         # -- Zacas compare-and-swap checker — gated on a CAS trace
         if _cas:
