@@ -214,3 +214,80 @@ def test_stage_failing_with_a_programming_error_propagates(tmp_path, monkeypatch
     assert hit["n"] >= 1, "setup: the failing stage was never reached"
     assert any(isinstance(e, TypeError) and "injected by test" in str(e)
                for e in _chain(ei.value)), repr(ei.value)
+
+
+# ── batch 1: the next eight stages ────────────────────────────────────────────
+#
+# Each is a class-invoked verifier: `Cls(rtl_log, iss_log).run()` returns a report
+# dict.  The stage that runs after it (`after`) is stubbed to count its calls.
+
+class _RunStub:
+    """Stands in for a verifier class: `Cls(...).run()`."""
+    def __init__(self, calls, exc=None):
+        self.calls, self.exc = calls, exc
+
+    def __call__(self, *a, **k):
+        return self
+
+    def run(self):
+        self.calls["n"] += 1
+        if self.exc:
+            raise self.exc("injected by test")
+        return {"total_violations": 0, "pass": True, "band": "CLEAN"}
+
+
+BATCH1 = [  # (module attr, class, stage that runs after it)
+    ("_intent",    "IntentChecker",     ("_temporal",  "TemporalChecker")),
+    ("_temporal",  "TemporalChecker",   ("_atomics",   "AtomicsVerifier")),
+    ("_atomics",   "AtomicsVerifier",   ("_csr",       "CSRVerifier")),
+    ("_csr",       "CSRVerifier",       ("_rvc",       "RVCVerifier")),
+    ("_rvc",       "RVCVerifier",       ("_fp",        "FPVerifier")),
+    ("_fp",        "FPVerifier",        ("_bitmanip",  "BitmanipVerifier")),
+    ("_bitmanip",  "BitmanipVerifier",  ("_privilege", "PrivilegeVerifier")),
+    ("_privilege", "PrivilegeVerifier", ("_pipeline",  "PipelineVerifier")),
+]
+BATCH1_IDS = [b[0].lstrip("_") for b in BATCH1]
+
+
+def _stub_pair(monkeypatch, spec, exc):
+    attr, cls, (after_attr, after_cls) = spec
+    mod, after_mod = getattr(ava_patched, attr), getattr(ava_patched, after_attr)
+    if mod is None or after_mod is None:
+        pytest.skip(f"{attr}/{after_attr} not importable")
+    hit, after = {"n": 0}, {"n": 0}
+    monkeypatch.setattr(mod, cls, _RunStub(hit, exc))
+    monkeypatch.setattr(after_mod, after_cls, _RunStub(after))
+    return hit, after
+
+
+@pytest.mark.parametrize("spec", BATCH1, ids=BATCH1_IDS)
+def test_batch1_stage_that_works_still_passes(tmp_path, monkeypatch, spec):
+    hit, after = _stub_pair(monkeypatch, spec, None)
+    result = _run(tmp_path)
+    assert hit["n"] >= 1, "setup: the stage was never reached"
+    assert result["status"] == "completed"
+    assert _exit_code(result) == 0
+
+
+@pytest.mark.parametrize("spec", BATCH1, ids=BATCH1_IDS)
+def test_batch1_stage_failing_with_an_environment_error_makes_the_run_incomplete(
+        tmp_path, monkeypatch, spec):
+    hit, after = _stub_pair(monkeypatch, spec, OSError)
+    result = _run(tmp_path)
+    assert hit["n"] >= 1, "setup: the failing stage was never reached"
+    assert result["status"] == "incomplete", (
+        f"stage {spec[0]!r} raised OSError and the run still says "
+        f"status={result['status']!r}")
+    assert _exit_code(result) == 3
+    assert after["n"] >= 1, "the stage after the failure did not run"
+
+
+@pytest.mark.parametrize("spec", BATCH1, ids=BATCH1_IDS)
+def test_batch1_stage_failing_with_a_programming_error_propagates(
+        tmp_path, monkeypatch, spec):
+    hit, _ = _stub_pair(monkeypatch, spec, TypeError)
+    with pytest.raises(Exception) as ei:
+        _run(tmp_path)
+    assert hit["n"] >= 1, "setup: the failing stage was never reached"
+    assert any(isinstance(e, TypeError) and "injected by test" in str(e)
+               for e in _chain(ei.value)), repr(ei.value)
