@@ -93,8 +93,8 @@ class Worker:
             # A structural read used as a DIAGNOSTIC probe feeds the planner
             # what it did not know, and certifies nothing.
             if hasattr(self, "learn_structure") and ev.status in ("proved", "counterexample"):
+                from obligation_state import probe_structure   # repo module: must raise if broken
                 try:
-                    from obligation_state import probe_structure
                     rtl = getattr(self.static, "rtl_for", lambda p: None)(phi)
                     if rtl:
                         self.learn_structure(phi, *probe_structure(rtl))

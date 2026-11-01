@@ -55,12 +55,34 @@ except ImportError:
 # Each imported with a graceful fallback so the base pipeline always works even
 # if a module is missing or has an import error.
 
+def _is_repo_module(missing: Optional[str]) -> bool:
+    """True if ``missing`` (an ImportError's ``name``) is one of this repo's own
+    modules: a top-level file or package at the root, or a module inside one of
+    the AGENT_*/voe directories that is imported by bare name."""
+    if not missing:
+        return False
+    top = missing.split(".")[0]
+    root = Path(__file__).resolve().parent
+    return ((root / top).is_dir() or (root / f"{top}.py").is_file()
+            or any(root.glob(f"*/{top}.py")))
+
+
 def _try_import(module_path: str, name: str):
+    """Import an extended agent; ``None`` means it is unavailable.
+
+    Only a missing third-party dependency degrades, and it is logged at WARNING.
+    A NameError/SyntaxError raised while importing the module, or a missing
+    module of this repo, is a bug or a broken install and propagates (#10, the
+    #41 shape: it used to be logged at DEBUG as "not loaded")."""
     try:
         import importlib
         return importlib.import_module(module_path)
-    except Exception as exc:
-        logging.getLogger(__name__).debug("Optional module %s not loaded: %s", name, exc)
+    except ImportError as exc:
+        if _is_repo_module(exc.name):
+            raise
+        logging.getLogger(__name__).warning(
+            "Optional module %s not loaded (missing dependency %s): %s",
+            name, exc.name, exc)
         return None
 
 _agent_i   = _try_import("AGENT_I.agent_i_litmus",       "Agent I")
