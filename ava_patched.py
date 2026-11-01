@@ -1942,14 +1942,24 @@ Extract and return ONLY valid JSON (no markdown, no explanation):
                 if k in parsed and k != "metadata"
             })
 
-        except asyncio.TimeoutError:
+        except asyncio.TimeoutError as exc:
+            reason, exc_name = "timeout", type(exc).__name__
             logger.warning("LLM timeout — falling back to rule-based analysis")
         except (json.JSONDecodeError, KeyError, TypeError) as exc:
+            reason, exc_name = "parse_error", type(exc).__name__
             logger.warning("LLM response parse error: %s — falling back", exc)
         except Exception as exc:
+            reason, exc_name = "other", type(exc).__name__
             logger.warning("LLM failed: %s — falling back", exc)
 
-        return self._rule_based_semantic_analysis(rtl_content)
+        # Reaching here means the LLM map was not returned (#77): say so on the map.
+        fallback = self._rule_based_semantic_analysis(rtl_content)
+        fallback.metadata.update({
+            "llm_fallback":           True,
+            "llm_fallback_reason":    reason,
+            "llm_fallback_exception": exc_name,
+        })
+        return fallback
 
     def _rule_based_semantic_analysis(self, rtl_content: str) -> SemanticMap:
         """Robust regex-based RTL parser as LLM fallback."""
