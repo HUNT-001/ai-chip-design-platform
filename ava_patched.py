@@ -2328,7 +2328,7 @@ endclass
 
         # -- Intent checker
         if _intent and rtl_log and iss_log:
-            try:
+            with run_stage("Intent checker", _incomplete):
                 import tempfile as _tmpmod, os as _os
                 _rtf = _tmpmod.NamedTemporaryFile(mode="w", suffix=".jsonl", delete=False)
                 for rec in rtl_log:
@@ -2352,8 +2352,6 @@ endclass
                 _os.unlink(rtl_tmp)
                 _os.unlink(iss_tmp)
                 logger.info("  Intent checker: %d violations", r.get("total_violations", 0))
-            except Exception as exc:
-                logger.warning("  Intent checker failed: %s", exc)
 
         # -- Contract DSL
         if _contract and rtl_log and iss_log:
@@ -2371,7 +2369,7 @@ endclass
 
         # -- Temporal checker
         if _temporal and rtl_log and iss_log:
-            try:
+            with run_stage("Temporal checker", _incomplete):
                 tc = _temporal.TemporalChecker(rtl_log, iss_log)
                 r = tc.run()
                 rp = run_dir / "temporal_report.json"
@@ -2382,12 +2380,10 @@ endclass
                     "pass": r.get("pass", True),
                 }
                 logger.info("  Temporal: %d violations", r.get("total_violations", 0))
-            except Exception as exc:
-                logger.warning("  Temporal checker failed: %s", exc)
 
         # -- RV32A atomics verifier
         if _atomics and rtl_log:
-            try:
+            with run_stage("Atomics verifier", _incomplete):
                 av = _atomics.AtomicsVerifier(rtl_log, iss_log)
                 r = av.run()
                 rp = run_dir / "atomics_report.json"
@@ -2402,12 +2398,10 @@ endclass
                 logger.info("  Atomics: %d examined, %d violations, band=%s",
                             r.get("atomics_examined", 0),
                             r.get("total_violations", 0), r.get("band"))
-            except Exception as exc:
-                logger.warning("  Atomics verifier failed: %s", exc)
 
         # -- Zicsr / Zifencei CSR semantics verifier
         if _csr and rtl_log:
-            try:
+            with run_stage("CSR verifier", _incomplete):
                 cv = _csr.CSRVerifier(rtl_log, iss_log)
                 r = cv.run()
                 rp = run_dir / "csr_report.json"
@@ -2422,12 +2416,10 @@ endclass
                 logger.info("  CSR: %d ops, %d violations, band=%s",
                             r.get("csr_ops", 0),
                             r.get("total_violations", 0), r.get("band"))
-            except Exception as exc:
-                logger.warning("  CSR verifier failed: %s", exc)
 
         # -- RV32C compressed-instruction verifier
         if _rvc and rtl_log:
-            try:
+            with run_stage("RVC verifier", _incomplete):
                 rv = _rvc.RVCVerifier(rtl_log, iss_log)
                 r = rv.run()
                 rp = run_dir / "rvc_report.json"
@@ -2442,12 +2434,10 @@ endclass
                 logger.info("  RVC: %d compressed, %d violations, band=%s",
                             r.get("compressed_seen", 0),
                             r.get("total_violations", 0), r.get("band"))
-            except Exception as exc:
-                logger.warning("  RVC verifier failed: %s", exc)
 
         # -- RV32F/D floating-point verifier
         if _fp and rtl_log:
-            try:
+            with run_stage("FP verifier", _incomplete):
                 fv = _fp.FPVerifier(rtl_log, iss_log)
                 r = fv.run()
                 rp = run_dir / "fp_report.json"
@@ -2463,12 +2453,10 @@ endclass
                 logger.info("  FP: FLEN=%s, %d ops, %d violations, band=%s",
                             r.get("flen"), r.get("fp_ops", 0),
                             r.get("total_violations", 0), r.get("band"))
-            except Exception as exc:
-                logger.warning("  FP verifier failed: %s", exc)
 
         # -- RV32B bit-manipulation verifier
         if _bitmanip and rtl_log:
-            try:
+            with run_stage("Bitmanip verifier", _incomplete):
                 bv = _bitmanip.BitmanipVerifier(rtl_log, iss_log)
                 r = bv.run()
                 rp = run_dir / "bitmanip_report.json"
@@ -2483,12 +2471,10 @@ endclass
                 logger.info("  Bitmanip: %d ops, %d violations, band=%s",
                             r.get("bitmanip_ops", 0),
                             r.get("total_violations", 0), r.get("band"))
-            except Exception as exc:
-                logger.warning("  Bitmanip verifier failed: %s", exc)
 
         # -- Privilege & PMP verifier
         if _privilege and rtl_log:
-            try:
+            with run_stage("Privilege verifier", _incomplete):
                 pv = _privilege.PrivilegeVerifier(rtl_log, iss_log)
                 r = pv.run()
                 rp = run_dir / "privilege_report.json"
@@ -2502,8 +2488,6 @@ endclass
                 }
                 logger.info("  Privilege/PMP: %d violations, band=%s",
                             r.get("total_violations", 0), r.get("band"))
-            except Exception as exc:
-                logger.warning("  Privilege verifier failed: %s", exc)
 
         # -- Sv32 virtual-memory verifier (gated on satp + page-table image)
         if _vm and rtl_log:
