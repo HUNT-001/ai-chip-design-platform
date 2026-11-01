@@ -20,6 +20,7 @@ import importlib
 import json
 import logging
 import os
+import pathlib
 import shutil
 
 import pytest
@@ -136,7 +137,11 @@ def test_failing_move_raises_and_leaves_the_original_untouched(paths, monkeypatc
     def refuse(*a, **k):
         raise OSError("cannot move")
 
-    for mod, name in ((os, "rename"), (os, "replace"), (shutil, "move")):
+    # Every way to move a file, so this does not depend on which one the code
+    # picks or on how a given Python version binds Path.rename (3.10 binds
+    # os.rename at import time, so patching os alone does not reach it).
+    for mod, name in ((os, "rename"), (os, "replace"), (shutil, "move"),
+                      (pathlib.Path, "rename"), (pathlib.Path, "replace")):
         monkeypatch.setattr(mod, name, refuse)
     with pytest.raises(OSError):
         _save(run)
