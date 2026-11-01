@@ -26,6 +26,7 @@ that failed, and every injection counts its own calls and asserts it was
 reached, so a setup that never gets there fails as a setup error.
 """
 import asyncio
+import importlib
 import json
 import pathlib
 import sys
@@ -457,3 +458,185 @@ def test_batch3_stage_failing_with_a_programming_error_propagates(
     assert hit["n"] >= 1, "setup: the failing stage was never reached"
     assert any(isinstance(e, TypeError) and "injected by test" in str(e)
                for e in _chain(ei.value)), repr(ei.value)
+
+
+# ── batch 4: the last thirteen same-shape stages ──────────────────────────────
+#
+# Nine are reached by an ordinary run and are driven end to end like the earlier
+# batches.  Four (root cause, causal, knowledge graph, explainer) run only when
+# the comparator found a bug, and a run with a bug is "failed" whatever a stage
+# does (a finding outranks "could not verify", #44).  Those four therefore call
+# `_run_extended_pipeline` directly with one bug and read the verdict from the
+# reports alone: the stage's own contribution to the run, with the bug set aside.
+# `after` is the stage that runs next; it is stubbed to count its calls.
+
+class _MethodStub:
+    """Stands in for `Cls(...)`; `method` returns `result` or raises."""
+    def __init__(self, calls, exc, method, result):
+        self.calls, self.exc, self.method, self.result = calls, exc, method, result
+
+    def __call__(self, *a, **k):
+        return self
+
+    def _go(self, *a, **k):
+        self.calls["n"] += 1
+        if self.exc:
+            raise self.exc("injected by test")
+        return self.result
+
+    def __getattr__(self, name):
+        if name == self.method:
+            return self._go
+        raise AttributeError(name)
+
+
+class _KGStub(_MethodStub):
+    """KnowledgeGraph: record_bug() is where the work is, then stats()."""
+    def __init__(self, calls, exc):
+        super().__init__(calls, exc, "record_bug", None)
+
+    def stats(self):
+        return {"total_bugs": 0}
+
+
+_FN = "run_from_manifest"
+_OK = {"total_violations": 0, "pass": True, "band": "CLEAN"}
+# key -> (module attr, kind, name, method, result)
+S4 = {
+    "rv64":       ("_rv64",      "cls", "RV64Verifier",          "run",     _OK),
+    "svmmu":      ("_svmmu",     "cls", "SvMMUVerifier",         "run",     _OK),
+    "rv64atom":   ("_rv64atom",  "cls", "RV64AtomicsVerifier",   "run",     _OK),
+    "security":   ("_security",  "cls", "SecurityIntelligence",  "run",     {"total_findings": 0}),
+    "economics":  ("_economics", "cls", "EconomicsEngine",       "compute",
+                   {"roi_score": 1.0, "roi_band": "GOOD", "bugs_per_hour": 0.0}),
+    "confidence": ("_confidence", "cls", "ConfidenceScorer",     "compute", {"score": 0.5, "band": "MEDIUM"}),
+    "covcoll":    ("_covcoll",   "cls", "CoverageCollector",     "collect",
+                   {"coverage_summary": {}, "coverage_pct": 1.0, "holes_count": 0, "band": "CLEAN"}),
+    "selfevolve": ("_selfevolve", "fn", _FN, None, None),
+    "stimgen":    ("_stimgen",   "fn", _FN, None, None),
+    "dashboard":  ("AGENT_H.dashboard", "dash", "write_dashboards", None, None),
+    "rootcause":  ("_rc",        "cls", "RootCauseLocalizer",    "to_report", {"top_candidate": "x", "candidates": []}),
+    "causal":     ("_causal",    "cls", "CausalGeneticEngine",   "evolve_causal", {}),
+    "kg":         ("_kg",        "kg",  "KnowledgeGraph",        None,      None),
+    "explainer":  ("_explainer", "cls", "BugExplainer",          "explain", {"summary": ""}),
+}
+
+
+def _stub4(monkeypatch, key, calls, exc):
+    attr, kind, name, method, result = S4[key]
+    mod = importlib.import_module(attr) if kind == "dash" else getattr(ava_patched, attr)
+    if mod is None:
+        pytest.skip(f"{attr} not importable")
+    if kind == "fn":
+        monkeypatch.setattr(mod, name, _raiser(exc, calls) if exc
+                            else _counting_module_fn(calls))
+    elif kind == "dash":
+        assert exc is None
+        monkeypatch.setattr(mod, name, lambda *a, **k: (
+            calls.__setitem__("n", calls["n"] + 1) or []))
+    elif kind == "kg":
+        monkeypatch.setattr(mod, name, _KGStub(calls, exc))
+    else:
+        monkeypatch.setattr(mod, name, _MethodStub(calls, exc, method, result))
+
+
+E2E4 = [("rv64", "svmmu"), ("svmmu", "rv64atom"), ("rv64atom", "security"),
+        ("security", "economics"), ("economics", "confidence"),
+        ("confidence", "covcoll"), ("covcoll", "selfevolve"),
+        ("selfevolve", "stimgen"), ("stimgen", "dashboard")]
+DIRECT4 = [("rootcause", "causal"), ("causal", "kg"), ("kg", "explainer"),
+           ("explainer", "economics")]
+LABELS4 = {"rv64": "RV64 verifier", "svmmu": "Sv-MMU verifier",
+           "rv64atom": "RV64 atomics verifier", "security": "Security intel",
+           "rootcause": "Root-cause localizer", "causal": "Causal engine",
+           "kg": "Knowledge graph", "explainer": "Explainer",
+           "economics": "Economics engine", "confidence": "Confidence scorer",
+           "covcoll": "Coverage collector", "selfevolve": "Self-evolving planner",
+           "stimgen": "Stimulus generator"}
+
+
+def _pair4(monkeypatch, spec, exc):
+    hit, after = {"n": 0}, {"n": 0}
+    _stub4(monkeypatch, spec[0], hit, exc)
+    _stub4(monkeypatch, spec[1], after, None)
+    return hit, after
+
+
+def _direct(tmp_path):
+    """Run the extended pipeline over one comparator bug; return its reports."""
+    ava = AVA(enable_llm=False, timeout=30, target_coverage=90.0,
+              run_base_dir=str(tmp_path / "d"), enable_database=False)
+    ava.rtl_sources = ["module m; endmodule"]
+    run_dir = tmp_path / "direct"
+    run_dir.mkdir()
+    results = ava_patched.VerificationResult(
+        bugs=[{"severity": "critical", "kind": "pc_mismatch"}])
+    return ava._run_extended_pipeline(
+        run_dir, results, ava_patched.SemanticMap(dut_module="riscv_core"))
+
+
+def _verdict_of(reports):
+    return ava_patched.verdict_from_reports(reports)     # the bug itself set aside
+
+
+@pytest.mark.parametrize("spec", E2E4, ids=[s[0] for s in E2E4])
+def test_batch4_stage_that_works_still_passes(tmp_path, monkeypatch, spec):
+    hit, after = _pair4(monkeypatch, spec, None)
+    result = _run(tmp_path)
+    assert hit["n"] >= 1, "setup: the stage was never reached"
+    assert result["status"] == "completed"
+    assert _exit_code(result) == 0
+
+
+@pytest.mark.parametrize("spec", E2E4, ids=[s[0] for s in E2E4])
+def test_batch4_stage_failing_with_an_environment_error_makes_the_run_incomplete(
+        tmp_path, monkeypatch, spec):
+    hit, after = _pair4(monkeypatch, spec, OSError)
+    result = _run(tmp_path)
+    assert hit["n"] >= 1, "setup: the failing stage was never reached"
+    assert result["status"] == "incomplete", (
+        f"stage {spec[0]!r} raised OSError and the run still says "
+        f"status={result['status']!r}")
+    assert _exit_code(result) == 3
+    assert after["n"] >= 1, "the stage after the failure did not run"
+
+
+@pytest.mark.parametrize("spec", E2E4, ids=[s[0] for s in E2E4])
+def test_batch4_stage_failing_with_a_programming_error_propagates(
+        tmp_path, monkeypatch, spec):
+    hit, _ = _pair4(monkeypatch, spec, TypeError)
+    with pytest.raises(Exception) as ei:
+        _run(tmp_path)
+    assert hit["n"] >= 1, "setup: the failing stage was never reached"
+    assert any(isinstance(e, TypeError) and "injected by test" in str(e)
+               for e in _chain(ei.value)), repr(ei.value)
+
+
+@pytest.mark.parametrize("spec", DIRECT4, ids=[s[0] for s in DIRECT4])
+def test_batch4_bug_stage_that_works_still_passes(tmp_path, monkeypatch, spec):
+    hit, after = _pair4(monkeypatch, spec, None)
+    reports = _direct(tmp_path)
+    assert hit["n"] >= 1, "setup: the stage was never reached"
+    assert _verdict_of(reports) == "completed"
+
+
+@pytest.mark.parametrize("spec", DIRECT4, ids=[s[0] for s in DIRECT4])
+def test_batch4_bug_stage_failing_with_an_environment_error_makes_the_run_incomplete(
+        tmp_path, monkeypatch, spec):
+    hit, after = _pair4(monkeypatch, spec, OSError)
+    reports = _direct(tmp_path)
+    assert hit["n"] >= 1, "setup: the failing stage was never reached"
+    assert _verdict_of(reports) == "incomplete", (
+        f"stage {spec[0]!r} raised OSError and the reports still say "
+        f"{_verdict_of(reports)!r}")
+    assert LABELS4[spec[0]] in reports[ava_patched.VERDICT_KEY]["incomplete"]
+    assert after["n"] >= 1, "the stage after the failure did not run"
+
+
+@pytest.mark.parametrize("spec", DIRECT4, ids=[s[0] for s in DIRECT4])
+def test_batch4_bug_stage_failing_with_a_programming_error_propagates(
+        tmp_path, monkeypatch, spec):
+    hit, _ = _pair4(monkeypatch, spec, TypeError)
+    with pytest.raises(TypeError, match="injected by test"):
+        _direct(tmp_path)
+    assert hit["n"] >= 1, "setup: the failing stage was never reached"

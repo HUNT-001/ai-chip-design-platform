@@ -3079,7 +3079,7 @@ endclass
 
         # -- RV64 datapath verifier (auto-detects RV64; no-op on RV32)
         if _rv64 and rtl_log:
-            try:
+            with run_stage("RV64 verifier", _incomplete):
                 rv = _rv64.RV64Verifier(rtl_log, iss_log)
                 r = rv.run()
                 if r.get("rv64_detected"):
@@ -3095,12 +3095,10 @@ endclass
                     logger.info("  RV64: %d ops, %d violations, band=%s",
                                 r.get("ops_checked", 0),
                                 r.get("total_violations", 0), r.get("band"))
-            except Exception as exc:
-                logger.warning("  RV64 verifier failed: %s", exc)
 
         # -- Sv39/Sv48 virtual-memory verifier (RV64; gated on satp mode)
         if _svmmu and rtl_log:
-            try:
+            with run_stage("Sv-MMU verifier", _incomplete):
                 phys_mem = (semantic_map.raw.get("phys_mem")
                             if hasattr(semantic_map, "raw") else None)
                 sv = _svmmu.SvMMUVerifier(rtl_log, iss_log, phys_mem=phys_mem)
@@ -3119,12 +3117,10 @@ endclass
                     logger.info("  Sv-MMU: mode=%s, %d translations, %d violations, band=%s",
                                 r.get("mode"), r.get("translations", 0),
                                 r.get("total_violations", 0), r.get("band"))
-            except Exception as exc:
-                logger.warning("  Sv-MMU verifier failed: %s", exc)
 
         # -- RV64 (.D) atomics verifier (no-op unless .D atomics present)
         if _rv64atom and rtl_log:
-            try:
+            with run_stage("RV64 atomics verifier", _incomplete):
                 ra = _rv64atom.RV64AtomicsVerifier(rtl_log, iss_log)
                 r = ra.run()
                 if r.get("atomics_d_examined", 0) > 0:
@@ -3140,8 +3136,6 @@ endclass
                     logger.info("  RV64 atomics: %d .D atomics, %d violations, band=%s",
                                 r.get("atomics_d_examined", 0),
                                 r.get("total_violations", 0), r.get("band"))
-            except Exception as exc:
-                logger.warning("  RV64 atomics verifier failed: %s", exc)
 
         # -- SoC peripheral protocol verifier (self-gates on dut_class)
         if _peripheral:
@@ -3151,7 +3145,7 @@ endclass
 
         # -- Security intelligence
         if _security and rtl_log and iss_log:
-            try:
+            with run_stage("Security intel", _incomplete):
                 si = _security.SecurityIntelligence(rtl_log, iss_log)
                 r = si.run()
                 rp = run_dir / "security_report.json"
@@ -3164,12 +3158,10 @@ endclass
                 }
                 logger.info("  Security: %d findings, band=%s",
                             r.get("total_findings", 0), r.get("band"))
-            except Exception as exc:
-                logger.warning("  Security intel failed: %s", exc)
 
         # -- Root-cause localizer
         if _rc and results.bugs and self.rtl_sources:
-            try:
+            with run_stage("Root-cause localizer", _incomplete):
                 bug_dict = results.bugs[0] if results.bugs else {}
                 localizer = _rc.RootCauseLocalizer(bug_dict, self.rtl_sources)
                 r = localizer.to_report()
@@ -3181,12 +3173,10 @@ endclass
                     "candidates": len(r.get("candidates", [])),
                 }
                 logger.info("  Root cause: top=%s", r.get("top_candidate"))
-            except Exception as exc:
-                logger.warning("  Root-cause localizer failed: %s", exc)
 
         # -- Causal test generation
         if _causal and results.bugs:
-            try:
+            with run_stage("Causal engine", _incomplete):
                 bug_dict = results.bugs[0] if results.bugs else {}
                 engine = _causal.CausalGeneticEngine(
                     seed=42, population_size=40, generations=4, output_count=10
@@ -3208,12 +3198,10 @@ endclass
                 }
                 logger.info("  Causal tests: %sx improvement",
                             r.get("improvement_factor", 1))
-            except Exception as exc:
-                logger.warning("  Causal engine failed: %s", exc)
 
         # -- Knowledge graph
         if _kg and results.bugs:
-            try:
+            with run_stage("Knowledge graph", _incomplete):
                 kg = _kg.KnowledgeGraph(run_dir / "knowledge.db")
                 with open(mpath) as f:
                     manifest_dict = json.load(f)
@@ -3222,12 +3210,10 @@ endclass
                 stats = kg.stats()
                 reports["knowledge_graph"] = stats
                 logger.info("  Knowledge graph: %d bugs recorded", stats.get("total_bugs", 0))
-            except Exception as exc:
-                logger.warning("  Knowledge graph failed: %s", exc)
 
         # -- Explainer
         if _explainer and results.bugs:
-            try:
+            with run_stage("Explainer", _incomplete):
                 bug_dict = results.bugs[0] if results.bugs else {}
                 rc_report = None
                 rc_path = run_dir / "root_cause.json"
@@ -3241,12 +3227,10 @@ endclass
                     json.dump(r, f, indent=2)
                 reports["explanation"] = {"summary": r.get("summary", "")}
                 logger.info("  Explainer done")
-            except Exception as exc:
-                logger.warning("  Explainer failed: %s", exc)
 
         # -- Economics engine
         if _economics:
-            try:
+            with run_stage("Economics engine", _incomplete):
                 with open(mpath) as f:
                     manifest_dict = json.load(f)
                 manifest_dict["finished_at"] = datetime.now(timezone.utc).strftime(
@@ -3264,12 +3248,10 @@ endclass
                 }
                 logger.info("  Economics: ROI=%s (%s)",
                             r.get("roi_score"), r.get("roi_band"))
-            except Exception as exc:
-                logger.warning("  Economics engine failed: %s", exc)
 
         # -- Confidence scorer (last -- reads all other reports)
         if _confidence:
-            try:
+            with run_stage("Confidence scorer", _incomplete):
                 with open(mpath) as f:
                     manifest_dict = json.load(f)
                 scorer = _confidence.ConfidenceScorer(run_dir, manifest_dict)
@@ -3283,13 +3265,11 @@ endclass
                 }
                 logger.info("  Confidence score: %.3f (%s)",
                             r.get("score", 0), r.get("band"))
-            except Exception as exc:
-                logger.warning("  Confidence scorer failed: %s", exc)
 
         # -- Functional coverage collector — emits coverage_summary.json that
         #    the self-evolving planner (below) consumes, closing the loop.
         if _covcoll and rtl_log:
-            try:
+            with run_stage("Coverage collector", _incomplete):
                 model = None
                 if hasattr(semantic_map, "raw"):
                     model = (semantic_map.raw or {}).get("coverage_model")
@@ -3308,15 +3288,13 @@ endclass
                 logger.info("  Functional coverage: %.1f%% (%d holes, band=%s)",
                             100 * (cr.get("coverage_pct", 0.0) or 0.0),
                             cr.get("holes_count", 0), cr.get("band"))
-            except Exception as exc:
-                logger.warning("  Coverage collector failed: %s", exc)
 
         # -- Self-evolving coverage-closure planner (offline / advisory)
         #    Consumes any coverage_summary.json in the run dir, ranks the open
         #    holes, synthesises a constraint per hole and recommends a
         #    generation strategy — the seed for the next adaptive round.
         if _selfevolve:
-            try:
+            with run_stage("Self-evolving planner", _incomplete):
                 rc = _selfevolve.run_from_manifest(str(mpath)) \
                     if hasattr(_selfevolve, "run_from_manifest") else 0
                 rp = run_dir / "self_evolving_report.json"
@@ -3334,14 +3312,12 @@ endclass
                                     sr.get("final_coverage", 0.0) or 0.0,
                                     sr.get("holes_remaining", 0),
                                     sr.get("recommended_strategy"))
-            except Exception as exc:
-                logger.warning("  Self-evolving planner failed: %s", exc)
 
         # -- Coverage-directed stimulus generator — turns the open holes into
         #    concrete directed test seeds (stimulus.json) for the next round,
         #    closing the self-evolving loop end-to-end.
         if _stimgen:
-            try:
+            with run_stage("Stimulus generator", _incomplete):
                 rc = _stimgen.run_from_manifest(str(mpath)) \
                     if hasattr(_stimgen, "run_from_manifest") else 0
                 sp = run_dir / "stimulus.json"
@@ -3356,8 +3332,6 @@ endclass
                         logger.info("  Stimulus generator: %d directed seeds (%d self-validated)",
                                     st.get("holes_targeted", 0),
                                     st.get("seeds_self_validated", 0))
-            except Exception as exc:
-                logger.warning("  Stimulus generator failed: %s", exc)
 
         # -- RTL graph analysis + FSM extraction — gated on an rtl_dir --------
         # Runs the structural parser over a source tree, emits a report, and
