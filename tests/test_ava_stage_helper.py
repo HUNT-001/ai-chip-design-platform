@@ -369,3 +369,91 @@ def test_batch2_stage_failing_with_a_programming_error_propagates(
     assert hit["n"] >= 1, "setup: the failing stage was never reached"
     assert any(isinstance(e, TypeError) and "injected by test" in str(e)
                for e in _chain(ei.value)), repr(ei.value)
+
+
+# ── batch 3: the next fourteen stages ─────────────────────────────────────────
+#
+# Eleven modules driven through `run_from_manifest`, then the cache, bus and
+# fault-injection stages, which are class-invoked.  The bus stage only runs a
+# verifier if `_extract_bus` finds transactions, so that is stubbed to find one;
+# the fault campaign's `run` takes an argument.  `after` is the stage that runs
+# next; it is stubbed to count its calls.
+
+class _RunAnyStub(_RunStub):
+    def run(self, *a, **k):
+        return _RunStub.run(self)
+
+
+def _stub_stage3(monkeypatch, target, calls, exc):
+    attr, kind, name = target
+    mod = getattr(ava_patched, attr)
+    if mod is None:
+        pytest.skip(f"{attr} not importable")
+    if kind == "fn":
+        monkeypatch.setattr(mod, name, _raiser(exc, calls) if exc
+                            else _counting_module_fn(calls))
+        return
+    if kind == "bus":
+        monkeypatch.setattr(mod, "_extract_bus", lambda rtl_log: ["txn"])
+    monkeypatch.setattr(mod, name, _RunAnyStub(calls, exc))
+
+
+_FN = "run_from_manifest"
+BATCH3 = [  # (stage, the stage that runs after it)
+    (("_vaeskf",    "fn", _FN), ("_vsm4",      "fn", _FN)),
+    (("_vsm4",      "fn", _FN), ("_vghash",    "fn", _FN)),
+    (("_vghash",    "fn", _FN), ("_cas",       "fn", _FN)),
+    (("_cas",       "fn", _FN), ("_coherence", "fn", _FN)),
+    (("_coherence", "fn", _FN), ("_memmodel",  "fn", _FN)),
+    (("_memmodel",  "fn", _FN), ("_interrupt", "fn", _FN)),
+    (("_interrupt", "fn", _FN), ("_debug",     "fn", _FN)),
+    (("_debug",     "fn", _FN), ("_reset",     "fn", _FN)),
+    (("_reset",     "fn", _FN), ("_hyp",       "fn", _FN)),
+    (("_hyp",       "fn", _FN), ("_aia",       "fn", _FN)),
+    (("_aia",       "fn", _FN), ("_cache",     "cls", "CacheVerifier")),
+    (("_cache",     "cls", "CacheVerifier"), ("_bus", "bus", "BusVerifier")),
+    (("_bus",       "bus", "BusVerifier"), ("_faultinj", "cls", "FaultCampaign")),
+    (("_faultinj",  "cls", "FaultCampaign"), ("_rv64", "cls", "RV64Verifier")),
+]
+BATCH3_IDS = [b[0][0].lstrip("_") for b in BATCH3]
+
+
+def _stub_pair3(monkeypatch, spec, exc):
+    stage, after_stage = spec
+    hit, after = {"n": 0}, {"n": 0}
+    _stub_stage3(monkeypatch, stage, hit, exc)
+    _stub_stage3(monkeypatch, after_stage, after, None)
+    return hit, after
+
+
+@pytest.mark.parametrize("spec", BATCH3, ids=BATCH3_IDS)
+def test_batch3_stage_that_works_still_passes(tmp_path, monkeypatch, spec):
+    hit, after = _stub_pair3(monkeypatch, spec, None)
+    result = _run(tmp_path)
+    assert hit["n"] >= 1, "setup: the stage was never reached"
+    assert result["status"] == "completed"
+    assert _exit_code(result) == 0
+
+
+@pytest.mark.parametrize("spec", BATCH3, ids=BATCH3_IDS)
+def test_batch3_stage_failing_with_an_environment_error_makes_the_run_incomplete(
+        tmp_path, monkeypatch, spec):
+    hit, after = _stub_pair3(monkeypatch, spec, OSError)
+    result = _run(tmp_path)
+    assert hit["n"] >= 1, "setup: the failing stage was never reached"
+    assert result["status"] == "incomplete", (
+        f"stage {spec[0][0]!r} raised OSError and the run still says "
+        f"status={result['status']!r}")
+    assert _exit_code(result) == 3
+    assert after["n"] >= 1, "the stage after the failure did not run"
+
+
+@pytest.mark.parametrize("spec", BATCH3, ids=BATCH3_IDS)
+def test_batch3_stage_failing_with_a_programming_error_propagates(
+        tmp_path, monkeypatch, spec):
+    hit, _ = _stub_pair3(monkeypatch, spec, TypeError)
+    with pytest.raises(Exception) as ei:
+        _run(tmp_path)
+    assert hit["n"] >= 1, "setup: the failing stage was never reached"
+    assert any(isinstance(e, TypeError) and "injected by test" in str(e)
+               for e in _chain(ei.value)), repr(ei.value)
