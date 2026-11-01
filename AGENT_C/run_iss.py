@@ -161,8 +161,11 @@ def probe_spike(spike_bin: str) -> dict:
         caps["has_log_commits"] = "--log-commits" in help_text
         caps["has_commit_log"]  = "--enable-commitlog" in help_text
 
-    except Exception as exc:  # noqa: BLE001
+    except (OSError, subprocess.SubprocessError) as exc:
+        # A binary that cannot run --help is not reachable: callers stop on
+        # not-found (EXIT_INFRA) instead of continuing with every capability off.
         log.warning("Spike probe failed: %s", exc)
+        caps["found"] = False
 
     log.debug("Spike caps: %s", caps)
     return caps

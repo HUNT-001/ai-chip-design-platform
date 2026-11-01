@@ -91,8 +91,9 @@ class EconomicsEngine:
             try:
                 with open(path) as f:
                     return json.load(f)
-            except Exception:
-                pass
+            except (OSError, ValueError) as exc:
+                # Unreadable is not the same as absent: name the file.
+                logger.warning("Report %s unreadable (%s); treating it as missing", path, exc)
         return None
 
     def _duration_from_report(self, filename: str) -> float:
