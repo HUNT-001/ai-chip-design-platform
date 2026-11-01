@@ -905,7 +905,12 @@ def _atomic_write(path: Path, content: str, encoding: str = "utf-8") -> None:
 _SPIKE_VERSION_CACHE: Dict[str, Tuple[bool, str]] = {}
 
 def probe_spike(spike_bin: str) -> Tuple[bool, str]:
-    """Return (found, version_string). Cached after first call."""
+    """Return (found, version_string). Cached after first call.
+
+    found means Spike runs, not that a file exists (#74): a binary that cannot
+    execute or hangs on --version is (False, <reason>), and the run stops with
+    a tool error.  One that runs but prints no version is (True, "unknown").
+    """
     if spike_bin in _SPIKE_VERSION_CACHE:
         return _SPIKE_VERSION_CACHE[spike_bin]
     if not shutil.which(spike_bin):
@@ -918,15 +923,16 @@ def probe_spike(spike_bin: str) -> Tuple[bool, str]:
                 timeout=5,
                 text=True,
             )
-            result = (True, out.strip().splitlines()[0])
+            lines = out.strip().splitlines()
+            result = (True, lines[0] if lines else "unknown")
         except subprocess.TimeoutExpired:
-            result = (True, "timeout")
+            result = (False, "timed out running --version")
         except subprocess.CalledProcessError as exc:
             # Some Spike builds exit non-zero for --version
             text = (exc.output or "").strip()
             result = (True, text.splitlines()[0] if text else "unknown")
-        except Exception:
-            result = (True, "unknown")
+        except OSError as exc:
+            result = (False, f"cannot run: {exc}")
     _SPIKE_VERSION_CACHE[spike_bin] = result
     return result
 
@@ -1681,8 +1687,9 @@ class ComplianceRunner:
     def _validate_tools(self) -> List[str]:
         errors: List[str] = []
         if not self.spike_found:
+            why = f" ({self.spike_ver})" if self.spike_ver else ""
             errors.append(
-                f"Spike ISS not found: '{self.cfg.spike_bin}'. "
+                f"Spike ISS not found: '{self.cfg.spike_bin}'{why}. "
                 "Install from https://github.com/riscv-software-src/riscv-isa-sim"
             )
         elif not self.spike_signature:
