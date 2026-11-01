@@ -516,7 +516,8 @@ def run_spike(
     """
     Run *elf_path* on Spike (if installed) and return the process exit code.
 
-    Returns ``None`` if Spike is not installed or execution times out.
+    Returns ``None`` if Spike is not installed, cannot be launched (OSError) or
+    execution times out. Any other error propagates.
     Exit code 0 = PASS (test wrote tohost=1); non-zero = FAIL.
     """
     if not shutil.which("spike"):
@@ -534,6 +535,9 @@ def run_spike(
     except subprocess.TimeoutExpired:
         logger.warning("Spike timeout for %s", elf_path)
         return None
-    except Exception as exc:
+    except OSError as exc:
+        # Spike is on PATH but cannot be launched: the same "not run" as an
+        # absent Spike, with a warning. Anything else (a TypeError) propagates,
+        # because the caller reads None as "not a failure".
         logger.warning("Spike run error for %s: %s", elf_path, exc)
         return None

@@ -284,8 +284,12 @@ def run_simulation(
             if lines:
                 last = json.loads(lines[-1])
                 total_cycles = last.get("seq", retired) * 3
-        except Exception:
-            pass
+        except (OSError, ValueError) as exc:
+            # The cycle count stays the estimate above, but not silently: an
+            # unreadable commit log is something the caller should see.
+            print(f"[sim] warning: could not read the last commit-log line "
+                  f"({type(exc).__name__}: {exc}); using the estimated cycle count",
+                  file=sys.stderr)
 
     print(f"[sim] Done in {elapsed:.2f}s — retired={retired:,}  cycles≈{total_cycles:,}")
     return {

@@ -31,6 +31,7 @@ import os
 import random
 import re
 import shutil
+import sqlite3
 import subprocess
 import sys
 import time
@@ -974,72 +975,68 @@ class UCB1CoverageDirector:
         stimulus entries with exact cold-path file+line locations from
         VerilatorCoverageBackend.cold_paths.
         """
-        try:
-            self.coverage_history.append(current_coverage.copy())
-            gaps = self._identify_gaps(current_coverage)
+        self.coverage_history.append(current_coverage.copy())
+        gaps = self._identify_gaps(current_coverage)
 
-            if not gaps:
-                logger.info("All coverage targets met — no cold paths to target")
-                return []
-
-            # Detect plateau -> epsilon-greedy fallback
-            plateau = self._plateau_detected()
-
-            adaptive: List[Dict[str, Any]] = []
-            for gap in gaps[:self.max_iterations]:
-                metric = gap["metric"]
-
-                # UCB1 arm selection
-                if not plateau:
-                    metric = self._ucb1_select(current_coverage)
-                    gap = next((g for g in gaps if g["metric"] == metric), gap)
-
-                # Update bandit state
-                reward = self._reward(current_coverage, metric)
-                self._update_arm(metric, reward)
-
-                # Build stimulus entry
-                stim: Dict[str, Any] = {
-                    "target_metric":    metric,
-                    "priority":         gap.get("priority", "medium"),
-                    "gap":              gap.get("gap", 0.0),
-                    "description":      (
-                        f"UCB1: target {metric} (gap={gap.get('gap',0):.2f}%, "
-                        f"reward={reward:.3f})"
-                    ),
-                    "timestamp":        datetime.now(timezone.utc).isoformat(),
-                    "specific_targets": [],
-                    "asm_snippet":      "",
-                    "strategy":         "ucb1" if not plateau else "epsilon_greedy",
-                }
-
-                # Enrich with cold-path detail from coverage backend
-                if cold_path_detail:
-                    key_map = {"line":"lines","branch":"branches",
-                               "toggle":"toggles","expression":"expressions"}
-                    ckey = key_map.get(metric, "lines")
-                    targets = cold_path_detail.get(ckey, [])[:20]
-                    stim["specific_targets"] = targets
-
-                    # Generate directed assembly snippet for top cold path
-                    if targets:
-                        directed = self._test_gen.generate_directed_tests(targets[:5])
-                        if directed:
-                            stim["asm_snippet"] = directed[0]["asm_snippet"]
-                            stim["directed_tests"] = directed
-
-                adaptive.append(stim)
-
-            logger.info(
-                "Generated %d adaptive tests (strategy=%s)",
-                len(adaptive),
-                "epsilon_greedy" if plateau else "ucb1",
-            )
-            return adaptive
-
-        except Exception as exc:
-            logger.error("adapt_cold_paths failed: %s", exc, exc_info=True)
+        if not gaps:
+            logger.info("All coverage targets met — no cold paths to target")
             return []
+
+        # Detect plateau -> epsilon-greedy fallback
+        plateau = self._plateau_detected()
+
+        adaptive: List[Dict[str, Any]] = []
+        for gap in gaps[:self.max_iterations]:
+            metric = gap["metric"]
+
+            # UCB1 arm selection
+            if not plateau:
+                metric = self._ucb1_select(current_coverage)
+                gap = next((g for g in gaps if g["metric"] == metric), gap)
+
+            # Update bandit state
+            reward = self._reward(current_coverage, metric)
+            self._update_arm(metric, reward)
+
+            # Build stimulus entry
+            stim: Dict[str, Any] = {
+                "target_metric":    metric,
+                "priority":         gap.get("priority", "medium"),
+                "gap":              gap.get("gap", 0.0),
+                "description":      (
+                    f"UCB1: target {metric} (gap={gap.get('gap',0):.2f}%, "
+                    f"reward={reward:.3f})"
+                ),
+                "timestamp":        datetime.now(timezone.utc).isoformat(),
+                "specific_targets": [],
+                "asm_snippet":      "",
+                "strategy":         "ucb1" if not plateau else "epsilon_greedy",
+            }
+
+            # Enrich with cold-path detail from coverage backend
+            if cold_path_detail:
+                key_map = {"line":"lines","branch":"branches",
+                           "toggle":"toggles","expression":"expressions"}
+                ckey = key_map.get(metric, "lines")
+                targets = cold_path_detail.get(ckey, [])[:20]
+                stim["specific_targets"] = targets
+
+                # Generate directed assembly snippet for top cold path
+                if targets:
+                    directed = self._test_gen.generate_directed_tests(targets[:5])
+                    if directed:
+                        stim["asm_snippet"] = directed[0]["asm_snippet"]
+                        stim["directed_tests"] = directed
+
+            adaptive.append(stim)
+
+        logger.info(
+            "Generated %d adaptive tests (strategy=%s)",
+            len(adaptive),
+            "epsilon_greedy" if plateau else "ucb1",
+        )
+        return adaptive
+
 
     # ── UCB1 internals ─────────────────────────────────────────────────────
 
@@ -1675,7 +1672,7 @@ class AVA:
                 # CoverageDatabase is bound at import time; COVERAGE_PIPELINE_AVAILABLE
                 # in the guard above is exactly the condition for that.
                 self._db = CoverageDatabase(self._run_base / "coverage_trend.sqlite")
-            except Exception as exc:
+            except (sqlite3.Error, OSError) as exc:
                 logger.warning("Coverage DB init failed: %s", exc)
 
         self.spike_iss = SpikeISS(

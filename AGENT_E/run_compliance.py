@@ -841,8 +841,10 @@ class BuildCache:
         if self._index_path.exists():
             try:
                 return json.loads(self._index_path.read_text())
-            except Exception:
-                pass
+            except (OSError, ValueError) as exc:
+                # A cache: starting empty only costs a rebuild, but say so.
+                log.warning("Build-cache index %s unreadable (%s); starting empty",
+                            self._index_path, exc)
         return {}
 
     def _save_index(self) -> None:
