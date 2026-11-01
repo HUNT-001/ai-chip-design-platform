@@ -518,6 +518,9 @@ class SelfEvolvingEngine:
             try:
                 batch = generate(arm, constraints)
                 result = evaluate(batch) or {}
+            # Left broad on purpose (#10): generate/evaluate are caller-supplied plugins,
+            # so there is no closed set of errors to catch. The round is not dropped
+            # silently: it is logged and carries result["error"] into the engine's record.
             except Exception as exc:              # a bad plugin must not kill the run
                 log.warning("evolve round %d aborted: %s", r, exc)
                 result = {"covered": [], "bugs": 0, "cost": 0.0, "error": str(exc)}
