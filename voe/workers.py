@@ -98,8 +98,8 @@ class Worker:
                     rtl = getattr(self.static, "rtl_for", lambda p: None)(phi)
                     if rtl:
                         self.learn_structure(phi, *probe_structure(rtl))
-                except Exception:
-                    pass
+                except OSError:
+                    pass          # an unreadable design only costs the probe
             if t.kind != "structural":
                 return ev, None
             if ev.status == "proved":         # exhaustive over the parsed netlist

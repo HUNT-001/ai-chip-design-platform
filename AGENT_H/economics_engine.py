@@ -129,6 +129,8 @@ class EconomicsEngine:
             e = _dt.strptime(finished_at, fmt) if finished_at else None
             duration_s = (e - s).total_seconds() if s and e else 0.0
         except Exception:
+            # Left broad on purpose (#10): duration is a cost estimate, 0.0 is its
+            # documented "unknown", and it feeds no verdict.
             duration_s = 0.0
 
         bugs_found = self._bugs_from_manifest()

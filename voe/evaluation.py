@@ -108,8 +108,8 @@ def run_campaign(voe, design: str, policy_name: str, max_steps=120) -> CampaignR
                             if ks.proven(phi) or ks.disproven(phi))
     try:
         res.gate_armed = voe.formal.gate_status()[0]
-    except Exception:
-        res.gate_armed = False
+    except OSError:
+        res.gate_armed = False          # the toolchain is unavailable: not armed
     # cost sunk into obligations that were still open at the end (0 if none were)
     res.wasted_cost = _wasted(voe, set(res.undischarged))
     # PREMATURE SPECIALISATION: expensive actions committed on a class the

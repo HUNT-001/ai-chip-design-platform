@@ -191,8 +191,10 @@ def _parse_yosys_cdc_output(output: str) -> List[CDCPath]:
                         path_type="data",
                         severity="MEDIUM",
                     ))
-            except Exception:
-                pass
+            except IndexError:
+                # No signal name before "->" or none after it: the line is not a
+                # crossing we can read.  Say so; a dropped line must leave a trace.
+                logger.warning("Unparseable CDC line skipped: %r", line)
 
     return paths
 

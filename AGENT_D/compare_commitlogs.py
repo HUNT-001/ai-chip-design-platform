@@ -1849,16 +1849,16 @@ def compare(
     )
 
 
-def _serialise_cfg(cfg: CompareConfig) -> Optional[Dict]:
-    """Return a JSON-serialisable dict from a CompareConfig."""
-    try:
-        d = asdict(cfg)
-        for k in ("extensions", "skip_fields", "ignored_csrs"):
-            if k in d:
-                d[k] = list(d[k])
-        return d
-    except Exception:
-        return None
+def _serialise_cfg(cfg: CompareConfig) -> Dict:
+    """Return a JSON-serialisable dict from a CompareConfig.
+
+    A non-config argument raises TypeError: it used to come back as None, which
+    reads the same as "no config" (#10)."""
+    d = asdict(cfg)
+    for k in ("extensions", "skip_fields", "ignored_csrs"):
+        if k in d:
+            d[k] = list(d[k])
+    return d
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

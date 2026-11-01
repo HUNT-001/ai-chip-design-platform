@@ -125,22 +125,17 @@ def probe_structure(rtl_path: str | None):
             raw = f.read()
     except OSError:
         return False, False, "small"
-    # A repo module: a broken or missing one must raise, not fall back to regex.
+    # A repo module, and its calls raise on a bug: these features condition the
+    # policy, so a regex or line-count guess in place of a failed parse would be
+    # a silent mis-generalisation (#10).
     from AGENT_H import rtl_graph as rg
-    try:
-        src = rg.strip_comments(raw)
-    except Exception:
-        src = re.sub(r"/\*.*?\*/", " ", raw, flags=re.S)
-        src = re.sub(r"//[^\n]*", " ", src)
+    src = rg.strip_comments(raw)
     arithmetic = _has_datapath_multiply(src)
     sequential = bool(_SEQ.search(src))
     signals = 0
-    try:
-        mods = rg.parse_module(raw, rtl_path)
-        if mods:
-            signals = len(max(mods, key=lambda x: len(x.signals)).signals)
-    except Exception:
-        signals = src.count("\n") // 10
+    mods = rg.parse_module(raw, rtl_path)
+    if mods:
+        signals = len(max(mods, key=lambda x: len(x.signals)).signals)
     depth_class = "large" if signals > 60 else "medium" if signals > 20 else "small"
     return arithmetic, sequential, depth_class
 

@@ -1047,7 +1047,9 @@ def run_from_manifest(manifest_path: str) -> int:
                 if not m.ports:
                     continue
                 reports.append(generate_for_module(m, str(out)))
-        except Exception as exc:                             # pragma: no cover
+        except OSError as exc:                               # pragma: no cover
+            # Unreadable RTL: the report says "skipped".  A programming error
+            # (TypeError, AttributeError) is not an environment problem and raises.
             log.warning("testbench_generator: %s", exc)
     rep = {"schema_version": SCHEMA_VERSION, "agent": AGENT_NAME,
            "status": "completed" if reports else "skipped",

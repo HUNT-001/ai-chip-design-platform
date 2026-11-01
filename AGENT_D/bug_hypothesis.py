@@ -704,11 +704,10 @@ class HypothesisEngine:
         for (text, conf, cat, detail, refs, requires) in rules:
             # Apply requires guard if present
             if requires is not None:
-                try:
-                    if not requires(ctx, mismatch):
-                        continue
-                except Exception:
-                    continue   # guard crashed — skip rule
+                # A guard that raises is a bug in the rule, not a non-match: let
+                # it propagate rather than skip the rule as though it had not applied.
+                if not requires(ctx, mismatch):
+                    continue
             if conf < self._min:
                 continue
             if text in seen_texts:

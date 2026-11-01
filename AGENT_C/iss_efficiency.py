@@ -274,7 +274,9 @@ def record_manifest_run(
             )
             return tracker.is_plateau(isa)
 
-    except Exception as exc:
+    except (OSError, json.JSONDecodeError, sqlite3.Error) as exc:
+        # An unreadable manifest or database: warn and report "no plateau".
+        # A programming error (TypeError, AttributeError) is not one of these.
         logger.warning("ISSEfficiencyTracker.record_manifest_run failed: %s", exc)
         return False
 
