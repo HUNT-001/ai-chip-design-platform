@@ -45,10 +45,9 @@ def candidates(max_lines=400, limit=None):
             nlines = src.count("\n") + 1
             if nlines > max_lines or nlines < 20:
                 continue
-            try:
-                mods = rg.parse_module(src, path)
-            except Exception:
-                continue
+            # No handler: parse_module reports bad input in parse_warnings, so
+            # an exception here is a parser defect and must surface (#72).
+            mods = rg.parse_module(src, path)
             if len(mods) != 1:
                 continue                       # one module per file keeps it simple
             m = mods[0]
