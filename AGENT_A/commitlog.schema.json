@@ -570,8 +570,7 @@
   },
   "examples": [
     {
-      "_comment": "Example 1: MUL a0, a0, a1  (RV32M multiply)",
-      "schema_version": "2.0.0",
+      "schema_version": "2.1.0",
       "hart": 0,
       "seq": 8,
       "cycle": 142,
@@ -592,8 +591,7 @@
       "_run_id": "20240315T142300_42_ab3f9c01"
     },
     {
-      "_comment": "Example 2: SW a0, 0(sp)  (32-bit store)",
-      "schema_version": "2.0.0",
+      "schema_version": "2.1.0",
       "hart": 0,
       "seq": 9,
       "cycle": 146,
@@ -618,8 +616,7 @@
       "_run_id": "20240315T142300_42_ab3f9c01"
     },
     {
-      "_comment": "Example 3: DIV a0, a0, zero  (divide-by-zero \u2192 result = -1 = 0xFFFFFFFF, no trap per spec)",
-      "schema_version": "2.0.0",
+      "schema_version": "2.1.0",
       "hart": 0,
       "seq": 10,
       "cycle": 162,
@@ -640,8 +637,7 @@
       "_run_id": "20240315T142300_42_ab3f9c01"
     },
     {
-      "_comment": "Example 4: ECALL  (M-mode environment call \u2192 trap cause=11)",
-      "schema_version": "2.0.0",
+      "schema_version": "2.1.0",
       "hart": 0,
       "seq": 55,
       "cycle": 820,
@@ -672,8 +668,7 @@
       "_run_id": "20240315T142300_42_ab3f9c01"
     },
     {
-      "_comment": "Example 5: SH a0, 0(sp)  (16-bit store \u2014 validates hex4 data)",
-      "schema_version": "2.0.0",
+      "schema_version": "2.1.0",
       "hart": 0,
       "seq": 56,
       "cycle": 824,
