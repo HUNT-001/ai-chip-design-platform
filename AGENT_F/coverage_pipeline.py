@@ -1422,7 +1422,7 @@ def update_manifest(
 
     Examples
     --------
-    update_manifest(p, {"phases.coverage.status": "completed",
+    update_manifest(p, {"phases.coverage.status": "passed",
                         "metrics.coveragepct": 87.5})
     """
     manifest_path = Path(manifest_path)
@@ -1461,7 +1461,7 @@ def _run_manifest_mode(args: "argparse.Namespace") -> int:
       <rundir>/coveragesummary.json           (AVA inter-agent schema)
       <rundir>/coverage_report.json           (full legacy report)
       <manifest> fields updated:
-        phases.coverage.status     = "completed"
+        phases.coverage.status     = "passed"
         phases.coverage.duration   = <float seconds>
         outputs.coveragesummary    = "coveragesummary.json"
         metrics.coveragepct        = <float>
@@ -1543,7 +1543,7 @@ def _run_manifest_mode(args: "argparse.Namespace") -> int:
     # Update manifest (atomic)
     try:
         update_manifest(args.manifest, {
-            "phases.coverage.status":   "completed",
+            "phases.coverage.status":   "passed",
             "phases.coverage.duration": duration,
             "outputs.coveragesummary":  "coveragesummary.json",
             "metrics.coveragepct":      round(metrics.functional, 2),
