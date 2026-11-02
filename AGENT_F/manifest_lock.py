@@ -28,7 +28,7 @@ Usage in ava_patched.py
 
     # Validate before writing (checks outgoing fields):
     lock.assert_writable(updates={
-        "phases.coverage.status": "completed",
+        "phases.coverage.status": "passed",
         "metrics.coveragepct": 87.5,
     })
 
@@ -181,7 +181,7 @@ MANIFEST_ASSERTIONS: List[FieldAssertion] = [
     # ── Phases ─────────────────────────────────────────────────────────────
     FieldAssertion("phases.coverage.status",
                    types=(str,),
-                   enum=["pending","running","completed","failed"],
+                   enum=["pending","running","passed","failed"],
                    description="Coverage phase lifecycle status."),
     FieldAssertion("phases.coverage.duration",
                    types=(int, float), minimum=0.0,
@@ -218,7 +218,7 @@ MANIFEST_ASSERTIONS: List[FieldAssertion] = [
                    enum=["in_order","out_of_order","superscalar"],
                    description="Microarchitecture type."),
 
-    # ── Cross-field consistency check: if coverage phase completed, ────────
+    # ── Cross-field consistency check: if coverage phase passed, ────────
     # ── coveragesummary must be set ────────────────────────────────────────
     FieldAssertion(
         "phases.coverage.status",
@@ -298,13 +298,13 @@ class ManifestLock:
         for assertion in MANIFEST_ASSERTIONS:
             violations.extend(assertion.check(data))
 
-        # Cross-field: if coverage phase completed → coveragesummary must be set
+        # Cross-field: if coverage phase passed → coveragesummary must be set
         status   = _get_nested(data, "phases.coverage.status")
         summary  = _get_nested(data, "outputs.coveragesummary")
-        if status == "completed" and not summary:
+        if status == "passed" and not summary:
             violations.append(
                 "[CROSS] 'outputs.coveragesummary' must be set when "
-                "'phases.coverage.status' == 'completed'"
+                "'phases.coverage.status' == 'passed'"
             )
 
         # Cross-field: coveragepct must match industrial_grade flag
@@ -364,7 +364,7 @@ class ManifestLock:
 
     def assert_phase_order(self) -> None:
         """
-        Assert that no phase is marked 'completed' before its prerequisite.
+        Assert that no phase is marked 'passed' before its prerequisite.
 
         Phase order: semantic → testbench → simulation → coverage → red_team
         Raises ManifestLockError if a phase is complete but its predecessor is not.
@@ -372,14 +372,14 @@ class ManifestLock:
         PHASE_ORDER = ["semantic","testbench","simulation","coverage","red_team"]
         data = self.load()
 
-        prev_status = "completed"   # virtual predecessor of 'semantic'
+        prev_status = "passed"   # virtual predecessor of 'semantic'
         for phase in PHASE_ORDER:
             status = _get_nested(data, f"phases.{phase}.status")
-            if status == "completed" and prev_status not in ("completed", None):
+            if status == "passed" and prev_status not in ("passed", None):
                 raise ManifestLockError(
                     f"phases.{phase}.status",
-                    f"Phase '{phase}' is 'completed' but predecessor status "
-                    f"is '{prev_status}' (expected 'completed')",
+                    f"Phase '{phase}' is 'passed' but predecessor status "
+                    f"is '{prev_status}' (expected 'passed')",
                     actual=status,
                 )
             prev_status = status

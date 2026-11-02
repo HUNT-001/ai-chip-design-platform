@@ -264,8 +264,8 @@ def generate_from_manifest(manifest_path: Path) -> int:
         {
             "rundir": "/path/to/run/directory",
             "phases": {
-                "coverage": {"status": "completed"},
-                "bugfinder": {"status": "completed"}
+                "coverage": {"status": "passed"},
+                "bugfinder": {"status": "passed"}
             }
         }
 
@@ -280,7 +280,7 @@ def generate_from_manifest(manifest_path: Path) -> int:
     Manifest ``phases.generator`` is updated on success::
 
         "generator": {
-            "status": "completed",
+            "status": "passed",
             "evolved_population": 50,
             "constraints_targeted": 20,
             "avg_fitness": 3.24,
@@ -396,7 +396,7 @@ def generate_from_manifest(manifest_path: Path) -> int:
     # ── Update manifest ───────────────────────────────────────────────────────
     phases = manifest.setdefault("phases", {})
     phases["generator"] = {
-        "status":               "completed",
+        "status":               "passed",
         "evolved_population":   len(results),
         "constraints_targeted": len(constraints),
         "avg_fitness":          round(avg_fitness, 3),
