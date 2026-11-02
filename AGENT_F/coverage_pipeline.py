@@ -1439,6 +1439,14 @@ def update_manifest(
     logger.info("Manifest updated: %s (%d fields)", manifest_path.name, len(updates))
 
 
+def measured_cold_paths(metrics: "CoverageMetrics") -> List[Dict[str, Any]]:
+    """The one definition of ``top_cold`` (#64): points the run's own coverage
+    data records with a zero count, lines first then branches, each in
+    (file, line, column) order.  Nothing here is ranked, derived or read from
+    a second store."""
+    return metrics.cold_lines[:20] + metrics.cold_branches[:10]
+
+
 def _run_manifest_mode(args: "argparse.Namespace") -> int:
     """
     AVA contract execution mode.
@@ -1499,7 +1507,6 @@ def _run_manifest_mode(args: "argparse.Namespace") -> int:
 
     # Database (plateau + trend)
     plateau = False
-    top_cold: List[Dict[str, Any]] = []
     db_path  = args.db or rundir / "coverage_trend.sqlite"
     db: Optional[CoverageDatabase] = None
     try:
@@ -1520,24 +1527,7 @@ def _run_manifest_mode(args: "argparse.Namespace") -> int:
             raise
         logger.warning("DB unavailable (%s) — plateau detection skipped", exc)
 
-    # Try to get ranked cold paths from coverage_database if available
-    try:
-        from coverage_database import CoverageDatabase as ExtDB  # type: ignore[import]
-        ext_db = ExtDB(db_path)
-        raw_cold = ext_db.top_cold_paths(20)
-        top_cold = [
-            {
-                "module":             cp.module,
-                "line":               cp.line,
-                "type":               cp.type,
-                "description":        cp.description,
-                "reachability_score": cp.reachability_score,
-            }
-            for cp in raw_cold
-        ]
-    except Exception:
-        # Fall back to inline cold paths from metrics
-        top_cold = metrics.cold_lines[:20] + metrics.cold_branches[:10]
+    top_cold = measured_cold_paths(metrics)
 
     # Write reports
     reporter = CoverageReporter(metrics)
@@ -1715,6 +1705,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         formats=args.formats,
         ava_summary=True,    # always emit coveragesummary.json in direct mode too
         plateau=plateau,
+        top_cold=measured_cold_paths(metrics),
     )
     _print_summary(metrics)
     for fmt, path in paths.items():
