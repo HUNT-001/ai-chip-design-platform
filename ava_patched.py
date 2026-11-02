@@ -3597,7 +3597,9 @@ endclass
         bugs = results["initial_results"]["bugs"]
         print(f"\n  Bugs Found      : {len(bugs)}")
         for b in bugs[:5]:
-            print(f"    [{b.get('severity','?').upper()}] {b.get('kind','?')}: "
+            _sev = b.get('severity')
+            _sev = "?" if _sev is None or _sev == "" else str(_sev).upper()
+            print(f"    [{_sev}] {b.get('kind','?')}: "
                   f"{b.get('description','')[:60]}")
         if len(bugs) > 5:
             print(f"    ... and {len(bugs)-5} more")
