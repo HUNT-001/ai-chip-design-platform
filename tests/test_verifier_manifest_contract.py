@@ -83,12 +83,7 @@ def test_unreadable_manifest_is_never_reported_as_a_pass(name, flavour, tmp_path
     manifest = _unreadable_manifest(flavour, tmp_path)
     module = importlib.import_module(f"AGENT_H.{name}")
 
-    try:
-        rc = module.run_from_manifest(manifest)
-    except Exception:
-        # Raising is loud: the caller cannot mistake a traceback for a pass.
-        # #36 is about the handlers that swallow the error and return 0.
-        return
+    rc = module.run_from_manifest(manifest)
 
     assert rc != 0, (
         f"AGENT_H/{name}.py: run_from_manifest returned 0 (pass) for a "
