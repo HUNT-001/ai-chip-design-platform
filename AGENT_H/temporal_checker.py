@@ -347,9 +347,14 @@ class TemporalChecker:
 
 
 def run_from_manifest(manifest_path: Path) -> int:
-    with open(manifest_path) as f:
-        manifest = json.load(f)
-        base_manifest = snapshot_manifest(manifest)
+    try:
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+            base_manifest = snapshot_manifest(manifest)
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.error("temporal_checker: cannot read manifest %s: %s", manifest_path, exc)
+        # 3: could not verify -- nothing was checked (#39), unlike 1 = violation found
+        return 3
 
     run_dir = Path(manifest["run_dir"])
     outputs = manifest.get("outputs", {})
