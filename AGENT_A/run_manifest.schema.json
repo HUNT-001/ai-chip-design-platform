@@ -1493,7 +1493,7 @@
   },
   "examples": [
     {
-      "schema_version": "2.0.0",
+      "schema_version": "2.1.0",
       "run_id": "20240315T142300Z_42_ab3f9c01",
       "parent_run_id": null,
       "campaign_id": "nightly_rv32im_2024q1",
