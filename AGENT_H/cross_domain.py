@@ -347,9 +347,14 @@ def register_adapter(dut_class: DUTClass, adapter_cls: Type[DUTAdapter]) -> None
 # ─────────────────────────────────────────────────────────
 
 def run_from_manifest(manifest_path: Path) -> int:
-    with open(manifest_path) as f:
-        manifest = json.load(f)
-        base_manifest = snapshot_manifest(manifest)
+    try:
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+            base_manifest = snapshot_manifest(manifest)
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.error("cross_domain: cannot read manifest %s: %s", manifest_path, exc)
+        # 3: could not verify -- nothing was checked (#39), unlike 1 = violation found
+        return 3
 
     dut_class_str = manifest.get("agent_config", {}).get("dut_class", "cpu")
     if dut_class_str.lower() == "cpu":

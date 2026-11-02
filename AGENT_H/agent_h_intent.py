@@ -365,9 +365,14 @@ class IntentChecker:
 
 
 def run_from_manifest(manifest_path: Path) -> int:
-    with open(manifest_path) as f:
-        manifest = json.load(f)
-        base_manifest = snapshot_manifest(manifest)
+    try:
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+            base_manifest = snapshot_manifest(manifest)
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.error("agent_h_intent: cannot read manifest %s: %s", manifest_path, exc)
+        # 3: could not verify -- nothing was checked (#39), unlike 1 = violation found
+        return 3
 
     run_dir = Path(manifest["run_dir"])
     rtl_log = run_dir / (manifest.get("outputs", {}).get("rtl_commit_log") or "rtl_commit.jsonl")
