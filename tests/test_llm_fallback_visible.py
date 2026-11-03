@@ -10,7 +10,7 @@ ran, `SemanticMap.metadata` carries `llm_fallback` (True), `llm_fallback_reason`
 class name). When the LLM path succeeds `llm_fallback` is absent.
 
 One failing input per route: the stub client raises exactly one exception.
-Handlers are not narrowed here; that is a separate issue.
+Which exceptions may reach these routes is pinned in test_llm_handler_narrow.py.
 """
 import asyncio
 import importlib
@@ -57,7 +57,6 @@ def test_timeout_route_is_marked(ava_patched, monkeypatch, tmp_path):
 @pytest.mark.parametrize("exc", [
     json.JSONDecodeError("bad", "{", 0),
     KeyError("message"),
-    TypeError("not subscriptable"),
 ])
 def test_parse_error_route_is_marked(ava_patched, monkeypatch, tmp_path, exc):
     sem = _analyse(ava_patched, monkeypatch, tmp_path, _raiser(exc))
