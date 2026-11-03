@@ -1935,8 +1935,9 @@ def atomic_write(path: Path, content: str) -> None:
     """Write *content* to *path* crash-safely via a unique sibling temp file.
 
     Uses ``tempfile.mkstemp`` in the same directory so the rename is guaranteed
-    to be on the same filesystem.  On POSIX, ``rename()`` is atomic.  On
-    Windows, we unlink the target first (NTFS requirement).
+    to be on the same filesystem.  ``os.replace`` is atomic and overwrites an
+    existing target on POSIX and Windows alike, so the destination is never
+    removed first.
     """
     import tempfile as _tf
     path = Path(path)
@@ -1946,9 +1947,7 @@ def atomic_write(path: Path, content: str) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write(content)
-        if sys.platform == "win32" and path.exists():
-            path.unlink()
-        tmp.rename(path)
+        os.replace(tmp, path)
     except Exception:
         try:
             tmp.unlink(missing_ok=True)

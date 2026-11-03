@@ -51,6 +51,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import random as _random_module
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -683,7 +684,7 @@ def run_causal_from_manifest(manifest_path: Path) -> int:
     with open(tmp, "w") as f:
         json.dump(manifest, f, indent=2)
         f.write("\n")
-    tmp.rename(manifest_path)
+    os.replace(tmp, manifest_path)
 
     logger.info("Causal evolution: %dx improvement, %d tests written",
                 report["improvement_factor"], report.get("files_written", 0))
