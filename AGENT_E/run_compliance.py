@@ -840,7 +840,7 @@ class BuildCache:
     def _load_index(self) -> Dict[str, str]:
         if self._index_path.exists():
             try:
-                return json.loads(self._index_path.read_text())
+                return json.loads(self._index_path.read_text(encoding="utf-8"))
             except (OSError, ValueError) as exc:
                 # A cache: starting empty only costs a rebuild, but say so.
                 log.warning("Build-cache index %s unreadable (%s); starting empty",
@@ -1995,11 +1995,11 @@ def patch_manifest(manifest_path: Path, updates: Dict[str, Any]) -> None:
     Read manifest_path, deep-merge updates, write back atomically.
     Uses os.replace (POSIX-atomic) exactly like Agent B's patch_manifest().
     """
-    with open(manifest_path) as f:
+    with open(manifest_path, encoding="utf-8") as f:
         data = json.load(f)
     _deep_merge(data, updates)
     tmp = manifest_path.with_suffix(".tmp")
-    with open(tmp, "w") as f:
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
     os.replace(tmp, manifest_path)
 
@@ -2045,7 +2045,7 @@ def run_compliance_manifest(manifest_path: Path) -> int:
         return EXIT_CRASH
 
     try:
-        manifest = json.loads(manifest_path.read_text())
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except Exception as exc:
         log.error("Cannot parse manifest: %s", exc)
         return EXIT_CRASH

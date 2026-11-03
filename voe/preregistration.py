@@ -68,13 +68,13 @@ class Preregistration:
                            "notes": self.notes}, sort_keys=True, indent=2)
         self.digest = hashlib.sha256(body.encode()).hexdigest()[:16]
         os.makedirs(os.path.dirname(self.path) or ".", exist_ok=True)
-        with open(self.path, "w") as f:
+        with open(self.path, "w", encoding="utf-8") as f:
             f.write(body + f"\n// sha256:{self.digest}\n")
         return self
 
     @classmethod
     def load(cls, path):
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             text = f.read()
         body, _, tail = text.rpartition("// sha256:")
         body = body.rstrip("\n")
@@ -162,13 +162,13 @@ class Commitment:
                           sort_keys=True, indent=2)
         self.digest = hashlib.sha256(body.encode()).hexdigest()[:16]
         os.makedirs(os.path.dirname(self.path) or ".", exist_ok=True)
-        with open(self.path, "w") as f:
+        with open(self.path, "w", encoding="utf-8") as f:
             f.write(body + f"\n// sha256:{self.digest}\n")
         return self
 
     @classmethod
     def load(cls, path):
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             text = f.read()
         body, _, tail = text.rpartition("// sha256:")
         body = body.rstrip("\n")

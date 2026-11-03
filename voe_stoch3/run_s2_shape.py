@@ -185,7 +185,7 @@ def main() -> int:
     dfifo_rej = results["dfifo"]["rejected"]
     sat_rej = results["sat_mac"]["rejected"]
     passed = dfifo_rej and not sat_rej
-    with open(RESULTS, "w") as f:
+    with open(RESULTS, "w", encoding="utf-8") as f:
         json.dump({"prereg_digest": f"sha256:{c.digest}",
                    "prereg_intact": c.intact,
                    "N": n, "alpha": alpha, "condition": "cold start",

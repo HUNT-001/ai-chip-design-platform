@@ -317,7 +317,7 @@ def minimize_bug_report(
     rtl_min, iss_min, stats = minimizer.minimize()
 
     def _write(recs: List[dict], path: _Path) -> None:
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             for r in recs:
                 f.write(json.dumps(r) + "\n")
 

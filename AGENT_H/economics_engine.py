@@ -89,7 +89,7 @@ class EconomicsEngine:
     def _load_json(path: Path) -> Optional[Dict]:
         if path.exists():
             try:
-                with open(path) as f:
+                with open(path, encoding="utf-8") as f:
                     return json.load(f)
             except (OSError, ValueError) as exc:
                 # Unreadable is not the same as absent: name the file.
@@ -210,7 +210,7 @@ class EconomicsEngine:
         campaigns: List[Dict] = []
         unreadable = None
         try:
-            with open(ledger_path) as f:
+            with open(ledger_path, encoding="utf-8") as f:
                 data = json.load(f)
             if not isinstance(data, dict) or not isinstance(data.get("campaigns", []), list):
                 raise ValueError("unexpected ledger shape")
@@ -231,7 +231,7 @@ class EconomicsEngine:
             logger.warning("EconomicsEngine: ledger %s unreadable (%s); moved to %s, "
                            "starting a fresh ledger", ledger_path, unreadable, backup)
         campaigns.append(report)
-        with open(ledger_path, "w") as f:
+        with open(ledger_path, "w", encoding="utf-8") as f:
             json.dump({
                 "schema_version": SCHEMA_VERSION,
                 "campaigns": campaigns,
@@ -246,7 +246,7 @@ class EconomicsEngine:
 
 def run_from_manifest(manifest_path: Path) -> int:
     try:
-        with open(manifest_path) as f:
+        with open(manifest_path, encoding="utf-8") as f:
             manifest = json.load(f)
             base_manifest = snapshot_manifest(manifest)
     except (json.JSONDecodeError, OSError) as exc:
@@ -259,7 +259,7 @@ def run_from_manifest(manifest_path: Path) -> int:
     report  = engine.compute()
 
     report_path = run_dir / "economics_report.json"
-    with open(report_path, "w") as f:
+    with open(report_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2)
         f.write("\n")
 

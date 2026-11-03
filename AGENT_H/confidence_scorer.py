@@ -95,7 +95,7 @@ class ConfidenceReport:
 def _load_json(path: Path) -> Optional[Dict]:
     if path.exists():
         try:
-            with open(path) as f:
+            with open(path, encoding="utf-8") as f:
                 return json.load(f)
         except (OSError, ValueError) as exc:
             # Unreadable is not the same as absent: name the file.
@@ -313,7 +313,7 @@ class ConfidenceScorer:
 
 def run_from_manifest(manifest_path: Path) -> int:
     try:
-        with open(manifest_path) as f:
+        with open(manifest_path, encoding="utf-8") as f:
             manifest = json.load(f)
             base_manifest = snapshot_manifest(manifest)
     except (json.JSONDecodeError, OSError) as exc:
@@ -326,7 +326,7 @@ def run_from_manifest(manifest_path: Path) -> int:
     report  = scorer.compute()
 
     report_path = run_dir / "confidence_report.json"
-    with open(report_path, "w") as f:
+    with open(report_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2)
         f.write("\n")
 

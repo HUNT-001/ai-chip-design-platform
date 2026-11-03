@@ -68,13 +68,13 @@ class Ledger:
         self.path = path
         self.records = []
         if os.path.exists(path):
-            with open(path) as f:
+            with open(path, encoding="utf-8") as f:
                 self.records = [Record(**r) for r in json.load(f)]
 
     def add(self, rec: Record):
         # append-only: a decision is not edited away when it becomes inconvenient
         self.records.append(rec)
-        with open(self.path, "w") as f:
+        with open(self.path, "w", encoding="utf-8") as f:
             json.dump([asdict(r) for r in self.records], f, indent=2)
         return rec
 

@@ -102,17 +102,17 @@ def build_parser() -> argparse.ArgumentParser:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def load_manifest(path: Path) -> Dict[str, Any]:
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
 def patch_manifest(path: Path, updates: Dict[str, Any]) -> None:
     """Read manifest, deep-merge updates, write atomically via tmp→rename."""
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         data = json.load(f)
     _deep_merge(data, updates)
     tmp = path.with_suffix(".tmp")
-    with open(tmp, "w") as f:
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
     os.replace(tmp, path)   # atomic on POSIX
 
@@ -418,7 +418,7 @@ def main() -> int:
     # ── Parse coverage ────────────────────────────────────────────────────────
     cov_raw  = parse_coverage(Path(sim["coverage_path"]))
     cov_rpt  = run_dir / "coverage_report.json"
-    cov_rpt.write_text(json.dumps(cov_raw, indent=2))
+    cov_rpt.write_text(json.dumps(cov_raw, indent=2), encoding="utf-8")
 
     # ── Patch manifest (manifest mode) ────────────────────────────────────────
     if params["manifest_path"]:
@@ -472,7 +472,7 @@ def main() -> int:
             },
         }
         mp = run_dir / "run_manifest.json"
-        mp.write_text(json.dumps(manifest, indent=2))
+        mp.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         print(f"[ava] Manifest: {mp}")
 
     # ── Print summary ─────────────────────────────────────────────────────────

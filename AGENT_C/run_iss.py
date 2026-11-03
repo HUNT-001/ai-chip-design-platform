@@ -309,7 +309,7 @@ def write_commitlog(
     out_file.parent.mkdir(parents=True, exist_ok=True)
     count = 0
 
-    with open(out_file, "w") as fout:
+    with open(out_file, "w", encoding="utf-8") as fout:
         for record in parse_spike_log_streaming(
             spike_output, source="iss", fmt=fmt_hint
         ):
@@ -380,7 +380,7 @@ def validate_commitlog(path: Path, sample_size: int = 200) -> List[str]:
 def load_or_create_manifest(run_dir: Path, config: dict) -> dict:
     p = run_dir / MANIFEST_FILENAME
     if p.exists():
-        with open(p) as f:
+        with open(p, encoding="utf-8") as f:
             return json.load(f)
     return {
         "run_id":    str(uuid.uuid4()),
@@ -394,7 +394,7 @@ def load_or_create_manifest(run_dir: Path, config: dict) -> dict:
 
 
 def save_manifest(run_dir: Path, manifest: dict) -> None:
-    with open(run_dir / MANIFEST_FILENAME, "w") as f:
+    with open(run_dir / MANIFEST_FILENAME, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2)
 
 
@@ -461,7 +461,7 @@ def _update_manifest_unlocked(manifest_path: Path, updates: Dict) -> None:
 
     Uses write-to-tmp then rename for crash safety on POSIX filesystems.
     """
-    manifest = json.loads(manifest_path.read_text())
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
     for dotted_key, value in updates.items():
         parts = dotted_key.split(".")
@@ -471,7 +471,7 @@ def _update_manifest_unlocked(manifest_path: Path, updates: Dict) -> None:
         node[parts[-1]] = value
 
     tmp = manifest_path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(manifest, indent=2, default=str))
+    tmp.write_text(json.dumps(manifest, indent=2, default=str), encoding="utf-8")
     os.replace(tmp, manifest_path)   # atomic on POSIX
 
 
@@ -508,7 +508,7 @@ def run_iss_manifest(manifest_path: Path) -> int:
         return EXIT_CONFIG
 
     try:
-        manifest = json.loads(manifest_path.read_text())
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         log.error("Cannot parse manifest %s: %s", manifest_path, exc)
         return EXIT_CONFIG

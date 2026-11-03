@@ -538,13 +538,13 @@ class LitmusChecker:
 # ─────────────────────────────────────────────────────────
 
 def _load_manifest(manifest_path: Path) -> dict:
-    with open(manifest_path) as f:
+    with open(manifest_path, encoding="utf-8") as f:
         return json.load(f)
 
 
 def _save_manifest(manifest_path: Path, manifest: dict) -> None:
     tmp = manifest_path.with_suffix(".json.tmp")
-    with open(tmp, "w") as f:
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2)
         f.write("\n")
     os.replace(tmp, manifest_path)
@@ -623,7 +623,7 @@ def run_from_manifest(
         # Write report
         report_path = run_dir / "litmus_report.json"
         tmp_path    = run_dir / "litmus_report.json.tmp"
-        with open(tmp_path, "w") as f:
+        with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
             f.write("\n")
         os.replace(tmp_path, report_path)
@@ -771,7 +771,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         )
         report["generated_litmus_tests"] = [str(p) for p in generated]
 
-    with open(args.report, "w") as f:
+    with open(args.report, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2)
         f.write("\n")
     print(f"Litmus report: {args.report}")

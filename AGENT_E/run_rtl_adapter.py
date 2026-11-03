@@ -122,12 +122,12 @@ def _write_manifest(path: Path, data: Dict[str, Any]) -> None:
     """Write JSON atomically via tmp→rename."""
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(data, indent=2))
+    tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
     os.replace(tmp, path)
 
 
 def _read_manifest(path: Path) -> Dict[str, Any]:
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 

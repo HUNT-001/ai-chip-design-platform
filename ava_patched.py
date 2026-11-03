@@ -2181,12 +2181,12 @@ endclass
         rtl_path = iss_path = None
         if rtl_log:
             rtl_path = run_dir / "rtl_commit.jsonl"
-            with open(rtl_path, "w") as f:
+            with open(rtl_path, "w", encoding="utf-8") as f:
                 for rec in rtl_log:
                     f.write(json.dumps(rec) + "\n")
         if iss_log:
             iss_path = run_dir / "iss_commit.jsonl"
-            with open(iss_path, "w") as f:
+            with open(iss_path, "w", encoding="utf-8") as f:
                 for rec in iss_log:
                     f.write(json.dumps(rec) + "\n")
 
@@ -2230,7 +2230,7 @@ endclass
             },
         }
         mpath = run_dir / "run_manifest.json"
-        with open(mpath, "w") as f:
+        with open(mpath, "w", encoding="utf-8") as f:
             json.dump(manifest, f, indent=2)
             f.write("\n")
         return mpath
@@ -2350,7 +2350,7 @@ endclass
                 checker = _intent.IntentChecker(rtl_tmp, iss_tmp)
                 r = checker.run()
                 rp = run_dir / "intent_report.json"
-                with open(rp, "w") as f:
+                with open(rp, "w", encoding="utf-8") as f:
                     json.dump(r, f, indent=2)
                 reports["intent"] = {
                     "violations": r.get("total_violations", 0),
@@ -2366,7 +2366,7 @@ endclass
                 runner = _contract.ContractRunner()
                 r = runner.check(rtl_log, iss_log)
                 rp = run_dir / "contract_report.json"
-                with open(rp, "w") as f:
+                with open(rp, "w", encoding="utf-8") as f:
                     json.dump(r, f, indent=2)
                 reports["contracts"] = {
                     "violations": r.get("total_violations", 0),
@@ -2380,7 +2380,7 @@ endclass
                 tc = _temporal.TemporalChecker(rtl_log, iss_log)
                 r = tc.run()
                 rp = run_dir / "temporal_report.json"
-                with open(rp, "w") as f:
+                with open(rp, "w", encoding="utf-8") as f:
                     json.dump(r, f, indent=2)
                 reports["temporal"] = {
                     "violations": r.get("total_violations", 0),
@@ -2394,7 +2394,7 @@ endclass
                 av = _atomics.AtomicsVerifier(rtl_log, iss_log)
                 r = av.run()
                 rp = run_dir / "atomics_report.json"
-                with open(rp, "w") as f:
+                with open(rp, "w", encoding="utf-8") as f:
                     json.dump(r, f, indent=2)
                 reports["atomics"] = {
                     "atomics_examined": r.get("atomics_examined", 0),
@@ -2412,7 +2412,7 @@ endclass
                 cv = _csr.CSRVerifier(rtl_log, iss_log)
                 r = cv.run()
                 rp = run_dir / "csr_report.json"
-                with open(rp, "w") as f:
+                with open(rp, "w", encoding="utf-8") as f:
                     json.dump(r, f, indent=2)
                 reports["csr"] = {
                     "csr_ops": r.get("csr_ops", 0),
@@ -2430,7 +2430,7 @@ endclass
                 rv = _rvc.RVCVerifier(rtl_log, iss_log)
                 r = rv.run()
                 rp = run_dir / "rvc_report.json"
-                with open(rp, "w") as f:
+                with open(rp, "w", encoding="utf-8") as f:
                     json.dump(r, f, indent=2)
                 reports["rvc"] = {
                     "compressed_seen": r.get("compressed_seen", 0),
@@ -2448,7 +2448,7 @@ endclass
                 fv = _fp.FPVerifier(rtl_log, iss_log)
                 r = fv.run()
                 rp = run_dir / "fp_report.json"
-                with open(rp, "w") as f:
+                with open(rp, "w", encoding="utf-8") as f:
                     json.dump(r, f, indent=2)
                 reports["fp"] = {
                     "flen": r.get("flen"),
@@ -2467,7 +2467,7 @@ endclass
                 bv = _bitmanip.BitmanipVerifier(rtl_log, iss_log)
                 r = bv.run()
                 rp = run_dir / "bitmanip_report.json"
-                with open(rp, "w") as f:
+                with open(rp, "w", encoding="utf-8") as f:
                     json.dump(r, f, indent=2)
                 reports["bitmanip"] = {
                     "bitmanip_ops": r.get("bitmanip_ops", 0),
@@ -2485,7 +2485,7 @@ endclass
                 pv = _privilege.PrivilegeVerifier(rtl_log, iss_log)
                 r = pv.run()
                 rp = run_dir / "privilege_report.json"
-                with open(rp, "w") as f:
+                with open(rp, "w", encoding="utf-8") as f:
                     json.dump(r, f, indent=2)
                 reports["privilege"] = {
                     "pmp_configured": r.get("pmp_configured", False),
@@ -2504,7 +2504,7 @@ endclass
                 vmv = _vm.VMVerifier(rtl_log, iss_log, phys_mem=phys_mem)
                 r = vmv.run()
                 rp = run_dir / "vm_report.json"
-                with open(rp, "w") as f:
+                with open(rp, "w", encoding="utf-8") as f:
                     json.dump(r, f, indent=2)
                 reports["vm"] = {
                     "sv32_enabled": r.get("sv32_enabled", False),
@@ -2525,7 +2525,7 @@ endclass
                 tv = _tlb.TLBVerifier(rtl_log, iss_log, phys_mem=phys_mem)
                 r = tv.run()
                 rp = run_dir / "tlb_report.json"
-                with open(rp, "w") as f:
+                with open(rp, "w", encoding="utf-8") as f:
                     json.dump(r, f, indent=2)
                 reports["tlb"] = {
                     "translations": r.get("translations", 0),
@@ -2543,7 +2543,7 @@ endclass
                 ph = _pipeline.PipelineVerifier(rtl_log, iss_log)
                 r = ph.run()
                 rp = run_dir / "pipeline_report.json"
-                with open(rp, "w") as f:
+                with open(rp, "w", encoding="utf-8") as f:
                     json.dump(r, f, indent=2)
                 reports["pipeline"] = {
                     "alu_checked": r.get("alu_checked", 0),
@@ -2563,7 +2563,7 @@ endclass
                 r = bpv.run()
                 if r.get("metrics", {}).get("branches", 0) > 0:
                     rp = run_dir / "branch_predictor_report.json"
-                    with open(rp, "w") as f:
+                    with open(rp, "w", encoding="utf-8") as f:
                         json.dump(r, f, indent=2)
                     reports["branch_predictor"] = {
                         "metrics": r.get("metrics", {}),
@@ -2586,7 +2586,7 @@ endclass
                 r = vv.run()
                 if r.get("vector_active"):
                     rp = run_dir / "vector_report.json"
-                    with open(rp, "w") as f:
+                    with open(rp, "w", encoding="utf-8") as f:
                         json.dump(r, f, indent=2)
                     reports["vector"] = {
                         "metrics": r.get("metrics", {}),
@@ -2604,7 +2604,7 @@ endclass
                 pv = _perfcnt.PerfCounterVerifier(rtl_log, iss_log)
                 r = pv.run()
                 if r.get("perf_active"):
-                    with open(run_dir / "perf_counter_report.json", "w") as f:
+                    with open(run_dir / "perf_counter_report.json", "w", encoding="utf-8") as f:
                         json.dump(r, f, indent=2)
                     reports["perf_counter"] = {
                         "metrics": r.get("metrics", {}),
@@ -2622,7 +2622,7 @@ endclass
                 ov = _ooo.OOOVerifier(rtl_log)
                 r = ov.run()
                 if r.get("ooo_active"):
-                    with open(run_dir / "ooo_report.json", "w") as f:
+                    with open(run_dir / "ooo_report.json", "w", encoding="utf-8") as f:
                         json.dump(r, f, indent=2)
                     reports["ooo"] = {
                         "metrics": r.get("metrics", {}),
@@ -2640,7 +2640,7 @@ endclass
                 lv = _lsq.LSQVerifier(rtl_log)
                 r = lv.run()
                 if r.get("lsq_active"):
-                    with open(run_dir / "lsq_report.json", "w") as f:
+                    with open(run_dir / "lsq_report.json", "w", encoding="utf-8") as f:
                         json.dump(r, f, indent=2)
                     reports["lsq"] = {
                         "metrics": r.get("metrics", {}),
@@ -2658,7 +2658,7 @@ endclass
                 cyv = _crypto.CryptoVerifier(rtl_log)
                 r = cyv.run()
                 if r.get("crypto_active"):
-                    with open(run_dir / "crypto_report.json", "w") as f:
+                    with open(run_dir / "crypto_report.json", "w", encoding="utf-8") as f:
                         json.dump(r, f, indent=2)
                     reports["crypto"] = {
                         "metrics": r.get("metrics", {}),
@@ -2676,7 +2676,7 @@ endclass
                 av = _aes.AESVerifier(rtl_log)
                 r = av.run()
                 if r.get("aes_active"):
-                    with open(run_dir / "aes_report.json", "w") as f:
+                    with open(run_dir / "aes_report.json", "w", encoding="utf-8") as f:
                         json.dump(r, f, indent=2)
                     reports["aes"] = {
                         "metrics": r.get("metrics", {}),
@@ -2694,7 +2694,7 @@ endclass
                 sv = _sm4.SM4Verifier(rtl_log)
                 r = sv.run()
                 if r.get("sm4_active"):
-                    with open(run_dir / "sm4_report.json", "w") as f:
+                    with open(run_dir / "sm4_report.json", "w", encoding="utf-8") as f:
                         json.dump(r, f, indent=2)
                     reports["sm4"] = {
                         "metrics": r.get("metrics", {}),
@@ -2714,7 +2714,7 @@ endclass
                 _note_exit_code("vaes", rc)
                 vp = run_dir / "vaes_report.json"
                 if vp.exists():
-                    with open(vp) as f:
+                    with open(vp, encoding="utf-8") as f:
                         vr = json.load(f)
                     if vr.get("status") != "skipped":
                         reports["vaes"] = {
@@ -2734,7 +2734,7 @@ endclass
                 _note_exit_code("vsha", rc)
                 vp = run_dir / "vsha_report.json"
                 if vp.exists():
-                    with open(vp) as f:
+                    with open(vp, encoding="utf-8") as f:
                         vr = json.load(f)
                     if vr.get("status") != "skipped":
                         reports["vsha"] = {
@@ -2754,7 +2754,7 @@ endclass
                 _note_exit_code("vsm3", rc)
                 vp = run_dir / "vsm3_report.json"
                 if vp.exists():
-                    with open(vp) as f:
+                    with open(vp, encoding="utf-8") as f:
                         vr = json.load(f)
                     if vr.get("status") != "skipped":
                         reports["vsm3"] = {
@@ -2774,7 +2774,7 @@ endclass
                 _note_exit_code("vaeskf", rc)
                 vp = run_dir / "vaeskf_report.json"
                 if vp.exists():
-                    with open(vp) as f:
+                    with open(vp, encoding="utf-8") as f:
                         vr = json.load(f)
                     if vr.get("status") != "skipped":
                         reports["vaeskf"] = {
@@ -2794,7 +2794,7 @@ endclass
                 _note_exit_code("vsm4", rc)
                 vp = run_dir / "vsm4_report.json"
                 if vp.exists():
-                    with open(vp) as f:
+                    with open(vp, encoding="utf-8") as f:
                         vr = json.load(f)
                     if vr.get("status") != "skipped":
                         reports["vsm4"] = {
@@ -2814,7 +2814,7 @@ endclass
                 _note_exit_code("vghash", rc)
                 vp = run_dir / "vghash_report.json"
                 if vp.exists():
-                    with open(vp) as f:
+                    with open(vp, encoding="utf-8") as f:
                         vr = json.load(f)
                     if vr.get("status") != "skipped":
                         reports["vghash"] = {
@@ -2851,7 +2851,7 @@ endclass
                 _note_exit_code(_label, rc)
                 _p = run_dir / _rep_name
                 if _p.exists():
-                    with open(_p) as f:
+                    with open(_p, encoding="utf-8") as f:
                         _r = json.load(f)
                     if _r.get("status") != "skipped":
                         reports[_key] = {
@@ -2871,7 +2871,7 @@ endclass
                 _note_exit_code("cas", rc)
                 cp = run_dir / "cas_report.json"
                 if cp.exists():
-                    with open(cp) as f:
+                    with open(cp, encoding="utf-8") as f:
                         cr = json.load(f)
                     if cr.get("status") != "skipped":
                         reports["cas"] = {
@@ -2891,7 +2891,7 @@ endclass
                 _note_exit_code("coherence", rc)
                 cp = run_dir / "coherence_report.json"
                 if cp.exists():
-                    with open(cp) as f:
+                    with open(cp, encoding="utf-8") as f:
                         chr_ = json.load(f)
                     if chr_.get("status") != "skipped":
                         reports["coherence"] = {
@@ -2912,7 +2912,7 @@ endclass
                 _note_exit_code("memmodel", rc)
                 mmp = run_dir / "memory_model_report.json"
                 if mmp.exists():
-                    with open(mmp) as f:
+                    with open(mmp, encoding="utf-8") as f:
                         mmr = json.load(f)
                     if mmr.get("status") != "skipped":
                         reports["memory_model"] = {
@@ -2934,7 +2934,7 @@ endclass
                 _note_exit_code("interrupt", rc)
                 ip = run_dir / "interrupt_report.json"
                 if ip.exists():
-                    with open(ip) as f:
+                    with open(ip, encoding="utf-8") as f:
                         ir = json.load(f)
                     if ir.get("status") != "skipped":
                         reports["interrupt"] = {
@@ -2954,7 +2954,7 @@ endclass
                 _note_exit_code("debug", rc)
                 dp = run_dir / "debug_report.json"
                 if dp.exists():
-                    with open(dp) as f:
+                    with open(dp, encoding="utf-8") as f:
                         dr = json.load(f)
                     if dr.get("status") != "skipped":
                         reports["debug"] = {
@@ -2974,7 +2974,7 @@ endclass
                 _note_exit_code("reset", rc)
                 rrp = run_dir / "reset_report.json"
                 if rrp.exists():
-                    with open(rrp) as f:
+                    with open(rrp, encoding="utf-8") as f:
                         rr = json.load(f)
                     if rr.get("status") != "skipped":
                         reports["reset"] = {
@@ -2994,7 +2994,7 @@ endclass
                 _note_exit_code("hyp", rc)
                 hp = run_dir / "hypervisor_report.json"
                 if hp.exists():
-                    with open(hp) as f:
+                    with open(hp, encoding="utf-8") as f:
                         hr = json.load(f)
                     if hr.get("status") != "skipped":
                         reports["hypervisor"] = {
@@ -3014,7 +3014,7 @@ endclass
                 _note_exit_code("aia", rc)
                 ap = run_dir / "aia_report.json"
                 if ap.exists():
-                    with open(ap) as f:
+                    with open(ap, encoding="utf-8") as f:
                         ar = json.load(f)
                     if ar.get("status") != "skipped":
                         reports["aia"] = {
@@ -3034,7 +3034,7 @@ endclass
                 cv = _cache.CacheVerifier(rtl_log, iss_log, config=cfg)
                 r = cv.run()
                 rp = run_dir / "cache_report.json"
-                with open(rp, "w") as f:
+                with open(rp, "w", encoding="utf-8") as f:
                     json.dump(r, f, indent=2)
                 reports["cache"] = {
                     "cache_enabled": r.get("cache_enabled", False),
@@ -3055,7 +3055,7 @@ endclass
                     bv = _bus.BusVerifier(bus_txns)
                     r = bv.run()
                     rp = run_dir / "bus_report.json"
-                    with open(rp, "w") as f:
+                    with open(rp, "w", encoding="utf-8") as f:
                         json.dump(r, f, indent=2)
                     reports["bus"] = {
                         "transactions": r.get("transactions", 0),
@@ -3073,7 +3073,7 @@ endclass
                 fc = _faultinj.FaultCampaign(rtl_log, seed=1)
                 r = fc.run(n=30)
                 rp = run_dir / "fault_report.json"
-                with open(rp, "w") as f:
+                with open(rp, "w", encoding="utf-8") as f:
                     json.dump(r, f, indent=2)
                 reports["fault_injection"] = {
                     "faults_injected": r.get("faults_injected", 0),
@@ -3091,7 +3091,7 @@ endclass
                 r = rv.run()
                 if r.get("rv64_detected"):
                     rp = run_dir / "rv64_report.json"
-                    with open(rp, "w") as f:
+                    with open(rp, "w", encoding="utf-8") as f:
                         json.dump(r, f, indent=2)
                     reports["rv64"] = {
                         "ops_checked": r.get("ops_checked", 0),
@@ -3112,7 +3112,7 @@ endclass
                 r = sv.run()
                 if r.get("sv_enabled"):
                     rp = run_dir / "sv_mmu_report.json"
-                    with open(rp, "w") as f:
+                    with open(rp, "w", encoding="utf-8") as f:
                         json.dump(r, f, indent=2)
                     reports["sv_mmu"] = {
                         "mode": r.get("mode"),
@@ -3132,7 +3132,7 @@ endclass
                 r = ra.run()
                 if r.get("atomics_d_examined", 0) > 0:
                     rp = run_dir / "rv64_atomics_report.json"
-                    with open(rp, "w") as f:
+                    with open(rp, "w", encoding="utf-8") as f:
                         json.dump(r, f, indent=2)
                     reports["rv64_atomics"] = {
                         "atomics_d_examined": r.get("atomics_d_examined", 0),
@@ -3156,7 +3156,7 @@ endclass
                 si = _security.SecurityIntelligence(rtl_log, iss_log)
                 r = si.run()
                 rp = run_dir / "security_report.json"
-                with open(rp, "w") as f:
+                with open(rp, "w", encoding="utf-8") as f:
                     json.dump(r, f, indent=2)
                 reports["security_intel"] = {
                     "findings": r.get("total_findings", 0),
@@ -3173,7 +3173,7 @@ endclass
                 localizer = _rc.RootCauseLocalizer(bug_dict, self.rtl_sources)
                 r = localizer.to_report()
                 rp = run_dir / "root_cause.json"
-                with open(rp, "w") as f:
+                with open(rp, "w", encoding="utf-8") as f:
                     json.dump(r, f, indent=2)
                 reports["root_cause"] = {
                     "top_candidate": r.get("top_candidate"),
@@ -3191,13 +3191,13 @@ endclass
                 rc_report = None
                 rc_path = run_dir / "root_cause.json"
                 if rc_path.exists():
-                    with open(rc_path) as f:
+                    with open(rc_path, encoding="utf-8") as f:
                         rc_report = json.load(f)
                 r = engine.evolve_causal(
                     bug_dict, rc_report, outdir=run_dir / "causal_tests",
                 )
                 rp = run_dir / "causal_evolution_report.json"
-                with open(rp, "w") as f:
+                with open(rp, "w", encoding="utf-8") as f:
                     json.dump(r, f, indent=2)
                 reports["causal_tests"] = {
                     "improvement_factor": r.get("improvement_factor"),
@@ -3210,7 +3210,7 @@ endclass
         if _kg and results.bugs:
             with run_stage("Knowledge graph", _incomplete):
                 kg = _kg.KnowledgeGraph(run_dir / "knowledge.db")
-                with open(mpath) as f:
+                with open(mpath, encoding="utf-8") as f:
                     manifest_dict = json.load(f)
                 for bug_dict in results.bugs[:5]:
                     kg.record_bug(bug_dict, manifest_dict, [], None)
@@ -3225,12 +3225,12 @@ endclass
                 rc_report = None
                 rc_path = run_dir / "root_cause.json"
                 if rc_path.exists():
-                    with open(rc_path) as f:
+                    with open(rc_path, encoding="utf-8") as f:
                         rc_report = json.load(f)
                 exp = _explainer.BugExplainer(bug_dict, rc_report)
                 r = exp.explain()
                 rp = run_dir / "explanation.json"
-                with open(rp, "w") as f:
+                with open(rp, "w", encoding="utf-8") as f:
                     json.dump(r, f, indent=2)
                 reports["explanation"] = {"summary": r.get("summary", "")}
                 logger.info("  Explainer done")
@@ -3238,7 +3238,7 @@ endclass
         # -- Economics engine
         if _economics:
             with run_stage("Economics engine", _incomplete):
-                with open(mpath) as f:
+                with open(mpath, encoding="utf-8") as f:
                     manifest_dict = json.load(f)
                 manifest_dict["finished_at"] = datetime.now(timezone.utc).strftime(
                     "%Y-%m-%dT%H:%M:%SZ"
@@ -3246,7 +3246,7 @@ endclass
                 eng = _economics.EconomicsEngine(run_dir, manifest_dict)
                 r = eng.compute()
                 rp = run_dir / "economics_report.json"
-                with open(rp, "w") as f:
+                with open(rp, "w", encoding="utf-8") as f:
                     json.dump(r, f, indent=2)
                 reports["economics"] = {
                     "roi_score": r.get("roi_score"),
@@ -3259,12 +3259,12 @@ endclass
         # -- Confidence scorer (last -- reads all other reports)
         if _confidence:
             with run_stage("Confidence scorer", _incomplete):
-                with open(mpath) as f:
+                with open(mpath, encoding="utf-8") as f:
                     manifest_dict = json.load(f)
                 scorer = _confidence.ConfidenceScorer(run_dir, manifest_dict)
                 r = scorer.compute()
                 rp = run_dir / "confidence_report.json"
-                with open(rp, "w") as f:
+                with open(rp, "w", encoding="utf-8") as f:
                     json.dump(r, f, indent=2)
                 reports["confidence"] = {
                     "score": r.get("score"),
@@ -3282,9 +3282,9 @@ endclass
                     model = (semantic_map.raw or {}).get("coverage_model")
                 cc = _covcoll.CoverageCollector(rtl_log, model=model)
                 cr = cc.collect()
-                with open(run_dir / "coverage_report.json", "w") as f:
+                with open(run_dir / "coverage_report.json", "w", encoding="utf-8") as f:
                     json.dump(cr, f, indent=2)
-                with open(run_dir / "coverage_summary.json", "w") as f:
+                with open(run_dir / "coverage_summary.json", "w", encoding="utf-8") as f:
                     json.dump(cr["coverage_summary"], f, indent=2)
                 reports["coverage"] = {
                     "coverage_pct": cr.get("coverage_pct"),
@@ -3306,7 +3306,7 @@ endclass
                     if hasattr(_selfevolve, "run_from_manifest") else 0
                 rp = run_dir / "self_evolving_report.json"
                 if rp.exists():
-                    with open(rp) as f:
+                    with open(rp, encoding="utf-8") as f:
                         sr = json.load(f)
                     if sr.get("status") != "skipped":
                         reports["self_evolving"] = {
@@ -3329,7 +3329,7 @@ endclass
                     if hasattr(_stimgen, "run_from_manifest") else 0
                 sp = run_dir / "stimulus.json"
                 if sp.exists():
-                    with open(sp) as f:
+                    with open(sp, encoding="utf-8") as f:
                         st = json.load(f)
                     if st.get("status") == "completed":
                         reports["stimulus"] = {
@@ -3348,7 +3348,7 @@ endclass
             with run_stage("RTL graph analysis", _incomplete):
                 rtl_dir = None
                 try:
-                    with open(mpath) as f:
+                    with open(mpath, encoding="utf-8") as f:
                         rtl_dir = json.load(f).get("rtl_dir")
                 except (json.JSONDecodeError, OSError):
                     pass
@@ -3371,7 +3371,7 @@ endclass
             with run_stage("Testbench generation", _incomplete):
                 rtl_dir = None
                 try:
-                    with open(mpath) as f:
+                    with open(mpath, encoding="utf-8") as f:
                         _mj = json.load(f)
                         rtl_dir = _mj.get("rtl_dir")
                         _targets = _mj.get("tb_targets")
@@ -3399,7 +3399,7 @@ endclass
                 from AGENT_H.verification_twin import VerificationTwin as _VT
                 _mj2 = {}
                 try:
-                    with open(mpath) as f:
+                    with open(mpath, encoding="utf-8") as f:
                         _mj2 = json.load(f)
                 except (json.JSONDecodeError, OSError):
                     pass
@@ -3428,7 +3428,7 @@ endclass
                     if not p.exists():
                         return None
                     try:
-                        with open(p) as f:
+                        with open(p, encoding="utf-8") as f:
                             return json.load(f)
                     except (json.JSONDecodeError, OSError):
                         return None
@@ -3446,7 +3446,7 @@ endclass
 
         # Update manifest status
         with run_stage(f"Manifest update ({mpath})", _incomplete):
-            with open(mpath) as f:
+            with open(mpath, encoding="utf-8") as f:
                 manifest_dict = json.load(f)
             manifest_dict["status"] = verdict_from_reports(
                 {
@@ -3463,7 +3463,7 @@ endclass
                 "total_mismatches": len(results.bugs),
                 "extended_reports": list(reports.keys()),
             })
-            with open(mpath, "w") as f:
+            with open(mpath, "w", encoding="utf-8") as f:
                 json.dump(manifest_dict, f, indent=2)
                 f.write("\n")
 
