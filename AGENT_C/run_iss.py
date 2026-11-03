@@ -472,7 +472,7 @@ def _update_manifest_unlocked(manifest_path: Path, updates: Dict) -> None:
 
     tmp = manifest_path.with_suffix(".tmp")
     tmp.write_text(json.dumps(manifest, indent=2, default=str))
-    tmp.rename(manifest_path)   # atomic on POSIX
+    os.replace(tmp, manifest_path)   # atomic on POSIX
 
 
 def run_iss_manifest(manifest_path: Path) -> int:
