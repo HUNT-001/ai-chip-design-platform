@@ -172,7 +172,7 @@ of every Phase-6 agent so a missing module never breaks the base pipeline.
 | `AGENT_C/` (`spike_parser`, `run_iss`, `iss_efficiency`) | Spike ISS execution + commit-log parsing | ✅ |
 | `AGENT_D/` (`compare_commitlogs`, `bug_hypothesis`) | Tandem commit-log diff + bug hypothesis | ✅ |
 | `AGENT_E/` (`run_compliance`, `run_rtl_adapter`) | RISC-V compliance test runner | ✅ |
-| `AGENT_F/` (`coverage_pipeline`, `coverage_database`, `cold_path_ranker`, `manifest_lock`) | Verilator coverage backend, UCB1 cold-path ranker, coverage DB | 🟡 |
+| `AGENT_F/` (`coverage_pipeline`, `coverage_database`, `cold_path_ranker`, `manifest_contract`) | Verilator coverage backend, UCB1 cold-path ranker, coverage DB | 🟡 |
 | `AGENT_G/` (`causal_engine`, `genetic_engine`, `random_gen`, `directed_tests`, `asm_builder`) | AI-guided / genetic / random / directed test generation | ✅ |
 
 ### Research tier — AGENT_H (and I/J/K/L)

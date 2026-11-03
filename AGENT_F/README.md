@@ -244,7 +244,7 @@ ava-platform/
 ├── cold_path_ranker.py      ROI ranker — reachability × impact × novelty,
 │                            RV32IM assembly constraint generation
 │
-├── manifest_lock.py         Contract validator — 18 field assertions,
+├── manifest_contract.py         Contract validator — 18 field assertions,
 │                            cross-field consistency checks, phase ordering
 │
 └── schemas/
@@ -274,7 +274,7 @@ spike --version       # any recent build
 ```bash
 # Clone or copy the platform files to your project root
 cp coverage_pipeline.py coverage_database.py cold_path_ranker.py \
-   manifest_lock.py ava_patched.py ava_coverage_patch.py ./
+   manifest_contract.py ava_patched.py ava_coverage_patch.py ./
 
 mkdir -p schemas
 cp schemas/commitlog.schema.json schemas/run_manifest.schema.json schemas/
@@ -525,7 +525,7 @@ The manifest (`manifest.json`) is the **single source of truth** for a simulatio
 - **Decoupling:** Agents can run on different machines or be replaced without changing other agents
 - **Auditability:** The manifest is a complete record of what ran, what was produced, and what was measured
 - **Atomicity:** All writes use `.tmp → rename` so no agent ever reads a half-written manifest
-- **Validation:** `manifest_lock.py` checks every field before write so violations are caught immediately
+- **Validation:** `manifest_contract.py` checks every field before write so violations are caught immediately
 
 ### Field namespaces
 
@@ -558,12 +558,12 @@ manifest.json
     └── industrial_grade    boolean threshold check     ← Agent F writes
 ```
 
-### Manifest validation (manifest_lock.py)
+### Manifest validation (manifest_contract.py)
 
 ```python
-from manifest_lock import ManifestLock, ManifestLockError
+from manifest_contract import ManifestContract, ManifestContractError
 
-lock = ManifestLock("run/manifest.json")
+lock = ManifestContract("run/manifest.json")
 
 # Before reading — check minimum required fields
 lock.assert_readable()
@@ -791,8 +791,8 @@ The security analyzer performs an additional check: the zero register `x0` must 
 | Atomic write (tmp→rename) | `atomic_write()` everywhere | No half-written files, safe concurrent access |
 | Strategy pattern | `UCB1CoverageDirector` | Pluggable coverage strategy (UCB1 / epsilon-greedy) |
 | Chain-of-responsibility | `VerilatorCoverageBackend._resolve_metrics()` | Priority fallback: .dat → dict → zeros |
-| Observer / contract | `manifest.json` + `manifest_lock.py` | Decoupled agents, validated state machine |
-| Parse-then-validate | `VerilatorCoverageParser` + `ManifestLock` | Fail early, informative errors |
+| Observer / contract | `manifest.json` + `manifest_contract.py` | Decoupled agents, validated state machine |
+| Parse-then-validate | `VerilatorCoverageParser` + `ManifestContract` | Fail early, informative errors |
 | Thread-safe accumulator | `CoverageDatabase`, `FunctionalCoverageModel` | Safe parallel simulation runs |
 
 ### Coverage .dat format
@@ -855,9 +855,9 @@ with CoverageDatabase("coverage_trend.sqlite") as db:
 ### Validating the manifest before writing
 
 ```python
-from manifest_lock import ManifestLock, ManifestLockError
+from manifest_contract import ManifestContract, ManifestContractError
 
-lock = ManifestLock("run/manifest.json")
+lock = ManifestContract("run/manifest.json")
 
 updates = {
     "phases.red_team.status": "completed",
@@ -868,7 +868,7 @@ try:
     lock.assert_writable(updates)
     from coverage_pipeline import update_manifest
     update_manifest("run/manifest.json", updates)
-except ManifestLockError as exc:
+except ManifestContractError as exc:
     print(f"Contract violation: {exc}")
     sys.exit(3)
 ```
@@ -952,10 +952,10 @@ Options:
   --run-id ID         Record test attempts for this run ID
 ```
 
-### manifest_lock.py
+### manifest_contract.py
 
 ```
-usage: manifest_lock manifest [--strict] [--field DOTPATH]
+usage: manifest_contract manifest [--strict] [--field DOTPATH]
 
 Options:
   --strict        Exit 1 on first violation (default: report all)
@@ -1049,7 +1049,7 @@ Each entry in a commit log (RTL or ISS) must conform to:
 ### Adding a new manifest field
 
 1. Add the field to `schemas/run_manifest.schema.json`
-2. Add a `FieldAssertion` to `MANIFEST_ASSERTIONS` in `manifest_lock.py`
+2. Add a `FieldAssertion` to `MANIFEST_ASSERTIONS` in `manifest_contract.py`
 3. If Agent F should write it, add it to the `update_manifest()` call in `_run_manifest_mode()`
 
 ### Adding a new impact category to ColdPathRanker

@@ -1355,7 +1355,7 @@ def format_ava_schema(
       * Agent D comparator  (reads ``overall.pct``)
       * Agent H red team    (reads ``cold_paths``, ``plateau_detected``)
       * Agent G test gen    (reads ``top_cold_paths``)
-      * manifest_lock.py    (validates required fields)
+      * manifest_contract.py    (validates required fields)
 
     The schema matches ``schemas/run_manifest.schema.json``.
     """
