@@ -136,32 +136,7 @@ jobs:
           PYEOF
 
       - name: Validate JSON schemas
-        run: |
-          python - << 'EOF'
-          import json, sys
-          from pathlib import Path
-
-          schema_files = list(Path(".").rglob("*.schema.json"))
-          schema_files = [p for p in schema_files if "_legacy" not in str(p)]
-          if not schema_files:
-              print("WARNING: No schema files found")
-              sys.exit(0)
-
-          failed = []
-          for p in schema_files:
-              try:
-                  data = json.loads(p.read_text())
-                  assert isinstance(data, dict), f"{p}: not a JSON object"
-                  print(f"  OK  {p}")
-              except Exception as e:
-                  print(f"  FAIL {p}: {e}")
-                  failed.append(str(p))
-
-          if failed:
-              print(f"\n{len(failed)} schema(s) failed validation")
-              sys.exit(1)
-          print(f"\nAll {len(schema_files)} schema(s) valid")
-          EOF
+        run: python tests/test_schema_sweep.py
 
       - name: Check all agent modules importable
         run: |
