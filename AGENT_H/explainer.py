@@ -296,7 +296,7 @@ class BugExplainer:
 
 def run_from_manifest(manifest_path: Path) -> int:
     try:
-        with open(manifest_path) as f:
+        with open(manifest_path, encoding="utf-8") as f:
             manifest = json.load(f)
             base_manifest = snapshot_manifest(manifest)
     except (json.JSONDecodeError, OSError) as exc:
@@ -310,7 +310,7 @@ def run_from_manifest(manifest_path: Path) -> int:
     def _load(key: str, default: str) -> Optional[Dict]:
         p = run_dir / (outputs.get(key) or default)
         if p.exists():
-            with open(p) as f:
+            with open(p, encoding="utf-8") as f:
                 return json.load(f)
         return None
 
@@ -327,7 +327,7 @@ def run_from_manifest(manifest_path: Path) -> int:
     report["run_id"] = manifest.get("run_id", "unknown")
 
     report_path = run_dir / "explanation.json"
-    with open(report_path, "w") as f:
+    with open(report_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2)
         f.write("\n")
 

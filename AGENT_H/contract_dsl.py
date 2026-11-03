@@ -369,7 +369,7 @@ class ContractRunner:
 
 def run_from_manifest(manifest_path: Path) -> int:
     try:
-        with open(manifest_path) as f:
+        with open(manifest_path, encoding="utf-8") as f:
             manifest = json.load(f)
             base_manifest = snapshot_manifest(manifest)
     except (json.JSONDecodeError, OSError) as exc:
@@ -403,7 +403,7 @@ def run_from_manifest(manifest_path: Path) -> int:
     report = runner.check(rtl_log, iss_log)
 
     report_path = run_dir / "contract_report.json"
-    with open(report_path, "w") as f:
+    with open(report_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2)
         f.write("\n")
 

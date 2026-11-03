@@ -471,7 +471,7 @@ def run_from_manifest(manifest_path: str) -> int:
         vp = run_dir / "verification_report.json"
         if vp.exists():
             try:
-                reports = json.loads(vp.read_text()).get("reports", {})
+                reports = json.loads(vp.read_text(encoding="utf-8")).get("reports", {})
             except (json.JSONDecodeError, OSError):
                 reports = {}
     twin = VerificationTwin(

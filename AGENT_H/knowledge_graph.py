@@ -511,7 +511,7 @@ class KnowledgeGraph:
             "stats":          self.stats(),
             "bugs":           bugs,
         }
-        with open(output_path, "w") as f:
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(export, f, indent=2)
             f.write("\n")
         logger.info("Knowledge graph exported to %s (%d bugs)", output_path, len(bugs))

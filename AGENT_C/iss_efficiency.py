@@ -260,7 +260,7 @@ def record_manifest_run(
     Returns True if plateau detected (orchestrator may act on this).
     """
     try:
-        manifest = json.loads(manifest_path.read_text())
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         isa = manifest.get("isa", "unknown").lower()
 
         with ISSEfficiencyTracker(db_path) as tracker:

@@ -867,5 +867,5 @@ if __name__ == "__main__":  # pragma: no cover
     args = ap.parse_args()
     rep = RTLGraphAnalyzer.from_dir(args.rtl_dir).run()
     if args.json:
-        Path(args.json).write_text(json.dumps(rep, indent=2, default=str))
+        Path(args.json).write_text(json.dumps(rep, indent=2, default=str), encoding="utf-8")
     print(json.dumps(rep["metrics"], indent=2))

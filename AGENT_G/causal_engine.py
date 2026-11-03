@@ -641,7 +641,7 @@ def run_causal_from_manifest(manifest_path: Path) -> int:
 
     Returns 0 on success, 2 on error.
     """
-    with open(manifest_path) as f:
+    with open(manifest_path, encoding="utf-8") as f:
         manifest = json.load(f)
 
     run_dir = Path(manifest["run_dir"])
@@ -652,14 +652,14 @@ def run_causal_from_manifest(manifest_path: Path) -> int:
         logger.warning("No bug_report found at %s; skipping causal evolution", bug_rpt_path)
         return 0
 
-    with open(bug_rpt_path) as f:
+    with open(bug_rpt_path, encoding="utf-8") as f:
         bug_report = json.load(f)
 
     # Load root-cause report if present
     rc_path = run_dir / "root_cause.json"
     root_cause = None
     if rc_path.exists():
-        with open(rc_path) as f:
+        with open(rc_path, encoding="utf-8") as f:
             root_cause = json.load(f)
 
     engine = CausalGeneticEngine(
@@ -675,13 +675,13 @@ def run_causal_from_manifest(manifest_path: Path) -> int:
     report["run_id"] = manifest["run_id"]
 
     report_path = run_dir / "causal_evolution_report.json"
-    with open(report_path, "w") as f:
+    with open(report_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2)
         f.write("\n")
 
     manifest.setdefault("outputs", {})["causal_tests_dir"] = str(outdir.relative_to(run_dir))
     tmp = manifest_path.with_suffix(".json.tmp")
-    with open(tmp, "w") as f:
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2)
         f.write("\n")
     os.replace(tmp, manifest_path)

@@ -372,7 +372,7 @@ def run_from_manifest(manifest_path: Path, n: int = 30) -> int:
     """
     manifest_path = Path(manifest_path)
     try:
-        with open(manifest_path) as f:
+        with open(manifest_path, encoding="utf-8") as f:
             manifest = json.load(f)
             base_manifest = snapshot_manifest(manifest)
     except (OSError, ValueError) as exc:    # unreadable file, or not JSON (JSONDecodeError)
@@ -390,7 +390,7 @@ def run_from_manifest(manifest_path: Path, n: int = 30) -> int:
     report = FaultCampaign(rtl_log, seed=1).run(n=n)
 
     report_path = run_dir / "fault_report.json"
-    with open(report_path, "w") as f:
+    with open(report_path, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2)
         f.write("\n")
 

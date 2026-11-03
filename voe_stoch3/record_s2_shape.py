@@ -29,7 +29,7 @@ TREATMENT = "S2 shape comparison (early-window hazard statistic)"
 
 
 def main() -> int:
-    with open(RESULTS) as f:
+    with open(RESULTS, encoding="utf-8") as f:
         r = json.load(f)
     if not r["prereg_intact"]:
         print("ABORT: the results file records a non-intact pre-registration.")

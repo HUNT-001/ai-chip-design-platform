@@ -449,13 +449,13 @@ def run_reset_stress(
 # ─────────────────────────────────────────────────────────
 
 def _load_manifest(path: Path) -> dict:
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         return json.load(f)
 
 
 def _save_manifest(path: Path, manifest: dict) -> None:
     tmp = path.with_suffix(".json.tmp")
-    with open(tmp, "w") as f:
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(manifest, f, indent=2)
         f.write("\n")
     os.replace(tmp, path)
@@ -659,7 +659,7 @@ def run_from_manifest(
         # Write report
         report_path = run_dir / "cdc_report.json"
         tmp_path    = run_dir / "cdc_report.json.tmp"
-        with open(tmp_path, "w") as f:
+        with open(tmp_path, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2)
             f.write("\n")
         os.replace(tmp_path, report_path)
@@ -800,7 +800,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         )
         report = checker.run()
 
-    with open(args.report, "w") as f:
+    with open(args.report, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2)
         f.write("\n")
 

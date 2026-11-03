@@ -65,9 +65,9 @@ class AVAConfig:
 
     @classmethod
     def from_file(cls, path: Path) -> "AVAConfig":
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             return cls.from_dict(json.load(f))
 
     def to_file(self, path: Path) -> None:
-        with open(path, "w") as f:
+        with open(path, "w", encoding="utf-8") as f:
             json.dump(self.to_dict(), f, indent=2)
