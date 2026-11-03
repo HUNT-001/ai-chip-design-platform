@@ -1,28 +1,31 @@
 #!/usr/bin/env python3
 """
-manifest_lock.py — AVA Manifest Contract Validator
-====================================================
-Provides field-level assertion checks for the AVA run manifest (manifest.json).
-Imported by ava_patched.py before every manifest read/write to catch contract
-violations early — before they propagate to downstream agents.
+manifest_contract.py — AVA Manifest Contract Validator
+======================================================
+Field-level assertion checks for the AVA run manifest (manifest.json): a
+contract validator, not a lock. It does not serialise concurrent writers.
+
+Nothing imports this module today: ava_patched.py does not call it, and the
+only callers are its own CLI and the tests. Whether the pipeline should call
+validate() is a separate decision.
 
 Design goals
 ------------
   * Zero-dependency: uses only stdlib (json, pathlib, re, typing).
   * Fast: in-process validation adds < 1 ms per call.
   * Informative: every violation includes field path + constraint description.
-  * Non-blocking: validation failures raise ManifestLockError (not SystemExit)
+  * Non-blocking: validation failures raise ManifestContractError (not SystemExit)
     so the caller can decide whether to abort or warn.
 
-Usage in ava_patched.py
------------------------
-    from manifest_lock import ManifestLock, ManifestLockError
+Usage
+-----
+    from manifest_contract import ManifestContract, ManifestContractError
 
     # Validate before reading:
-    lock = ManifestLock("run/manifest.json")
+    lock = ManifestContract("run/manifest.json")
     try:
         lock.assert_readable()
-    except ManifestLockError as exc:
+    except ManifestContractError as exc:
         logger.error("Manifest contract violation: %s", exc)
         raise
 
@@ -40,8 +43,8 @@ Usage in ava_patched.py
 
 CLI
 ---
-    python manifest_lock.py run/manifest.json           # validate + print report
-    python manifest_lock.py run/manifest.json --strict  # exit 1 on any violation
+    python manifest_contract.py run/manifest.json           # validate + print report
+    python manifest_contract.py run/manifest.json --strict  # exit 1 on any violation
 """
 
 from __future__ import annotations
@@ -55,7 +58,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 # ── Exceptions ────────────────────────────────────────────────────────────────
 
-class ManifestLockError(Exception):
+class ManifestContractError(Exception):
     """
     Raised when a manifest field fails a contract assertion.
 
@@ -223,7 +226,7 @@ MANIFEST_ASSERTIONS: List[FieldAssertion] = [
     FieldAssertion(
         "phases.coverage.status",
         custom=lambda v: (
-            None  # checked separately in ManifestLock.validate()
+            None  # checked separately in ManifestContract.validate()
         ),
     ),
 ]
@@ -251,14 +254,14 @@ def _get_nested(data: Dict[str, Any], dotpath: str) -> Any:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# ManifestLock
+# ManifestContract
 # ═══════════════════════════════════════════════════════════════════════════════
 
-class ManifestLock:
+class ManifestContract:
     """
     Field-level contract validator for AVA manifest.json.
 
-    The ManifestLock is stateless with respect to the file — it re-reads
+    The ManifestContract is stateless with respect to the file — it re-reads
     on every call so it always reflects the current on-disk state.
     """
 
@@ -268,17 +271,17 @@ class ManifestLock:
     # ── Public API ─────────────────────────────────────────────────────────
 
     def load(self) -> Dict[str, Any]:
-        """Load and JSON-parse the manifest. Raises ManifestLockError on failure."""
+        """Load and JSON-parse the manifest. Raises ManifestContractError on failure."""
         if not self._path.exists():
-            raise ManifestLockError(
+            raise ManifestContractError(
                 "manifest", "File does not exist", str(self._path)
             )
         try:
             data = json.loads(self._path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as exc:
-            raise ManifestLockError("manifest", f"JSON parse error: {exc}") from exc
+            raise ManifestContractError("manifest", f"JSON parse error: {exc}") from exc
         if not isinstance(data, dict):
-            raise ManifestLockError("manifest", "Root must be a JSON object", type(data).__name__)
+            raise ManifestContractError("manifest", "Root must be a JSON object", type(data).__name__)
         return data
 
     def validate(self) -> List[str]:
@@ -290,7 +293,7 @@ class ManifestLock:
         """
         try:
             data = self.load()
-        except ManifestLockError as exc:
+        except ManifestContractError as exc:
             return [str(exc)]
 
         violations: List[str] = []
@@ -323,7 +326,7 @@ class ManifestLock:
 
     def assert_readable(self) -> None:
         """
-        Raise ManifestLockError if required read-path fields are invalid.
+        Raise ManifestContractError if required read-path fields are invalid.
 
         Call this before reading the manifest in any agent.
         Only checks 'rundir' and 'run_id' — the minimum needed to locate artifacts.
@@ -334,11 +337,11 @@ class ManifestLock:
             if assertion:
                 violations = assertion.check(data)
                 if violations:
-                    raise ManifestLockError(field, violations[0])
+                    raise ManifestContractError(field, violations[0])
 
     def assert_writable(self, updates: Dict[str, Any]) -> None:
         """
-        Raise ManifestLockError if any pending update violates a field constraint.
+        Raise ManifestContractError if any pending update violates a field constraint.
 
         Parameters
         ----------
@@ -360,14 +363,14 @@ class ManifestLock:
             node[parts[-1]] = value
             violations = assertion.check(tmp)
             if violations:
-                raise ManifestLockError(dotkey, violations[0], actual=value)
+                raise ManifestContractError(dotkey, violations[0], actual=value)
 
     def assert_phase_order(self) -> None:
         """
         Assert that no phase is marked 'passed' before its prerequisite.
 
         Phase order: semantic → testbench → simulation → coverage → red_team
-        Raises ManifestLockError if a phase is complete but its predecessor is not.
+        Raises ManifestContractError if a phase is complete but its predecessor is not.
         """
         PHASE_ORDER = ["semantic","testbench","simulation","coverage","red_team"]
         data = self.load()
@@ -376,7 +379,7 @@ class ManifestLock:
         for phase in PHASE_ORDER:
             status = _get_nested(data, f"phases.{phase}.status")
             if status == "passed" and prev_status not in ("passed", None):
-                raise ManifestLockError(
+                raise ManifestContractError(
                     f"phases.{phase}.status",
                     f"Phase '{phase}' is 'passed' but predecessor status "
                     f"is '{prev_status}' (expected 'passed')",
@@ -389,7 +392,7 @@ class ManifestLock:
         Print a human-readable validation report.
 
         Returns 0 if no violations, 1 if violations found.
-        If strict=True, raises ManifestLockError on first violation instead.
+        If strict=True, raises ManifestContractError on first violation instead.
         """
         violations = self.validate()
         if not violations:
@@ -400,7 +403,7 @@ class ManifestLock:
         for v in violations:
             print(f"      • {v}")
             if strict:
-                raise ManifestLockError("manifest", v)
+                raise ManifestContractError("manifest", v)
         return 1
 
 
@@ -416,9 +419,9 @@ def _main() -> int:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python manifest_lock.py run/manifest.json
-  python manifest_lock.py run/manifest.json --strict
-  python manifest_lock.py run/manifest.json --field metrics.coveragepct
+  python manifest_contract.py run/manifest.json
+  python manifest_contract.py run/manifest.json --strict
+  python manifest_contract.py run/manifest.json --field metrics.coveragepct
 """,
     )
     p.add_argument("manifest",  type=Path, help="Path to manifest.json")
@@ -428,12 +431,12 @@ Examples:
                    help="Validate only this dot-path field")
     args = p.parse_args()
 
-    lock = ManifestLock(args.manifest)
+    lock = ManifestContract(args.manifest)
 
     if args.field:
         try:
             data = lock.load()
-        except ManifestLockError as exc:
+        except ManifestContractError as exc:
             print(f"ERROR: {exc}", file=sys.stderr)
             return 1
         assertion = next(
