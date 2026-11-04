@@ -1020,3 +1020,9 @@ Agent L synthesises the RTL design to a gate-level netlist using Yosys and verif
 ---
 
 *End of AVA Interface Contracts v2.1.0 extensions. All changes require a schema version bump, a CHANGELOG entry, and simultaneous update of all agent implementations and this document.*
+
+---
+
+## 23. Canonical schema files
+
+`AGENT_A/commitlog.schema.json` and `AGENT_A/run_manifest.schema.json` are the canonical schemas. The copies under `AGENT_B/schemas/`, `AGENT_C/` and `AGENT_F/` are not authoritative and have diverged from these; they are being reconciled under #20. Until then, treat AGENT_A's files as the source of truth when the copies disagree. `tests/test_schema_uniqueness.py` pins the number of distinct copies per filename so the divergence cannot grow unnoticed.
