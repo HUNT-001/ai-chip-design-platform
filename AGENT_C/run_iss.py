@@ -54,8 +54,6 @@ Definition of done
 from __future__ import annotations
 
 import argparse
-import contextlib
-import errno
 import json
 import logging
 import os
@@ -74,6 +72,11 @@ _SELF_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(_SELF_DIR))
 from spike_parser import parse_spike_log_streaming, detect_format, SCHEMA_VERSION  # noqa: E402
 from iss_efficiency import record_manifest_run  # noqa: E402
+
+# Shared code lives at the repo root.  Appended, not inserted at 0, so nothing
+# that already resolves from this directory changes.
+sys.path.append(str(_SELF_DIR.parent))
+from ava_shared.manifest_io import atomic_update_manifest  # noqa: E402,F401
 
 # ── Logging setup ───────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -401,79 +404,6 @@ def save_manifest(run_dir: Path, manifest: dict) -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 # AVA Orchestrator manifest mode
 # ─────────────────────────────────────────────────────────────────────────────
-
-@contextlib.contextmanager
-def _manifest_lock(manifest_path: Path):
-    """Hold an exclusive OS lock on ``<manifest>.lock`` for one read-modify-write.
-
-    The lock is on a sidecar, not on the manifest: the manifest is replaced on
-    every write, so a lock on it would be on a file nobody else opens.  The
-    sidecar is never deleted -- removing it while another process waits on it
-    would hand the two of them different locks.
-    """
-    lock_path = Path(str(manifest_path) + ".lock")
-    with open(lock_path, "a+b") as f:
-        if sys.platform == "win32":
-            import msvcrt
-            f.seek(0)
-            while True:
-                try:
-                    msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)
-                    break
-                except OSError as exc:
-                    # LK_LOCK gives up after ~10 s with EDEADLOCK; keep waiting.
-                    if exc.errno != errno.EDEADLOCK:
-                        raise
-            try:
-                yield
-            finally:
-                f.seek(0)
-                msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
-        else:
-            import fcntl
-            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-            try:
-                yield
-            finally:
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-
-
-def atomic_update_manifest(manifest_path: Path, updates: Dict) -> None:
-    """Apply *updates* to the manifest, serialised against other writers.
-
-    Without the lock, two processes each read the same manifest, apply their
-    own updates and write back, and the second write silently discards the
-    first (#23).
-    """
-    with _manifest_lock(manifest_path):
-        _update_manifest_unlocked(manifest_path, updates)
-
-
-def _update_manifest_unlocked(manifest_path: Path, updates: Dict) -> None:
-    """
-    Atomically update a manifest JSON file using dotted-key notation.
-
-    ``updates`` maps dotted paths to values:
-        {"phases.iss.status": "completed", "outputs.iss_commitlog": "foo.jsonl"}
-    becomes:
-        manifest["phases"]["iss"]["status"] = "completed"
-        manifest["outputs"]["iss_commitlog"] = "foo.jsonl"
-
-    Uses write-to-tmp then rename for crash safety on POSIX filesystems.
-    """
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-
-    for dotted_key, value in updates.items():
-        parts = dotted_key.split(".")
-        node = manifest
-        for part in parts[:-1]:
-            node = node.setdefault(part, {})
-        node[parts[-1]] = value
-
-    tmp = manifest_path.with_suffix(".tmp")
-    tmp.write_text(json.dumps(manifest, indent=2, default=str), encoding="utf-8")
-    os.replace(tmp, manifest_path)   # atomic on POSIX
-
 
 def run_iss_manifest(manifest_path: Path) -> int:
     """
