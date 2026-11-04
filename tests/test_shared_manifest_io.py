@@ -135,3 +135,20 @@ def test_importable_from_a_script_outside_the_repo_with_root_appended(tmp_path):
     )
     assert proc.returncode == 0, proc.stderr[-2000:]
     assert json.loads(manifest.read_text()) == {"phases": {"iss": {"status": "done"}}}
+
+
+def test_update_preserves_the_manifest_file_mode(tmp_path):
+    import stat
+
+    from ava_shared.manifest_io import atomic_update_manifest
+
+    p = tmp_path / "manifest.json"
+    p.write_text('{"a": 0}')
+    if sys.platform == "win32":
+        atomic_update_manifest(p, {"a": 1})
+        assert json.loads(p.read_text()) == {"a": 1}
+        return
+    os.chmod(p, 0o644)
+    atomic_update_manifest(p, {"a": 1})
+    assert stat.S_IMODE(os.stat(p).st_mode) == 0o644
+    assert json.loads(p.read_text()) == {"a": 1}
