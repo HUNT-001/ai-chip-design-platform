@@ -17,6 +17,7 @@ import contextlib
 import errno
 import json
 import os
+import stat
 import sys
 import tempfile
 from pathlib import Path
@@ -97,6 +98,8 @@ def atomic_update_manifest(manifest_path: Path, updates: Dict[str, Any]) -> None
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as tmp:
                 tmp.write(json.dumps(manifest, indent=2, default=str))
+            # mkstemp creates 0600; keep the mode the manifest already had.
+            os.chmod(tmp_name, stat.S_IMODE(os.stat(manifest_path).st_mode))
             os.replace(tmp_name, manifest_path)
         except BaseException:
             with contextlib.suppress(OSError):
