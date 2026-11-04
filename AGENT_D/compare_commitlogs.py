@@ -59,8 +59,6 @@ from __future__ import annotations
 
 import argparse
 import bz2
-import contextlib
-import errno
 import gzip
 import hashlib
 import io
@@ -85,6 +83,14 @@ from typing import (
 
 import queue
 import threading
+
+# Shared code lives at the repo root.  Appended, not inserted at 0, so nothing
+# that already resolves from this directory changes.
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+from ava_shared.manifest_io import (  # noqa: E402
+    ManifestPathConflict,
+    atomic_update_manifest as _shared_atomic_update_manifest,
+)
 
 __version__ = "3.0.0"
 __all__ = [
@@ -1956,83 +1962,24 @@ def atomic_write(path: Path, content: str) -> None:
         raise
 
 
-@contextlib.contextmanager
-def _manifest_lock(manifest_path: Path):
-    """Hold an exclusive OS lock on ``<manifest>.lock`` for one read-modify-write.
-
-    The lock is on a sidecar, not on the manifest: the manifest is replaced on
-    every write, so a lock on it would be on a file nobody else opens.  The
-    sidecar is never deleted -- removing it while another process waits on it
-    would hand the two of them different locks.
-    """
-    lock_path = Path(str(manifest_path) + ".lock")
-    with open(lock_path, "a+b") as f:
-        if sys.platform == "win32":
-            import msvcrt
-            f.seek(0)
-            while True:
-                try:
-                    msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)
-                    break
-                except OSError as exc:
-                    # LK_LOCK gives up after ~10 s with EDEADLOCK; keep waiting.
-                    if exc.errno != errno.EDEADLOCK:
-                        raise
-            try:
-                yield
-            finally:
-                f.seek(0)
-                msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
-        else:
-            import fcntl
-            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-            try:
-                yield
-            finally:
-                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-
-
 def atomic_update_manifest(manifest_path: Path, updates: Dict[str, Any]) -> None:
-    """Apply *updates* to the manifest, serialised against other writers.
+    """Apply dot-notation *updates* to the manifest, serialised against other writers.
 
-    Without the lock, two processes each read the same manifest, apply their
-    own updates and write back, and the second write silently discards the
-    first (#23).
-    """
-    manifest_path = Path(manifest_path)
-    if not manifest_path.parent.is_dir():   # keep ConfigError, not the lock's OSError
-        raise ConfigError(f"Cannot read manifest {manifest_path}: no such directory")
-    with _manifest_lock(manifest_path):
-        _update_manifest_unlocked(manifest_path, updates)
-
-
-def _update_manifest_unlocked(manifest_path: Path, updates: Dict[str, Any]) -> None:
-    """Merge *updates* into the JSON manifest at *manifest_path* atomically.
-
-    Keys may use dot-notation to address nested fields::
+    The work is done by ``ava_shared.manifest_io``; this wrapper keeps
+    ``ConfigError`` as AGENT_D's failure type, which its callers catch::
 
         atomic_update_manifest(p, {"phases.compare.status": "passed"})
         # sets manifest["phases"]["compare"]["status"] = "passed"
     """
     manifest_path = Path(manifest_path)
+    if not manifest_path.parent.is_dir():
+        raise ConfigError(f"Cannot read manifest {manifest_path}: no such directory")
     try:
-        data: Dict[str, Any] = json.loads(manifest_path.read_text(encoding="utf-8"))
+        _shared_atomic_update_manifest(manifest_path, updates)
     except (FileNotFoundError, json.JSONDecodeError) as exc:
         raise ConfigError(f"Cannot read manifest {manifest_path}: {exc}") from exc
-
-    for key, value in updates.items():
-        if "." in key:
-            *parents, child = key.split(".")
-            d = data
-            for parent in parents:
-                if parent not in d or not isinstance(d[parent], dict):
-                    d[parent] = {}
-                d = d[parent]
-            d[child] = value
-        else:
-            data[key] = value
-
-    atomic_write(manifest_path, json.dumps(data, indent=2, default=str))
+    except ManifestPathConflict as exc:
+        raise ConfigError(f"Cannot update manifest {manifest_path}: {exc}") from exc
 
 
 def main_manifest(manifest_path: Path, base_cfg: Optional[CompareConfig] = None) -> int:
