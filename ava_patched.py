@@ -52,6 +52,19 @@ except ImportError:
         "Ollama not available — LLM features disabled"
     )
 
+# Failures that mean "the LLM backend is unreachable", the only ones the LLM
+# semantic path may degrade past (#86).  Programming errors (AttributeError,
+# NameError, TypeError) and invalid-argument errors from the client
+# (ollama.RequestError / ValueError) are our bugs and must propagate.
+_LLM_ENV_ERRORS: Tuple[type, ...] = (ConnectionError, OSError)
+try:
+    import httpx as _httpx
+    _LLM_ENV_ERRORS += (_httpx.TransportError,)
+except ImportError:
+    pass
+if OLLAMA_AVAILABLE:
+    _LLM_ENV_ERRORS += (_ollama.ResponseError,)
+
 # ── Extended pipeline agents (T1-T22) ─────────────────────────────────────────
 # Each imported with a graceful fallback so the base pipeline always works even
 # if a module is missing or has an import error.
@@ -419,6 +432,9 @@ class AVAError(Exception):
 
 class SemanticAnalysisError(AVAError):
     """Semantic analysis failed."""
+
+class _LLMReplyError(Exception):
+    """The LLM answered, but its reply cannot be used as a SemanticMap."""
 
 class TestbenchGenerationError(AVAError):
     """Testbench generation failed."""
@@ -1937,18 +1953,26 @@ Extract and return ONLY valid JSON (no markdown, no explanation):
                 content = content[start:end]
 
             parsed = json.loads(content)
-            return SemanticMap(**{
-                k: parsed[k] for k in SemanticMap.__dataclass_fields__
-                if k in parsed and k != "metadata"
-            })
+            if not isinstance(parsed, dict):
+                raise _LLMReplyError(
+                    f"reply is JSON {type(parsed).__name__}, not an object")
+            try:
+                return SemanticMap(**{
+                    k: parsed[k] for k in SemanticMap.__dataclass_fields__
+                    if k in parsed and k != "metadata"
+                })
+            except (TypeError, ValueError) as exc:
+                # Raised while building the map from the model's own fields:
+                # bad model output, not a bug in the call above.
+                raise _LLMReplyError(str(exc)) from exc
 
         except asyncio.TimeoutError as exc:
             reason, exc_name = "timeout", type(exc).__name__
             logger.warning("LLM timeout — falling back to rule-based analysis")
-        except (json.JSONDecodeError, KeyError, TypeError) as exc:
-            reason, exc_name = "parse_error", type(exc).__name__
+        except (json.JSONDecodeError, KeyError, _LLMReplyError) as exc:
+            reason, exc_name = "parse_error", type(exc.__cause__ or exc).__name__
             logger.warning("LLM response parse error: %s — falling back", exc)
-        except Exception as exc:
+        except _LLM_ENV_ERRORS as exc:
             reason, exc_name = "other", type(exc).__name__
             logger.warning("LLM failed: %s — falling back", exc)
 
