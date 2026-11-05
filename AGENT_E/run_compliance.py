@@ -2025,7 +2025,7 @@ def run_compliance_manifest(manifest_path: Path) -> int:
 
     Writes back to manifest (atomic deep-merge)
     -------------------------------------------
-    phases.compliance.status         "running" → "completed" | "error"
+    phases.compliance.status         "running_compliance" → "passed" | "failed" | "infra_error"
     phases.compliance.elapsed_sec
     phases.compliance.timestamp
     outputs.signaturedir             relative path to signature directory
@@ -2077,7 +2077,7 @@ def run_compliance_manifest(manifest_path: Path) -> int:
     patch_manifest(manifest_path, {
         "phases": {
             "compliance": {
-                "status":    "running",
+                "status":    "running_compliance",
                 "timestamp": now_iso,
             },
         },
@@ -2092,12 +2092,12 @@ def run_compliance_manifest(manifest_path: Path) -> int:
         patch_manifest(manifest_path, {
             "phases": {
                 "compliance": {
-                    "status":    "error",
+                    "status":    "infra_error",
                     "error":     str(exc),
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 },
             },
-            "status": "error",
+            "status": "infra_error",
         })
         return EXIT_CRASH
 
@@ -2141,7 +2141,7 @@ def run_compliance_manifest(manifest_path: Path) -> int:
     patch_manifest(manifest_path, {
         "phases": {
             "compliance": {
-                "status":      "completed",
+                "status":      overall_status,
                 "elapsed_sec": elapsed,
                 "timestamp":   datetime.now(timezone.utc).isoformat(),
                 "pass":        s["pass"],

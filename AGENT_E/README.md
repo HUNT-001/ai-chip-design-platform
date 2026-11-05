@@ -416,7 +416,7 @@ python run_compliance.py --manifest runs/run_042/run_manifest.json
 {
   "phases": {
     "compliance": {
-      "status":      "completed",
+      "status":      "passed",
       "elapsed_sec": 12.4,
       "timestamp":   "2025-01-15T14:30:35+00:00",
       "pass": 9, "fail": 0, "error": 0, "total": 9
@@ -1061,7 +1061,7 @@ FAIL  DIV-01  Sig mismatch at word[2]: golden=0xffffffff dut=0x00000000
 
 This is a real CPU bug. Word index 2 in DIV-01 is the div-by-zero result. The RISC-V spec (§M.2) mandates `-1` (0xFFFFFFFF); your DUT returns `0`. Check your division unit's handling of the divisor=0 case.
 
-### Manifest mode: `status` stays `"error"`
+### Manifest mode: `status` stays `"infra_error"`
 
 Agent E caught an unexpected exception. Check `compliance/compliance.log` in the `rundir` for the full traceback. Common causes:
 - `rundir` is not writable
