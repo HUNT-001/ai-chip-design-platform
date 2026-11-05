@@ -83,7 +83,7 @@ def _apply(manifest: Dict[str, Any], updates: Dict[str, Any]) -> None:
 def atomic_update_manifest(manifest_path: Path, updates: Dict[str, Any]) -> None:
     """Apply dotted-key *updates* to the manifest, serialised against other writers.
 
-    {"phases.iss.status": "completed"} sets
+    {"phases.iss.status": "passed"} sets
     manifest["phases"]["iss"]["status"].  The new content is written to a
     uniquely named temp file in the same directory and published with
     os.replace.

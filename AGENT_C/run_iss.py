@@ -450,7 +450,7 @@ def run_iss_manifest(manifest_path: Path) -> int:
     if not run_dir_str:
         log.error("Manifest missing 'rundir' field")
         atomic_update_manifest(manifest_path, {
-            "phases.iss.status": "error",
+            "phases.iss.status": "infra_error",
             "phases.iss.error":  "manifest missing 'rundir'",
         })
         return EXIT_CONFIG
@@ -458,7 +458,7 @@ def run_iss_manifest(manifest_path: Path) -> int:
     if not binary_str:
         log.error("Manifest missing 'binary' field")
         atomic_update_manifest(manifest_path, {
-            "phases.iss.status": "error",
+            "phases.iss.status": "infra_error",
             "phases.iss.error":  "manifest missing 'binary'",
         })
         return EXIT_CONFIG
@@ -469,7 +469,7 @@ def run_iss_manifest(manifest_path: Path) -> int:
     if not elf_path.exists():
         log.error("ELF not found: %s", elf_path)
         atomic_update_manifest(manifest_path, {
-            "phases.iss.status": "error",
+            "phases.iss.status": "infra_error",
             "phases.iss.error":  f"ELF missing: {elf_path}",
         })
         return EXIT_CONFIG
@@ -482,14 +482,14 @@ def run_iss_manifest(manifest_path: Path) -> int:
     run_dir.mkdir(parents=True, exist_ok=True)
 
     # ── Mark phase as running ──────────────────────────────────────────────
-    atomic_update_manifest(manifest_path, {"phases.iss.status": "running"})
+    atomic_update_manifest(manifest_path, {"phases.iss.status": "running_iss"})
 
     # ── Probe Spike ────────────────────────────────────────────────────────
     caps = probe_spike(spike_bin)
     if not caps["found"]:
         log.error("Spike not found: '%s'", spike_bin)
         atomic_update_manifest(manifest_path, {
-            "phases.iss.status": "error",
+            "phases.iss.status": "infra_error",
             "phases.iss.error":  f"Spike binary not found: {spike_bin}",
         })
         return EXIT_INFRA
@@ -521,7 +521,7 @@ def run_iss_manifest(manifest_path: Path) -> int:
 
     if rc == -127 or not spike_output.strip():
         atomic_update_manifest(manifest_path, {
-            "phases.iss.status": "error",
+            "phases.iss.status": "infra_error",
             "phases.iss.error":  f"Spike produced no output (exit={rc})",
             "phases.iss.duration_s": duration_s,
         })
@@ -538,14 +538,14 @@ def run_iss_manifest(manifest_path: Path) -> int:
     except Exception as exc:
         log.error("Parser failed: %s", exc, exc_info=True)
         atomic_update_manifest(manifest_path, {
-            "phases.iss.status": "error",
+            "phases.iss.status": "infra_error",
             "phases.iss.error":  f"Parser exception: {exc}",
         })
         return EXIT_INFRA
 
     if count == 0:
         atomic_update_manifest(manifest_path, {
-            "phases.iss.status": "error",
+            "phases.iss.status": "infra_error",
             "phases.iss.error":  "Parser produced zero records",
         })
         return EXIT_INFRA
@@ -557,7 +557,7 @@ def run_iss_manifest(manifest_path: Path) -> int:
 
     # ── Atomic manifest success update ────────────────────────────────────
     atomic_update_manifest(manifest_path, {
-        "phases.iss.status":       "completed",
+        "phases.iss.status":       "passed",
         "phases.iss.duration_s":   duration_s,
         "phases.iss.commit_count": count,
         "phases.iss.log_mode":     log_mode,
@@ -716,7 +716,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     }
     manifest = load_or_create_manifest(run_dir, config)
     manifest["inputs"]["elf"] = str(elf_path)
-    manifest["status"] = "running"
+    manifest["status"] = "running_iss"
     save_manifest(run_dir, manifest)
 
     # ── Run Spike ──────────────────────────────────────────────────────────
@@ -730,7 +730,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     if rc == -127:
         log.error("Spike binary could not be executed.")
-        manifest["status"] = "error"
+        manifest["status"] = "infra_error"
         save_manifest(run_dir, manifest)
         return EXIT_INFRA
 
@@ -744,7 +744,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             "  4. No tohost? Use --pk or add self-hosted exit.",
             elf_path, isa_upper, elf_path,
         )
-        manifest["status"] = "error"
+        manifest["status"] = "infra_error"
         save_manifest(run_dir, manifest)
         return EXIT_INFRA
 
@@ -769,7 +769,7 @@ def main(argv: Optional[List[str]] = None) -> int:
             "Parser produced zero records.\nFirst 30 lines of Spike output:\n%s",
             "\n".join(spike_output.splitlines()[:30]),
         )
-        manifest["status"] = "error"
+        manifest["status"] = "infra_error"
         save_manifest(run_dir, manifest)
         return EXIT_INFRA
 
@@ -779,7 +779,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         errs = validate_commitlog(commitlog_path, sample_size=200)
         if errs:
             log.error("Validation FAILED:\n  %s", "\n  ".join(errs))
-            manifest["status"] = "error"
+            manifest["status"] = "infra_error"
             save_manifest(run_dir, manifest)
             return EXIT_INFRA
         log.info("Validation PASSED")
@@ -787,7 +787,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     # ── Finalise legacy manifest ───────────────────────────────────────────
     manifest["outputs"]["iss_commitlog"] = str(commitlog_path)
     manifest["outputs"]["iss_log"]       = str(iss_log)
-    manifest["status"] = "pass"
+    manifest["status"] = "passed"
     manifest["iss_stats"] = {
         "commit_count":  count,
         "elapsed_s":     round(elapsed, 3),
