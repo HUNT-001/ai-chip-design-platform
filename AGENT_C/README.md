@@ -549,7 +549,7 @@ cat /tmp/run_001/manifest.json
 #     ...
 #     "phases": {
 #       "iss": {
-#         "status": "completed",
+#         "status": "passed",
 #         "duration_s": 0.142,
 #         "commit_count": 47,
 #         "log_mode": "log_commits",
