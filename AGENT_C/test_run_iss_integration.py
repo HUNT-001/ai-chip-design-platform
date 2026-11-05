@@ -309,7 +309,7 @@ class TestRunIssManifest(unittest.TestCase):
         with p1, p2:
             run_iss.run_iss_manifest(mp)
         m = json.loads(mp.read_text())
-        self.assertEqual(m["phases"]["iss"]["status"], "completed")
+        self.assertEqual(m["phases"]["iss"]["status"], "passed")
         self.assertEqual(m["outputs"]["iss_commitlog"], "outputs/iss_commitlog.jsonl")
         self.assertIn("commit_count", m["phases"]["iss"])
         self.assertEqual(m["phases"]["iss"]["commit_count"], EXPECTED_B)
@@ -331,7 +331,7 @@ class TestRunIssManifest(unittest.TestCase):
         rc = run_iss.run_iss_manifest(mp)
         self.assertEqual(rc, run_iss.EXIT_CONFIG)
         m = json.loads(mp.read_text())
-        self.assertEqual(m["phases"]["iss"]["status"], "error")
+        self.assertEqual(m["phases"]["iss"]["status"], "infra_error")
 
     def test_missing_elf_file(self):
         """ELF path in manifest does not exist → EXIT_CONFIG."""
