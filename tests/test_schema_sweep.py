@@ -19,7 +19,7 @@ import pytest
 import yaml
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
-EXPECTED_SCHEMA_COUNT = 8
+EXPECTED_SCHEMA_COUNT = 2
 EXCLUDED_TOP_LEVEL = ("_legacy", "corpus")
 
 

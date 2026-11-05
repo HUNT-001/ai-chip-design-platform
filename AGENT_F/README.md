@@ -248,8 +248,8 @@ ava-platform/
 │                            cross-field consistency checks, phase ordering
 │
 └── schemas/
-    ├── commitlog.schema.json      JSON Schema for RTL/ISS commit log entries
-    └── run_manifest.schema.json   JSON Schema for the inter-agent manifest
+    ├── commitlog.schema.json      (canonical copy: AGENT_A/commitlog.schema.json)
+    └── run_manifest.schema.json   (canonical copy: AGENT_A/run_manifest.schema.json)
 ```
 
 ---
@@ -277,7 +277,7 @@ cp coverage_pipeline.py coverage_database.py cold_path_ranker.py \
    manifest_contract.py ava_patched.py ava_coverage_patch.py ./
 
 mkdir -p schemas
-cp schemas/commitlog.schema.json schemas/run_manifest.schema.json schemas/
+cp ../AGENT_A/commitlog.schema.json ../AGENT_A/run_manifest.schema.json schemas/
 ```
 
 ### Patch an existing ava.py (historical — no longer runnable)
@@ -991,7 +991,7 @@ usage: ava_patched --rtl FILE [--microarch {in_order,out_of_order,superscalar}]
 
 ## 17. Schema Reference
 
-### commitlog.schema.json
+### commitlog.schema.json (canonical: AGENT_A/commitlog.schema.json)
 
 Each entry in a commit log (RTL or ISS) must conform to:
 
@@ -1004,7 +1004,7 @@ Each entry in a commit log (RTL or ISS) must conform to:
 }
 ```
 
-### run_manifest.schema.json (key fields)
+### run_manifest.schema.json (key fields; canonical: AGENT_A/run_manifest.schema.json)
 
 ```json
 {
@@ -1048,7 +1048,7 @@ Each entry in a commit log (RTL or ISS) must conform to:
 
 ### Adding a new manifest field
 
-1. Add the field to `schemas/run_manifest.schema.json`
+1. Add the field to `AGENT_A/run_manifest.schema.json`
 2. Add a `FieldAssertion` to `MANIFEST_ASSERTIONS` in `manifest_contract.py`
 3. If Agent F should write it, add it to the `update_manifest()` call in `_run_manifest_mode()`
 

@@ -15,8 +15,8 @@ ROOT = Path(__file__).resolve().parent.parent
 
 # filename -> number of distinct canonicalised documents among first-party copies
 PINNED_DISTINCT = {
-    "run_manifest.schema.json": 4,
-    "commitlog.schema.json": 4,
+    "run_manifest.schema.json": 1,
+    "commitlog.schema.json": 1,
 }
 
 SKIP_PREFIXES = ("_legacy", "corpus")

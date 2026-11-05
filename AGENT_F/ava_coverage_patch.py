@@ -759,7 +759,7 @@ def format_ava_schema(
     """
     Format a coverage metrics dict into the canonical AVA inter-agent schema v3.0.
 
-    This matches ``schemas/run_manifest.schema.json`` and is the single source
+    This matches ``AGENT_A/run_manifest.schema.json`` and is the single source
     of truth for the ``coveragesummary.json`` output contract.
 
     Parameters

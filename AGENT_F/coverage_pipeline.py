@@ -815,7 +815,7 @@ class CoverageReporter:
 
         This is the canonical output consumed by other agents (Agent A schema,
         Agent D comparator, Agent H red team).  File name and schema are
-        contractually fixed by ``schemas/run_manifest.schema.json``.
+        contractually fixed by ``AGENT_A/run_manifest.schema.json``.
 
         Parameters
         ----------
@@ -1357,7 +1357,7 @@ def format_ava_schema(
       * Agent G test gen    (reads ``top_cold_paths``)
       * manifest_contract.py    (validates required fields)
 
-    The schema matches ``schemas/run_manifest.schema.json``.
+    The schema matches ``AGENT_A/run_manifest.schema.json``.
     """
     total_hit   = sum(v.get("hit",   0) for v in (raw_counts or {}).values())
     total_pts   = sum(v.get("total", 0) for v in (raw_counts or {}).values())
