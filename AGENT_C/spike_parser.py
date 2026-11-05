@@ -4,7 +4,7 @@ sim/spike_parser.py
 Agent C — Spike Log Parser
 
 Converts raw Spike stderr/stdout into schema-compliant commit-log records
-(matching schemas/commitlog.schema.json).
+(matching AGENT_A/commitlog.schema.json).
 
 Spike emits two distinct log formats depending on flags and version:
 
@@ -592,7 +592,7 @@ def parse_spike_log(
 ) -> List[dict]:
     """
     Parse *all* of a Spike log and return a list of commit-log dicts
-    conforming to schemas/commitlog.schema.json.
+    conforming to AGENT_A/commitlog.schema.json.
 
     Parameters
     ----------

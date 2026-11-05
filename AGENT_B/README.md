@@ -358,7 +358,7 @@ ava/
 │       └── cpu_top.v               # Top-level wrapper (Verilator --top)
 │
 ├── schemas/
-│   └── commitlog.schema.json       # v2.0.0 canonical schema — all agents import this
+│   └── commitlog.schema.json       # superseded: the canonical schema is AGENT_A/commitlog.schema.json
 │
 ├── docs/
 │   └── interfaces.md               # Agent contracts, manifest spec, field tables
@@ -889,7 +889,7 @@ The commit log is the interface between Agent B (RTL), Agent C (ISS), and Agent 
 - Missing trap fields causing false negatives on trap-related bugs
 - Field name mismatches between agents causing silent failures
 
-The v2.0.0 schema (`schemas/commitlog.schema.json`) is the single source of truth. It is machine-checkable with any JSON Schema validator. The mandatory fields (`schemaversion`, `runid`, `hart`, `seq`, `priv`, `instrwidth`, `fpregs`, `src`) ensure that every consumer can verify it is reading a compatible record before processing it.
+The v2.0.0 schema (`AGENT_A/commitlog.schema.json`) is the single source of truth. It is machine-checkable with any JSON Schema validator. The mandatory fields (`schemaversion`, `runid`, `hart`, `seq`, `priv`, `instrwidth`, `fpregs`, `src`) ensure that every consumer can verify it is reading a compatible record before processing it.
 
 ### The manifest pattern
 

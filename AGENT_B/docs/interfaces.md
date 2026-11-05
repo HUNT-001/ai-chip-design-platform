@@ -1,11 +1,11 @@
 # AVA v2.0.0 — Agent Interface Contracts
 
 > **Single source of truth.** All agents MUST conform to this document.  
-> Do not keep local schema copies — import from `schemas/commitlog.schema.json`.
+> Do not keep local schema copies — import from `AGENT_A/commitlog.schema.json`.
 
 ---
 
-## 1. Commit log format (`schemas/commitlog.schema.json`)
+## 1. Commit log format (`AGENT_A/commitlog.schema.json`)
 
 Every backend writes **one JSON object per line** (JSONL) to `<rundir>/rtl.commitlog.jsonl`
 or `<rundir>/iss.commitlog.jsonl`.
