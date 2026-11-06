@@ -115,3 +115,12 @@ def test_legacy_a_timed_out_spike_with_partial_output_is_timeout(tmp_path):
     rc, status = _run_legacy(tmp_path, _hanging_stub(tmp_path))
     assert status == "timeout"
     assert rc == run_iss.EXIT_INFRA
+
+
+# ── #121: the legacy CLI path must also see a nonzero Spike exit ─────────────
+
+@pytest.mark.parametrize("code", [1, 2])
+def test_legacy_a_nonzero_spike_exit_is_infra_error_not_passed(tmp_path, code):
+    rc, status = _run_legacy(tmp_path, _stub_spike(tmp_path, code))
+    assert status == "infra_error"
+    assert rc == run_iss.EXIT_INFRA

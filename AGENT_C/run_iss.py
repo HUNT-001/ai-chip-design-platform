@@ -764,6 +764,13 @@ def main(argv: Optional[List[str]] = None) -> int:
         save_manifest(run_dir, manifest)
         return EXIT_INFRA
 
+    if rc != 0:
+        # A partial log from a Spike that failed is not evidence about the DUT.
+        log.error("Spike exited nonzero (exit=%d); the partial log is not used.", rc)
+        manifest["status"] = "infra_error"
+        save_manifest(run_dir, manifest)
+        return EXIT_INFRA
+
     # ── Parse commit log (library call — no subprocess overhead) ───────────
     commitlog_path = run_dir / COMMITLOG_FILENAME
 
