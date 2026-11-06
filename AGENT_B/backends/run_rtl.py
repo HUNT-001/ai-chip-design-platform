@@ -381,17 +381,17 @@ def main() -> int:
             sys.exit(f"[run_rtl] RTL file not found: {f}")
 
     build_elapsed = 0.0
-    build_status  = "pass"
+    build_status  = "passed"
 
     try:
         exe, build_elapsed = verilator_build(args, params, build_dir)
     except RuntimeError as e:
         print(f"[build] FAILED: {e}")
-        build_status = "fail"
+        build_status = "build_error"
         if params["manifest_path"]:
             patch_manifest(params["manifest_path"], {
                 "phases": {"build": {
-                    "status":      "fail",
+                    "status":      "build_error",
                     "elapsed_sec": 0.0,
                     "timestamp":   now_iso,
                     "error":       str(e),
@@ -409,7 +409,7 @@ def main() -> int:
                 "phases": {
                     "build": {"status": build_status, "elapsed_sec": build_elapsed,
                               "timestamp": now_iso},
-                    "rtl":   {"status": "fail", "elapsed_sec": 0.0,
+                    "rtl":   {"status": "infra_error", "elapsed_sec": 0.0,
                               "timestamp": now_iso, "error": str(e)},
                 },
             })
@@ -430,7 +430,7 @@ def main() -> int:
                     "timestamp":   now_iso,
                 },
                 "rtl": {
-                    "status":      "pass" if sim["sim_exit_code"] == 0 else "fail",
+                    "status":      "passed" if sim["sim_exit_code"] == 0 else "failed",
                     "elapsed_sec": round(sim["elapsed_sec"], 3),
                     "retired":     sim["retired"],
                     "cycles":      sim["total_cycles"],
@@ -458,7 +458,7 @@ def main() -> int:
             "phases": {
                 "build": {"status": build_status, "elapsed_sec": round(build_elapsed, 3),
                           "timestamp": now_iso},
-                "rtl":   {"status": "pass" if sim["sim_exit_code"] == 0 else "fail",
+                "rtl":   {"status": "passed" if sim["sim_exit_code"] == 0 else "failed",
                           "elapsed_sec": round(sim["elapsed_sec"], 3),
                           "retired": sim["retired"], "cycles": sim["total_cycles"],
                           "timestamp": now_iso},
