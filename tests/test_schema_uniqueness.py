@@ -41,16 +41,47 @@ def scan():
     return {name: count_distinct(docs) for name, docs in groups.items()}
 
 
-def test_distinct_schema_count_matches_pin():
-    actual = scan()
-    assert set(actual) == set(PINNED_DISTINCT), (
-        f"schema filenames changed: actual {sorted(actual)} vs pinned {sorted(PINNED_DISTINCT)}"
-    )
-    for name, pinned in PINNED_DISTINCT.items():
-        assert actual[name] <= pinned, f"{name}: {actual[name]} distinct > pinned {pinned}"
-        assert actual[name] >= pinned, (
-            f"{name}: only {actual[name]} distinct, pin says {pinned}; lower the pin"
+def problems(actual, pinned):
+    """Why `actual` (filename -> distinct count) does not match `pinned`; [] if it does."""
+    found = []
+    if set(actual) != set(pinned):
+        found.append(
+            f"schema filenames changed: actual {sorted(actual)} vs pinned {sorted(pinned)}"
         )
+    for name, pin in pinned.items():
+        if name not in actual:
+            continue
+        if actual[name] > pin:
+            found.append(f"{name}: {actual[name]} distinct > pinned {pin}")
+        elif actual[name] < pin:
+            found.append(f"{name}: only {actual[name]} distinct, pin says {pin}; lower the pin")
+    return found
+
+
+def main():
+    actual = scan()
+    for name in sorted(actual):
+        print(f"{name}: {actual[name]} distinct (pinned {PINNED_DISTINCT.get(name, 'none')})")
+    found = problems(actual, PINNED_DISTINCT)
+    for line in found:
+        print(f"FAIL {line}")
+    if found:
+        return 1
+    print(f"Schema uniqueness OK: {len(actual)} filename(s) match their pins")
+    return 0
+
+
+def test_distinct_schema_count_matches_pin():
+    assert problems(scan(), PINNED_DISTINCT) == []
+
+
+def test_problems_reports_a_diverging_copy_a_stale_pin_and_a_new_filename():
+    pin = {"a.schema.json": 1}
+    assert problems({"a.schema.json": 1}, pin) == []
+    assert any("2 distinct > pinned 1" in m for m in problems({"a.schema.json": 2}, pin))
+    assert any("lower the pin" in m for m in problems({"a.schema.json": 1}, {"a.schema.json": 2}))
+    assert any("filenames changed" in m for m in problems(
+        {"a.schema.json": 1, "b.schema.json": 1}, pin))
 
 
 def test_counter_counts_differing_docs():
@@ -71,3 +102,7 @@ def test_script_mode_prints_the_distinct_counts_and_exits_zero():
     assert proc.returncode == 0, proc.stdout + proc.stderr
     for name, pinned in PINNED_DISTINCT.items():
         assert f"{name}: {pinned} distinct" in proc.stdout, proc.stdout
+
+
+if __name__ == "__main__":
+    sys.exit(main())

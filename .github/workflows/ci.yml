@@ -136,7 +136,12 @@ jobs:
           PYEOF
 
       - name: Validate JSON schemas
-        run: python tests/test_schema_sweep.py
+        # Both checks run even if the first fails, so one log shows both results.
+        run: |
+          rc=0
+          python tests/test_schema_sweep.py || rc=1
+          python tests/test_schema_uniqueness.py || rc=1
+          exit $rc
 
       - name: Check all agent modules importable
         run: |
