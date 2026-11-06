@@ -184,7 +184,14 @@ MANIFEST_ASSERTIONS: List[FieldAssertion] = [
     # ── Phases ─────────────────────────────────────────────────────────────
     FieldAssertion("phases.coverage.status",
                    types=(str,),
-                   enum=["pending","running","passed","failed"],
+                   # AGENT_A/run_manifest.schema.json $defs.lifecycle_status, copied
+                   # here so this module stays standalone; tests pin it to the schema.
+                   enum=["pending", "building", "running_iss", "running_rtl",
+                         "running_formal", "comparing", "analyzing_coverage",
+                         "running_compliance", "running_memory_check",
+                         "running_cdc", "running_perf", "running_equiv",
+                         "passed", "failed", "timeout", "build_error",
+                         "infra_error", "cancelled"],
                    description="Coverage phase lifecycle status."),
     FieldAssertion("phases.coverage.duration",
                    types=(int, float), minimum=0.0,
