@@ -110,7 +110,7 @@ Agents **read** `seed`, `binary`, `dut`, `rundir` and **write only** their own `
 ```jsonc
 {
   "phases": {
-    "iss": { "status": "pass", "elapsed_sec": 0.04, "retired": 87 }
+    "iss": { "status": "passed", "elapsed_sec": 0.04, "retired": 87 }
   },
   "outputs": {
     "isscommitlog": "runs/run_42/iss.commitlog.jsonl"
@@ -123,7 +123,7 @@ Agents **read** `seed`, `binary`, `dut`, `rundir` and **write only** their own `
 ```jsonc
 {
   "phases": {
-    "compare": { "status": "pass", "divergence_seq": null }
+    "compare": { "status": "passed", "divergence_seq": null }
   },
   "outputs": {
     "bugreports": []
