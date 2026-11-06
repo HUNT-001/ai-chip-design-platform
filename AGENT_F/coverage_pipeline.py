@@ -1621,15 +1621,15 @@ Exit codes
 
 def _print_summary(metrics: CoverageMetrics) -> None:
     W = 50
-    print("\n" + "─" * 70)
+    print("\n" + "-" * 70)
     print("  Coverage Summary")
-    print("─" * 70)
+    print("-" * 70)
     for k, v in metrics.to_ava_dict().items():
         bar_w  = int(v / 2)
-        bar    = "█" * bar_w + "░" * (W - bar_w)
+        bar    = "#" * bar_w + "." * (W - bar_w)
         colour = "\033[92m" if v >= 90 else "\033[93m" if v >= 70 else "\033[91m"
         reset  = "\033[0m"
-        star   = " ★" if k == "functional" else ""
+        star   = " *" if k == "functional" else ""
         print(f"  {k:<12}{colour}{v:>7.2f}%{reset}  [{bar}]{star}")
     print()
     print(f"  Line       : {metrics.lines_hit:>6} / {metrics.lines_total:<6} points hit")
@@ -1640,9 +1640,9 @@ def _print_summary(metrics: CoverageMetrics) -> None:
     print(f"  Cold lines   : {len(metrics.cold_lines)}")
     print(f"  Cold branches: {len(metrics.cold_branches)}")
     print(f"  Cold toggles : {len(metrics.cold_toggles)}")
-    grade = "✔ INDUSTRIAL GRADE" if metrics.is_industrial_grade() else "✘ Below threshold"
+    grade = "OK INDUSTRIAL GRADE" if metrics.is_industrial_grade() else "FAIL Below threshold"
     print(f"\n  Grade: {grade}")
-    print("─" * 70 + "\n")
+    print("-" * 70 + "\n")
 
 
 def main(argv: Optional[List[str]] = None) -> int:

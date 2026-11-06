@@ -403,10 +403,10 @@ class ManifestContract:
         """
         violations = self.validate()
         if not violations:
-            print(f"  ✔  {self._path} — manifest contract OK")
+            print(f"  OK  {self._path} — manifest contract OK")
             return 0
 
-        print(f"  ✘  {self._path} — {len(violations)} violation(s):")
+        print(f"  FAIL  {self._path} — {len(violations)} violation(s):")
         for v in violations:
             print(f"      • {v}")
             if strict:

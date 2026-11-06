@@ -535,11 +535,11 @@ def _print_summary(
               + (f"  ({spike_fail_r} FAIL)" if spike_fail_r else ""))
     print(f"  Manifest       : {manifest_path}")
     if all_errors:
-        print(f"\n  ⚠  {len(all_errors)} non-fatal error(s):")
+        print(f"\n  WARNING  {len(all_errors)} non-fatal error(s):")
         for e in all_errors:
             print(f"     • {e}")
     if not TOOLCHAIN_PREFIX:
-        print("\n  ⚠  No RISC-V toolchain found.  Assembly sources (.S) only.")
+        print("\n  WARNING  No RISC-V toolchain found.  Assembly sources (.S) only.")
         print("     Install riscv32-unknown-elf-gcc and re-run to produce ELFs.")
     print(SEP)
 

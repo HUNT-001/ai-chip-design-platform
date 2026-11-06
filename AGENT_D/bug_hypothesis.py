@@ -821,9 +821,9 @@ def _run_self_tests(verbose: bool = False) -> bool:
          "meta", 0.50),
     ]
 
-    print(f"\n{'═'*W}")
+    print(f"\n{'='*W}")
     print(f"  bug_hypothesis.py v{__version__} — self-test ({len(cases)} cases)")
-    print(f"{'═'*W}")
+    print(f"{'='*W}")
 
     passed = failed = 0
     for name, mismatch, exp_cat, exp_conf in cases:
@@ -841,12 +841,12 @@ def _run_self_tests(verbose: bool = False) -> bool:
                    f"expected {exp_cat!r}")
 
         if ok:
-            print(f"  ✓  {name}")
+            print(f"  OK  {name}")
             if verbose and hyps:
                 print(f"       [{hyps[0]['confidence']:.2f}] {hyps[0]['text'][:70]}")
             passed += 1
         else:
-            print(f"  ✗  {name}  — {why}")
+            print(f"  FAIL  {name}  — {why}")
             if verbose and hyps:
                 for h in hyps[:2]:
                     print(f"       [{h['confidence']:.2f}] {h['text'][:70]}")
@@ -860,15 +860,15 @@ def _run_self_tests(verbose: bool = False) -> bool:
     }
     missing_rules = ava_codes - set(HYPOTHESIS_DB.keys())
     if missing_rules:
-        print(f"  ✗  Hypothesis DB missing rules for: {sorted(missing_rules)}")
+        print(f"  FAIL  Hypothesis DB missing rules for: {sorted(missing_rules)}")
         failed += 1
     else:
-        print(f"  ✓  All 11 AVA codes have hypothesis rules")
+        print(f"  OK  All 11 AVA codes have hypothesis rules")
         passed += 1
 
-    print(f"{'─'*W}")
+    print(f"{'-'*W}")
     print(f"  Results: {passed} passed, {failed} failed")
-    print(f"{'═'*W}\n")
+    print(f"{'='*W}\n")
     return failed == 0
 
 
@@ -933,16 +933,16 @@ def main(argv: Optional[List[str]] = None) -> int:
     mtype = (report.get("mismatches") or [{}])[0].get("mismatch_type", "?")
     print(f"\nHypotheses for {mtype} mismatch "
           f"(step {(report.get('mismatches') or [{}])[0].get('step','?')}):")
-    print("─" * 72)
+    print("-" * 72)
     for i, h in enumerate(hypotheses, 1):
-        conf_bar = "█" * round(h["confidence"] * 10)
+        conf_bar = "#" * round(h["confidence"] * 10)
         print(f"\n  [{i}] [{conf_bar:<10}] {h['confidence']:.0%} "
               f"— {h['category'].upper()}")
         print(f"      {h['text']}")
         if h.get("detail"):
-            print(f"      ↳ {h['detail']}")
+            print(f"      -> {h['detail']}")
         if h.get("references"):
-            print(f"      📖 {', '.join(h['references'])}")
+            print(f"      Refs: {', '.join(h['references'])}")
     print()
     return 0
 

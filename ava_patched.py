@@ -3603,7 +3603,7 @@ endclass
 
         print("\n  Coverage:")
         for m, v in results["initial_results"]["coverage"].items():
-            bar = "█" * int(v / 2) + "░" * (50 - int(v / 2))
+            bar = "#" * int(v / 2) + "." * (50 - int(v / 2))
             print(f"    {m:<12} {v:>6.2f}%  [{bar}]")
 
         print("\n  Performance:")

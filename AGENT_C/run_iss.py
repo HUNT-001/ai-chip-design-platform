@@ -813,7 +813,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     }
     save_manifest(run_dir, manifest)
 
-    bar = "─" * 62
+    bar = "-" * 62
     print(f"\n{bar}")
     print(f"  AVA Agent C — Spike Golden Runner  [DONE]")
     print(bar)

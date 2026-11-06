@@ -1220,7 +1220,7 @@ def test_every_verdict_call_site_is_handed_the_comparator_findings():
     contract uses, for the same reason.
     """
     import ast
-    src = open(os.path.join(ROOT, "ava_patched.py")).read()
+    src = open(os.path.join(ROOT, "ava_patched.py"), encoding="utf-8").read()
     calls = [n for n in ast.walk(ast.parse(src))
              if isinstance(n, ast.Call)
              and isinstance(n.func, ast.Name)
