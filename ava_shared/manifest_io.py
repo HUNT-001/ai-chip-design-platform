@@ -20,6 +20,7 @@ import os
 import stat
 import sys
 import tempfile
+import time
 from pathlib import Path
 from typing import Any, Dict, Iterator
 
@@ -80,6 +81,22 @@ def _apply(manifest: Dict[str, Any], updates: Dict[str, Any]) -> None:
         node[parts[-1]] = value
 
 
+_REPLACE_ATTEMPTS = 40
+_REPLACE_DELAY_S = 0.05
+
+
+def _replace_with_retry(src: str, dst: Path) -> None:
+    """os.replace, retried on PermissionError (Windows: a reader holds dst open)."""
+    for attempt in range(_REPLACE_ATTEMPTS):
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError:
+            if attempt == _REPLACE_ATTEMPTS - 1:
+                raise
+            time.sleep(_REPLACE_DELAY_S)
+
+
 def atomic_update_manifest(manifest_path: Path, updates: Dict[str, Any]) -> None:
     """Apply dotted-key *updates* to the manifest, serialised against other writers.
 
@@ -100,7 +117,7 @@ def atomic_update_manifest(manifest_path: Path, updates: Dict[str, Any]) -> None
                 tmp.write(json.dumps(manifest, indent=2, default=str))
             # mkstemp creates 0600; keep the mode the manifest already had.
             os.chmod(tmp_name, stat.S_IMODE(os.stat(manifest_path).st_mode))
-            os.replace(tmp_name, manifest_path)
+            _replace_with_retry(tmp_name, manifest_path)
         except BaseException:
             with contextlib.suppress(OSError):
                 os.unlink(tmp_name)
