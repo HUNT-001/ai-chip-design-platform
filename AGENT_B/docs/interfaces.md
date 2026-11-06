@@ -83,12 +83,12 @@ Agents **read** `seed`, `binary`, `dut`, `rundir` and **write only** their own `
 {
   "phases": {
     "build": {
-      "status":      "pass",          // "pass" | "fail" | "skip"
+      "status":      "passed",        // "passed" | "build_error"
       "elapsed_sec": 5.21,
       "timestamp":   "2025-01-01T00:00:00Z"
     },
     "rtl": {
-      "status":      "pass",
+      "status":      "passed",   // "passed" | "failed" | "infra_error"
       "elapsed_sec": 1.08,
       "retired":     87,
       "cycles":      435,
