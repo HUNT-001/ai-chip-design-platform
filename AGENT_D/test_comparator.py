@@ -545,7 +545,7 @@ class TestManifestMode(unittest.TestCase):
             rc = main_manifest(mp)
             self.assertEqual(rc, EXIT_CONFIG)
             m = json.loads(mp.read_text())
-            self.assertEqual(m["phases"]["compare"]["status"], "error")
+            self.assertEqual(m["phases"]["compare"]["status"], "infra_error")
 
     def test_missing_rundir_returns_3(self):
         with tempfile.TemporaryDirectory() as td:
