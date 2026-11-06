@@ -937,7 +937,7 @@ class TestCLIIntegration(unittest.TestCase):
                 out = str(Path(td) / "report.md")
                 rc = main([p.rtl_path, p.iss_path, "--markdown", out, "--quiet"])
             self.assertEqual(rc, EXIT_MISMATCH)
-            content = Path(out).read_text()
+            content = Path(out).read_text(encoding="utf-8")
             self.assertIn("# Commit Log Comparison Report", content)
             self.assertIn("MISMATCH", content)
 

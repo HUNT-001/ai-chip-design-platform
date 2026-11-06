@@ -96,7 +96,7 @@ def test_no_import_of_coverage_pipeline_by_bare_name():
     There are two sites: the top-level one and the lazy CoverageDatabase import
     in AVA.__init__.
     """
-    tree = ast.parse((REPO_ROOT / "ava_patched.py").read_text())
+    tree = ast.parse((REPO_ROOT / "ava_patched.py").read_text(encoding="utf-8"))
     bare = [
         n.lineno for n in ast.walk(tree)
         if isinstance(n, ast.ImportFrom)
