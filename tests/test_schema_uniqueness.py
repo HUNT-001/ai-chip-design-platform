@@ -8,6 +8,7 @@ higher than the real count, so the number can only go down.
 """
 import json
 import subprocess
+import sys
 from collections import defaultdict
 from pathlib import Path
 
@@ -59,3 +60,14 @@ def test_counter_counts_differing_docs():
 
 def test_counter_collapses_identical_docs():
     assert count_distinct([{"a": 1, "b": 2}, {"b": 2, "a": 1}, {"a": 1, "b": 2}]) == 1
+
+
+def test_script_mode_prints_the_distinct_counts_and_exits_zero():
+    # CI runs this file as a script; it must say what it counted.
+    proc = subprocess.run(
+        [sys.executable, str(Path(__file__).resolve())],
+        cwd=ROOT, capture_output=True, text=True, timeout=120,
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
+    for name, pinned in PINNED_DISTINCT.items():
+        assert f"{name}: {pinned} distinct" in proc.stdout, proc.stdout
