@@ -33,9 +33,12 @@ WRITER_CALLS = {
     "_shared_atomic_update_manifest",
 }
 
-MIGRATED = ["AGENT_C/run_iss.py"]
+# file -> minimum number of status literals the scanner must still see in it
+MIGRATED = {
+    "AGENT_C/run_iss.py": 15,
+    "AGENT_E/run_compliance.py": 3,
+}
 PENDING = {
-    "AGENT_E/run_compliance.py",
     "AGENT_B/backends/run_rtl.py",
     "AGENT_D/compare_commitlogs.py",
 }
@@ -124,7 +127,7 @@ def test_scanner_control_ignores_what_is_not_a_status_write():
 
 # ── the producers ────────────────────────────────────────────────────────────
 
-@pytest.mark.parametrize("rel", MIGRATED)
+@pytest.mark.parametrize("rel", sorted(MIGRATED))
 def test_migrated_producer_writes_only_lifecycle_status(rel):
     bad = offenders(rel)
     assert bad == [], (
@@ -133,10 +136,28 @@ def test_migrated_producer_writes_only_lifecycle_status(rel):
     )
 
 
-@pytest.mark.parametrize("rel", MIGRATED)
+@pytest.mark.parametrize("rel", sorted(MIGRATED))
 def test_migrated_producer_scan_is_not_vacuous(rel):
     source = (REPO_ROOT / rel).read_text(encoding="utf-8")
-    assert len(status_writes(source)) >= 15, "scanner no longer sees the producer's writes"
+    assert len(status_writes(source)) >= MIGRATED[rel], (
+        f"scanner no longer sees {rel}'s writes"
+    )
+
+
+def test_agent_e_status_passed_through_a_variable_is_canonical():
+    # The scanner only sees literals.  AGENT_E also writes `"status": overall_status`,
+    # so follow that variable by hand: every literal assigned to it must be a
+    # lifecycle_status value, and there must be at least one such assignment.
+    source = (REPO_ROOT / "AGENT_E/run_compliance.py").read_text(encoding="utf-8")
+    assigned = []
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Assign) and any(
+            isinstance(t, ast.Name) and t.id == "overall_status" for t in node.targets
+        ):
+            assigned += [(node.lineno, lit) for lit in _literals(node.value)]
+    assert assigned, "overall_status is no longer assigned a literal; re-read this check"
+    bad = [(ln, lit) for ln, lit in assigned if lit not in lifecycle_enum()]
+    assert bad == [], f"AGENT_E/run_compliance.py overall_status: {bad}"
 
 
 @pytest.mark.parametrize("rel", sorted(PENDING))

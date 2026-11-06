@@ -252,7 +252,7 @@ class TestManifestEntrypoint(unittest.TestCase):
         p = self._mp()
         run_compliance_manifest(p)
         status = json.loads(p.read_text()).get("phases", {}).get("compliance", {}).get("status", "")
-        self.assertNotEqual(status, "running")
+        self.assertFalse(status.startswith("running"), status)
 
     def test_compliance_result_schema_v200(self):
         p = self._mp()
@@ -277,7 +277,29 @@ class TestManifestEntrypoint(unittest.TestCase):
             rc = run_compliance_manifest(p)
         self.assertEqual(rc, EXIT_CRASH)
         updated = json.loads(p.read_text())
-        self.assertEqual(updated["phases"]["compliance"]["status"], "error")
+        self.assertEqual(updated["phases"]["compliance"]["status"], "infra_error")
+
+    def test_failed_run_ends_phase_and_top_level_failed(self):
+        # Hand-built run: 1 of 2 tests mismatches, so the overall result is failed.
+        # The phase must say so too; it must not report "completed" or "passed".
+        p = self._mp()
+        report = _make_report((TestResult.PASS, TestResult.FAIL))
+        with patch.object(ComplianceRunner, "run", return_value=report):
+            rc = run_compliance_manifest(p)
+        self.assertEqual(rc, EXIT_FAIL)
+        updated = json.loads(p.read_text())
+        self.assertEqual(updated["phases"]["compliance"]["status"], "failed")
+        self.assertEqual(updated["status"], "failed")
+
+    def test_passing_run_ends_phase_and_top_level_passed(self):
+        p = self._mp()
+        report = _make_report((TestResult.PASS, TestResult.PASS))
+        with patch.object(ComplianceRunner, "run", return_value=report):
+            rc = run_compliance_manifest(p)
+        self.assertEqual(rc, EXIT_PASS)
+        updated = json.loads(p.read_text())
+        self.assertEqual(updated["phases"]["compliance"]["status"], "passed")
+        self.assertEqual(updated["status"], "passed")
 
     def test_main_routes_manifest_flag(self):
         p = self._mp()
@@ -1026,8 +1048,9 @@ class TestFullPipeline(unittest.TestCase):
         # on a documented exit code, never an undocumented one.
         self.assertIn(rc, (EXIT_PASS, EXIT_FAIL, EXIT_CRASH, EXIT_TOOL))
         updated = json.loads(mp.read_text())
-        self.assertNotEqual(
-            updated.get("phases", {}).get("compliance", {}).get("status"), "running"
+        self.assertFalse(
+            (updated.get("phases", {}).get("compliance", {}).get("status") or "")
+            .startswith("running")
         )
 
     def test_manifest_compliance_result_schema(self):
