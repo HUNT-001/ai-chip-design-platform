@@ -738,6 +738,12 @@ def main(argv: Optional[List[str]] = None) -> int:
     log.info("Spike exited %d in %.2fs | output lines: %d",
              rc, elapsed, spike_output.count("\n"))
 
+    if rc == -9:   # timeout sentinel set by run_spike_process
+        log.error("Spike timed out after %ds; the partial log is not used.", args.timeout)
+        manifest["status"] = "timeout"
+        save_manifest(run_dir, manifest)
+        return EXIT_INFRA
+
     if rc == -127:
         log.error("Spike binary could not be executed.")
         manifest["status"] = "infra_error"
