@@ -134,6 +134,12 @@ def validate_manifest(m: Any) -> List[str]:
             errs.append(f"manifest: missing required field '{f}'")
     if "status" in m and m["status"] not in _MANIFEST_STATUS:
         errs.append(f"manifest: 'status' {m['status']!r} not in {sorted(_MANIFEST_STATUS)}")
+    phases = m.get("phases")
+    if isinstance(phases, dict):
+        for name, ph in phases.items():
+            if isinstance(ph, dict) and "status" in ph and ph["status"] not in _MANIFEST_STATUS:
+                errs.append(f"manifest: 'phases.{name}.status' {ph['status']!r} "
+                            f"not in {sorted(_MANIFEST_STATUS)}")
     if "outputs" in m and not isinstance(m["outputs"], dict):
         errs.append("manifest: 'outputs' must be an object")
     if m.get("schema_version") not in (None, SCHEMA_VERSION):
