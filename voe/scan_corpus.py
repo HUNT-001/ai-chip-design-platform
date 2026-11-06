@@ -57,9 +57,13 @@ def candidates(max_lines=400, limit=None):
             ins = [p for p in m.ports if p.direction == "input"]
             if not outs or not ins:
                 continue
+            try:
+                rel = os.path.relpath(path, ROOT)
+            except ValueError:             # Windows: path and ROOT on different drives
+                rel = path
             has_clk = any(re.search(r"\bclk", p.name, re.I) for p in ins)
             out.append({
-                "module": m.name, "path": os.path.relpath(path, ROOT),
+                "module": m.name, "path": rel,
                 "lines": nlines, "in": len(ins), "out": len(outs),
                 "signals": len(m.signals), "assigns": len(m.assigns),
                 "sequential": has_clk,
