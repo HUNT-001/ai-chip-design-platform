@@ -256,8 +256,8 @@ def run_spike_process(
     stdout is used for HTIF output.  We merge both streams.
 
     Returns (returncode, combined_text).
-    Note: Spike exits with code 1 when the program calls tohost=1 (success);
-    treat both 0 and 1 as potentially successful.
+    Note: Spike exits with the program's tohost code (tohost=1 is success and
+    exits 0, tohost=3 exits 1); a nonzero exit is not treated as a pass.
     """
     log.info("Executing: %s", " ".join(cmd))
     log_file.parent.mkdir(parents=True, exist_ok=True)
@@ -524,6 +524,16 @@ def run_iss_manifest(manifest_path: Path) -> int:
             "phases.iss.status": "infra_error",
             "phases.iss.error":  f"Spike produced no output (exit={rc})",
             "phases.iss.duration_s": duration_s,
+        })
+        return EXIT_INFRA
+
+    if rc != 0:
+        # A partial log from a Spike that failed is not evidence about the DUT.
+        atomic_update_manifest(manifest_path, {
+            "phases.iss.status": "infra_error",
+            "phases.iss.error":  f"Spike exited nonzero (exit={rc})",
+            "phases.iss.duration_s": duration_s,
+            "phases.iss.spike_exit": rc,
         })
         return EXIT_INFRA
 
