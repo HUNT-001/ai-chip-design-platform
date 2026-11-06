@@ -38,7 +38,7 @@ WRITER_CALLS = {
 
 # file -> minimum number of status literals the scanner must still see in it
 MIGRATED = {
-    "AGENT_C/run_iss.py": 17,
+    "AGENT_C/run_iss.py": 18,
     "AGENT_E/run_compliance.py": 3,
     "AGENT_B/backends/run_rtl.py": 6,
     "AGENT_D/compare_commitlogs.py": 10,

@@ -70,3 +70,48 @@ def test_a_nonzero_spike_exit_is_infra_error_not_passed(tmp_path, code):
     assert iss["status"] == "infra_error"
     assert f"exit={code}" in iss["error"]
     assert rc == run_iss.EXIT_INFRA
+
+
+# ── #105: the legacy CLI path must also see a Spike timeout ──────────────────
+
+def _hanging_stub(tmp_path):
+    """A Spike that prints RECORDS, closes its output, and then outlives any
+    timeout, so run_spike_process reports its timeout sentinel (-9)."""
+    path = tmp_path / "hanging_spike.py"
+    path.write_text(
+        f"#!{sys.executable}\n"
+        "import os, sys, time\n"
+        "if '--help' in sys.argv:\n"
+        "    print('Spike RISC-V ISA Simulator 1.1.1 (stub)')\n"
+        "    sys.exit(0)\n"
+        f"sys.stderr.write({RECORDS!r})\n"
+        "sys.stderr.flush()\n"
+        "os.close(1)\n"
+        "os.close(2)\n"
+        "time.sleep(60)\n",
+        encoding="utf-8",
+    )
+    path.chmod(path.stat().st_mode | stat.S_IXUSR)
+    return path
+
+
+def _run_legacy(tmp_path, spike):
+    elf = tmp_path / "test.elf"
+    elf.write_bytes(b"\x7fELF" + b"\x00" * 60)
+    out = tmp_path / "run"
+    rc = run_iss.main(["--isa", "RV32IM", "--elf", str(elf), "--out", str(out),
+                       "--spike", str(spike), "--timeout", "1"])
+    status = json.loads((out / "manifest.json").read_text(encoding="utf-8"))["status"]
+    return rc, status
+
+
+def test_legacy_control_a_stub_that_exits_zero_is_passed(tmp_path):
+    rc, status = _run_legacy(tmp_path, _stub_spike(tmp_path, 0))
+    assert status == "passed"
+    assert rc == run_iss.EXIT_PASS
+
+
+def test_legacy_a_timed_out_spike_with_partial_output_is_timeout(tmp_path):
+    rc, status = _run_legacy(tmp_path, _hanging_stub(tmp_path))
+    assert status == "timeout"
+    assert rc == run_iss.EXIT_INFRA
