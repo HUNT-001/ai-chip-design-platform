@@ -69,3 +69,14 @@ def test_a_normal_corpus_file_is_still_returned(corpus):
     rows = scan_corpus.candidates()
     assert [r["module"] for r in rows] == ["leaf_counter"]
     assert (rows[0]["in"], rows[0]["out"], rows[0]["sequential"]) == (3, 2, True)
+
+
+def test_a_file_on_another_drive_is_reported_by_absolute_path(corpus, monkeypatch):
+    # os.path.relpath raises ValueError on Windows when the two paths are on
+    # different drives; the candidate must still be returned.
+    def other_drive(path, start=os.curdir):
+        raise ValueError("path is on mount 'C:', start on mount 'D:'")
+
+    monkeypatch.setattr(os.path, "relpath", other_drive)
+    rows = scan_corpus.candidates()
+    assert [r["path"] for r in rows] == [str(corpus / "leaf_counter.sv")]
