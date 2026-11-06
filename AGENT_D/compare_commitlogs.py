@@ -2015,7 +2015,7 @@ def main_manifest(manifest_path: Path, base_cfg: Optional[CompareConfig] = None)
         _log.error("Manifest missing required field 'rundir'")
         try:
             atomic_update_manifest(manifest_path, {
-                "phases.compare.status": "error",
+                "phases.compare.status": "infra_error",
                 "phases.compare.error":  "Manifest missing 'rundir'",
             })
         except ConfigError:
@@ -2041,9 +2041,9 @@ def main_manifest(manifest_path: Path, base_cfg: Optional[CompareConfig] = None)
         _log.error("Missing commit logs: %s", missing)
         try:
             atomic_update_manifest(manifest_path, {
-                "phases.compare.status": "error",
+                "phases.compare.status": "infra_error",
                 "phases.compare.error":  f"Missing commit logs: {missing}",
-                "status":                "error",
+                "status":                "infra_error",
             })
         except ConfigError:
             pass
@@ -2059,7 +2059,7 @@ def main_manifest(manifest_path: Path, base_cfg: Optional[CompareConfig] = None)
             _log.error("Invalid compare_config in manifest: %s", exc)
             try:
                 atomic_update_manifest(manifest_path, {
-                    "phases.compare.status": "error",
+                    "phases.compare.status": "infra_error",
                     "phases.compare.error":  f"Invalid compare_config: {exc}",
                 })
             except ConfigError:
@@ -2088,9 +2088,9 @@ def main_manifest(manifest_path: Path, base_cfg: Optional[CompareConfig] = None)
         _log.error("Infrastructure error: %s", exc)
         try:
             atomic_update_manifest(manifest_path, {
-                "phases.compare.status": "error",
+                "phases.compare.status": "infra_error",
                 "phases.compare.error":  str(exc),
-                "status":                "error",
+                "status":                "infra_error",
             })
         except ConfigError:
             pass

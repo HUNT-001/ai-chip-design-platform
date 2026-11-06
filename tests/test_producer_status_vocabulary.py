@@ -38,10 +38,9 @@ MIGRATED = {
     "AGENT_C/run_iss.py": 15,
     "AGENT_E/run_compliance.py": 3,
     "AGENT_B/backends/run_rtl.py": 6,
+    "AGENT_D/compare_commitlogs.py": 10,
 }
-PENDING = {
-    "AGENT_D/compare_commitlogs.py",
-}
+PENDING = set()
 
 
 def lifecycle_enum():
@@ -191,8 +190,10 @@ def test_agent_e_status_passed_through_a_variable_is_canonical():
     assert bad == [], f"AGENT_E/run_compliance.py overall_status: {bad}"
 
 
-@pytest.mark.parametrize("rel", sorted(PENDING))
-def test_pending_producer_still_has_a_noncanonical_literal(rel):
-    assert offenders(rel), (
-        f"{rel} is already clean: move it from PENDING to MIGRATED so it stays guarded"
+def test_pending_producers_still_have_a_noncanonical_literal():
+    # Not parametrized: with nothing pending a parametrized test would be collected
+    # as a skip.  An empty PENDING passes; a stale entry fails.
+    clean = [rel for rel in sorted(PENDING) if not offenders(rel)]
+    assert clean == [], (
+        f"{clean} already clean: move from PENDING to MIGRATED so they stay guarded"
     )
