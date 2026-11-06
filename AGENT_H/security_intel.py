@@ -404,7 +404,7 @@ def run_from_manifest(manifest_path: Path) -> int:
     manifest.setdefault("metrics", {})["security_band"]       = report["band"]
 
     if report["band"] in ("HIGH", "CRITICAL"):
-        manifest["status"] = "fail"
+        manifest["status"] = "failed"
         manifest["error"] = {
             "code":    "SECURITY_FINDING",
             "message": f"Security band {report['band']}: {report['total_findings']} findings",

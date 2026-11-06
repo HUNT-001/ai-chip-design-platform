@@ -387,7 +387,7 @@ def run_from_manifest(manifest_path: Path) -> int:
 
     manifest.setdefault("outputs", {})["temporal_report"] = "temporal_report.json"
     manifest.setdefault("phases", {})["temporal_check"] = {
-        "status": "pass" if report["pass"] else "fail",
+        "status": "passed" if report["pass"] else "failed",
     }
     commit_manifest(manifest_path, base_manifest, manifest)
     if report["total_violations"]:
