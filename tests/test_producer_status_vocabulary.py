@@ -37,9 +37,9 @@ WRITER_CALLS = {
 MIGRATED = {
     "AGENT_C/run_iss.py": 15,
     "AGENT_E/run_compliance.py": 3,
+    "AGENT_B/backends/run_rtl.py": 6,
 }
 PENDING = {
-    "AGENT_B/backends/run_rtl.py",
     "AGENT_D/compare_commitlogs.py",
 }
 
@@ -83,6 +83,14 @@ def status_writes(source):
             for target in node.targets:
                 if isinstance(target, ast.Subscript) and _is_status_key(target.slice):
                     found += [(node.lineno, lit) for lit in _literals(node.value)]
+                # a whole manifest built as a dict literal: manifest = {... "status": ...}
+                if (isinstance(target, ast.Name) and target.id == "manifest"
+                        and isinstance(node.value, ast.Dict)):
+                    for sub in ast.walk(node.value):
+                        if isinstance(sub, ast.Dict):
+                            for key, value in zip(sub.keys, sub.values):
+                                if key is not None and _is_status_key(key):
+                                    found += [(value.lineno, lit) for lit in _literals(value)]
     return sorted(set(found))
 
 
@@ -142,6 +150,29 @@ def test_migrated_producer_scan_is_not_vacuous(rel):
     assert len(status_writes(source)) >= MIGRATED[rel], (
         f"scanner no longer sees {rel}'s writes"
     )
+
+
+def test_scanner_control_sees_a_manifest_built_as_a_dict_literal():
+    src = (
+        "manifest = {'phases': {'build': {'status': 'bogus'}}}\n"
+        "other = {'status': 'bogus2'}\n"
+    )
+    assert [lit for _, lit in status_writes(src)] == ["bogus"]
+
+
+def test_agent_b_build_status_passed_through_a_variable_is_canonical():
+    # `build_status` ends up in phases.build.status; the scanner cannot follow it, so
+    # check every literal assigned to it by hand.
+    source = (REPO_ROOT / "AGENT_B/backends/run_rtl.py").read_text(encoding="utf-8")
+    assigned = []
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Assign) and any(
+            isinstance(t, ast.Name) and t.id == "build_status" for t in node.targets
+        ):
+            assigned += [(node.lineno, lit) for lit in _literals(node.value)]
+    assert len(assigned) >= 2, "build_status is no longer assigned literals; re-read this check"
+    bad = [(ln, lit) for ln, lit in assigned if lit not in lifecycle_enum()]
+    assert bad == [], f"AGENT_B/backends/run_rtl.py build_status: {bad}"
 
 
 def test_agent_e_status_passed_through_a_variable_is_canonical():
