@@ -96,10 +96,10 @@ jobs:
             --tb=short -q -rs
 
       - name: Writeback diagnostic
-        if: matrix.os == 'windows-latest'
+        if: always() && matrix.os == 'windows-latest'
         continue-on-error: true
         run: |
-          python -m pytest tests/test_agent_h_manifest_writeback.py -k test_concurrent_update_survives -x --tb=long --import-mode=importlib -p no:cacheprovider -q
+          python -m pytest tests/test_agent_h_manifest_writeback.py -k test_concurrent_update_survives -x -s --tb=long --import-mode=importlib -p no:cacheprovider -q
 
       - name: Guard - every test file on disk is actually collected
         run: |

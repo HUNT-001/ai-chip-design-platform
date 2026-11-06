@@ -171,7 +171,14 @@ def test_concurrent_update_survives(name, tmp_path, monkeypatch):
         data = real_load(f, *a, **kw)
         if not fired and getattr(f, "name", None) == str(m):
             fired.append(True)
-            cc.atomic_update_manifest(m, {"phases.compare.status": "passed"})
+            try:
+                cc.atomic_update_manifest(m, {"phases.compare.status": "passed"})
+            except BaseException:
+                import traceback
+                print("DIAG-TRACEBACK-BEGIN")
+                traceback.print_exc()
+                print("DIAG-TRACEBACK-END")
+                raise
         return data
 
     monkeypatch.setattr(json, "load", load_then_write)
