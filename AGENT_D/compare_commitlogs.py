@@ -2569,16 +2569,16 @@ def run_self_tests(verbose: bool = False) -> bool:
     passed = failed = errors = 0
     W = 60
 
-    print(f"\n{'═'*W}")
+    print(f"\n{'='*W}")
     print(f"  compare_commitlogs.py v{__version__} — self-test ({len(cases)} cases)")
-    print(f"{'═'*W}")
+    print(f"{'='*W}")
 
     # Print AVA contract check first
     if _missing:
-        print(f"  ✗  AVA contract: missing codes: {sorted(_missing)}")
+        print(f"  FAIL  AVA contract: missing codes: {sorted(_missing)}")
         failed += 1
     else:
-        print(f"  ✓  AVA contract: all 11 canonical codes implemented")
+        print(f"  OK  AVA contract: all 11 canonical codes implemented")
         passed += 1
 
     for tc in cases:
@@ -2613,17 +2613,17 @@ def run_self_tests(verbose: bool = False) -> bool:
                            f"got {result.mismatches[0].differing_field!r}")
 
             if ok:
-                print(f"  ✓  {tc.name}")
+                print(f"  OK  {tc.name}")
                 if verbose and result.mismatches:
                     for m in result.mismatches:
                         print(f"       {m.to_ava_bug()}")
                 passed += 1
             else:
-                print(f"  ✗  {tc.name}  — {why}")
+                print(f"  FAIL  {tc.name}  — {why}")
                 failed += 1
 
         except Exception as exc:
-            print(f"  ✗  {tc.name}  — EXCEPTION: {exc}")
+            print(f"  FAIL  {tc.name}  — EXCEPTION: {exc}")
             if verbose:
                 import traceback; traceback.print_exc()
             errors += 1
@@ -2635,9 +2635,9 @@ def run_self_tests(verbose: bool = False) -> bool:
                     except OSError:
                         pass
 
-    print(f"{'─'*W}")
+    print(f"{'-'*W}")
     print(f"  Results: {passed} passed, {failed} failed, {errors} errors")
-    print(f"{'═'*W}\n")
+    print(f"{'='*W}\n")
     return failed == 0 and errors == 0
 
 
@@ -2764,19 +2764,19 @@ def _emit_outputs(result: CompareResult, args: argparse.Namespace) -> None:
         _write(args.bug_report,
                json.dumps(result.to_bug_report(), indent=2, default=str))
         if not args.quiet:
-            print(f"Bug report  → {args.bug_report}")
+            print(f"Bug report  -> {args.bug_report}")
     if args.junit:
         _write(args.junit, result.to_junit_xml())
         if not args.quiet:
-            print(f"JUnit XML   → {args.junit}")
+            print(f"JUnit XML   -> {args.junit}")
     if args.markdown:
         _write(args.markdown, result.to_markdown())
         if not args.quiet:
-            print(f"Markdown    → {args.markdown}")
+            print(f"Markdown    -> {args.markdown}")
     if args.sarif:
         _write(args.sarif, json.dumps(result.to_sarif(), indent=2))
         if not args.quiet:
-            print(f"SARIF       → {args.sarif}")
+            print(f"SARIF       -> {args.sarif}")
     if args.github_annotations:
         for m in result.mismatches:
             print(m.to_github_annotation(filename=args.rtl_log or "commitlog"))

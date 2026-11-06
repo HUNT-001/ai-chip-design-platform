@@ -334,7 +334,7 @@ Examples:
         # Human-readable table
         print(f"\n{'#':>3}  {'Module:Line':<40} {'Type':<10} "
               f"{'ROI':>7}  {'Reach':>6}  {'Impact':>6}  {'Novelty':>7}")
-        print("─" * 88)
+        print("-" * 88)
         for i, entry in enumerate(ranked, 1):
             loc = f"{Path(entry['module']).name}:{entry['line']}"
             print(

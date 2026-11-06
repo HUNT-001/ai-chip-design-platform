@@ -652,7 +652,7 @@ def _validate_syntax(patched_src: str) -> Optional[str]:
 
 
 def _print_report(hunks: List[Hunk]) -> None:
-    print("\n── Hunk Application Report " + "─" * 43)
+    print("\n-- Hunk Application Report " + "-" * 43)
     for h in hunks:
         if h.skipped:
             status = "\033[93m SKIP\033[0m  (already applied)"
@@ -661,7 +661,7 @@ def _print_report(hunks: List[Hunk]) -> None:
         else:
             status = f"\033[91m FAIL\033[0m  {h.error}"
         print(f"  [{h.hunk_id}] {h.description[:55]:<55} {status}")
-    print("─" * 70)
+    print("-" * 70)
 
     n_applied = sum(1 for h in hunks if h.applied)
     n_skipped = sum(1 for h in hunks if h.skipped)
@@ -702,7 +702,7 @@ def main() -> int:
             applied  = h.replace in src
             searched = h.search in src
             print(f"  [{h.hunk_id}] {h.description[:55]:<55} "
-                  f"{'✔ applied' if applied else ('✘ pending' if searched else '? not found')}")
+                  f"{'OK applied' if applied else ('FAIL pending' if searched else '? not found')}")
         print()
         return 0
 

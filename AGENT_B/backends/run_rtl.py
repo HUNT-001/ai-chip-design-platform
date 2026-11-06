@@ -291,7 +291,7 @@ def run_simulation(
                   f"({type(exc).__name__}: {exc}); using the estimated cycle count",
                   file=sys.stderr)
 
-    print(f"[sim] Done in {elapsed:.2f}s — retired={retired:,}  cycles≈{total_cycles:,}")
+    print(f"[sim] Done in {elapsed:.2f}s — retired={retired:,}  cycles~{total_cycles:,}")
     return {
         "commitlog_path": str(commitlog),
         "coverage_path":  str(coverage),
@@ -478,12 +478,12 @@ def main() -> int:
     # ── Print summary ─────────────────────────────────────────────────────────
     status = "PASS" if sim["sim_exit_code"] == 0 else "FAIL"
     print(f"\n{'='*60}")
-    print(f"  {status}  retired={sim['retired']:,}  cycles≈{sim['total_cycles']:,}")
+    print(f"  {status}  retired={sim['retired']:,}  cycles~{sim['total_cycles']:,}")
     print(f"  cov line={cov_raw['line']*100:.1f}%  branch={cov_raw['branch']*100:.1f}%"
           f"  toggle={cov_raw['toggle']*100:.1f}%")
     print(f"{'='*60}")
-    print(f"[ava] commit log  → {sim['commitlog_path']}")
-    print(f"[ava] coverage    → {sim['coverage_path']}")
+    print(f"[ava] commit log  -> {sim['commitlog_path']}")
+    print(f"[ava] coverage    -> {sim['coverage_path']}")
     print("[ava] cov report  " + str(cov_rpt))
     if sim["trace_path"]:
         print("[ava] trace (fst) " + str(sim["trace_path"]))

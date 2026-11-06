@@ -2330,24 +2330,24 @@ def main(argv: Optional[List[str]] = None) -> int:
     s      = report.summary
 
     # ── Terminal summary ──────────────────────────────────────────────────────
-    print("\n" + "─" * 68)
+    print("\n" + "-" * 68)
     print(f"  RISC-V Compliance  ISA={report.isa}  spike={report.spike_version}")
-    print("─" * 68)
+    print("-" * 68)
     for t in report.tests:
-        icon = {"PASS": "✓", "FAIL": "✗", "ERROR": "!", "SKIPPED": "·"}.get(t["result"], "?")
+        icon = {"PASS": "OK", "FAIL": "FAIL", "ERROR": "!", "SKIPPED": "·"}.get(t["result"], "?")
         cache_tag = " [cached]" if t.get("cache_hit") else ""
         print(f"  {icon}  {t['name']:<26}  {t['isa_subset']:<7}  {t['result']}{cache_tag}")
         if t.get("error_msg"):
-            print(f"       └─ {t['error_msg'][:90]}")
-    print("─" * 68)
+            print(f"       +- {t['error_msg'][:90]}")
+    print("-" * 68)
     print(
         f"  PASS={s['pass']}  FAIL={s['fail']}  ERROR={s['error']}  "
         f"total={s['total']}  ({s['pass_rate_pct']:.1f}%)"
     )
-    print(f"  HTML  → {s['run_dir']}/{REPORT_HTML}")
-    print(f"  JSON  → {s['run_dir']}/{REPORT_JSON}")
-    print(f"  JUnit → {s['run_dir']}/{REPORT_JUNIT}")
-    print("─" * 68 + "\n")
+    print(f"  HTML  -> {s['run_dir']}/{REPORT_HTML}")
+    print(f"  JSON  -> {s['run_dir']}/{REPORT_JSON}")
+    print(f"  JUnit -> {s['run_dir']}/{REPORT_JUNIT}")
+    print("-" * 68 + "\n")
 
     return compute_exit_code(report)
 
