@@ -7,7 +7,9 @@ written to a status key and checks them against the enum read from the schema
 file at test time, so the expected values do not come from the code under test.
 
 What counts as a write: a ``"status"`` / ``"<dotted>.status"`` key in a dict that
-is an argument of a manifest-writer call, or ``x["status"] = <literal>``.  Values
+is an argument of a manifest-writer call, ``x["status"] = <literal>``, a dict
+assigned to a subscript (``phases["generator"] = {"status": ...}``), or a dict
+passed to ``.update()`` on something rooted at ``manifest``.  Values
 that are not literals (a variable, a call) are not seen; a conditional of two
 literals is.
 
@@ -31,6 +33,7 @@ WRITER_CALLS = {
     "_write_manifest",
     "write_manifest",
     "_shared_atomic_update_manifest",
+    "commit_manifest",
 }
 
 # file -> minimum number of status literals the scanner must still see in it
@@ -39,8 +42,37 @@ MIGRATED = {
     "AGENT_E/run_compliance.py": 3,
     "AGENT_B/backends/run_rtl.py": 6,
     "AGENT_D/compare_commitlogs.py": 10,
+    "AGENT_F/coverage_pipeline.py": 1,
+    "AGENT_G/generate_tests.py": 1,
+    "AGENT_I/agent_i_litmus.py": 8,
+    "AGENT_J/agent_j_cdc.py": 8,
+    "AGENT_K/agent_k_perf.py": 8,
+    "AGENT_L/agent_l_equiv.py": 8,
 }
-PENDING = set()
+# AGENT_H verifiers that write through commit_manifest() and still record
+# phases.<name>.status as "pass"/"fail" (two also set the top-level status to "fail").
+PENDING = {
+    "AGENT_H/agent_h_intent.py",
+    "AGENT_H/atomics_verifier.py",
+    "AGENT_H/bitmanip_verifier.py",
+    "AGENT_H/branch_predictor_verifier.py",
+    "AGENT_H/bus_verifier.py",
+    "AGENT_H/cache_verifier.py",
+    "AGENT_H/contract_dsl.py",
+    "AGENT_H/csr_verifier.py",
+    "AGENT_H/fp_verifier.py",
+    "AGENT_H/peripheral_verifier.py",
+    "AGENT_H/pipeline_verifier.py",
+    "AGENT_H/privilege_verifier.py",
+    "AGENT_H/rv64_atomics_verifier.py",
+    "AGENT_H/rv64_verifier.py",
+    "AGENT_H/rvc_verifier.py",
+    "AGENT_H/security_intel.py",
+    "AGENT_H/sv_mmu_verifier.py",
+    "AGENT_H/temporal_checker.py",
+    "AGENT_H/tlb_verifier.py",
+    "AGENT_H/vm_verifier.py",
+}
 
 
 def lifecycle_enum():
@@ -78,8 +110,21 @@ def status_writes(source):
                         for key, value in zip(sub.keys, sub.values):
                             if key is not None and _is_status_key(key):
                                 found += [(value.lineno, lit) for lit in _literals(value)]
+            if (isinstance(func, ast.Attribute) and func.attr == "update"
+                    and any(isinstance(n, ast.Name) and n.id == "manifest"
+                            for n in ast.walk(func.value))):
+                for arg in node.args:
+                    if isinstance(arg, ast.Dict):
+                        for key, value in zip(arg.keys, arg.values):
+                            if key is not None and _is_status_key(key):
+                                found += [(value.lineno, lit) for lit in _literals(value)]
         elif isinstance(node, ast.Assign):
             for target in node.targets:
+                # a phase record built as a dict: phases["x"] = {"status": ...}
+                if isinstance(target, ast.Subscript) and isinstance(node.value, ast.Dict):
+                    for key, value in zip(node.value.keys, node.value.values):
+                        if key is not None and _is_status_key(key):
+                            found += [(value.lineno, lit) for lit in _literals(value)]
                 if isinstance(target, ast.Subscript) and _is_status_key(target.slice):
                     found += [(node.lineno, lit) for lit in _literals(node.value)]
                 # a whole manifest built as a dict literal: manifest = {... "status": ...}
@@ -157,6 +202,16 @@ def test_scanner_control_sees_a_manifest_built_as_a_dict_literal():
         "other = {'status': 'bogus2'}\n"
     )
     assert [lit for _, lit in status_writes(src)] == ["bogus"]
+
+
+def test_scanner_control_sees_a_phase_dict_and_a_manifest_update():
+    src = (
+        "phases['gen'] = {'status': 'bogus_a'}\n"
+        "manifest['phases']['p'].update({'status': 'bogus_b' if x else 'bogus_c'})\n"
+        "other.update({'status': 'bogus_d'})\n"
+        "phases['gen'] = {'note': 'bogus_e'}\n"
+    )
+    assert {lit for _, lit in status_writes(src)} == {"bogus_a", "bogus_b", "bogus_c"}
 
 
 def test_agent_b_build_status_passed_through_a_variable_is_canonical():
