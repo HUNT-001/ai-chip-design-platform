@@ -115,6 +115,9 @@ def test_ci_schema_step_runs_this_sweep():
             if step.get("name") == "Validate JSON schemas"]
     assert len(runs) == 1, "expected exactly one 'Validate JSON schemas' step"
     assert "tests/test_schema_sweep.py" in runs[0], runs[0]
+    # The same step also runs the uniqueness ratchet, which otherwise only runs in
+    # the pytest job, so a diverging copy of a same-named schema fails here too.
+    assert "tests/test_schema_uniqueness.py" in runs[0], runs[0]
 
 
 if __name__ == "__main__":
