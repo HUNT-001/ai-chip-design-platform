@@ -16,8 +16,15 @@ cache and checks it was not answered from a stale entry.
 """
 import importlib
 import subprocess
+import sys
 
 import pytest
+
+# Spike is not available natively on Windows and the fixtures are #!/bin/sh
+# scripts, so these cases cannot run there; a deliberate platform skip.
+posix_only = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="Spike not available natively on Windows; fixtures are #!/bin/sh scripts")
 
 QUIET = b"#!/bin/sh\nexit 0\n"
 
@@ -57,6 +64,7 @@ def _stub_check_output(rc, monkeypatch, exc):
     return calls
 
 
+@posix_only
 def test_spike_on_path_that_cannot_execute_is_not_found(rc, tmp_path, monkeypatch):
     name = _spike_on_path(tmp_path, monkeypatch, b"\x00garbage")   # exec fails: ENOEXEC
     found, reason = _probe(rc, name)
@@ -67,6 +75,7 @@ def test_spike_on_path_that_cannot_execute_is_not_found(rc, tmp_path, monkeypatc
     assert any(reason in e for e in errors), errors
 
 
+@posix_only
 @pytest.mark.parametrize("exc", [
     subprocess.TimeoutExpired(["spike", "--version"], 5),
     PermissionError(13, "Permission denied"),
@@ -80,11 +89,13 @@ def test_spike_that_cannot_answer_version_is_not_found(rc, tmp_path, monkeypatch
     assert reason, "found=False must say why"
 
 
+@posix_only
 def test_spike_that_runs_but_prints_no_version_is_found_unknown(rc, tmp_path, monkeypatch):
     name = _spike_on_path(tmp_path, monkeypatch, QUIET)
     assert _probe(rc, name) == (True, "unknown")
 
 
+@posix_only
 def test_spike_that_prints_a_version_reports_it(rc, tmp_path, monkeypatch):
     name = _spike_on_path(
         tmp_path, monkeypatch,
@@ -92,6 +103,7 @@ def test_spike_that_prints_a_version_reports_it(rc, tmp_path, monkeypatch):
     assert _probe(rc, name) == (True, "Spike RISC-V ISA Simulator 1.1.1-dev")
 
 
+@posix_only
 def test_a_programming_error_in_the_probe_propagates(rc, tmp_path, monkeypatch):
     name = _spike_on_path(tmp_path, monkeypatch, QUIET)
     calls = _stub_check_output(rc, monkeypatch, TypeError("probe defect"))
