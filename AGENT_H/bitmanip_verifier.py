@@ -490,7 +490,7 @@ def run_from_manifest(manifest_path: Path) -> int:
 
     manifest.setdefault("outputs", {})["bitmanip_report"] = "bitmanip_report.json"
     manifest.setdefault("phases", {})["bitmanip_check"] = {
-        "status": "pass" if report["pass"] else "fail",
+        "status": "passed" if report["pass"] else "failed",
         "violations": report["total_violations"],
     }
     commit_manifest(manifest_path, base_manifest, manifest)

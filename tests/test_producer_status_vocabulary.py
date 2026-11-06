@@ -48,31 +48,29 @@ MIGRATED = {
     "AGENT_J/agent_j_cdc.py": 8,
     "AGENT_K/agent_k_perf.py": 8,
     "AGENT_L/agent_l_equiv.py": 8,
+    "AGENT_H/agent_h_intent.py": 3,
+    "AGENT_H/atomics_verifier.py": 2,
+    "AGENT_H/bitmanip_verifier.py": 2,
+    "AGENT_H/branch_predictor_verifier.py": 2,
+    "AGENT_H/bus_verifier.py": 2,
+    "AGENT_H/cache_verifier.py": 2,
+    "AGENT_H/contract_dsl.py": 2,
+    "AGENT_H/csr_verifier.py": 2,
+    "AGENT_H/fp_verifier.py": 2,
+    "AGENT_H/peripheral_verifier.py": 2,
+    "AGENT_H/pipeline_verifier.py": 2,
+    "AGENT_H/privilege_verifier.py": 2,
+    "AGENT_H/rv64_atomics_verifier.py": 2,
+    "AGENT_H/rv64_verifier.py": 2,
+    "AGENT_H/rvc_verifier.py": 2,
+    "AGENT_H/security_intel.py": 1,
+    "AGENT_H/sv_mmu_verifier.py": 2,
+    "AGENT_H/temporal_checker.py": 2,
+    "AGENT_H/tlb_verifier.py": 2,
+    "AGENT_H/vm_verifier.py": 2,
 }
-# AGENT_H verifiers that write through commit_manifest() and still record
-# phases.<name>.status as "pass"/"fail" (two also set the top-level status to "fail").
-PENDING = {
-    "AGENT_H/agent_h_intent.py",
-    "AGENT_H/atomics_verifier.py",
-    "AGENT_H/bitmanip_verifier.py",
-    "AGENT_H/branch_predictor_verifier.py",
-    "AGENT_H/bus_verifier.py",
-    "AGENT_H/cache_verifier.py",
-    "AGENT_H/contract_dsl.py",
-    "AGENT_H/csr_verifier.py",
-    "AGENT_H/fp_verifier.py",
-    "AGENT_H/peripheral_verifier.py",
-    "AGENT_H/pipeline_verifier.py",
-    "AGENT_H/privilege_verifier.py",
-    "AGENT_H/rv64_atomics_verifier.py",
-    "AGENT_H/rv64_verifier.py",
-    "AGENT_H/rvc_verifier.py",
-    "AGENT_H/security_intel.py",
-    "AGENT_H/sv_mmu_verifier.py",
-    "AGENT_H/temporal_checker.py",
-    "AGENT_H/tlb_verifier.py",
-    "AGENT_H/vm_verifier.py",
-}
+# Nothing is pending; a producer that regresses is caught by MIGRATED instead.
+PENDING = set()
 
 
 def lifecycle_enum():
