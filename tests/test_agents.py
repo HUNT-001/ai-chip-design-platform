@@ -104,7 +104,7 @@ def tmp_run_dir(tmp_path):
             "tests_run": 1,
         },
     }
-    (tmp_path / "run_manifest.json").write_text(json.dumps(manifest, indent=2))
+    (tmp_path / "run_manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     return tmp_path
 
 
@@ -122,8 +122,8 @@ class TestAgentHIntent:
         # Write logs to temp files
         rtl_f = tmp_path / "rtl.jsonl"
         iss_f = tmp_path / "iss.jsonl"
-        rtl_f.write_text("\n".join(json.dumps(r) for r in sample_rtl_log))
-        iss_f.write_text("\n".join(json.dumps(r) for r in sample_iss_log))
+        rtl_f.write_text("\n".join(json.dumps(r) for r in sample_rtl_log), encoding="utf-8")
+        iss_f.write_text("\n".join(json.dumps(r) for r in sample_iss_log), encoding="utf-8")
 
         checker = IntentChecker(rtl_f, iss_f)
         report = checker.run()
@@ -136,8 +136,8 @@ class TestAgentHIntent:
         from AGENT_H.agent_h_intent import IntentChecker
         rtl_f = tmp_path / "rtl.jsonl"
         iss_f = tmp_path / "iss.jsonl"
-        rtl_f.write_text("\n".join(json.dumps(r) for r in sample_rtl_log))
-        iss_f.write_text("\n".join(json.dumps(r) for r in sample_iss_log))
+        rtl_f.write_text("\n".join(json.dumps(r) for r in sample_rtl_log), encoding="utf-8")
+        iss_f.write_text("\n".join(json.dumps(r) for r in sample_iss_log), encoding="utf-8")
 
         report = IntentChecker(rtl_f, iss_f).run()
         for key in ("schema_version", "agent", "total_violations", "pass", "violations"):
@@ -155,7 +155,7 @@ class TestConfidenceScorer:
 
     def test_compute_returns_score(self, tmp_run_dir):
         from AGENT_H.confidence_scorer import ConfidenceScorer
-        manifest = json.loads((tmp_run_dir / "run_manifest.json").read_text())
+        manifest = json.loads((tmp_run_dir / "run_manifest.json").read_text(encoding="utf-8"))
         scorer = ConfidenceScorer(tmp_run_dir, manifest)
         report = scorer.compute()
 
@@ -170,8 +170,8 @@ class TestConfidenceScorer:
         (tmp_run_dir / "coverage_summary.json").write_text(json.dumps({
             "line_coverage_pct": 85.0,
             "branch_coverage_pct": 70.0,
-        }))
-        manifest = json.loads((tmp_run_dir / "run_manifest.json").read_text())
+        }), encoding="utf-8")
+        manifest = json.loads((tmp_run_dir / "run_manifest.json").read_text(encoding="utf-8"))
         scorer = ConfidenceScorer(tmp_run_dir, manifest)
         report = scorer.compute()
         assert report["score"] > 0.0
@@ -368,7 +368,7 @@ class TestEconomicsEngine:
 
     def test_compute_basic(self, tmp_run_dir):
         from AGENT_H.economics_engine import EconomicsEngine
-        manifest = json.loads((tmp_run_dir / "run_manifest.json").read_text())
+        manifest = json.loads((tmp_run_dir / "run_manifest.json").read_text(encoding="utf-8"))
         eng = EconomicsEngine(tmp_run_dir, manifest)
         report = eng.compute()
         assert "roi_score" in report
@@ -378,18 +378,18 @@ class TestEconomicsEngine:
 
     def test_save_ledger(self, tmp_run_dir):
         from AGENT_H.economics_engine import EconomicsEngine
-        manifest = json.loads((tmp_run_dir / "run_manifest.json").read_text())
+        manifest = json.loads((tmp_run_dir / "run_manifest.json").read_text(encoding="utf-8"))
         eng = EconomicsEngine(tmp_run_dir, manifest)
         report = eng.compute()
         ledger_path = eng.save_ledger(report)
         assert ledger_path.exists()
-        data = json.loads(ledger_path.read_text())
+        data = json.loads(ledger_path.read_text(encoding="utf-8"))
         assert "campaigns" in data
         assert len(data["campaigns"]) >= 1
 
     def test_report_schema(self, tmp_run_dir):
         from AGENT_H.economics_engine import EconomicsEngine
-        manifest = json.loads((tmp_run_dir / "run_manifest.json").read_text())
+        manifest = json.loads((tmp_run_dir / "run_manifest.json").read_text(encoding="utf-8"))
         report = EconomicsEngine(tmp_run_dir, manifest).compute()
         for key in ("schema_version", "agent", "roi_score", "roi_band",
                     "bugs_per_hour", "duration_s"):
@@ -455,7 +455,7 @@ class TestCrossDomain:
                 "cycles": 5, "status": "DONE"}]
         in_path = tmp_path / "raw.jsonl"
         out_path = tmp_path / "translated.jsonl"
-        in_path.write_text(json.dumps(raw[0]) + "\n")
+        in_path.write_text(json.dumps(raw[0]) + "\n", encoding="utf-8")
         n = adapter.translate_file(in_path, out_path)
         assert n == 1
         assert out_path.exists()
@@ -514,7 +514,7 @@ class TestSchemaFiles:
         ]
         schema_path = next((p for p in candidates if p.exists()), None)
         assert schema_path is not None, "commitlog.schema.json not found in any known location"
-        data = json.loads(schema_path.read_text())
+        data = json.loads(schema_path.read_text(encoding="utf-8"))
         assert data.get("$schema") or data.get("type") or data.get("properties")
 
     def test_run_manifest_schema_exists(self):
@@ -526,7 +526,7 @@ class TestSchemaFiles:
         ]
         schema_path = next((p for p in candidates if p.exists()), None)
         assert schema_path is not None, "run_manifest.schema.json not found in any known location"
-        data = json.loads(schema_path.read_text())
+        data = json.loads(schema_path.read_text(encoding="utf-8"))
         assert data.get("$schema") or data.get("type") or data.get("properties")
 
     def test_all_agent_modules_importable(self):
@@ -747,7 +747,7 @@ class TestAtomicsVerifier:
                         reads=[{"addr": "0x00000100", "size": 4, "value": "0x00000010"}],
                         writes=[{"addr": "0x00000100", "size": 4, "value": "0x00000015"}]),
         ]
-        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl), encoding="utf-8")
         manifest = {
             "schema_version": "2.1.0",
             "run_id": "atomics-test",
@@ -755,11 +755,11 @@ class TestAtomicsVerifier:
             "outputs": {"rtl_commit_log": "rtl_commit.jsonl"},
         }
         mpath = tmp_path / "run_manifest.json"
-        mpath.write_text(json.dumps(manifest, indent=2))
+        mpath.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         rc = run_from_manifest(mpath)
         assert rc == 0
         assert (tmp_path / "atomics_report.json").exists()
-        updated = json.loads(mpath.read_text())
+        updated = json.loads(mpath.read_text(encoding="utf-8"))
         assert "atomics_report" in updated["outputs"]
 
 
@@ -959,7 +959,7 @@ class TestPeripheralVerifier:
             {"channel": 0, "op": "WRITE", "dst_addr": "0x2000", "length": 64},
             {"channel": 0, "op": "DONE"},
         ]
-        (tmp_path / "raw_rtl.jsonl").write_text("\n".join(json.dumps(r) for r in raw))
+        (tmp_path / "raw_rtl.jsonl").write_text("\n".join(json.dumps(r) for r in raw), encoding="utf-8")
         manifest = {
             "schema_version": "2.1.0",
             "run_id": "periph-test",
@@ -968,11 +968,11 @@ class TestPeripheralVerifier:
             "outputs": {"raw_rtl_log": "raw_rtl.jsonl"},
         }
         mpath = tmp_path / "run_manifest.json"
-        mpath.write_text(json.dumps(manifest, indent=2))
+        mpath.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         rc = run_from_manifest(mpath)
         assert rc == 0
         assert (tmp_path / "peripheral_report.json").exists()
-        updated = json.loads(mpath.read_text())
+        updated = json.loads(mpath.read_text(encoding="utf-8"))
         assert "peripheral_report" in updated["outputs"]
 
 
@@ -1112,18 +1112,18 @@ class TestCSRVerifier:
             _csr_rec(1, "csrrw x5, mstatus, x6",
                      regs={"x5": "0x00001800"}, csrs={"mstatus": "0x00001888"}),
         ]
-        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl), encoding="utf-8")
         manifest = {
             "schema_version": "2.1.0", "run_id": "csr-test",
             "run_dir": str(tmp_path),
             "outputs": {"rtl_commit_log": "rtl_commit.jsonl"},
         }
         mpath = tmp_path / "run_manifest.json"
-        mpath.write_text(json.dumps(manifest, indent=2))
+        mpath.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         rc = run_from_manifest(mpath)
         assert rc == 0
         assert (tmp_path / "csr_report.json").exists()
-        assert "csr_report" in json.loads(mpath.read_text())["outputs"]
+        assert "csr_report" in json.loads(mpath.read_text(encoding="utf-8"))["outputs"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1241,18 +1241,18 @@ class TestRVCVerifier:
             _rvc_rec(0, "c.addi x1,1", "0x80000000"),
             _rvc_rec(1, "c.addi x2,1", "0x80000002"),
         ]
-        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl), encoding="utf-8")
         manifest = {
             "schema_version": "2.1.0", "run_id": "rvc-test",
             "run_dir": str(tmp_path),
             "outputs": {"rtl_commit_log": "rtl_commit.jsonl"},
         }
         mpath = tmp_path / "run_manifest.json"
-        mpath.write_text(json.dumps(manifest, indent=2))
+        mpath.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         rc = run_from_manifest(mpath)
         assert rc == 0
         assert (tmp_path / "rvc_report.json").exists()
-        assert "rvc_report" in json.loads(mpath.read_text())["outputs"]
+        assert "rvc_report" in json.loads(mpath.read_text(encoding="utf-8"))["outputs"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1403,18 +1403,18 @@ class TestFPVerifier:
             _fp_rec(0, "nop", fregs={"f1": _F1, "f2": _F2}),
             _fp_rec(1, "fadd.s f3,f1,f2", fregs={"f3": _F3}),
         ]
-        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl), encoding="utf-8")
         manifest = {
             "schema_version": "2.1.0", "run_id": "fp-test",
             "run_dir": str(tmp_path),
             "outputs": {"rtl_commit_log": "rtl_commit.jsonl"},
         }
         mpath = tmp_path / "run_manifest.json"
-        mpath.write_text(json.dumps(manifest, indent=2))
+        mpath.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         rc = run_from_manifest(mpath)
         assert rc == 0
         assert (tmp_path / "fp_report.json").exists()
-        assert "fp_report" in json.loads(mpath.read_text())["outputs"]
+        assert "fp_report" in json.loads(mpath.read_text(encoding="utf-8"))["outputs"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1515,18 +1515,18 @@ class TestBitmanipVerifier:
             {"schema_version": "2.1.0", "seq": 1, "pc": "0x80000004",
              "disasm": "sh1add x3,x1,x2", "regs": {"x3": "0x00000010"}, "csrs": {}},
         ]
-        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl), encoding="utf-8")
         manifest = {
             "schema_version": "2.1.0", "run_id": "bm-test",
             "run_dir": str(tmp_path),
             "outputs": {"rtl_commit_log": "rtl_commit.jsonl"},
         }
         mpath = tmp_path / "run_manifest.json"
-        mpath.write_text(json.dumps(manifest, indent=2))
+        mpath.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         rc = run_from_manifest(mpath)
         assert rc == 0
         assert (tmp_path / "bitmanip_report.json").exists()
-        assert "bitmanip_report" in json.loads(mpath.read_text())["outputs"]
+        assert "bitmanip_report" in json.loads(mpath.read_text(encoding="utf-8"))["outputs"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1644,17 +1644,17 @@ class TestPrivilegeVerifier:
     def test_run_from_manifest(self, tmp_path):
         from AGENT_H.privilege_verifier import run_from_manifest
         rtl = [_pv_rec(0, "mret", priv=3, csrs={"mstatus": "0x00001800"})]
-        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl), encoding="utf-8")
         manifest = {
             "schema_version": "2.1.0", "run_id": "priv-test",
             "run_dir": str(tmp_path),
             "outputs": {"rtl_commit_log": "rtl_commit.jsonl"},
         }
         mpath = tmp_path / "run_manifest.json"
-        mpath.write_text(json.dumps(manifest, indent=2))
+        mpath.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         rc = run_from_manifest(mpath)
         assert (tmp_path / "privilege_report.json").exists()
-        assert "privilege_report" in json.loads(mpath.read_text())["outputs"]
+        assert "privilege_report" in json.loads(mpath.read_text(encoding="utf-8"))["outputs"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1819,16 +1819,16 @@ class TestVMVerifier:
         rtl = [_vm_rec(0, "lw x1,0(x2)",
                        reads=[{"vaddr": "0x1000", "paddr": "0x90000000", "size": 4}],
                        phys_mem=_PT_4K)]
-        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl), encoding="utf-8")
         manifest = {"schema_version": "2.1.0", "run_id": "vm-test",
                     "run_dir": str(tmp_path),
                     "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
         mpath = tmp_path / "run_manifest.json"
-        mpath.write_text(json.dumps(manifest, indent=2))
+        mpath.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         rc = run_from_manifest(mpath)
         assert rc == 0
         assert (tmp_path / "vm_report.json").exists()
-        assert "vm_report" in json.loads(mpath.read_text())["outputs"]
+        assert "vm_report" in json.loads(mpath.read_text(encoding="utf-8"))["outputs"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1922,16 +1922,16 @@ class TestTLBVerifier:
         from AGENT_H.tlb_verifier import run_from_manifest
         rtl = [_tlb_rec(0, "lw x1,0(x2)", reads=_rd("0x1000", "0x90000000"),
                         phys_mem=_TLB_PT_BASE)]
-        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl), encoding="utf-8")
         manifest = {"schema_version": "2.1.0", "run_id": "tlb-test",
                     "run_dir": str(tmp_path),
                     "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
         mpath = tmp_path / "run_manifest.json"
-        mpath.write_text(json.dumps(manifest, indent=2))
+        mpath.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         rc = run_from_manifest(mpath)
         assert rc == 0
         assert (tmp_path / "tlb_report.json").exists()
-        assert "tlb_report" in json.loads(mpath.read_text())["outputs"]
+        assert "tlb_report" in json.loads(mpath.read_text(encoding="utf-8"))["outputs"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2060,16 +2060,16 @@ class TestPipelineVerifier:
             _pv_rec2(0, "addi x5,x0,5", regs={"x5": "0x00000005"}),
             _pv_rec2(1, "add x6,x5,x0", regs={"x6": "0x00000005"}),
         ]
-        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl), encoding="utf-8")
         manifest = {"schema_version": "2.1.0", "run_id": "pipe-test",
                     "run_dir": str(tmp_path),
                     "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
         mpath = tmp_path / "run_manifest.json"
-        mpath.write_text(json.dumps(manifest, indent=2))
+        mpath.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         rc = run_from_manifest(mpath)
         assert rc == 0
         assert (tmp_path / "pipeline_report.json").exists()
-        assert "pipeline_report" in json.loads(mpath.read_text())["outputs"]
+        assert "pipeline_report" in json.loads(mpath.read_text(encoding="utf-8"))["outputs"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2222,16 +2222,16 @@ class TestCacheVerifier:
             _cache_rec(0, reads=[_cache_entry("0x00", hit=False)]),
             _cache_rec(1, reads=[_cache_entry("0x00", hit=True)]),
         ]
-        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl), encoding="utf-8")
         manifest = {"schema_version": "2.1.0", "run_id": "cache-test",
                     "run_dir": str(tmp_path), "cache_config": _CFG2,
                     "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
         mpath = tmp_path / "run_manifest.json"
-        mpath.write_text(json.dumps(manifest, indent=2))
+        mpath.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         rc = run_from_manifest(mpath)
         assert rc == 0
         assert (tmp_path / "cache_report.json").exists()
-        assert "cache_report" in json.loads(mpath.read_text())["outputs"]
+        assert "cache_report" in json.loads(mpath.read_text(encoding="utf-8"))["outputs"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2344,16 +2344,16 @@ class TestBusVerifier:
         # transactions embedded in the commit log via the "bus" field
         rtl = [{"schema_version": "2.1.0", "seq": 0, "pc": "0x0", "disasm": "sw",
                 "regs": {}, "csrs": {}, "bus": _axi_incr(beats=_incr_beats())}]
-        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl), encoding="utf-8")
         manifest = {"schema_version": "2.1.0", "run_id": "bus-test",
                     "run_dir": str(tmp_path),
                     "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
         mpath = tmp_path / "run_manifest.json"
-        mpath.write_text(json.dumps(manifest, indent=2))
+        mpath.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         rc = run_from_manifest(mpath)
         assert rc == 0
         assert (tmp_path / "bus_report.json").exists()
-        assert "bus_report" in json.loads(mpath.read_text())["outputs"]
+        assert "bus_report" in json.loads(mpath.read_text(encoding="utf-8"))["outputs"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2440,16 +2440,16 @@ class TestFaultInjector:
     def test_run_from_manifest(self, tmp_path):
         from AGENT_H.fault_injector import run_from_manifest
         rtl = _alu_golden_log()
-        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl), encoding="utf-8")
         manifest = {"schema_version": "2.1.0", "run_id": "fi-test",
                     "run_dir": str(tmp_path),
                     "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
         mpath = tmp_path / "run_manifest.json"
-        mpath.write_text(json.dumps(manifest, indent=2))
+        mpath.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         rc = run_from_manifest(mpath, n=10)
         assert rc == 0
         assert (tmp_path / "fault_report.json").exists()
-        assert "fault_report" in json.loads(mpath.read_text())["outputs"]
+        assert "fault_report" in json.loads(mpath.read_text(encoding="utf-8"))["outputs"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2545,16 +2545,16 @@ class TestRV64Verifier:
             _rv64_rec(0, "addiw x5,x0,5", {"x5": "0x5"}),
             _rv64_rec(1, "addw x6,x5,x5", {"x6": "0xa"}),
         ]
-        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl), encoding="utf-8")
         manifest = {"schema_version": "2.1.0", "run_id": "rv64-test",
                     "run_dir": str(tmp_path),
                     "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
         mpath = tmp_path / "run_manifest.json"
-        mpath.write_text(json.dumps(manifest, indent=2))
+        mpath.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         rc = run_from_manifest(mpath)
         assert rc == 0
         assert (tmp_path / "rv64_report.json").exists()
-        assert "rv64_report" in json.loads(mpath.read_text())["outputs"]
+        assert "rv64_report" in json.loads(mpath.read_text(encoding="utf-8"))["outputs"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2685,16 +2685,16 @@ class TestSvMMUVerifier:
         rtl = [_sv_rec(0, "ld x1,0(x2)",
                        reads=[{"vaddr": "0x1000", "paddr": "0x90000000", "size": 8}],
                        phys_mem=_PT_SV39_4K)]
-        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl), encoding="utf-8")
         manifest = {"schema_version": "2.1.0", "run_id": "sv-test",
                     "run_dir": str(tmp_path),
                     "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
         mpath = tmp_path / "run_manifest.json"
-        mpath.write_text(json.dumps(manifest, indent=2))
+        mpath.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         rc = run_from_manifest(mpath)
         assert rc == 0
         assert (tmp_path / "sv_mmu_report.json").exists()
-        assert "sv_mmu_report" in json.loads(mpath.read_text())["outputs"]
+        assert "sv_mmu_report" in json.loads(mpath.read_text(encoding="utf-8"))["outputs"]
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2832,12 +2832,12 @@ class TestRV64AtomicsVerifier:
                        reads=[{"addr": "0x100", "size": 8, "value": "0x200000000"}],
                        writes=[{"addr": "0x100", "size": 8, "value": "0x300000000"}]),
         ]
-        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl))
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(r) for r in rtl), encoding="utf-8")
         manifest = {"schema_version": "2.1.0", "run_id": "rv64a-test",
                     "run_dir": str(tmp_path),
                     "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
         mpath = tmp_path / "run_manifest.json"
-        mpath.write_text(json.dumps(manifest, indent=2))
+        mpath.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
         rc = run_from_manifest(mpath)
         assert rc == 0
         assert (tmp_path / "rv64_atomics_report.json").exists()
@@ -3014,11 +3014,11 @@ class TestBranchPredictorVerifier:
                _bp_rec(1, "addi a1,x0,5", "0x80000004", {"a1": "0x5"}),
                _bp_rec(2, "beq a0,a1,0x80000040", "0x80000008", target="0x80000040"),
                _bp_rec(3, "addi x0,x0,0", "0x80000040")]
-        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(x) for x in log))
+        (tmp_path / "rtl_commit.jsonl").write_text("\n".join(json.dumps(x) for x in log), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_id": "bp", "run_dir": str(tmp_path),
                "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
         mp = tmp_path / "run_manifest.json"
-        mp.write_text(json.dumps(man))
+        mp.write_text(json.dumps(man), encoding="utf-8")
         rc = run_from_manifest(mp)
         assert rc == 0 and (tmp_path / "branch_predictor_report.json").exists()
 
@@ -3159,19 +3159,19 @@ class TestSelfEvolvingEngine:
         (tmp_path / "coverage_summary.json").write_text(json.dumps({
             "covered_bins": ["instr:add", "instr:sub"],
             "total_bins": ["instr:add", "instr:sub", "instr:amoadd.w",
-                           "csr:mstatus:write"]}))
+                           "csr:mstatus:write"]}), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_id": "se", "run_dir": str(tmp_path)}
-        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 0
-        out = json.loads((tmp_path / "self_evolving_report.json").read_text())
+        out = json.loads((tmp_path / "self_evolving_report.json").read_text(encoding="utf-8"))
         assert out["holes_remaining"] == 2 and out["status"] == "completed"
 
     def test_run_from_manifest_no_coverage(self, tmp_path):
         from AGENT_H.self_evolving_engine import run_from_manifest
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path)}
-        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 0
-        out = json.loads((tmp_path / "self_evolving_report.json").read_text())
+        out = json.loads((tmp_path / "self_evolving_report.json").read_text(encoding="utf-8"))
         assert out["status"] == "skipped"
 
     def test_robustness_empty(self):
@@ -3448,10 +3448,10 @@ class TestVectorVerifier:
         log = [_vrec(0, "vsetvli x1,x2,e32,m1", vtype={"sew": 32, "lmul": 1},
                      vl=8, avl=8, vlen=128)]
         (tmp_path / "rtl_commit.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in log))
+            "\n".join(json.dumps(x) for x in log), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
-        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "vector_report.json").exists()
 
@@ -3672,12 +3672,12 @@ class TestCoverageCollector:
         from AGENT_H.coverage_collector import run_from_manifest
         log = [_crec(0, "addi x5,x0,1", {"x5": "0x1"})]
         (tmp_path / "rtl_commit.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in log))
+            "\n".join(json.dumps(x) for x in log), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
-        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 0
-        summ = json.loads((tmp_path / "coverage_summary.json").read_text())
+        summ = json.loads((tmp_path / "coverage_summary.json").read_text(encoding="utf-8"))
         assert "covered_bins" in summ and "total_bins" in summ
 
     def test_feeds_self_evolving_planner(self):
@@ -3785,11 +3785,11 @@ class TestStimulusGenerator:
         summary = {"covered_bins": ["reg:x1"],
                    "total_bins": ["reg:x1", "reg:x2", "priv:S", "valclass:neg"],
                    "holes": ["reg:x2", "priv:S", "valclass:neg"]}
-        (tmp_path / "coverage_summary.json").write_text(json.dumps(summary))
+        (tmp_path / "coverage_summary.json").write_text(json.dumps(summary), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path)}
-        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 0
-        out = json.loads((tmp_path / "stimulus.json").read_text())
+        out = json.loads((tmp_path / "stimulus.json").read_text(encoding="utf-8"))
         assert out["holes_targeted"] == 3 and out["seeds_self_validated"] == 3
 
 
@@ -3902,10 +3902,10 @@ class TestCoherenceVerifier:
         evs = [_cev(0, "store", 0x40, 10, cycle=1), _cev(0, "store", 0x40, 20, cycle=2),
                _cev(1, "load", 0x40, 20, cycle=3), _cev(1, "load", 0x40, 10, cycle=4)]
         (tmp_path / "coherence_trace.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in evs))
+            "\n".join(json.dumps(x) for x in evs), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"coherence_trace": "coherence_trace.jsonl"}}
-        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "coherence_report.json").exists()
 
@@ -4074,11 +4074,11 @@ class TestMemoryModelVerifier:
     def test_run_from_manifest(self, tmp_path):
         from AGENT_H.memory_model_verifier import run_from_manifest
         (tmp_path / "consistency_trace.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in _MP))
+            "\n".join(json.dumps(x) for x in _MP), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "memory_model": "tso",
                "outputs": {"consistency_trace": "consistency_trace.jsonl"}}
-        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1     # MP is a TSO violation
         assert (tmp_path / "memory_model_report.json").exists()
 
@@ -4218,10 +4218,10 @@ class TestInterruptVerifier:
         evs = [self._CFG, {"op": "pending", "source": 3}, {"op": "pending", "source": 5},
                {"op": "claim", "context": 0, "result": 5}]
         (tmp_path / "interrupt_trace.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in evs))
+            "\n".join(json.dumps(x) for x in evs), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"interrupt_trace": "interrupt_trace.jsonl"}}
-        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "interrupt_report.json").exists()
 
@@ -4331,10 +4331,10 @@ class TestPerfCounterVerifier:
         assert r["agent"] == "perf_counter_verifier"
         rs = [_prec(0, 1, 10), _prec(1, 3, 15)]
         (tmp_path / "rtl_commit.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in rs))
+            "\n".join(json.dumps(x) for x in rs), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
-        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "perf_counter_report.json").exists()
 
@@ -4422,10 +4422,10 @@ class TestDebugVerifier:
         evs = [self._XT, {"op": "exec", "pc": "0x80000040", "priv": "M",
                           "fired": False}]
         (tmp_path / "debug_trace.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in evs))
+            "\n".join(json.dumps(x) for x in evs), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"debug_trace": "debug_trace.jsonl"}}
-        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "debug_report.json").exists()
 
@@ -4491,10 +4491,10 @@ class TestResetVerifier:
     def test_manifest(self, tmp_path):
         from AGENT_H.reset_verifier import run_from_manifest
         (tmp_path / "reset_snapshot.json").write_text(
-            json.dumps(dict(self._GOOD, pc="0x4")))
+            json.dumps(dict(self._GOOD, pc="0x4")), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"reset_snapshot": "reset_snapshot.json"}}
-        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "reset_report.json").exists()
 

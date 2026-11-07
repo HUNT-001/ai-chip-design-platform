@@ -57,7 +57,7 @@ def test_corrupt_ledger_is_preserved_warned_and_replaced(paths, caplog):
     assert warns, "no WARNING for a ledger that was moved aside"
     text = " ".join(r.getMessage() for r in warns)
     assert str(ledger) in text and str(backup) in text
-    assert json.loads(ledger.read_text())["campaigns"] == [CAMPAIGN]
+    assert json.loads(ledger.read_text(encoding="utf-8"))["campaigns"] == [CAMPAIGN]
 
 
 def test_second_corrupt_event_does_not_clobber_the_first(paths):
@@ -71,7 +71,7 @@ def test_second_corrupt_event_does_not_clobber_the_first(paths):
     second_bak = ledger.with_name(ledger.name + ".corrupt.1")
     assert first_bak.read_bytes() == CORRUPT
     assert second_bak.exists() and second_bak.read_bytes() == second
-    assert json.loads(ledger.read_text())["campaigns"] == [CAMPAIGN]
+    assert json.loads(ledger.read_text(encoding="utf-8"))["campaigns"] == [CAMPAIGN]
 
 
 @pytest.mark.parametrize("body", [
@@ -87,7 +87,7 @@ def test_valid_json_of_the_wrong_shape_is_treated_as_corrupt(paths, caplog, body
     backup = ledger.with_name(ledger.name + ".corrupt")
     assert backup.exists() and backup.read_bytes() == body
     assert _warnings(caplog)
-    assert json.loads(ledger.read_text())["campaigns"] == [CAMPAIGN]
+    assert json.loads(ledger.read_text(encoding="utf-8"))["campaigns"] == [CAMPAIGN]
 
 
 def test_valid_ledger_appends_without_backup_or_warning(paths, caplog):
@@ -95,7 +95,7 @@ def test_valid_ledger_appends_without_backup_or_warning(paths, caplog):
     _save(run, {"bugs_found": 5, "tests_run": 7, "computed_at": "t0"})
     with caplog.at_level(logging.WARNING, logger=ee.logger.name):
         _save(run)
-    data = json.loads(ledger.read_text())
+    data = json.loads(ledger.read_text(encoding="utf-8"))
     assert [c["computed_at"] for c in data["campaigns"]] == ["t0", "t"]
     assert data["total_bugs_found"] == 6
     assert not list(ledger.parent.glob("*.corrupt*"))
@@ -107,7 +107,7 @@ def test_missing_ledger_is_created_without_backup_or_warning(paths, caplog):
     assert not ledger.exists()
     with caplog.at_level(logging.WARNING, logger=ee.logger.name):
         _save(run)
-    assert json.loads(ledger.read_text())["campaigns"] == [CAMPAIGN]
+    assert json.loads(ledger.read_text(encoding="utf-8"))["campaigns"] == [CAMPAIGN]
     assert not list(ledger.parent.glob("*.corrupt*"))
     assert not _warnings(caplog)
 

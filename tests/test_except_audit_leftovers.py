@@ -116,7 +116,7 @@ def test_probe_spike_control_missing_binary_is_not_found(run_iss, tmp_path):
 
 def test_probe_spike_that_cannot_run_is_not_found(run_iss, tmp_path, caplog):
     spike = tmp_path / "spike"
-    spike.write_text("not executable\n")          # exists, but exec raises OSError
+    spike.write_text("not executable\n", encoding="utf-8")          # exists, but exec raises OSError
     spike.chmod(0o644)
     with caplog.at_level(logging.WARNING):
         caps = run_iss.probe_spike(str(spike))
@@ -127,7 +127,7 @@ def test_probe_spike_that_cannot_run_is_not_found(run_iss, tmp_path, caplog):
 
 def test_probe_spike_type_error_propagates(run_iss, tmp_path, monkeypatch):
     spike = tmp_path / "spike"
-    spike.write_text("x\n")
+    spike.write_text("x\n", encoding="utf-8")
     calls = {"n": 0}
     monkeypatch.setattr(run_iss.subprocess, "run", _raiser(TypeError, calls))
     with pytest.raises(TypeError):

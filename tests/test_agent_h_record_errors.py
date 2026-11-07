@@ -147,14 +147,14 @@ def test_run_from_manifest_says_could_not_verify(case, tmp_path, monkeypatch):
     mod, cls, make = _build(case)
     _patch(monkeypatch, case, mod, cls, make, ValueError)
     rec = _rec(case[5])
-    (tmp_path / "rtl_commit.jsonl").write_text(json.dumps(rec) + "\n")
-    (tmp_path / "iss_commit.jsonl").write_text(json.dumps(rec) + "\n")
+    (tmp_path / "rtl_commit.jsonl").write_text(json.dumps(rec) + "\n", encoding="utf-8")
+    (tmp_path / "iss_commit.jsonl").write_text(json.dumps(rec) + "\n", encoding="utf-8")
     (tmp_path / "raw_rtl.jsonl").write_text(
-        "\n".join(json.dumps(r) for r in RAW) + "\n")
+        "\n".join(json.dumps(r) for r in RAW) + "\n", encoding="utf-8")
     m = tmp_path / "run_manifest.json"
     m.write_text(json.dumps({
         "schema_version": "2.1.0", "run_id": "r10", "run_dir": str(tmp_path),
-        "agent_config": {"dut_class": "dma"}, "cache_config": CACHE_CFG}))
+        "agent_config": {"dut_class": "dma"}, "cache_config": CACHE_CFG}), encoding="utf-8")
     rc = mod.run_from_manifest(m)
     assert rc == 3, (
         f"AGENT_H/{case[1]}.py: run_from_manifest returned {rc} for a run that "
@@ -247,11 +247,11 @@ def test_only_evidence_record_mistyped_is_not_a_pass(name, disasm, field, value,
     assert report["pass"] is False, (
         f"AGENT_H/{case[1]}.py: reported a pass over a log it could not check")
     line = json.dumps(confused) + chr(10)
-    (tmp_path / "rtl_commit.jsonl").write_text(line)
-    (tmp_path / "iss_commit.jsonl").write_text(line)
+    (tmp_path / "rtl_commit.jsonl").write_text(line, encoding="utf-8")
+    (tmp_path / "iss_commit.jsonl").write_text(line, encoding="utf-8")
     m = tmp_path / "run_manifest.json"
     m.write_text(json.dumps({"schema_version": "2.1.0", "run_id": "r10",
-                             "run_dir": str(tmp_path)}))
+                             "run_dir": str(tmp_path)}), encoding="utf-8")
     rc = mod.run_from_manifest(m)
     assert rc == 3, (
         f"AGENT_H/{case[1]}.py: run_from_manifest returned {rc} for a log whose "

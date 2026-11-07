@@ -31,21 +31,21 @@ def _run(tmp_path, manifest, rtl=None, iss=None):
     out = tmp_path / "outputs"
     out.mkdir()
     if rtl is not None:
-        (out / "rtlcommit.jsonl").write_text(rtl)
+        (out / "rtlcommit.jsonl").write_text(rtl, encoding="utf-8")
     if iss is not None:
-        (out / "isscommitlog.jsonl").write_text(iss)
+        (out / "isscommitlog.jsonl").write_text(iss, encoding="utf-8")
     path = tmp_path / "manifest.json"
-    path.write_text(json.dumps({"rundir": str(tmp_path), "seed": 1, **manifest}))
+    path.write_text(json.dumps({"rundir": str(tmp_path), "seed": 1, **manifest}), encoding="utf-8")
     rc = mod.main_manifest(path)
-    return rc, json.loads(path.read_text())
+    return rc, json.loads(path.read_text(encoding="utf-8"))
 
 
 def test_missing_rundir_records_infra_error(tmp_path):
     mod = _comparator()
     path = tmp_path / "manifest.json"
-    path.write_text(json.dumps({"seed": 1}))
+    path.write_text(json.dumps({"seed": 1}), encoding="utf-8")
     assert mod.main_manifest(path) == mod.EXIT_CONFIG
-    assert json.loads(path.read_text())["phases"]["compare"]["status"] == "infra_error"
+    assert json.loads(path.read_text(encoding="utf-8"))["phases"]["compare"]["status"] == "infra_error"
 
 
 def test_missing_commit_logs_record_infra_error_in_phase_and_top_level(tmp_path):

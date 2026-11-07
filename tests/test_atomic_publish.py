@@ -72,7 +72,7 @@ def test_no_temp_publish_uses_rename():
 def test_atomic_write_never_removes_the_destination(tmp_path, monkeypatch):
     cc = importlib.import_module("AGENT_D.compare_commitlogs")
     dest = tmp_path / "run_manifest.json"
-    dest.write_text("old")
+    dest.write_text("old", encoding="utf-8")
 
     removed = []
 
@@ -90,4 +90,4 @@ def test_atomic_write_never_removes_the_destination(tmp_path, monkeypatch):
 
     monkeypatch.undo()
     assert not removed, f"atomic_write tried to remove files first: {removed}"
-    assert dest.read_text() == "new"
+    assert dest.read_text(encoding="utf-8") == "new"

@@ -70,7 +70,7 @@ exit 1
 
 
 def _write_exe(path: Path, text: str) -> None:
-    path.write_text(text)
+    path.write_text(text, encoding="utf-8")
     path.chmod(path.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
 
@@ -99,7 +99,7 @@ def _run(tmp_path: Path, spike_script: str):
     if out_dir.exists():
         for p in sorted(out_dir.rglob("*.json")):
             try:
-                data = json.loads(p.read_text())
+                data = json.loads(p.read_text(encoding="utf-8"))
             except (json.JSONDecodeError, OSError):
                 continue
             if isinstance(data, dict) and "tool_errors" in data.get("summary", {}):
@@ -115,7 +115,7 @@ def test_spike_without_signature_is_a_tool_error(tmp_path):
         f"exit {proc.returncode}, expected EXIT_TOOL ({EXIT_TOOL})\n{detail}"
     assert not marker.exists(), (
         "the run invoked the toolchain although Spike cannot produce signatures:\n"
-        + marker.read_text()[:500])
+        + marker.read_text(encoding="utf-8")[:500])
     assert reports, f"no JSON report with summary.tool_errors was written\n{detail}"
     errors = reports[0]["summary"]["tool_errors"]
     assert any("signature" in e for e in errors), \

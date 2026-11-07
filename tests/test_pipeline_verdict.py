@@ -61,11 +61,11 @@ def _violating_cas(manifest_path):
     """A gating verifier that found a violation: the report it would write, and
     1, the exit code its contract documents for a violation."""
     mp = pathlib.Path(manifest_path)
-    run_dir = pathlib.Path(json.loads(mp.read_text()).get("run_dir", mp.parent))
+    run_dir = pathlib.Path(json.loads(mp.read_text(encoding="utf-8")).get("run_dir", mp.parent))
     (run_dir / "cas_report.json").write_text(json.dumps({
         "status": "done", "pass": False, "total_violations": 7,
         "band": "HIGH", "metrics": {"cas_ops": 12},
-    }))
+    }), encoding="utf-8")
     return 1
 
 

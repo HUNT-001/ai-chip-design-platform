@@ -19,25 +19,22 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 
-# Files that are intentionally not in scope for this tranche.
-_EXCLUDED_DIRS = ("_legacy", "corpus", "tests")
+# Directories that are intentionally not scanned: dead code and vendored sources.
+_EXCLUDED_DIRS = ("_legacy", "corpus")
 
 # Intentional exceptions, keyed by (repo-relative path, ast.unparse of the call)
 # -> (number of such calls in that file, reason).  Keyed on call text, not line
 # number, so unrelated edits do not invalidate it; the count means a new
 # identical call in the same file is NOT silently covered.
 #
-# Empty: every production site must name its encoding (tranche 2).  Tests
-# are not scanned (the next tranche), so nothing is allowlisted.
+# Empty: every tracked .py file outside the excluded directories, tests
+# included, must name its encoding.
 ALLOWLIST = {}
 
 
 def _is_production(rel: str) -> bool:
-    parts = rel.split("/")
-    if parts[0].startswith(_EXCLUDED_DIRS):
-        return False
-    name = parts[-1]
-    return not (name.startswith("test_") or name == "conftest.py")
+    # Historical name: the scan now covers tests too (#24 final).
+    return not rel.split("/")[0].startswith(_EXCLUDED_DIRS)
 
 
 def _has_kw(call: ast.Call, name: str) -> bool:
@@ -160,7 +157,8 @@ def test_scan_covers_a_nontrivial_set_of_files():
     files = _tracked_production_files()
     assert len(files) >= 100
     assert "ava_patched.py" in files
-    assert not any(f.startswith(("_legacy", "corpus", "tests/")) for f in files)
+    assert not any(f.startswith(("_legacy", "corpus")) for f in files)
+    assert any(f.startswith("tests/test_") for f in files)
 
 
 def test_control_unlisted_site_is_a_violation():

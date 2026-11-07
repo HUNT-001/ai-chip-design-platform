@@ -27,7 +27,7 @@ def _coverage_assertion():
 def _violations(tmp_path, status):
     ml = importlib.import_module("manifest_contract")
     path = tmp_path / "m.json"
-    path.write_text(json.dumps({"phases": {"coverage": {"status": status}}}))
+    path.write_text(json.dumps({"phases": {"coverage": {"status": status}}}), encoding="utf-8")
     return [v for v in ml.ManifestContract(path).validate() if "phases.coverage.status" in v]
 
 

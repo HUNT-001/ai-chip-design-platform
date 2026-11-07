@@ -77,7 +77,7 @@ def _make_run(tmp_path, dat_text):
     raw.mkdir(parents=True)
     (raw / "coverage.dat").write_text(dat_text, encoding="utf-8")
     manifest = tmp_path / "manifest.json"
-    manifest.write_text(json.dumps({"rundir": str(rundir), "run_id": "t"}))
+    manifest.write_text(json.dumps({"rundir": str(rundir), "run_id": "t"}), encoding="utf-8")
     return rundir, manifest, raw / "coverage.dat"
 
 

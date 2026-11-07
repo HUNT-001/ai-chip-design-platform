@@ -114,14 +114,14 @@ def test_gate_is_evaluated_once(monkeypatch):
 # --------------------------------------------------------------------------- #
 def test_bmc_on_sequential_dut_is_not_a_proof(tmp_path):
     sby = tmp_path / "j.sby"
-    sby.write_text("[options]\nmode bmc\ndepth 20\n")
+    sby.write_text("[options]\nmode bmc\ndepth 20\n", encoding="utf-8")
     fc = FormalChannel(str(sby), mock=True, negative_control="bug_x")
     assert fc.prove("prove_x").status == "bounded_pass"   # NOT 'proved'
 
 
 def test_bmc_on_combinational_dut_is_a_proof(tmp_path):
     sby = tmp_path / "j.sby"
-    sby.write_text("[options]\nmode bmc\ndepth 2\n")
+    sby.write_text("[options]\nmode bmc\ndepth 2\n", encoding="utf-8")
     fc = FormalChannel(str(sby), mock=True, combinational=True,
                        negative_control="bug_x")
     assert fc.prove("prove_x").status == "proved"
@@ -129,7 +129,7 @@ def test_bmc_on_combinational_dut_is_a_proof(tmp_path):
 
 def test_kinduction_is_a_proof(tmp_path):
     sby = tmp_path / "j.sby"
-    sby.write_text("[options]\nmode prove\ndepth 2\n")
+    sby.write_text("[options]\nmode prove\ndepth 2\n", encoding="utf-8")
     fc = FormalChannel(str(sby), mock=True, negative_control="bug_x")
     assert fc.prove("prove_x").status == "proved"
 
@@ -139,11 +139,11 @@ def test_kinduction_is_a_proof(tmp_path):
 # --------------------------------------------------------------------------- #
 def test_witness_verifies_and_detects_tampering(tmp_path):
     art = tmp_path / "status"
-    art.write_text("PASS")
+    art.write_text("PASS", encoding="utf-8")
     w = _stamp(str(art))
     assert "#sha256:" in w
     assert verify_witness(w)[0]
-    art.write_text("PASS (tampered)")
+    art.write_text("PASS (tampered)", encoding="utf-8")
     ok, why = verify_witness(w)
     assert not ok and "CONTENT CHANGED" in why
 
@@ -156,7 +156,7 @@ def test_unstamped_missing_and_mock_witnesses_are_not_verified(tmp_path):
 
 
 def test_audit_knowledge_reports_each_claim(tmp_path):
-    art = tmp_path / "t.log"; art.write_text("x")
+    art = tmp_path / "t.log"; art.write_text("x", encoding="utf-8")
     ks = K.KnowledgeState()
     ks.believe(K.Judgment("good", K.Warrant.INDUCTIVE, {"n_eff": 1},
                           witness=_stamp(str(art))))
@@ -406,7 +406,7 @@ def test_static_channel_proves_no_comb_loops_on_real_ibex():
 
 def test_static_channel_reports_unsupported_property(tmp_path):
     rtl = tmp_path / "m.sv"
-    rtl.write_text("module m(input a, output b); assign b = a; endmodule\n")
+    rtl.write_text("module m(input a, output b); assign b = a; endmodule\n", encoding="utf-8")
     assert StaticChannel(str(rtl)).check("fsm_legality").status == "unsupported"
 
 
@@ -432,8 +432,8 @@ def test_bounded_evidence_never_discharges_a_sequential_obligation(tmp_path):
     but must never close the obligation — the property could still break one
     cycle past the horizon. Only an unbounded proof discharges it."""
     from voe import VOE
-    bmc = tmp_path / "b.sby";   bmc.write_text("[options]\nmode bmc\ndepth 12\n")
-    prv = tmp_path / "p.sby";   prv.write_text("[options]\nmode prove\ndepth 6\n")
+    bmc = tmp_path / "b.sby";   bmc.write_text("[options]\nmode bmc\ndepth 12\n", encoding="utf-8")
+    prv = tmp_path / "p.sby";   prv.write_text("[options]\nmode prove\ndepth 6\n", encoding="utf-8")
     tasks = [Task("fifo.cnt_bound", 6.0, formal_task="cnt")]
 
     def campaign(sby):
@@ -511,8 +511,8 @@ def _proved(ks, phi):
 
 
 def test_source_edit_invalidates_only_dependent_claims(tmp_path):
-    src = tmp_path / "a.sv"; src.write_text("module a; endmodule")
-    other = tmp_path / "b.sv"; other.write_text("module b; endmodule")
+    src = tmp_path / "a.sv"; src.write_text("module a; endmodule", encoding="utf-8")
+    other = tmp_path / "b.sv"; other.write_text("module b; endmodule", encoding="utf-8")
     ks, W = K.KnowledgeState(), {"a.p": 5.0, "b.p": 5.0}
     g = ImpactGraph()
     g.record("a.p", sources=[str(src)])
@@ -520,7 +520,7 @@ def test_source_edit_invalidates_only_dependent_claims(tmp_path):
     _proved(ks, "a.p"); _proved(ks, "b.p")
     assert K.R(ks, W) == 0
 
-    src.write_text("module a; wire x; endmodule")          # the commit
+    src.write_text("module a; wire x; endmodule", encoding="utf-8")          # the commit
     rep = g.propagate(ks, K, W, trigger="edit a.sv")
     assert rep.retracted == ["a.p"]                        # only the dependent
     assert "b.p" in ks.K                                   # untouched claim stands
@@ -547,13 +547,13 @@ def test_retracting_a_premise_propagates_transitively():
 def test_risk_may_rise_on_commit_but_not_on_update(tmp_path):
     """The kernel already reserved exactly one event class where residual risk
     may increase. Retraction is that class — and mislabelling it is rejected."""
-    src = tmp_path / "a.sv"; src.write_text("x")
+    src = tmp_path / "a.sv"; src.write_text("x", encoding="utf-8")
     ks, W = K.KnowledgeState(), {"a.p": 5.0}
     g = ImpactGraph(); g.record("a.p", sources=[str(src)])
     _proved(ks, "a.p")
     prev = K.R(ks, W)
 
-    src.write_text("y")
+    src.write_text("y", encoding="utf-8")
     g.propagate(ks, K, W, trigger="edit")
     assert K.R(ks, W) > prev
     assert all(v for _, v in K.check_laws(ks, W, prev, "commit")[1])     # legal
@@ -561,7 +561,7 @@ def test_risk_may_rise_on_commit_but_not_on_update(tmp_path):
 
 
 def test_unchanged_sources_invalidate_nothing(tmp_path):
-    src = tmp_path / "a.sv"; src.write_text("stable")
+    src = tmp_path / "a.sv"; src.write_text("stable", encoding="utf-8")
     ks, W = K.KnowledgeState(), {"a.p": 5.0}
     g = ImpactGraph(); g.record("a.p", sources=[str(src)])
     _proved(ks, "a.p")
@@ -696,7 +696,7 @@ def test_mock_rejects_an_sby_task_that_does_not_exist(tmp_path):
     in --mock too. Accepting any name let a real wiring bug pass mock and
     surface only against the toolchain."""
     sby = tmp_path / "j.sby"
-    sby.write_text("[tasks]\nprove_onehot\nbug_onehot\n\n[options]\nmode prove\ndepth 6\n")
+    sby.write_text("[tasks]\nprove_onehot\nbug_onehot\n\n[options]\nmode prove\ndepth 6\n", encoding="utf-8")
     fc = FormalChannel(str(sby), mock=True, negative_control="bug_onehot")
     bad = fc.prove("onehot")
     assert bad.status == "error" and "no such sby task" in bad.detail
@@ -779,7 +779,7 @@ def test_comments_do_not_create_arithmetic(tmp_path):
     /* ... */ block, labelling comment-heavy combinational RTL as arithmetic."""
     f = tmp_path / "m.sv"
     f.write_text("/* a comment with * stars * in it */\n"
-                 "module m(input a, output b); assign b = a; endmodule\n")
+                 "module m(input a, output b); assign b = a; endmodule\n", encoding="utf-8")
     arith, seq, _ = probe_structure(str(f))
     assert not arith and not seq
 
@@ -799,12 +799,12 @@ def test_always_comb_is_not_sequential(tmp_path):
     purely combinational designs like ibex_alu as stateful."""
     f = tmp_path / "c.sv"
     f.write_text("module c(input a, output logic b);\n"
-                 "  always_comb b = ~a;\nendmodule\n")
+                 "  always_comb b = ~a;\nendmodule\n", encoding="utf-8")
     _a, seq, _d = probe_structure(str(f))
     assert not seq
     g = tmp_path / "s.sv"
     g.write_text("module s(input clk, a, output logic b);\n"
-                 "  always_ff @(posedge clk) b <= a;\nendmodule\n")
+                 "  always_ff @(posedge clk) b <= a;\nendmodule\n", encoding="utf-8")
     assert probe_structure(str(g))[1]
 
 
@@ -898,9 +898,9 @@ def _prereg(tmp_path, **kw):
 def test_criteria_are_hashed_and_tamper_evident(tmp_path):
     p = _prereg(tmp_path)
     assert p.intact and p.digest
-    with open(p.path) as f:
+    with open(p.path, encoding="utf-8") as f:
         text = f.read()
-    with open(p.path, "w") as f:                       # move the goalposts
+    with open(p.path, "w", encoding="utf-8") as f:                       # move the goalposts
         f.write(text.replace('"min_effect": 0.05', '"min_effect": 0.01'))
     reloaded = Preregistration.load(p.path)
     assert not reloaded.intact

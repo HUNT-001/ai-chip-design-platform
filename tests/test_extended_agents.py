@@ -104,10 +104,10 @@ class TestHypervisorVerifier:
         evs = [self._CFG, {"op": "translate", "gva": "0x80abc",
                            "access": "load", "pa": "0x999abc"}]
         (tmp_path / "hypervisor_trace.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in evs))
+            "\n".join(json.dumps(x) for x in evs), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"hypervisor_trace": "hypervisor_trace.jsonl"}}
-        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "hypervisor_report.json").exists()
 
@@ -175,10 +175,10 @@ class TestAIAVerifier:
         evs = [self._cfg(eidelivery=1, eie=[3, 7], eip=[3, 7]),
                {"op": "imsic_topei", "result": 7}]
         (tmp_path / "aia_trace.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in evs))
+            "\n".join(json.dumps(x) for x in evs), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"aia_trace": "aia_trace.jsonl"}}
-        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "aia_report.json").exists()
 
@@ -323,10 +323,10 @@ class TestOOOVerifier:
         rs = [_orec(0, "add x5,x6,x7", issue=1, complete=2, commit=4),
               _orec(1, "add x8,x1,x9", issue=1, complete=2, commit=3)]
         (tmp_path / "rtl_commit.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in rs))
+            "\n".join(json.dumps(x) for x in rs), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"ooo_trace": "rtl_commit.jsonl"}}
-        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "ooo_report.json").exists()
 
@@ -399,10 +399,10 @@ class TestLSQVerifier:
         from AGENT_H.lsq_verifier import run_from_manifest
         rs = [_st(0, 0x40, 5), _ld(1, 0x40, 0)]
         (tmp_path / "rtl_commit.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in rs))
+            "\n".join(json.dumps(x) for x in rs), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"lsq_trace": "rtl_commit.jsonl"}}
-        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "lsq_report.json").exists()
 
@@ -493,10 +493,10 @@ class TestCryptoVerifier:
         from AGENT_H.crypto_verifier import run_from_manifest
         rs = _cinstr("sha256sum0 x5,x6", 6, 0xABCDEF01, 5, 0xDEADBEEF)
         (tmp_path / "rtl_commit.jsonl").write_text(
-            "\n".join(json.dumps(r) for r in rs))
+            "\n".join(json.dumps(r) for r in rs), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"rtl_commit_log": "rtl_commit.jsonl"}}
-        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "crypto_report.json").exists()
 
@@ -591,10 +591,10 @@ class TestCASVerifier:
         from AGENT_H.cas_verifier import run_from_manifest
         evs = [_cas(5, 9, 5, 5, 5)]                            # bug → rc 1
         (tmp_path / "cas_trace.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in evs))
+            "\n".join(json.dumps(x) for x in evs), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"cas_trace": "cas_trace.jsonl"}}
-        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "cas_report.json").exists()
 
@@ -726,10 +726,10 @@ class TestVAESVerifier:
         evs = [{"op": "vaesem", "state": "193de3bea0f4e22b9ac68d2ae9f84808",
                 "key": "0" * 32, "result": "0" * 32}]
         (tmp_path / "vaes_trace.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in evs))
+            "\n".join(json.dumps(x) for x in evs), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"vaes_trace": "vaes_trace.jsonl"}}
-        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "vaes_report.json").exists()
 
@@ -912,11 +912,11 @@ class TestVSHAVerifier:
                 "vs2": [5, 6, 7, 8], "vs1": [9, 10, 11, 12],
                 "result": [0, 0, 0, 0]}]
         (tmp_path / "vsha_trace.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in evs))
+            "\n".join(json.dumps(x) for x in evs), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"vsha_trace": "vsha_trace.jsonl"}}
         mp = tmp_path / "run_manifest.json"
-        mp.write_text(json.dumps(man))
+        mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "vsha_report.json").exists()
 
@@ -1015,11 +1015,11 @@ class TestVSM3Verifier:
         evs = [{"op": "vsm3me", "vs1": list(range(1, 9)),
                 "vs2": list(range(9, 17)), "result": [0] * 8}]
         (tmp_path / "vsm3_trace.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in evs))
+            "\n".join(json.dumps(x) for x in evs), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"vsm3_trace": "vsm3_trace.jsonl"}}
         mp = tmp_path / "run_manifest.json"
-        mp.write_text(json.dumps(man))
+        mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "vsm3_report.json").exists()
 
@@ -1139,7 +1139,7 @@ class TestVerificationTwin:
                "reports": reports, "coverage_history": self._gen(95, 8, 6),
                "pass_rate_history": [0.8, 0.9], "coverage_goal": 90}
         mp = tmp_path / "run_manifest.json"
-        mp.write_text(json.dumps(man))
+        mp.write_text(json.dumps(man), encoding="utf-8")
         run_from_manifest(str(mp))
         assert (tmp_path / "verification_twin_report.json").exists()
 
@@ -1317,7 +1317,7 @@ class TestTestbenchGenerator:
         # manifest path with no rtl_dir -> graceful skip
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path)}
         mp = tmp_path / "run_manifest.json"
-        mp.write_text(json.dumps(man))
+        mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 0
         assert (tmp_path / "testbench_gen_report.json").exists()
 
@@ -2087,11 +2087,11 @@ class TestFailureAnalytics:
         for bad in ([], [None, 5], [{}]):
             assert FailureAnalytics(bad).run()["total_failures"] >= 0
         (tmp_path / "failures.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in fs))
+            "\n".join(json.dumps(x) for x in fs), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"failures": "failures.jsonl"}}
         mp = tmp_path / "run_manifest.json"
-        mp.write_text(json.dumps(man))
+        mp.write_text(json.dumps(man), encoding="utf-8")
         run_from_manifest(str(mp))
         assert (tmp_path / "failure_analytics_report.json").exists()
 
@@ -2189,11 +2189,11 @@ class TestBugIntelligence:
         for bad in ([], [None, 5], [{}]):
             assert BugIntelligence(bad).run()["metrics"]["bugs_analysed"] >= 0
         (tmp_path / "failures.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in fs))
+            "\n".join(json.dumps(x) for x in fs), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"failures": "failures.jsonl"}}
         mp = tmp_path / "run_manifest.json"
-        mp.write_text(json.dumps(man))
+        mp.write_text(json.dumps(man), encoding="utf-8")
         run_from_manifest(str(mp))
         assert (tmp_path / "bug_intelligence_report.json").exists()
 
@@ -2297,7 +2297,7 @@ class TestRegressionIntelligence:
                "test_results": {"t1": True},
                "changed_files": ["alu.v"], "workers": 2}
         mp = tmp_path / "run_manifest.json"
-        mp.write_text(json.dumps(man))
+        mp.write_text(json.dumps(man), encoding="utf-8")
         run_from_manifest(str(mp))
         assert (tmp_path / "regression_intelligence_report.json").exists()
 
@@ -2398,7 +2398,7 @@ class TestDashboard:
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "reports": self.REPORTS}
         mp = tmp_path / "run_manifest.json"
-        mp.write_text(json.dumps(man))
+        mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 0
         assert (tmp_path / "dashboard_index.json").exists()
         assert (tmp_path / "dashboard_executive.html").exists()
@@ -2523,11 +2523,11 @@ class TestRTLBasicsVerifier:
         bad = [{"event": "fifo_def", "name": "f", "depth": 1},
                {"event": "fifo", "name": "f", "op": "pop"}]
         (tmp_path / "rtl_trace.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in bad))
+            "\n".join(json.dumps(x) for x in bad), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"rtl_trace": "rtl_trace.jsonl"}}
         mp = tmp_path / "run_manifest.json"
-        mp.write_text(json.dumps(man))
+        mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "rtl_basics_report.json").exists()
 
@@ -2625,11 +2625,11 @@ class TestSoCPeripheralVerifier:
             assert self._run(evs)["pass"]
         bad = [{"event": "gpio", "pin": 1, "dir": "in", "drive": 1}]
         (tmp_path / "soc_periph_trace.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in bad))
+            "\n".join(json.dumps(x) for x in bad), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"soc_periph_trace": "soc_periph_trace.jsonl"}}
         mp = tmp_path / "run_manifest.json"
-        mp.write_text(json.dumps(man))
+        mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "soc_periph_report.json").exists()
 
@@ -2727,11 +2727,11 @@ class TestInterconnectVerifier:
             assert self._run(evs)["pass"]
         bad = [{"event": "wb", "cyc": False, "stb": True}]
         (tmp_path / "interconnect_trace.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in bad))
+            "\n".join(json.dumps(x) for x in bad), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"interconnect_trace": "interconnect_trace.jsonl"}}
         mp = tmp_path / "run_manifest.json"
-        mp.write_text(json.dumps(man))
+        mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "interconnect_report.json").exists()
 
@@ -2840,11 +2840,11 @@ class TestAdvancedLinkVerifier:
         bad = [{"event": "link", "proto": "pcie", "seq": 0},
                {"event": "link", "proto": "pcie", "seq": 9}]
         (tmp_path / "advlink_trace.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in bad))
+            "\n".join(json.dumps(x) for x in bad), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"advlink_trace": "advlink_trace.jsonl"}}
         mp = tmp_path / "run_manifest.json"
-        mp.write_text(json.dumps(man))
+        mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "advlink_report.json").exists()
 
@@ -2955,11 +2955,11 @@ class TestPowerVerifier:
                {"seq": 1, "domain": "d", "event": "output",
                 "signal": "s", "value": "0x1", "isolated": False}]
         (tmp_path / "power_trace.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in evs))
+            "\n".join(json.dumps(x) for x in evs), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"power_trace": "power_trace.jsonl"}}
         mp = tmp_path / "run_manifest.json"
-        mp.write_text(json.dumps(man))
+        mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "power_report.json").exists()
 
@@ -3043,11 +3043,11 @@ class TestCDCVerifier:
         evs = [{"event": "crossing", "signal": "s", "src_clk": "a",
                 "dst_clk": "b", "scheme": "none"}]
         (tmp_path / "cdc_trace.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in evs))
+            "\n".join(json.dumps(x) for x in evs), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"cdc_trace": "cdc_trace.jsonl"}}
         mp = tmp_path / "run_manifest.json"
-        mp.write_text(json.dumps(man))
+        mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "cdc_report.json").exists()
 
@@ -3132,11 +3132,11 @@ class TestEquivalenceVerifier:
         bad = [{"event": "trace", "name": "core", "latency": 0,
                 "golden": [1, 2], "revised": [1, 7]}]
         (tmp_path / "equiv_trace.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in bad))
+            "\n".join(json.dumps(x) for x in bad), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"equiv_trace": "equiv_trace.jsonl"}}
         mp = tmp_path / "run_manifest.json"
-        mp.write_text(json.dumps(man))
+        mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "equiv_report.json").exists()
 
@@ -3234,11 +3234,11 @@ class TestVGHASHVerifier:
         evs = [{"op": "vgmul", "vd": "0" * 31 + "1", "vs2": "0" * 31 + "2",
                 "result": "f" * 32}]
         (tmp_path / "vghash_trace.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in evs))
+            "\n".join(json.dumps(x) for x in evs), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"vghash_trace": "vghash_trace.jsonl"}}
         mp = tmp_path / "run_manifest.json"
-        mp.write_text(json.dumps(man))
+        mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "vghash_report.json").exists()
 
@@ -3331,11 +3331,11 @@ class TestVSM4Verifier:
         evs = [{"op": "vsm4r", "vd": [1, 2, 3, 4], "vs2": [5, 6, 7, 8],
                 "result": [0, 0, 0, 0]}]
         (tmp_path / "vsm4_trace.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in evs))
+            "\n".join(json.dumps(x) for x in evs), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"vsm4_trace": "vsm4_trace.jsonl"}}
         mp = tmp_path / "run_manifest.json"
-        mp.write_text(json.dumps(man))
+        mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "vsm4_report.json").exists()
 
@@ -3447,11 +3447,11 @@ class TestAESKeySchedule:
         evs = [{"op": "vaeskf1", "rnd": 1,
                 "vs2": [1, 2, 3, 4], "result": [0, 0, 0, 0]}]
         (tmp_path / "vaeskf_trace.jsonl").write_text(
-            "\n".join(json.dumps(x) for x in evs))
+            "\n".join(json.dumps(x) for x in evs), encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_dir": str(tmp_path),
                "outputs": {"vaeskf_trace": "vaeskf_trace.jsonl"}}
         mp = tmp_path / "run_manifest.json"
-        mp.write_text(json.dumps(man))
+        mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
         assert (tmp_path / "vaeskf_report.json").exists()
 
@@ -3563,7 +3563,7 @@ class TestSemanticAnalyzer:
         from pathlib import Path as _Path
         from AGENT_A import semantic_analyzer as sa
         schema = _json.loads(
-            (_Path(sa.__file__).with_name("run_manifest.schema.json")).read_text())
+            (_Path(sa.__file__).with_name("run_manifest.schema.json")).read_text(encoding="utf-8"))
         assert set(sa._MANIFEST_STATUS) == set(
             schema["$defs"]["lifecycle_status"]["enum"])
 
@@ -3616,14 +3616,14 @@ class TestSemanticAnalyzer:
         assert r["pass"] and r["dut"]["module"] == "core"
         assert not SemanticAnalyzer([{"seq": 0}], {"run_id": "r"}).analyze()["pass"]
         # manifest round-trip flags an invalid record + extracts the DUT
-        (tmp_path / "rtl_commit.jsonl").write_text(json.dumps({"seq": 0}))
-        (tmp_path / "core.v").write_text("module core(input clk, output q); endmodule")
+        (tmp_path / "rtl_commit.jsonl").write_text(json.dumps({"seq": 0}), encoding="utf-8")
+        (tmp_path / "core.v").write_text("module core(input clk, output q); endmodule", encoding="utf-8")
         man = {"schema_version": "2.1.0", "run_id": "r", "run_dir": str(tmp_path),
                "status": "passed", "outputs": {"rtl_commit_log": "rtl_commit.jsonl"},
                "rtl": "core.v"}
-        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man))
+        mp = tmp_path / "run_manifest.json"; mp.write_text(json.dumps(man), encoding="utf-8")
         assert run_from_manifest(str(mp)) == 1
-        rep = json.loads((tmp_path / "semantic_report.json").read_text())
+        rep = json.loads((tmp_path / "semantic_report.json").read_text(encoding="utf-8"))
         assert not rep["schema_valid"] and rep["dut"]["module"] == "core"
 
 
@@ -3656,7 +3656,7 @@ class TestPhase6Integration:
         ]
         for mod, report in agents:
             rc = mod.run_from_manifest(mpath)
-            rep = json.loads((tmp_path / report).read_text())
+            rep = json.loads((tmp_path / report).read_text(encoding="utf-8"))
             assert rep.get("status") == "completed", f"{report} was skipped"
             assert rep["pass"] is True, f"{report}: {rep.get('violations')}"
             assert rc == 0
@@ -3664,7 +3664,7 @@ class TestPhase6Integration:
     def test_commit_log_agents_active(self, tmp_path):
         self._demo_run(tmp_path)
         rtl = [json.loads(l) for l in
-               (tmp_path / "rtl_commit.jsonl").read_text().splitlines() if l.strip()]
+               (tmp_path / "rtl_commit.jsonl").read_text(encoding="utf-8").splitlines() if l.strip()]
         from AGENT_H.vector_verifier import VectorVerifier
         from AGENT_H.perf_counter_verifier import PerfCounterVerifier
         from AGENT_H.branch_predictor_verifier import BranchPredictorVerifier

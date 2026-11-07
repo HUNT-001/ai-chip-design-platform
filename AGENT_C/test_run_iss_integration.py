@@ -76,7 +76,7 @@ V2_OLD_KEYS = {"source", "reg_writes", "csr_writes", "mem_access"}
 def assert_v2_commitlog(tc: unittest.TestCase, path: Path) -> list:
     """Full v2.0.0 structural validation of a JSONL file."""
     records = []
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         for i, raw in enumerate(f):
             raw = raw.strip()
             if not raw:
@@ -170,7 +170,7 @@ class TestValidateCommitlog(unittest.TestCase):
                 "seq": 0, "pc": "0x80000000", "instr": "0x00000013",
                 "src": "iss", "hart": 0, "fpregs": None,
                 # schema_version deliberately absent
-            }) + "\n")
+            }) + "\n", encoding="utf-8")
             errs = run_iss.validate_commitlog(p)
             self.assertTrue(any("schema_version" in e for e in errs))
 
@@ -181,7 +181,7 @@ class TestValidateCommitlog(unittest.TestCase):
                 "schema_version": "1.0.0",   # wrong
                 "seq": 0, "pc": "0x80000000", "instr": "0x00000013",
                 "src": "iss", "hart": 0, "fpregs": None,
-            }) + "\n")
+            }) + "\n", encoding="utf-8")
             errs = run_iss.validate_commitlog(p)
             self.assertTrue(any("schema_version" in e for e in errs))
 
@@ -193,7 +193,7 @@ class TestValidateCommitlog(unittest.TestCase):
                 "seq": 0, "pc": "0x80000000", "instr": "0x00000013",
                 # src absent
                 "hart": 0, "fpregs": None,
-            }) + "\n")
+            }) + "\n", encoding="utf-8")
             errs = run_iss.validate_commitlog(p)
             self.assertTrue(any("src" in e for e in errs))
 
@@ -204,7 +204,7 @@ class TestValidateCommitlog(unittest.TestCase):
                 "schema_version": "2.1.0",
                 "seq": 0, "pc": "BADHEX", "instr": "0x00000013",
                 "src": "iss", "hart": 0, "fpregs": None,
-            }) + "\n")
+            }) + "\n", encoding="utf-8")
             errs = run_iss.validate_commitlog(p)
             self.assertTrue(any("pc" in e for e in errs))
 
@@ -216,20 +216,20 @@ class TestAtomicUpdateManifest(unittest.TestCase):
     def test_simple_key(self):
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / "manifest.json"
-            p.write_text(json.dumps({"status": "pending"}))
+            p.write_text(json.dumps({"status": "pending"}), encoding="utf-8")
             run_iss.atomic_update_manifest(p, {"status": "running"})
-            self.assertEqual(json.loads(p.read_text())["status"], "running")
+            self.assertEqual(json.loads(p.read_text(encoding="utf-8"))["status"], "running")
 
     def test_dotted_key_creates_nesting(self):
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / "manifest.json"
-            p.write_text(json.dumps({}))
+            p.write_text(json.dumps({}), encoding="utf-8")
             run_iss.atomic_update_manifest(p, {
                 "phases.iss.status": "completed",
                 "phases.iss.duration_s": 1.23,
                 "outputs.iss_commitlog": "outputs/iss_commitlog.jsonl",
             })
-            m = json.loads(p.read_text())
+            m = json.loads(p.read_text(encoding="utf-8"))
             self.assertEqual(m["phases"]["iss"]["status"], "completed")
             self.assertAlmostEqual(m["phases"]["iss"]["duration_s"], 1.23)
             self.assertEqual(m["outputs"]["iss_commitlog"], "outputs/iss_commitlog.jsonl")
@@ -237,7 +237,7 @@ class TestAtomicUpdateManifest(unittest.TestCase):
     def test_no_tmp_file_left(self):
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / "manifest.json"
-            p.write_text(json.dumps({"x": 1}))
+            p.write_text(json.dumps({"x": 1}), encoding="utf-8")
             run_iss.atomic_update_manifest(p, {"x": 2})
             # .tmp file must be gone (rename is atomic on POSIX)
             self.assertFalse(p.with_suffix(".tmp").exists())
@@ -245,10 +245,10 @@ class TestAtomicUpdateManifest(unittest.TestCase):
     def test_idempotent(self):
         with tempfile.TemporaryDirectory() as d:
             p = Path(d) / "manifest.json"
-            p.write_text(json.dumps({"phases": {"iss": {"status": "pending"}}}))
+            p.write_text(json.dumps({"phases": {"iss": {"status": "pending"}}}), encoding="utf-8")
             run_iss.atomic_update_manifest(p, {"phases.iss.status": "completed"})
             run_iss.atomic_update_manifest(p, {"phases.iss.status": "completed"})
-            m = json.loads(p.read_text())
+            m = json.loads(p.read_text(encoding="utf-8"))
             self.assertEqual(m["phases"]["iss"]["status"], "completed")
 
 
@@ -277,7 +277,7 @@ class TestRunIssManifest(unittest.TestCase):
         elf.write_bytes(b"\x7fELF" + b"\x00" * 60)
         data = {"rundir": str(run_dir), "binary": str(elf), "isa": "rv32im", **extra}
         p = self.tmpdir / "manifest.json"
-        p.write_text(json.dumps(data))
+        p.write_text(json.dumps(data), encoding="utf-8")
         return p
 
     def _mock_spike(self, fixture=FIXTURE_B):
@@ -300,7 +300,7 @@ class TestRunIssManifest(unittest.TestCase):
         p1, p2 = self._mock_spike()
         with p1, p2:
             run_iss.run_iss_manifest(mp)
-        run_dir = Path(json.loads(mp.read_text())["rundir"])
+        run_dir = Path(json.loads(mp.read_text(encoding="utf-8"))["rundir"])
         self.assertTrue((run_dir / "outputs" / "iss_commitlog.jsonl").exists())
 
     def test_manifest_phases_written(self):
@@ -308,7 +308,7 @@ class TestRunIssManifest(unittest.TestCase):
         p1, p2 = self._mock_spike()
         with p1, p2:
             run_iss.run_iss_manifest(mp)
-        m = json.loads(mp.read_text())
+        m = json.loads(mp.read_text(encoding="utf-8"))
         self.assertEqual(m["phases"]["iss"]["status"], "passed")
         self.assertEqual(m["outputs"]["iss_commitlog"], "outputs/iss_commitlog.jsonl")
         self.assertIn("commit_count", m["phases"]["iss"])
@@ -319,7 +319,7 @@ class TestRunIssManifest(unittest.TestCase):
         p1, p2 = self._mock_spike()
         with p1, p2:
             run_iss.run_iss_manifest(mp)
-        run_dir = Path(json.loads(mp.read_text())["rundir"])
+        run_dir = Path(json.loads(mp.read_text(encoding="utf-8"))["rundir"])
         records = assert_v2_commitlog(self, run_dir / "outputs" / "iss_commitlog.jsonl")
         self.assertEqual(len(records), EXPECTED_B)
 
@@ -327,10 +327,10 @@ class TestRunIssManifest(unittest.TestCase):
         """Manifest without 'binary' → EXIT_CONFIG."""
         run_dir = self.tmpdir / "run"
         mp = self.tmpdir / "manifest.json"
-        mp.write_text(json.dumps({"rundir": str(run_dir), "isa": "rv32im"}))
+        mp.write_text(json.dumps({"rundir": str(run_dir), "isa": "rv32im"}), encoding="utf-8")
         rc = run_iss.run_iss_manifest(mp)
         self.assertEqual(rc, run_iss.EXIT_CONFIG)
-        m = json.loads(mp.read_text())
+        m = json.loads(mp.read_text(encoding="utf-8"))
         self.assertEqual(m["phases"]["iss"]["status"], "infra_error")
 
     def test_missing_elf_file(self):
@@ -340,7 +340,7 @@ class TestRunIssManifest(unittest.TestCase):
             "rundir": str(self.tmpdir / "run"),
             "binary": "/nonexistent/prog.elf",
             "isa": "rv32im",
-        }))
+        }), encoding="utf-8")
         rc = run_iss.run_iss_manifest(mp)
         self.assertEqual(rc, run_iss.EXIT_CONFIG)
 
@@ -375,7 +375,7 @@ class TestRunIssManifest(unittest.TestCase):
              patch.object(run_iss, "run_spike_process", return_value=(0, FIXTURE_A)):
             rc = run_iss.run_iss_manifest(mp)
         self.assertEqual(rc, run_iss.EXIT_PASS)
-        run_dir = Path(json.loads(mp.read_text())["rundir"])
+        run_dir = Path(json.loads(mp.read_text(encoding="utf-8"))["rundir"])
         records = assert_v2_commitlog(self, run_dir / "outputs" / "iss_commitlog.jsonl")
         self.assertEqual(len(records), EXPECTED_A)
 
@@ -396,7 +396,7 @@ class TestCLIManifestMode(unittest.TestCase):
         elf     = self.tmpdir / "t.elf"
         elf.write_bytes(b"\x7fELF" + b"\x00" * 60)
         mp = self.tmpdir / "manifest.json"
-        mp.write_text(json.dumps({"rundir": str(run_dir), "binary": str(elf), "isa": "rv32im"}))
+        mp.write_text(json.dumps({"rundir": str(run_dir), "binary": str(elf), "isa": "rv32im"}), encoding="utf-8")
 
         caps = {"found": True, "version": "mock", "has_log_commits": True,
                 "has_commit_log": False, "has_l_flag": True, "spike_path": "spike"}
@@ -533,7 +533,7 @@ class TestManifestEfficiencyIntegration(unittest.TestCase):
         elf = self.tmpdir / "t.elf"
         elf.write_bytes(b"\x7fELF" + b"\x00" * 60)
         mp = self.tmpdir / "manifest.json"
-        mp.write_text(json.dumps({"rundir": str(run_dir), "binary": str(elf), "isa": "rv32im"}))
+        mp.write_text(json.dumps({"rundir": str(run_dir), "binary": str(elf), "isa": "rv32im"}), encoding="utf-8")
         caps = {"found": True, "version": "mock", "has_log_commits": True,
                 "has_commit_log": False, "has_l_flag": True, "spike_path": "spike"}
         with patch.object(run_iss, "probe_spike", return_value=caps), \

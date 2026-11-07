@@ -47,7 +47,7 @@ endmodule
 
 @pytest.fixture
 def corpus(tmp_path, monkeypatch):
-    (tmp_path / "leaf_counter.sv").write_text(LEAF)
+    (tmp_path / "leaf_counter.sv").write_text(LEAF, encoding="utf-8")
     monkeypatch.setattr(scan_corpus, "CORPUS", str(tmp_path))
     return tmp_path
 
