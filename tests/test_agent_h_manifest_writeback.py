@@ -139,20 +139,20 @@ def _build_run(tmp_path):
              bus={"protocol": "axi", "channel": "AW", "addr": "0x100"}),
     ]
     for name in ("rtl_commit.jsonl", "iss_commit.jsonl"):
-        (tmp_path / name).write_text("\n".join(json.dumps(r) for r in recs) + "\n")
+        (tmp_path / name).write_text("\n".join(json.dumps(r) for r in recs) + "\n", encoding="utf-8")
     raw = [{"channel": 0, "op": "READ", "src_addr": "0x1000", "length": 64},
            {"channel": 0, "op": "WRITE", "dst_addr": "0x2000", "length": 64},
            {"channel": 0, "op": "DONE"}]
-    (tmp_path / "raw_rtl.jsonl").write_text("\n".join(json.dumps(r) for r in raw) + "\n")
+    (tmp_path / "raw_rtl.jsonl").write_text("\n".join(json.dumps(r) for r in raw) + "\n", encoding="utf-8")
     (tmp_path / "bug_report.json").write_text(json.dumps({
         "kind": "register_mismatch", "mismatch_class": "alu_result",
         "severity": "HIGH", "seq": 2, "pc": "0x80000008",
         "disasm": "add x3,x1,x2", "rtl_val": "0x00000004",
-        "iss_val": "0x00000003", "description": "ALU result mismatch on ADD"}))
+        "iss_val": "0x00000003", "description": "ALU result mismatch on ADD"}), encoding="utf-8")
     base = {"schema_version": "2.1.0", "run_id": "r32", "run_dir": str(tmp_path),
             "agent_config": {"dut_class": "dma"}}
     m = tmp_path / "run_manifest.json"
-    m.write_text(json.dumps(base))
+    m.write_text(json.dumps(base), encoding="utf-8")
     return m, base
 
 
@@ -192,7 +192,7 @@ def test_concurrent_update_survives(name, tmp_path, monkeypatch):
         monkeypatch.setattr(json, "load", real_load)
     assert fired, f"{name} never read the manifest through json.load; the case is blind"
 
-    after = json.loads(m.read_text())
+    after = json.loads(m.read_text(encoding="utf-8"))
     only_the_writer = json.loads(json.dumps(base))
     only_the_writer.setdefault("phases", {})["compare"] = {"status": "passed"}
     assert after != only_the_writer, (
@@ -214,9 +214,9 @@ def _run_cache_verifier(tmp_path, extra):
     mod = importlib.import_module("AGENT_H.cache_verifier")
     m, base = _build_run(tmp_path)
     manifest = dict(base, **extra)
-    m.write_text(json.dumps(manifest))
+    m.write_text(json.dumps(manifest), encoding="utf-8")
     rc = mod.run_from_manifest(m)
-    return rc, manifest, json.loads(m.read_text())
+    return rc, manifest, json.loads(m.read_text(encoding="utf-8"))
 
 
 def test_untouched_top_level_dotted_key_survives(tmp_path):

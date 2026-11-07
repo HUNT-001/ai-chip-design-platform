@@ -72,11 +72,11 @@ def test_nested_dotted_update_is_applied(tmp_path):
     from ava_shared.manifest_io import atomic_update_manifest
 
     p = tmp_path / "manifest.json"
-    p.write_text(json.dumps({"keep": 1, "phases": {"iss": {"status": "running"}}}))
+    p.write_text(json.dumps({"keep": 1, "phases": {"iss": {"status": "running"}}}), encoding="utf-8")
     atomic_update_manifest(
         p, {"phases.iss.status": "completed", "outputs.iss_commitlog": "a.jsonl"}
     )
-    assert json.loads(p.read_text()) == {
+    assert json.loads(p.read_text(encoding="utf-8")) == {
         "keep": 1,
         "phases": {"iss": {"status": "completed"}},
         "outputs": {"iss_commitlog": "a.jsonl"},
@@ -87,7 +87,7 @@ def test_threads_updating_distinct_keys_all_survive(tmp_path):
     from ava_shared.manifest_io import atomic_update_manifest
 
     p = tmp_path / "manifest.json"
-    p.write_text("{}")
+    p.write_text("{}", encoding="utf-8")
     threads_n, per_thread = 4, 25
     errors = []
 
@@ -105,7 +105,7 @@ def test_threads_updating_distinct_keys_all_survive(tmp_path):
         t.join(timeout=120)
     assert errors == []
     expected = {f"w{w}": {f"k{i}": i for i in range(per_thread)} for w in range(threads_n)}
-    assert json.loads(p.read_text()) == expected
+    assert json.loads(p.read_text(encoding="utf-8")) == expected
 
 
 def test_importable_from_a_script_outside_the_repo_with_root_appended(tmp_path):
@@ -117,7 +117,7 @@ def test_importable_from_a_script_outside_the_repo_with_root_appended(tmp_path):
     script_dir = tmp_path / "script_dir"
     script_dir.mkdir()
     manifest = tmp_path / "manifest.json"
-    manifest.write_text('{"phases": {}}')
+    manifest.write_text('{"phases": {}}', encoding="utf-8")
     script = script_dir / "caller.py"
     script.write_text(textwrap.dedent("""
         import sys
@@ -125,7 +125,7 @@ def test_importable_from_a_script_outside_the_repo_with_root_appended(tmp_path):
         sys.path.append(sys.argv[1])
         from ava_shared.manifest_io import atomic_update_manifest
         atomic_update_manifest(Path(sys.argv[2]), {"phases.iss.status": "done"})
-    """))
+    """), encoding="utf-8")
     env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
     cwd = tmp_path / "elsewhere"
     cwd.mkdir()
@@ -134,7 +134,7 @@ def test_importable_from_a_script_outside_the_repo_with_root_appended(tmp_path):
         cwd=cwd, env=env, capture_output=True, text=True, timeout=60,
     )
     assert proc.returncode == 0, proc.stderr[-2000:]
-    assert json.loads(manifest.read_text()) == {"phases": {"iss": {"status": "done"}}}
+    assert json.loads(manifest.read_text(encoding="utf-8")) == {"phases": {"iss": {"status": "done"}}}
 
 
 def test_update_preserves_the_manifest_file_mode(tmp_path):
@@ -143,12 +143,12 @@ def test_update_preserves_the_manifest_file_mode(tmp_path):
     from ava_shared.manifest_io import atomic_update_manifest
 
     p = tmp_path / "manifest.json"
-    p.write_text('{"a": 0}')
+    p.write_text('{"a": 0}', encoding="utf-8")
     if sys.platform == "win32":
         atomic_update_manifest(p, {"a": 1})
-        assert json.loads(p.read_text()) == {"a": 1}
+        assert json.loads(p.read_text(encoding="utf-8")) == {"a": 1}
         return
     os.chmod(p, 0o644)
     atomic_update_manifest(p, {"a": 1})
     assert stat.S_IMODE(os.stat(p).st_mode) == 0o644
-    assert json.loads(p.read_text()) == {"a": 1}
+    assert json.loads(p.read_text(encoding="utf-8")) == {"a": 1}

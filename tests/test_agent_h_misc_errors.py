@@ -46,16 +46,16 @@ def _mod(name):
 def _manifest(tmp_path, *, raw=None, dut=None):
     """A run directory whose only content is one commit-log record."""
     line = json.dumps(REC) + chr(10)
-    (tmp_path / "rtl_commit.jsonl").write_text(line)
-    (tmp_path / "iss_commit.jsonl").write_text(line)
+    (tmp_path / "rtl_commit.jsonl").write_text(line, encoding="utf-8")
+    (tmp_path / "iss_commit.jsonl").write_text(line, encoding="utf-8")
     if raw is not None:
         (tmp_path / "raw_rtl.jsonl").write_text(
-            chr(10).join(json.dumps(r) for r in raw) + chr(10))
+            chr(10).join(json.dumps(r) for r in raw) + chr(10), encoding="utf-8")
     m = {"schema_version": "2.1.0", "run_id": "r10", "run_dir": str(tmp_path)}
     if dut:
         m["agent_config"] = {"dut_class": dut}
     p = tmp_path / "run_manifest.json"
-    p.write_text(json.dumps(m))
+    p.write_text(json.dumps(m), encoding="utf-8")
     return p
 
 
@@ -79,7 +79,7 @@ def test_fault_injector_unreadable_manifest_is_not_a_pass(kind, tmp_path):
     fi = _mod("fault_injector")
     p = tmp_path / "run_manifest.json"
     if kind == "not_json":
-        p.write_text("{not json")
+        p.write_text("{not json", encoding="utf-8")
     rc = fi.run_from_manifest(p)
     assert rc == 3, (f"AGENT_H/fault_injector.py: run_from_manifest returned {rc} "
                      f"for a {kind} manifest; nothing was run, so 3 ('could not "
@@ -108,7 +108,7 @@ def test_fault_injector_detector_failure_is_counted_and_not_a_pass(tmp_path, mon
     p = _manifest(tmp_path)
     rc = fi.run_from_manifest(p, n=3)
     _reached(calls, "the detector")
-    report = json.loads((tmp_path / "fault_report.json").read_text())
+    report = json.loads((tmp_path / "fault_report.json").read_text(encoding="utf-8"))
     assert report.get("detector_errors", 0) >= 1, (
         f"AGENT_H/fault_injector.py: a detector that raised was not counted "
         f"(detector_errors={report.get('detector_errors')!r})")
@@ -277,7 +277,7 @@ def test_translate_type_error_propagates(monkeypatch):
 
 def test_unparseable_witness_is_reported_and_gives_exit_3(tmp_path):
     ff = _mod("formal_fuzzer")
-    (tmp_path / "equiv_witness.json").write_text("{not json")
+    (tmp_path / "equiv_witness.json").write_text("{not json", encoding="utf-8")
     bridge = ff.FormalFuzzBridge(tmp_path / "equiv_witness.json", tmp_path / "seeds")
     report = bridge.run()
     assert report.get("witness_error"), (
@@ -285,17 +285,17 @@ def test_unparseable_witness_is_reported_and_gives_exit_3(tmp_path):
         "reported; the run fell back to canned seeds with nothing said")
     run = tmp_path / "r"
     run.mkdir()
-    (run / "equiv_witness.json").write_text("{not json")
+    (run / "equiv_witness.json").write_text("{not json", encoding="utf-8")
     mp = run / "run_manifest.json"
     mp.write_text(json.dumps({"schema_version": "2.1.0", "run_id": "r10",
-                              "run_dir": str(run)}))
+                              "run_dir": str(run)}), encoding="utf-8")
     rc = ff.run_from_manifest(mp)
     assert rc == 3, f"AGENT_H/formal_fuzzer.py: returned {rc}; expected 3"
 
 
 def test_witness_type_error_propagates(tmp_path, monkeypatch):
     ff = _mod("formal_fuzzer")
-    (tmp_path / "equiv_witness.json").write_text("[]")
+    (tmp_path / "equiv_witness.json").write_text("[]", encoding="utf-8")
     bridge = ff.FormalFuzzBridge(tmp_path / "equiv_witness.json")
     calls = {"n": 0}
     monkeypatch.setattr(ff.FormalFuzzBridge, "_load_witness", _raiser(TypeError, calls))

@@ -69,7 +69,7 @@ def _tmp() -> Path:
 
 def _make_sig(tmp: Path, lines: str, name: str = "test.sig") -> Path:
     p = tmp / name
-    p.write_text(textwrap.dedent(lines))
+    p.write_text(textwrap.dedent(lines), encoding="utf-8")
     return p
 
 
@@ -164,7 +164,7 @@ class TestManifestHelpers(unittest.TestCase):
 
     def _write(self, data: dict) -> Path:
         p = self.tmp / "manifest.json"
-        p.write_text(json.dumps(data))
+        p.write_text(json.dumps(data), encoding="utf-8")
         return p
 
     def test_deep_merge_flat(self):
@@ -191,7 +191,7 @@ class TestManifestHelpers(unittest.TestCase):
     def test_patch_manifest_merges_deep(self):
         p = self._write({"phases": {"rtl": {"status": "pass"}}})
         patch_manifest(p, {"phases": {"compliance": {"status": "running"}}})
-        updated = json.loads(p.read_text())
+        updated = json.loads(p.read_text(encoding="utf-8"))
         self.assertEqual(updated["phases"]["rtl"]["status"], "pass")
         self.assertEqual(updated["phases"]["compliance"]["status"], "running")
 
@@ -199,7 +199,7 @@ class TestManifestHelpers(unittest.TestCase):
         p = self._write({"status": "pending"})
         patch_manifest(p, {"status": "running"})
         patch_manifest(p, {"status": "completed", "elapsed": 5.0})
-        final = json.loads(p.read_text())
+        final = json.loads(p.read_text(encoding="utf-8"))
         self.assertEqual(final["status"],  "completed")
         self.assertEqual(final["elapsed"], 5.0)
 
@@ -226,7 +226,7 @@ class TestManifestEntrypoint(unittest.TestCase):
         }
         data.update(extra)
         p = self.tmp / "manifest.json"
-        p.write_text(json.dumps(data))
+        p.write_text(json.dumps(data), encoding="utf-8")
         return p
 
     def test_missing_manifest_returns_crash(self):
@@ -235,7 +235,7 @@ class TestManifestEntrypoint(unittest.TestCase):
 
     def test_invalid_json_returns_crash(self):
         p = self.tmp / "bad.json"
-        p.write_text("{not json")
+        p.write_text("{not json", encoding="utf-8")
         self.assertEqual(run_compliance_manifest(p), EXIT_CRASH)
 
     def test_no_tools_returns_tool_code(self):
@@ -245,19 +245,19 @@ class TestManifestEntrypoint(unittest.TestCase):
     def test_manifest_updated_with_status(self):
         p = self._mp()
         run_compliance_manifest(p)
-        updated = json.loads(p.read_text())
+        updated = json.loads(p.read_text(encoding="utf-8"))
         self.assertIn("status", updated)
 
     def test_phases_compliance_not_stuck_running(self):
         p = self._mp()
         run_compliance_manifest(p)
-        status = json.loads(p.read_text()).get("phases", {}).get("compliance", {}).get("status", "")
+        status = json.loads(p.read_text(encoding="utf-8")).get("phases", {}).get("compliance", {}).get("status", "")
         self.assertFalse(status.startswith("running"), status)
 
     def test_compliance_result_schema_v200(self):
         p = self._mp()
         run_compliance_manifest(p)
-        result = json.loads(p.read_text()).get("compliance", {}).get("result")
+        result = json.loads(p.read_text(encoding="utf-8")).get("compliance", {}).get("result")
         if result:
             for k in ("schemaversion", "total", "pass", "fail", "error", "pass_pct", "failedlist"):
                 self.assertIn(k, result, f"Missing key: {k}")
@@ -266,7 +266,7 @@ class TestManifestEntrypoint(unittest.TestCase):
     def test_failedlist_has_mismatch_word(self):
         p = self._mp()
         run_compliance_manifest(p)
-        result = json.loads(p.read_text()).get("compliance", {}).get("result", {})
+        result = json.loads(p.read_text(encoding="utf-8")).get("compliance", {}).get("result", {})
         for entry in result.get("failedlist", []):
             self.assertIn("test",          entry)
             self.assertIn("mismatch_word", entry)
@@ -276,7 +276,7 @@ class TestManifestEntrypoint(unittest.TestCase):
         with patch.object(ComplianceRunner, "run", side_effect=RuntimeError("crash")):
             rc = run_compliance_manifest(p)
         self.assertEqual(rc, EXIT_CRASH)
-        updated = json.loads(p.read_text())
+        updated = json.loads(p.read_text(encoding="utf-8"))
         self.assertEqual(updated["phases"]["compliance"]["status"], "infra_error")
 
     def test_failed_run_ends_phase_and_top_level_failed(self):
@@ -287,7 +287,7 @@ class TestManifestEntrypoint(unittest.TestCase):
         with patch.object(ComplianceRunner, "run", return_value=report):
             rc = run_compliance_manifest(p)
         self.assertEqual(rc, EXIT_FAIL)
-        updated = json.loads(p.read_text())
+        updated = json.loads(p.read_text(encoding="utf-8"))
         self.assertEqual(updated["phases"]["compliance"]["status"], "failed")
         self.assertEqual(updated["status"], "failed")
 
@@ -297,7 +297,7 @@ class TestManifestEntrypoint(unittest.TestCase):
         with patch.object(ComplianceRunner, "run", return_value=report):
             rc = run_compliance_manifest(p)
         self.assertEqual(rc, EXIT_PASS)
-        updated = json.loads(p.read_text())
+        updated = json.loads(p.read_text(encoding="utf-8"))
         self.assertEqual(updated["phases"]["compliance"]["status"], "passed")
         self.assertEqual(updated["status"], "passed")
 
@@ -346,7 +346,7 @@ class TestAdapterCLI(unittest.TestCase):
         elf     = _fake_elf(self.tmp / "t.elf")
         sig     = self.tmp / "deep" / "out.sig"
         fake_rtl = self.tmp / "run_rtl.py"
-        fake_rtl.write_text("# stub")
+        fake_rtl.write_text("# stub", encoding="utf-8")
         with patch.object(ADAPTER, "_find_run_rtl", return_value=fake_rtl):
             with patch("subprocess.run", return_value=MagicMock(returncode=0, stdout="", stderr="")):
                 ADAPTER.main(["--elf", str(elf), "--sig", str(sig)])
@@ -364,7 +364,7 @@ class TestAdapterFlow(unittest.TestCase):
         self.elf = _fake_elf(self.tmp / "t.elf")
         self.sig = self.tmp / "out.sig"
         self.fake_rtl = self.tmp / "run_rtl.py"
-        self.fake_rtl.write_text("# stub")
+        self.fake_rtl.write_text("# stub", encoding="utf-8")
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -373,7 +373,7 @@ class TestAdapterFlow(unittest.TestCase):
         def _mock(cmd, **kwargs):
             for i, c in enumerate(cmd):
                 if c == "--sig-out" and i + 1 < len(cmd):
-                    Path(cmd[i + 1]).write_text("\n".join(words) + "\n")
+                    Path(cmd[i + 1]).write_text("\n".join(words) + "\n", encoding="utf-8")
             return MagicMock(returncode=exit_code, stdout="", stderr="")
 
         with patch.object(ADAPTER, "_find_run_rtl", return_value=self.fake_rtl):
@@ -410,7 +410,7 @@ class TestAdapterFlow(unittest.TestCase):
         def _empty(cmd, **kwargs):
             for i, c in enumerate(cmd):
                 if c == "--sig-out" and i + 1 < len(cmd):
-                    Path(cmd[i + 1]).write_text("")
+                    Path(cmd[i + 1]).write_text("", encoding="utf-8")
             return MagicMock(returncode=0, stdout="", stderr="")
 
         with patch.object(ADAPTER, "_find_run_rtl", return_value=self.fake_rtl):
@@ -429,10 +429,10 @@ class TestAdapterFlow(unittest.TestCase):
                 if c == "--manifest" and i + 1 < len(cmd):
                     mpath = Path(cmd[i + 1])
                     alt   = mpath.parent / "alt.hex"
-                    alt.write_text("deadbeef\n00000001\n")
-                    data  = json.loads(mpath.read_text())
+                    alt.write_text("deadbeef\n00000001\n", encoding="utf-8")
+                    data  = json.loads(mpath.read_text(encoding="utf-8"))
                     data.setdefault("outputs", {})["signature"] = str(alt)
-                    mpath.write_text(json.dumps(data))
+                    mpath.write_text(json.dumps(data), encoding="utf-8")
             return MagicMock(returncode=0, stdout="", stderr="")
 
         with patch.object(ADAPTER, "_find_run_rtl", return_value=self.fake_rtl):
@@ -451,7 +451,7 @@ class TestAdapterFlow(unittest.TestCase):
             captured.extend(cmd)
             for i, c in enumerate(cmd):
                 if c == "--sig-out" and i + 1 < len(cmd):
-                    Path(cmd[i + 1]).write_text("00000001\n")
+                    Path(cmd[i + 1]).write_text("00000001\n", encoding="utf-8")
             return MagicMock(returncode=0, stdout="", stderr="")
 
         with patch.object(ADAPTER, "_find_run_rtl", return_value=self.fake_rtl):
@@ -476,7 +476,7 @@ class TestAdapterFlow(unittest.TestCase):
         def _mock(cmd, **kwargs):
             for i, c in enumerate(cmd):
                 if c == "--sig-out" and i + 1 < len(cmd):
-                    Path(cmd[i + 1]).write_text("00000001\n")
+                    Path(cmd[i + 1]).write_text("00000001\n", encoding="utf-8")
             return MagicMock(returncode=0, stdout="", stderr="")
 
         with patch.object(ADAPTER, "_find_run_rtl", return_value=self.fake_rtl):
@@ -671,7 +671,7 @@ class TestBuildCacheSHA256(unittest.TestCase):
     def test_source_hash_in_index_is_sha256(self):
         src, elf = self._src_elf("content")
         self.cache.store(src, elf)
-        index = json.loads((self.tmp / ".cache" / "cache_index.json").read_text())
+        index = json.loads((self.tmp / ".cache" / "cache_index.json").read_text(encoding="utf-8"))
         h = list(index.values())[0]
         self.assertEqual(len(h), 64)   # SHA-256 is 64 hex chars
         self.assertEqual(h, hashlib.sha256(b"content").hexdigest())
@@ -701,7 +701,7 @@ class TestBuildCacheSHA256(unittest.TestCase):
     def test_corrupted_index_recovered(self):
         cache_dir = self.tmp / ".cache2"
         cache_dir.mkdir()
-        (cache_dir / "cache_index.json").write_text("{bad json")
+        (cache_dir / "cache_index.json").write_text("{bad json", encoding="utf-8")
         cache = BuildCache(cache_dir)
         self.assertEqual(cache._index, {})
 
@@ -743,7 +743,7 @@ class TestAtomicWrite(unittest.TestCase):
     def test_creates_and_reads(self):
         p = self.tmp / "f.txt"
         _atomic_write(p, "hello")
-        self.assertEqual(p.read_text(), "hello")
+        self.assertEqual(p.read_text(encoding="utf-8"), "hello")
 
     def test_no_tmp_leftover(self):
         p = self.tmp / "f.txt"
@@ -783,7 +783,7 @@ class TestLinkerScript(unittest.TestCase):
     def _ld(self) -> str:
         ld = self.tmp / "t.ld"
         _write_linker_script(ld)
-        return ld.read_text()
+        return ld.read_text(encoding="utf-8")
 
     def test_tohost(self):
         self.assertIn(".tohost", self._ld())
@@ -1041,13 +1041,13 @@ class TestFullPipeline(unittest.TestCase):
             "isa":      "RV32I",
             "spikebin": "spike",
             "workers":  1,
-        }))
+        }), encoding="utf-8")
         rc = run_compliance_manifest(mp)
         # EXIT_TOOL is included because it is the right answer on a machine whose
         # Spike cannot sign (#35); the assertion is that manifest mode always ends
         # on a documented exit code, never an undocumented one.
         self.assertIn(rc, (EXIT_PASS, EXIT_FAIL, EXIT_CRASH, EXIT_TOOL))
-        updated = json.loads(mp.read_text())
+        updated = json.loads(mp.read_text(encoding="utf-8"))
         self.assertFalse(
             (updated.get("phases", {}).get("compliance", {}).get("status") or "")
             .startswith("running")
@@ -1061,9 +1061,9 @@ class TestFullPipeline(unittest.TestCase):
             "isa":      "RV32I",
             "spikebin": "spike",
             "workers":  1,
-        }))
+        }), encoding="utf-8")
         run_compliance_manifest(mp)
-        result = json.loads(mp.read_text()).get("compliance", {}).get("result", {})
+        result = json.loads(mp.read_text(encoding="utf-8")).get("compliance", {}).get("result", {})
         if result:
             self.assertEqual(result["schemaversion"], "2.0.0")
             self.assertIn("failedlist", result)

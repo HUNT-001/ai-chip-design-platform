@@ -51,7 +51,7 @@ def _gating_verifiers() -> list[str]:
     for path in sorted(AGENT_H_DIR.glob("*.py")):
         if path.stem == "__init__" or path.stem in ADVISORY:
             continue
-        if "def run_from_manifest" in path.read_text(errors="replace"):
+        if "def run_from_manifest" in path.read_text(errors="replace", encoding="utf-8"):
             names.append(path.stem)
     return names
 
@@ -63,7 +63,7 @@ def _unreadable_manifest(flavour: str, tmp_path: pathlib.Path) -> pathlib.Path:
     if flavour == "missing":
         return tmp_path / "nonexistent" / "manifest.json"
     manifest = tmp_path / "manifest.json"
-    manifest.write_text("{not json")          # #36's corrupt case, verbatim
+    manifest.write_text("{not json", encoding="utf-8")          # #36's corrupt case, verbatim
     return manifest
 
 

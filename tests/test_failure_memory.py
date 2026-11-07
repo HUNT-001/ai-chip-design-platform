@@ -73,7 +73,7 @@ def test_incident_3_bounded_is_not_proved_on_a_stateful_design(tmp_path):
     """A bmc pass on a design WITH state is not a proof — the property may break
     one cycle past the horizon."""
     sby = tmp_path / "j.sby"
-    sby.write_text("[options]\nmode bmc\ndepth 12\n")
+    sby.write_text("[options]\nmode bmc\ndepth 12\n", encoding="utf-8")
     fc = FormalChannel(str(sby), mock=True, negative_control="bug_x")
     assert fc.prove("prove_x").status == "bounded_pass"
 
@@ -136,7 +136,7 @@ def test_incident_7_comments_and_indices_are_not_arithmetic(tmp_path):
     f = tmp_path / "m.sv"
     f.write_text("/* stars * in * comments */\n"
                  "module m(input a, output logic b);\n"
-                 "  always_comb b = ~a;\nendmodule\n")
+                 "  always_comb b = ~a;\nendmodule\n", encoding="utf-8")
     arith, seq, _ = probe_structure(str(f))
     assert not arith and not seq
     assert not _has_datapath_multiply("assign y = q[2*N*(seg+1)-1 : 2*N*seg];")
@@ -198,9 +198,9 @@ def test_kernel_still_refuses_risk_rising_without_a_commit():
 
 def test_a_tampered_witness_is_detected(tmp_path):
     art = tmp_path / "status"
-    art.write_text("PASS")
+    art.write_text("PASS", encoding="utf-8")
     w = _stamp(str(art))
-    art.write_text("PASS (edited)")
+    art.write_text("PASS (edited)", encoding="utf-8")
     ok, why = verify_witness(w)
     assert not ok and "CONTENT CHANGED" in why
 
@@ -357,7 +357,7 @@ def test_the_promotion_is_recorded_with_its_held_out_caveat():
     import json, os
     led = os.path.join(os.path.dirname(__file__), "..", "voe_bench",
                        "capability_ledger.json")
-    recs = json.load(open(led))
+    recs = json.load(open(led, encoding="utf-8"))
     promoted = [r for r in recs if r["treatment"] == "M-static-cached"]
     assert promoted and promoted[0]["decision"] == "PROMOTED"
     assert "not 'better everywhere'" in promoted[0]["complexity_note"].lower() \
@@ -381,7 +381,7 @@ _SBY = _os.path.join(_os.path.dirname(__file__), "..", "voe_fifo", "formal",
 
 
 def _fv():
-    return open(_FV).read()
+    return open(_FV, encoding="utf-8").read()
 
 
 def test_reference_model_does_not_read_the_signals_it_checks():
@@ -402,7 +402,7 @@ def test_the_lemma_task_does_not_assert_the_property_it_supports():
     integrity assertion rather than its own. A lemma that cannot be proved until
     the property it supports is already provable is circular, and the failure
     points at the wrong line entirely."""
-    sby = open(_SBY).read()
+    sby = open(_SBY, encoding="utf-8").read()
     line = [l for l in sby.splitlines() if l.startswith("state_match:")][0]
     assert "CLASS_STATE_MATCH" in line
     assert "CLASS_DATA_INTEGRITY" not in line
@@ -459,7 +459,7 @@ def test_a_deterministic_board_does_not_claim_statistical_replication():
     report must say so rather than let '12 seeds' imply replication."""
     import os
     src = open(os.path.join(os.path.dirname(__file__), "..", "voe_bench",
-                            "run_coupled_real.py")).read()
+                            "run_coupled_real.py"), encoding="utf-8").read()
     assert "NOT {seeds} independent samples" in src
     assert "distinct <= 2" in src, "determinism must be detected by distinctness"
 
@@ -487,7 +487,7 @@ def test_an_experiment_refuses_to_report_when_its_premise_fails():
     E — that is how a number from a broken setup gets recorded as a finding."""
     import os
     src = open(os.path.join(os.path.dirname(__file__), "..", "voe_bench",
-                            "run_coupled_noise.py")).read()
+                            "run_coupled_noise.py"), encoding="utf-8").read()
     body = src[src.index("c1 = distinct(m)"):]
     assert "Do not record a verdict" in body
     assert body.index("return") < body.index("prereg.decide"), \
@@ -539,7 +539,7 @@ def test_the_eligibility_gate_runs_before_any_campaign():
     15 must return before a single campaign executes."""
     import os
     src = open(os.path.join(os.path.dirname(__file__), "..", "voe_bench",
-                            "run_coupled_noise.py")).read()
+                            "run_coupled_noise.py"), encoding="utf-8").read()
     assert src.index("elig = admit(") < src.index("run_campaign(")
     assert "NOT EVALUABLE" in src
 
@@ -555,7 +555,7 @@ def test_operands_that_must_be_independent_are_not_consecutive_urandom_calls():
     of ONE draw brought it to +1.35 sigma."""
     import os
     tb = open(os.path.join(os.path.dirname(__file__), "..", "voe_stoch",
-                           "sim", "tb_satmac.sv")).read()
+                           "sim", "tb_satmac.sv"), encoding="utf-8").read()
     body = "\n".join(l.split("//")[0] for l in tb.splitlines())
     # The invariant is about the OPERANDS, which must be mutually independent.
     # `clr` keeps its own draw: it is a separate control signal, and it cannot
@@ -577,7 +577,7 @@ def test_a_measurement_is_not_gated_on_the_statistic_it_validates():
     case — it can only ever fail to fire."""
     import os
     src = open(os.path.join(os.path.dirname(__file__), "..", "voe_stoch",
-                            "characterise.py")).read()
+                            "characterise.py"), encoding="utf-8").read()
     assert "UNCONDITIONAL" in src
     # the pairing call must not sit inside a discrepancy branch
     i = src.index("report_pairing(paired_corner_and_detect")
@@ -592,7 +592,7 @@ def test_a_rate_is_reported_with_its_precision():
     this project keeps catching."""
     import os
     src = open(os.path.join(os.path.dirname(__file__), "..", "voe_stoch",
-                            "characterise.py")).read()
+                            "characterise.py"), encoding="utf-8").read()
     assert "corner rate 95% CI" in src and "known to ~" in src
 
 
@@ -601,7 +601,7 @@ def test_the_benchmark_documents_measured_not_assumed_properties():
     match the measured one. Both verdicts must exist in the source."""
     import os
     src = open(os.path.join(os.path.dirname(__file__), "..", "voe_stoch",
-                            "characterise.py")).read()
+                            "characterise.py"), encoding="utf-8").read()
     assert "quantitative block is LIFTED" in src
     assert "NOT fully characterised" in src
 
@@ -633,7 +633,7 @@ def test_build_cache_is_keyed_by_campaign_length_not_just_variant():
         # emulate verilator producing the binary where -Mdir says
         mdir = cmd[cmd.index("-Mdir") + 1]
         os.makedirs(mdir, exist_ok=True)
-        open(os.path.join(mdir, "Vtb"), "w").close()
+        open(os.path.join(mdir, "Vtb"), "w", encoding="utf-8").close()
         return FakeProc()
 
     import subprocess as _sp
@@ -663,7 +663,7 @@ def test_testbenches_read_the_campaign_length_the_channel_passes():
     every caller asked for 20000, and a silently flat curve otherwise."""
     for rel in (("voe_stoch", "sim", "tb_satmac.sv"),
                 ("voe_stoch2", "sim", "tb_pfifo.sv")):
-        src = open(os.path.join(ROOT, *rel)).read()
+        src = open(os.path.join(ROOT, *rel), encoding="utf-8").read()
         # comments are stripped first: the fix is documented by name in a
         # comment in both files, and a test that trips over its own
         # explanation is a test that discourages writing the explanation.
@@ -745,7 +745,7 @@ def test_the_shape_statistic_can_actually_see_the_difference():
 
 
 def test_seed_count_is_committed_because_more_is_worse():
-    src = open(os.path.join(ROOT, "voe_bench", "run_stoch_transfer.py")).read()
+    src = open(os.path.join(ROOT, "voe_bench", "run_stoch_transfer.py"), encoding="utf-8").read()
     assert "MUST NOT BE RAISED" in src
     assert "--calibrate" in src
 
@@ -767,7 +767,7 @@ def test_the_pfifo_mutant_differs_in_exactly_one_line():
         # test that counted them would fail for reasons that have nothing to do
         # with what the two modules DO.
         out = []
-        for ln in open(path):
+        for ln in open(path, encoding="utf-8"):
             s = ln.split("//")[0].strip()
             if not s:
                 continue
@@ -786,7 +786,7 @@ def test_pfifo_depth_is_not_a_power_of_two():
     """The mutant drops the explicit wrap. On a depth-8 FIFO the 3-bit pointer
     wraps by itself, so the mutant would be bit-identical to the good design and
     the entire benchmark would measure nothing while looking perfectly healthy."""
-    src = open(os.path.join(ROOT, "voe_stoch2", "rtl", "pfifo.sv")).read()
+    src = open(os.path.join(ROOT, "voe_stoch2", "rtl", "pfifo.sv"), encoding="utf-8").read()
     assert "DEPTH = 6" in src
     assert "LOAD-BEARING" in src
 
@@ -800,7 +800,7 @@ def test_pfifo_depth_is_not_a_power_of_two():
 # GRID and publishing the whole curve: there is no point to select, because
 # every point is reported, including the degenerate ones.
 def test_the_second_board_commits_a_grid_not_a_chosen_length():
-    src = open(os.path.join(ROOT, "voe_stoch2", "characterise.py")).read()
+    src = open(os.path.join(ROOT, "voe_stoch2", "characterise.py"), encoding="utf-8").read()
     assert "GRID = (" in src
     assert "degenerate points included" in src or "degenerate" in src
     # and the refusal must remain explicit rather than implied
@@ -810,7 +810,7 @@ def test_the_second_board_commits_a_grid_not_a_chosen_length():
 def test_a_degenerate_grid_is_not_answered_by_extending_the_grid():
     for rel in (("voe_stoch2", "characterise.py"),
                 ("voe_bench", "run_stoch_transfer.py")):
-        src = open(os.path.join(ROOT, *rel)).read()
+        src = open(os.path.join(ROOT, *rel), encoding="utf-8").read()
         assert "wearing a different hat" in src, rel
 
 
@@ -824,8 +824,8 @@ def test_benchmark_commitments_are_tamper_evident():
     path = os.path.join(d, "c.json")
     c = Commitment("t", path, {"grid": [1, 2, 3]}, "notes").commit()
     assert Commitment.load(path).intact
-    text = open(path).read().replace("[\n      1,", "[\n      9,")
-    open(path, "w").write(text)
+    text = open(path, encoding="utf-8").read().replace("[\n      1,", "[\n      9,")
+    open(path, "w", encoding="utf-8").write(text)
     assert not Commitment.load(path).intact
 
 
@@ -875,7 +875,7 @@ def test_no_comment_line_starts_with_the_pragma_word():
                 if not fn.endswith((".sv", ".v")):
                     continue
                 path = os.path.join(dirpath, fn)
-                for i, ln in enumerate(open(path, errors="replace"), 1):
+                for i, ln in enumerate(open(path, errors="replace", encoding="utf-8"), 1):
                     m = re.match(r"\s*(?://|/\*)\s*verilator\b(.*)", ln, re.I)
                     if m and not m.group(1).strip().lower().startswith(known):
                         bad.append(f"{path}:{i}: {ln.strip()[:70]}")
@@ -1020,7 +1020,7 @@ def test_first_passage_scales_as_k_squared():
 def test_the_dfifo_mutant_differs_in_exactly_one_line():
     def body(path):
         out = []
-        for ln in open(path):
+        for ln in open(path, encoding="utf-8"):
             s = ln.split("//")[0].strip()
             if s:
                 out.append(" ".join(s.split()).replace("dfifo_mut", "dfifo"))
@@ -1039,10 +1039,10 @@ def test_the_initial_state_distribution_is_part_of_the_commitment():
     of a rare state. They are different questions, and quietly substituting the
     second for the first would change what the number means while leaving it
     looking like the same measurement."""
-    src = open(os.path.join(ROOT, "voe_stoch3", "characterise.py")).read()
+    src = open(os.path.join(ROOT, "voe_stoch3", "characterise.py"), encoding="utf-8").read()
     assert '"primary": "cold start' in src
     assert '"control": "q0 ~ Uniform' in src
-    tb = open(os.path.join(ROOT, "voe_stoch3", "sim", "tb_dfifo.sv")).read()
+    tb = open(os.path.join(ROOT, "voe_stoch3", "sim", "tb_dfifo.sv"), encoding="utf-8").read()
     assert "Q0_MODE" in tb and "STATIONARY" in tb
 
 
@@ -1065,7 +1065,7 @@ def test_the_initial_state_distribution_is_part_of_the_commitment():
 # parser: a comment asserting a property nobody checked, which then gets read as
 # though it were a guarantee.
 def test_the_dfifo_stimulus_draws_once_per_cycle():
-    src = open(os.path.join(ROOT, "voe_stoch3", "sim", "tb_dfifo.sv")).read()
+    src = open(os.path.join(ROOT, "voe_stoch3", "sim", "tb_dfifo.sv"), encoding="utf-8").read()
     body = "\n".join(ln.split("//")[0] for ln in src.splitlines())
     loop = body.split("for (int i = 0", 1)[1].split("$display", 1)[0]
     calls = loop.count("$urandom")
@@ -1079,7 +1079,7 @@ def test_the_dfifo_stimulus_is_characterised_unconditionally():
     """Five times now this project has shipped a control that was present,
     correct, and unable to observe — including one that ran only when a derived
     statistic already looked wrong, so it never confirmed the healthy case."""
-    src = open(os.path.join(ROOT, "voe_stoch3", "characterise.py")).read()
+    src = open(os.path.join(ROOT, "voe_stoch3", "characterise.py"), encoding="utf-8").read()
     assert "always run, not only on suspicion" in src
     # the call must not sit inside a conditional
     i = src.index("report_stimulus(cold")

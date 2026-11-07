@@ -40,7 +40,7 @@ def test_missing_manifest_returns_3_and_logs_error(name, tmp_path, caplog):
 @pytest.mark.parametrize("name", NINE)
 def test_corrupt_manifest_returns_3_and_logs_error(name, tmp_path, caplog):
     path = tmp_path / "manifest.json"
-    path.write_text("{not json")
+    path.write_text("{not json", encoding="utf-8")
     with caplog.at_level(logging.ERROR):
         rc = _mod(name).run_from_manifest(path)
     assert rc == 3
@@ -51,7 +51,7 @@ def test_corrupt_manifest_returns_3_and_logs_error(name, tmp_path, caplog):
 @pytest.mark.parametrize("name", NINE)
 def test_programming_error_in_the_read_path_propagates(name, tmp_path, monkeypatch):
     path = tmp_path / "manifest.json"
-    path.write_text(json.dumps({"run_dir": str(tmp_path)}))
+    path.write_text(json.dumps({"run_dir": str(tmp_path)}), encoding="utf-8")
 
     def boom(*a, **k):
         raise TypeError("bug in the read path")

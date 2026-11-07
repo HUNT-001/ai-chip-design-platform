@@ -434,7 +434,7 @@ class TestExitCodes(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             manifest = {"rundir": td, "seed": 1}
             mpath = Path(td) / "manifest.json"
-            mpath.write_text(json.dumps(manifest))
+            mpath.write_text(json.dumps(manifest), encoding="utf-8")
             rc = main(["--manifest", str(mpath), "--quiet"])
             self.assertEqual(rc, EXIT_CONFIG)
 
@@ -497,7 +497,7 @@ class TestManifestMode(unittest.TestCase):
     def _write_manifest(self, rundir: str, **extras) -> Path:
         manifest = {"rundir": rundir, "seed": 42, **extras}
         p = Path(rundir) / "manifest.json"
-        p.write_text(json.dumps(manifest))
+        p.write_text(json.dumps(manifest), encoding="utf-8")
         return p
 
     def test_pass_returns_0_updates_manifest(self):
@@ -505,14 +505,14 @@ class TestManifestMode(unittest.TestCase):
             out = Path(td) / "outputs"
             out.mkdir()
             e = _mk(1, 0x1000, rd=1, rd_val=1)
-            (out / "rtlcommit.jsonl").write_text(json.dumps(e) + "\n")
-            (out / "isscommitlog.jsonl").write_text(json.dumps(e) + "\n")
+            (out / "rtlcommit.jsonl").write_text(json.dumps(e) + "\n", encoding="utf-8")
+            (out / "isscommitlog.jsonl").write_text(json.dumps(e) + "\n", encoding="utf-8")
             mp = self._write_manifest(td)
 
             rc = main_manifest(mp)
 
             self.assertEqual(rc, EXIT_PASS)
-            m = json.loads(mp.read_text())
+            m = json.loads(mp.read_text(encoding="utf-8"))
             self.assertEqual(m["status"], "passed")
             self.assertEqual(m["phases"]["compare"]["status"], "passed")
             self.assertFalse((Path(td) / "bugreport.json").exists())
@@ -523,19 +523,19 @@ class TestManifestMode(unittest.TestCase):
             out.mkdir()
             rtl_e = _mk(1, 0x1000, rd=1, rd_val=0)
             iss_e = _mk(1, 0x1000, rd=1, rd_val=1)
-            (out / "rtlcommit.jsonl").write_text(json.dumps(rtl_e) + "\n")
-            (out / "isscommitlog.jsonl").write_text(json.dumps(iss_e) + "\n")
+            (out / "rtlcommit.jsonl").write_text(json.dumps(rtl_e) + "\n", encoding="utf-8")
+            (out / "isscommitlog.jsonl").write_text(json.dumps(iss_e) + "\n", encoding="utf-8")
             mp = self._write_manifest(td, rtl_bin="./sim", iss_bin="spike")
 
             rc = main_manifest(mp)
 
             self.assertEqual(rc, EXIT_MISMATCH)
-            m = json.loads(mp.read_text())
+            m = json.loads(mp.read_text(encoding="utf-8"))
             self.assertEqual(m["status"], "failed")
             self.assertEqual(m["phases"]["compare"]["first_mismatch"], "REGMISMATCH")
             br_path = Path(td) / "bugreport.json"
             self.assertTrue(br_path.exists(), "bugreport.json must be created on failure")
-            br = json.loads(br_path.read_text())
+            br = json.loads(br_path.read_text(encoding="utf-8"))
             self.assertIsNotNone(br["reprocmd"])
             self.assertIn("42", br["reprocmd"])
 
@@ -544,13 +544,13 @@ class TestManifestMode(unittest.TestCase):
             mp = self._write_manifest(td)
             rc = main_manifest(mp)
             self.assertEqual(rc, EXIT_CONFIG)
-            m = json.loads(mp.read_text())
+            m = json.loads(mp.read_text(encoding="utf-8"))
             self.assertEqual(m["phases"]["compare"]["status"], "infra_error")
 
     def test_missing_rundir_returns_3(self):
         with tempfile.TemporaryDirectory() as td:
             mp = Path(td) / "manifest.json"
-            mp.write_text(json.dumps({"seed": 1}))  # no rundir
+            mp.write_text(json.dumps({"seed": 1}), encoding="utf-8")  # no rundir
             rc = main_manifest(mp)
             self.assertEqual(rc, EXIT_CONFIG)
 
@@ -566,10 +566,10 @@ class TestManifestMode(unittest.TestCase):
             for fname in ("rtlcommit.jsonl", "isscommitlog.jsonl"):
                 (out / fname).write_text(
                     "\n".join(json.dumps(e) for e in entries) + "\n"
-                )
+                , encoding="utf-8")
             mp = self._write_manifest(td)
             main_manifest(mp)
-            m = json.loads(mp.read_text())
+            m = json.loads(mp.read_text(encoding="utf-8"))
             self.assertEqual(m["phases"]["compare"]["total_steps"], 5)
 
 
@@ -584,7 +584,7 @@ class TestAtomicWrite(unittest.TestCase):
             p = Path(td) / "sub" / "output.json"
             atomic_write(p, '{"ok": true}')
             self.assertTrue(p.exists())
-            self.assertEqual(json.loads(p.read_text())["ok"], True)
+            self.assertEqual(json.loads(p.read_text(encoding="utf-8"))["ok"], True)
 
     def test_atomic_write_no_tmp_left(self):
         with tempfile.TemporaryDirectory() as td:
@@ -598,17 +598,17 @@ class TestAtomicWrite(unittest.TestCase):
             p = Path(td) / "out.json"
             atomic_write(p, "first")
             atomic_write(p, "second")
-            self.assertEqual(p.read_text(), "second")
+            self.assertEqual(p.read_text(encoding="utf-8"), "second")
 
     def test_atomic_update_manifest_nested(self):
         with tempfile.TemporaryDirectory() as td:
             p = Path(td) / "manifest.json"
-            p.write_text(json.dumps({"seed": 1, "phases": {}}))
+            p.write_text(json.dumps({"seed": 1, "phases": {}}), encoding="utf-8")
             atomic_update_manifest(p, {
                 "phases.compare.status": "passed",
                 "status": "passed",
             })
-            m = json.loads(p.read_text())
+            m = json.loads(p.read_text(encoding="utf-8"))
             self.assertEqual(m["phases"]["compare"]["status"], "passed")
             self.assertEqual(m["status"], "passed")
             self.assertEqual(m["seed"], 1)   # untouched
@@ -616,9 +616,9 @@ class TestAtomicWrite(unittest.TestCase):
     def test_atomic_update_manifest_creates_nested_dicts(self):
         with tempfile.TemporaryDirectory() as td:
             p = Path(td) / "manifest.json"
-            p.write_text("{}")
+            p.write_text("{}", encoding="utf-8")
             atomic_update_manifest(p, {"a.b.c": "deep"})
-            m = json.loads(p.read_text())
+            m = json.loads(p.read_text(encoding="utf-8"))
             self.assertEqual(m["a"]["b"]["c"], "deep")
 
     def test_atomic_update_concurrent_safe(self):
@@ -630,7 +630,7 @@ class TestAtomicWrite(unittest.TestCase):
         """
         with tempfile.TemporaryDirectory() as td:
             p = Path(td) / "manifest.json"
-            p.write_text(json.dumps({"counter": 0}))
+            p.write_text(json.dumps({"counter": 0}), encoding="utf-8")
             errors: list = []
 
             def _update(i):
@@ -646,7 +646,7 @@ class TestAtomicWrite(unittest.TestCase):
             self.assertFalse(errors, f"Concurrent writes raised: {errors}")
             # File must always be valid JSON after all writes complete
             try:
-                m = json.loads(p.read_text())
+                m = json.loads(p.read_text(encoding="utf-8"))
             except json.JSONDecodeError as exc:
                 self.fail(f"Manifest corrupted after concurrent writes: {exc}")
             # All values in the file must be valid (no corrupt partial values)
@@ -912,7 +912,7 @@ class TestCLIIntegration(unittest.TestCase):
                 rc = main([p.rtl_path, p.iss_path, "-o", out, "--quiet"])
             self.assertEqual(rc, EXIT_MISMATCH)
             self.assertTrue(Path(out).exists())
-            report = json.loads(Path(out).read_text())
+            report = json.loads(Path(out).read_text(encoding="utf-8"))
             self.assertFalse(report["passed"])
 
     def test_junit_xml_written(self):
@@ -924,7 +924,7 @@ class TestCLIIntegration(unittest.TestCase):
                 out = str(Path(td) / "ci.xml")
                 rc = main([p.rtl_path, p.iss_path, "--junit", out, "--quiet"])
             self.assertEqual(rc, EXIT_MISMATCH)
-            content = Path(out).read_text()
+            content = Path(out).read_text(encoding="utf-8")
             self.assertIn("testsuite", content)
             self.assertIn("failure", content)
 
@@ -1006,7 +1006,7 @@ class TestCLIIntegration(unittest.TestCase):
                         ]
                     }
                     mpath = Path(td) / "batch.json"
-                    mpath.write_text(json.dumps(manifest))
+                    mpath.write_text(json.dumps(manifest), encoding="utf-8")
                     rc = main(["--batch", str(mpath), "--quiet"])
             self.assertEqual(rc, EXIT_MISMATCH)   # one fail → batch fails
 

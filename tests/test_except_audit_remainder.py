@@ -107,7 +107,7 @@ def test_testbench_generator_unreadable_rtl_is_reported_as_skipped(
     with caplog.at_level(logging.WARNING):
         assert mod.run_from_manifest(mp) == 0
     _reached(calls, "RTLGraphAnalyzer.from_dir")
-    rep = json.loads((run_dir / "testbench_gen_report.json").read_text())
+    rep = json.loads((run_dir / "testbench_gen_report.json").read_text(encoding="utf-8"))
     assert rep["status"] == "skipped"
     assert [r for r in caplog.records if r.levelno >= logging.WARNING]
 
@@ -147,7 +147,7 @@ def test_record_manifest_run_unreadable_manifest_warns_and_reports_no_plateau(
 def test_record_manifest_run_type_error_propagates(iss_eff, tmp_path, monkeypatch):
     mod, call = iss_eff
     mp = tmp_path / "run_manifest.json"
-    mp.write_text(json.dumps({"isa": "rv32im"}))
+    mp.write_text(json.dumps({"isa": "rv32im"}), encoding="utf-8")
     calls = {"n": 0}
     monkeypatch.setattr(mod.ISSEfficiencyTracker, "record_run",
                         _raiser(TypeError, calls))

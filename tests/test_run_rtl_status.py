@@ -46,9 +46,9 @@ def _drive(monkeypatch, tmp_path, *, build_error=None, sim_exit=0, sim_error=Non
     elf = tmp_path / "t.elf"
     elf.write_bytes(b"\x7fELF")
     rtl = tmp_path / "dut.v"
-    rtl.write_text("module dut; endmodule\n")
+    rtl.write_text("module dut; endmodule\n", encoding="utf-8")
     fake_verilator = tmp_path / "verilator"
-    fake_verilator.write_text("")
+    fake_verilator.write_text("", encoding="utf-8")
     run_dir = tmp_path / "run"
 
     def fake_build(*a, **k):
@@ -73,12 +73,12 @@ def _drive(monkeypatch, tmp_path, *, build_error=None, sim_exit=0, sim_error=Non
         manifest_path.write_text(json.dumps({
             "rundir": str(run_dir), "seed": 1, "binary": str(elf), "dut": "dut",
             "rtl_files": [str(rtl)], "phases": {},
-        }))
+        }), encoding="utf-8")
         argv = ["run_rtl.py", "--manifest", str(manifest_path),
                 "--verilator", str(fake_verilator)]
     monkeypatch.setattr(sys, "argv", argv)
     rc = mod.main()
-    manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8")) if manifest_path.exists() else {}
     return rc, manifest
 
 

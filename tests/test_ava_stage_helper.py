@@ -75,8 +75,8 @@ def _save_one_record(self, run_dir, results):
     """One identical record on both sides, so every log-gated stage is reached."""
     line = json.dumps(REC) + "\n"
     rtl, iss = run_dir / "rtl_commit.jsonl", run_dir / "iss_commit.jsonl"
-    rtl.write_text(line)
-    iss.write_text(line)
+    rtl.write_text(line, encoding="utf-8")
+    iss.write_text(line, encoding="utf-8")
     return rtl, iss
 
 
@@ -709,9 +709,9 @@ def _with_rtl_dir(monkeypatch, tmp_path):
 
     def write(self, *a, **k):
         mp = orig(self, *a, **k)
-        d = json.loads(pathlib.Path(mp).read_text())
+        d = json.loads(pathlib.Path(mp).read_text(encoding="utf-8"))
         d["rtl_dir"] = str(rtl_dir)
-        pathlib.Path(mp).write_text(json.dumps(d))
+        pathlib.Path(mp).write_text(json.dumps(d), encoding="utf-8")
         return mp
     monkeypatch.setattr(AVA, "_write_run_manifest", write)
 
@@ -760,7 +760,7 @@ FINAL = ["rtlgraph", "tbgen", "vtwin", "dashboard"]
 def _manifest_status(tmp_path):
     found = list(tmp_path.glob("**/run_manifest.json"))
     assert found, "setup: no run manifest was written"
-    return json.loads(found[0].read_text())["status"]
+    return json.loads(found[0].read_text(encoding="utf-8"))["status"]
 
 
 @pytest.mark.parametrize("stage", FINAL)
