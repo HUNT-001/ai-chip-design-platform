@@ -2097,6 +2097,14 @@ def main_manifest(manifest_path: Path, base_cfg: Optional[CompareConfig] = None)
         return EXIT_INFRA
     except Exception as exc:
         _log.exception("Unexpected comparator error: %s", exc)
+        try:
+            atomic_update_manifest(manifest_path, {
+                "phases.compare.status": "infra_error",
+                "phases.compare.error":  f"{type(exc).__name__}: {exc}",
+                "status":                "infra_error",
+            })
+        except ConfigError:
+            pass
         return EXIT_INFRA
 
     # ── write bugreport.json ──────────────────────────────────────────────────
