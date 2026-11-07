@@ -118,7 +118,7 @@ def run_static_cdc(
             rtl_files=" ".join(f'"{s}"' for s in rtl_sources),
             top=top_module,
         )
-    )
+    , encoding="utf-8")
 
     try:
         result = subprocess.run(
@@ -279,7 +279,7 @@ def run_formal_cdc(
             to_domain=cdc_path.to_domain,
             safe_sig=safe_sig,
         )
-    )
+    , encoding="utf-8")
 
     sby_content = _SBY_TEMPLATE.format(
         depth=depth,
@@ -288,7 +288,7 @@ def run_formal_cdc(
         rtl_files_list="\n".join(rtl_sources) + f"\n{prop_file}",
     )
     sby_file = workdir / f"cdc_{safe_sig}.sby"
-    sby_file.write_text(sby_content)
+    sby_file.write_text(sby_content, encoding="utf-8")
 
     try:
         result = subprocess.run(
@@ -384,7 +384,7 @@ def generate_reset_stress_tests(output_dir: Path, num_tests: int = 8) -> List[Pa
     for i in range(min(num_tests, len(templates) * 4)):
         tmpl = templates[i % len(templates)]
         fname = output_dir / f"reset_stress_{i:03d}.S"
-        with open(fname, "w") as f:
+        with open(fname, "w", encoding="utf-8") as f:
             f.write(f"# AVA Agent J — auto-generated reset stress test {i}\n")
             f.write(f"# Schema: {SCHEMA_VERSION}\n\n")
             f.write(tmpl)

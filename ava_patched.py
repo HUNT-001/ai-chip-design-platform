@@ -2325,10 +2325,10 @@ endclass
         rtl_log: List[Dict] = []
         iss_log: List[Dict] = []
         if rtl_path and rtl_path.exists():
-            with open(rtl_path) as f:
+            with open(rtl_path, encoding="utf-8") as f:
                 rtl_log = [json.loads(l) for l in f if l.strip()]
         if iss_path and iss_path.exists():
-            with open(iss_path) as f:
+            with open(iss_path, encoding="utf-8") as f:
                 iss_log = [json.loads(l) for l in f if l.strip()]
 
         # ── Agent I: RVWMO memory-model validator ─────────────────────────

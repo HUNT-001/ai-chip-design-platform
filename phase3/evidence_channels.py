@@ -134,7 +134,7 @@ class FormalChannel:
     @staticmethod
     def _read_mode(sby_file: str) -> str:
         try:
-            with open(sby_file) as f:
+            with open(sby_file, encoding="utf-8") as f:
                 m = re.search(r"^\s*mode\s+(\w+)", f.read(), re.M)
                 return m.group(1) if m else "bmc"
         except OSError:
@@ -144,7 +144,7 @@ class FormalChannel:
     def _read_tasks(sby_file: str):
         """Task names declared in the [tasks] section, or None if unreadable."""
         try:
-            with open(sby_file) as f:
+            with open(sby_file, encoding="utf-8") as f:
                 m = re.search(r"^\[tasks\]\s*$(.*?)^\[", f.read(), re.M | re.S)
             if not m:
                 return None
@@ -253,7 +253,7 @@ class FormalChannel:
         work = os.path.join(self.dir, f"{base}_{task}")
         flog = os.path.join(self.dir, f"sby_{task}.log")
         try:
-            with open(flog, "w") as f:
+            with open(flog, "w", encoding="utf-8") as f:
                 f.write("$ sby -f %s %s\n\n%s" % (os.path.basename(self.sby_file), task, out))
         except OSError:
             pass
@@ -370,7 +370,7 @@ class SimChannel:
         except (subprocess.TimeoutExpired, FileNotFoundError) as e:
             return None, str(e)
         blog = os.path.join(mdir, "build.log")
-        with open(blog, "w") as f:
+        with open(blog, "w", encoding="utf-8") as f:
             f.write("$ " + " ".join(cmd) + "\n\n" + p.stdout + p.stderr)
         binp = os.path.join(mdir, "Vtb")
         if p.returncode != 0 or not os.path.exists(binp):
@@ -447,7 +447,7 @@ class SimChannel:
         except subprocess.TimeoutExpired as e:
             return Evidence("sim", "error", witness="", detail=str(e))
         out = p.stdout + p.stderr
-        with open(log, "w") as f:
+        with open(log, "w", encoding="utf-8") as f:
             f.write(out)
         m = re.search(r"SIM_RESULT (PASS|FAIL) n=(\d+) fails=(\d+)", out)
         if not m:
@@ -493,7 +493,7 @@ class StaticChannel:
     def _report(self, name: str, body: str) -> str:
         os.makedirs(self.workdir, exist_ok=True)
         p = os.path.join(self.workdir, f"static_{name}.txt")
-        with open(p, "w") as f:
+        with open(p, "w", encoding="utf-8") as f:
             f.write(body)
         return _stamp(p)
 
@@ -508,7 +508,7 @@ class StaticChannel:
         except Exception as e:                       # graceful degradation
             return Evidence("static", "error", witness="", detail=f"rtl_graph unavailable: {e}")
         try:
-            with open(self.rtl_path) as f:
+            with open(self.rtl_path, encoding="utf-8") as f:
                 src = f.read()
             mods = rg.parse_module(src, self.rtl_path)
             if not mods:

@@ -332,7 +332,7 @@ class DigitalTwin:
         else:
             text = asm_text
             if asm_source and text is None:
-                text = Path(asm_source).read_text(errors="replace")
+                text = Path(asm_source).read_text(errors="replace", encoding="utf-8")
             mnemonics = self._parse_asm(text or "")
 
         hist  = self._histogram(mnemonics)

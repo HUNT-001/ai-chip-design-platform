@@ -121,7 +121,7 @@ def probe_structure(rtl_path: str | None):
     if not rtl_path or not os.path.exists(rtl_path):
         return False, False, "small"
     try:
-        with open(rtl_path, errors="ignore") as f:
+        with open(rtl_path, errors="ignore", encoding="utf-8") as f:
             raw = f.read()
     except OSError:
         return False, False, "small"

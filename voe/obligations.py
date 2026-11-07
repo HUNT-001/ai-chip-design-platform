@@ -36,7 +36,7 @@ if _ROOT not in sys.path:
 def parse_rtl(rtl_path: str, module: str | None = None):
     """Parse one module from a real SystemVerilog file. Returns (module, source)."""
     from AGENT_H import rtl_graph as rg
-    with open(rtl_path) as f:
+    with open(rtl_path, encoding="utf-8") as f:
         src = f.read()
     mods = rg.parse_module(src, rtl_path)
     if not mods:

@@ -36,7 +36,7 @@ def candidates(max_lines=400, limit=None):
             try:
                 if os.path.getsize(path) > 40000:
                     continue
-                with open(path, errors="ignore") as f:
+                with open(path, errors="ignore", encoding="utf-8") as f:
                     src = f.read()
             except OSError:
                 continue

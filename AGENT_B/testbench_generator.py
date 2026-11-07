@@ -1072,7 +1072,7 @@ if __name__ == "__main__":  # pragma: no cover
     from AGENT_H.rtl_graph import RTLGraphAnalyzer, parse_module
     p = Path(args.rtl)
     mods = (RTLGraphAnalyzer.from_dir(str(p)).modules if p.is_dir()
-            else parse_module(p.read_text(errors="replace"), str(p)))
+            else parse_module(p.read_text(errors="replace", encoding="utf-8"), str(p)))
     for m in mods:
         if args.module and m.name != args.module:
             continue

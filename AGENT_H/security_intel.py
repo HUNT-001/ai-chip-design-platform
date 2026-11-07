@@ -378,7 +378,7 @@ def run_from_manifest(manifest_path: Path) -> int:
         if not p.exists():
             return []
         recs = []
-        with open(p) as f:
+        with open(p, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line:

@@ -197,7 +197,7 @@ class FormalFuzzBridge:
 
     def _load_witness(self) -> List[Dict]:
         """Load SymbiYosys witness JSON (list of step dicts)."""
-        with open(self.witness_path) as f:
+        with open(self.witness_path, encoding="utf-8") as f:
             data = json.load(f)
         if isinstance(data, list):
             return data
@@ -303,7 +303,7 @@ class FormalFuzzBridge:
         paths = []
         for seed in seeds:
             path = self.outdir / f"{seed.name}.S"
-            with open(path, "w") as f:
+            with open(path, "w", encoding="utf-8") as f:
                 f.write(f"# AVA formal-guided fuzzing seed: {seed.name}\n")
                 f.write(f"# Source: {seed.source}, cycles={seed.cycles}\n\n")
                 f.write(".section .text\n.global _start\n_start:\n")
