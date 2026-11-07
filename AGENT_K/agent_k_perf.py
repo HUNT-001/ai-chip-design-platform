@@ -137,7 +137,7 @@ class PerfCollector:
         Returns the number of snapshots found.
         """
         self._snapshots.clear()
-        with open(self.rtl_log_path) as f:
+        with open(self.rtl_log_path, encoding="utf-8") as f:
             for lineno, line in enumerate(f, 1):
                 line = line.strip()
                 if not line:

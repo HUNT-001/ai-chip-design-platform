@@ -121,7 +121,7 @@ def synthesise_rtl(
             top=top_module,
             netlist_out=str(netlist_out),
         )
-    )
+    , encoding="utf-8")
     try:
         r = subprocess.run(
             [yosys_bin, "-q", str(script)],
@@ -155,7 +155,7 @@ def run_combinational_equiv(
             top=top_module,
             netlist=str(netlist),
         )
-    )
+    , encoding="utf-8")
     try:
         r = subprocess.run(
             [yosys_bin, "-q", str(script)],
@@ -232,7 +232,7 @@ def run_sequential_equiv(
         rtl_files_list="\n".join(rtl_sources),
     )
     sby_file = workdir / "seq_equiv.sby"
-    sby_file.write_text(sby_content)
+    sby_file.write_text(sby_content, encoding="utf-8")
 
     try:
         r = subprocess.run(

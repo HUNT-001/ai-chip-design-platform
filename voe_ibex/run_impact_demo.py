@@ -68,7 +68,7 @@ def main():
     backup = os.path.join(tmp, "alu.bak")
     shutil.copy(ALU, backup)
     try:
-        with open(ALU, "a") as f:
+        with open(ALU, "a", encoding="utf-8") as f:
             f.write("\n// touched by a designer\n")
         prev = K.R(ks, W)
         rep = g.propagate(ks, K, W, trigger="edit ibex_alu.sv")

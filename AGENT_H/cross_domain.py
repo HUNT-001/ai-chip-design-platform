@@ -122,7 +122,7 @@ class DUTAdapter(ABC):
         Returns number of records translated.
         """
         raw_records: List[Dict] = []
-        with open(input_path) as f:
+        with open(input_path, encoding="utf-8") as f:
             if fmt == "json":
                 raw_records = json.load(f)
             else:

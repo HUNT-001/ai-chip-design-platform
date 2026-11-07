@@ -1129,7 +1129,7 @@ def parse_signature(sig_path: Path) -> List[str]:
         raise SignatureError(f"Signature file not found: {sig_path}")
 
     words: List[str] = []
-    for raw in sig_path.read_text(errors="replace").splitlines():
+    for raw in sig_path.read_text(errors="replace", encoding="utf-8").splitlines():
         raw = raw.strip()
         if not raw or raw.startswith("#") or raw.startswith("//"):
             continue

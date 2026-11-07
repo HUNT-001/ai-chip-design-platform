@@ -265,7 +265,7 @@ def run_spike_process(
     lines: List[str] = []
 
     try:
-        with open(log_file, "w") as flog:
+        with open(log_file, "w", encoding="utf-8") as flog:
             proc = subprocess.Popen(
                 cmd,
                 stdout=subprocess.PIPE,
@@ -343,7 +343,7 @@ def validate_commitlog(path: Path, sample_size: int = 200) -> List[str]:
     """
     errors: List[str] = []
     try:
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             for i, raw in enumerate(f):
                 if i >= sample_size:
                     break

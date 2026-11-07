@@ -298,7 +298,7 @@ def minimize_bug_report(
 
     def _load(p: _Path) -> List[dict]:
         recs = []
-        with open(p) as f:
+        with open(p, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line:

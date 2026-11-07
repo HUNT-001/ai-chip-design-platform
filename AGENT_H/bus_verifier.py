@@ -349,7 +349,7 @@ def _load_jsonl(path: Path) -> List[Dict]:
     if not path.exists():
         return []
     out: List[Dict] = []
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line:

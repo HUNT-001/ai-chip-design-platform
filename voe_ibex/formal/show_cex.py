@@ -15,7 +15,7 @@ def main(path):
     ids, scope = {}, []
     cur, steps = {}, []
     t = None
-    with open(path) as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             s = line.strip()
             m = re.match(r"\$scope\s+\w+\s+(\S+)", s)

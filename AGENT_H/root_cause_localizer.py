@@ -91,7 +91,7 @@ def _find_signal_in_rtl(
     pattern = re.compile(r"\b" + re.escape(signal_name) + r"\b")
     for src in rtl_sources:
         try:
-            lines = src.read_text(errors="replace").splitlines()
+            lines = src.read_text(errors="replace", encoding="utf-8").splitlines()
             for i, line in enumerate(lines, 1):
                 if pattern.search(line):
                     hits.append((str(src), i))

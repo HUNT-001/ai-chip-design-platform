@@ -22,93 +22,14 @@ REPO = Path(__file__).resolve().parent.parent
 # Files that are intentionally not in scope for this tranche.
 _EXCLUDED_DIRS = ("_legacy", "corpus", "tests")
 
-_EXT = ("external-produced text (simulator, ISS, solver or DUT output, or "
-        "third-party RTL/source): its encoding is not ours to assume; tranche 2")
-_GEN = ("generated assembly or tool script, or a captured tool log - not one of "
-        "our JSON/manifest/report files; tranche 2")
-_VENDORED = ("appends to a vendored third-party RTL file; tranche 2")
-
 # Intentional exceptions, keyed by (repo-relative path, ast.unparse of the call)
 # -> (number of such calls in that file, reason).  Keyed on call text, not line
 # number, so unrelated edits do not invalidate it; the count means a new
 # identical call in the same file is NOT silently covered.
-ALLOWLIST = {
-    ('AGENT_B/backends/run_rtl.py', 'open(commitlog)'): (2, _EXT),
-    ('AGENT_B/backends/run_rtl.py', 'open(dat_file)'): (1, _EXT),
-    ('AGENT_B/testbench_generator.py', "p.read_text(errors='replace')"): (1, _EXT),
-    ('AGENT_C/run_iss.py', "open(log_file, 'w')"): (1, _GEN),
-    ('AGENT_C/run_iss.py', 'open(path)'): (1, _EXT),
-    ('AGENT_E/run_compliance.py', "sig_path.read_text(errors='replace')"): (1, _EXT),
-    ('AGENT_E/run_rtl_adapter.py', 'sig_out.read_text()'): (1, _EXT),
-    ('AGENT_E/run_rtl_adapter.py', "sig_path.read_text(errors='replace')"): (1, _EXT),
-    ('AGENT_G/causal_engine.py', "open(path, 'w')"): (1, _GEN),
-    ('AGENT_H/agent_h_intent.py', 'open(path)'): (1, _EXT),
-    ('AGENT_H/atomics_verifier.py', 'open(args.rtl)'): (1, _EXT),
-    ('AGENT_H/atomics_verifier.py', 'open(p)'): (1, _EXT),
-    ('AGENT_H/bitmanip_verifier.py', 'open(args.rtl)'): (1, _EXT),
-    ('AGENT_H/bitmanip_verifier.py', 'open(p)'): (1, _EXT),
-    ('AGENT_H/branch_predictor_verifier.py', 'open(args.rtl)'): (1, _EXT),
-    ('AGENT_H/branch_predictor_verifier.py', 'open(p)'): (1, _EXT),
-    ('AGENT_H/bus_verifier.py', 'open(path)'): (1, _EXT),
-    ('AGENT_H/cache_verifier.py', 'open(args.rtl)'): (1, _EXT),
-    ('AGENT_H/cache_verifier.py', 'open(p)'): (1, _EXT),
-    ('AGENT_H/contract_dsl.py', 'open(p)'): (1, _EXT),
-    ('AGENT_H/cross_domain.py', 'open(input_path)'): (1, _EXT),
-    ('AGENT_H/csr_verifier.py', 'open(args.rtl)'): (1, _EXT),
-    ('AGENT_H/csr_verifier.py', 'open(p)'): (1, _EXT),
-    ('AGENT_H/digital_twin.py', "Path(asm_source).read_text(errors='replace')"): (1, _EXT),
-    ('AGENT_H/fault_injector.py', 'open(args.rtl)'): (1, _EXT),
-    ('AGENT_H/fault_injector.py', 'open(p)'): (1, _EXT),
-    ('AGENT_H/formal_fuzzer.py', "open(path, 'w')"): (1, _GEN),
-    ('AGENT_H/formal_fuzzer.py', 'open(self.witness_path)'): (1, _EXT),
-    ('AGENT_H/fp_verifier.py', 'open(args.rtl)'): (1, _EXT),
-    ('AGENT_H/fp_verifier.py', 'open(p)'): (1, _EXT),
-    ('AGENT_H/minimizer.py', 'open(p)'): (1, _EXT),
-    ('AGENT_H/peripheral_verifier.py', 'open(args.raw)'): (1, _EXT),
-    ('AGENT_H/peripheral_verifier.py', 'open(p)'): (1, _EXT),
-    ('AGENT_H/pipeline_verifier.py', 'open(args.rtl)'): (1, _EXT),
-    ('AGENT_H/pipeline_verifier.py', 'open(p)'): (1, _EXT),
-    ('AGENT_H/privilege_verifier.py', 'open(args.rtl)'): (1, _EXT),
-    ('AGENT_H/privilege_verifier.py', 'open(p)'): (1, _EXT),
-    ('AGENT_H/root_cause_localizer.py', "src.read_text(errors='replace')"): (1, _EXT),
-    ('AGENT_H/rv64_atomics_verifier.py', 'open(args.rtl)'): (1, _EXT),
-    ('AGENT_H/rv64_atomics_verifier.py', 'open(p)'): (1, _EXT),
-    ('AGENT_H/rv64_verifier.py', 'open(args.rtl)'): (1, _EXT),
-    ('AGENT_H/rv64_verifier.py', 'open(p)'): (1, _EXT),
-    ('AGENT_H/rvc_verifier.py', 'open(args.rtl)'): (1, _EXT),
-    ('AGENT_H/rvc_verifier.py', 'open(p)'): (1, _EXT),
-    ('AGENT_H/security_intel.py', 'open(p)'): (1, _EXT),
-    ('AGENT_H/sv_mmu_verifier.py', 'open(args.rtl)'): (1, _EXT),
-    ('AGENT_H/sv_mmu_verifier.py', 'open(p)'): (1, _EXT),
-    ('AGENT_H/temporal_checker.py', 'open(p)'): (1, _EXT),
-    ('AGENT_H/tlb_verifier.py', 'open(args.rtl)'): (1, _EXT),
-    ('AGENT_H/tlb_verifier.py', 'open(p)'): (1, _EXT),
-    ('AGENT_H/vm_verifier.py', 'open(args.rtl)'): (1, _EXT),
-    ('AGENT_H/vm_verifier.py', 'open(p)'): (1, _EXT),
-    ('AGENT_I/agent_i_litmus.py', "open(fname, 'w')"): (1, _GEN),
-    ('AGENT_I/agent_i_litmus.py', 'open(path)'): (1, _EXT),
-    ('AGENT_J/agent_j_cdc.py', "open(fname, 'w')"): (1, _GEN),
-    ('AGENT_J/agent_j_cdc.py', 'prop_file.write_text(_CDC_PROPERTY_TEMPLATE.format(signal=cdc_path.signal, from_domain=cdc_path.from_domain, to_domain=cdc_path.to_domain, safe_sig=safe_sig))'): (1, _GEN),
-    ('AGENT_J/agent_j_cdc.py', 'sby_file.write_text(sby_content)'): (1, _GEN),
-    ('AGENT_J/agent_j_cdc.py', 'script_path.write_text(_YOSYS_CDC_SCRIPT.format(rtl_files=\' \'.join((f\'"{s}"\' for s in rtl_sources)), top=top_module))'): (1, _GEN),
-    ('AGENT_K/agent_k_perf.py', 'open(self.rtl_log_path)'): (1, _EXT),
-    ('AGENT_L/agent_l_equiv.py', 'sby_file.write_text(sby_content)'): (1, _GEN),
-    ('AGENT_L/agent_l_equiv.py', 'script.write_text(_YOSYS_EQUIV_SCRIPT.format(rtl_files=\' \'.join((f\'"{s}"\' for s in rtl_sources)), top=top_module, netlist=str(netlist)))'): (1, _GEN),
-    ('AGENT_L/agent_l_equiv.py', 'script.write_text(_YOSYS_SYNTH_SCRIPT.format(rtl_files=\' \'.join((f\'"{s}"\' for s in rtl_sources)), top=top_module, netlist_out=str(netlist_out)))'): (1, _GEN),
-    ('ava_patched.py', 'open(iss_path)'): (1, _EXT),
-    ('ava_patched.py', 'open(rtl_path)'): (1, _EXT),
-    ('phase3/evidence_channels.py', "open(blog, 'w')"): (1, _GEN),
-    ('phase3/evidence_channels.py', "open(flog, 'w')"): (1, _GEN),
-    ('phase3/evidence_channels.py', "open(log, 'w')"): (1, _GEN),
-    ('phase3/evidence_channels.py', "open(p, 'w')"): (1, _GEN),
-    ('phase3/evidence_channels.py', 'open(sby_file)'): (2, _EXT),
-    ('phase3/evidence_channels.py', 'open(self.rtl_path)'): (1, _EXT),
-    ('voe/obligation_state.py', "open(rtl_path, errors='ignore')"): (1, _EXT),
-    ('voe/obligations.py', 'open(rtl_path)'): (1, _EXT),
-    ('voe/scan_corpus.py', "open(path, errors='ignore')"): (1, _EXT),
-    ('voe_ibex/formal/show_cex.py', 'open(path)'): (1, _EXT),
-    ('voe_ibex/run_impact_demo.py', "open(ALU, 'a')"): (1, _VENDORED),
-}
+#
+# Empty: every production site must name its encoding (tranche 2).  Tests
+# are not scanned (the next tranche), so nothing is allowlisted.
+ALLOWLIST = {}
 
 
 def _is_production(rel: str) -> bool:

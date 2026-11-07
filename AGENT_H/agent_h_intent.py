@@ -280,7 +280,7 @@ class IntentChecker:
 
     def _load(self, path: Path) -> List[Dict]:
         records = []
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if line:

@@ -272,14 +272,14 @@ def run_simulation(
 
     retired = 0
     if commitlog.exists():
-        with open(commitlog) as f:
+        with open(commitlog, encoding="utf-8") as f:
             retired = sum(1 for ln in f if ln.strip())
 
     # Estimate total cycles from commit log (parse last seq)
     total_cycles = retired * 3  # rough: 3 cycles/insn for optimised core
     if commitlog.exists() and retired > 0:
         try:
-            with open(commitlog) as f:
+            with open(commitlog, encoding="utf-8") as f:
                 lines = [l.strip() for l in f if l.strip()]
             if lines:
                 last = json.loads(lines[-1])
@@ -316,7 +316,7 @@ def parse_coverage(dat_file: Path) -> dict:
     buckets: Dict[str, Dict[str, int]] = {
         k: {"hit": 0, "total": 0} for k in ("line", "branch", "toggle")
     }
-    with open(dat_file) as f:
+    with open(dat_file, encoding="utf-8") as f:
         for raw in f:
             raw = raw.strip()
             if not raw or not raw.startswith("C "):

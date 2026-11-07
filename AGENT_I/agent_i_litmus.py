@@ -400,7 +400,7 @@ def generate_litmus_tests(
             continue
         for i in range(per_pattern):
             fname = output_dir / f"litmus_{pattern}_{i:03d}.S"
-            with open(fname, "w") as f:
+            with open(fname, "w", encoding="utf-8") as f:
                 f.write(f"# AVA Agent I — auto-generated litmus test\n")
                 f.write(f"# Pattern: {pattern}  Variant: {i}\n")
                 f.write(f"# Schema: {SCHEMA_VERSION}\n\n")
@@ -443,7 +443,7 @@ class LitmusChecker:
 
     def _load_jsonl(self, path: Path) -> List[dict]:
         records = []
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             for lineno, line in enumerate(f, 1):
                 line = line.strip()
                 if not line:

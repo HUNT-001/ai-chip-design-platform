@@ -614,7 +614,7 @@ def _write_asm(
 ) -> None:
     """Write one individual as an Assembly source file."""
     mc = constraint.mismatch_class
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         f.write(f"# AVA Agent G — Causal test\n")
         f.write(f"# Mismatch class:  {mc}\n")
         f.write(f"# Trigger run:     {run_id}\n")

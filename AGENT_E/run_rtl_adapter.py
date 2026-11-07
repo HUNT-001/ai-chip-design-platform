@@ -170,7 +170,7 @@ def _validate_sig_content(sig_path: Path) -> Tuple[bool, str]:
     Returns (ok, error_message).
     """
     words = []
-    for raw in sig_path.read_text(errors="replace").splitlines():
+    for raw in sig_path.read_text(errors="replace", encoding="utf-8").splitlines():
         raw = raw.strip()
         if not raw or raw.startswith("#"):
             continue
@@ -318,7 +318,7 @@ def run_adapter(
         return EXIT_CRASH
 
     n_words = sum(
-        1 for ln in sig_out.read_text().splitlines()
+        1 for ln in sig_out.read_text(encoding="utf-8").splitlines()
         if ln.strip() and not ln.strip().startswith("#")
     )
     log.info("Signature: %d word(s) written to %s", n_words, sig_out)

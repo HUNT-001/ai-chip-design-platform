@@ -578,7 +578,7 @@ def _load_raw_log(run_dir: Path, outputs: Dict, key: str, default: str) -> List[
     if not p.exists():
         return []
     recs: List[Dict] = []
-    with open(p) as f:
+    with open(p, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line:
@@ -660,7 +660,7 @@ if __name__ == "__main__":          # pragma: no cover
         raise SystemExit(run_from_manifest(args.manifest))
     if args.raw and args.dut_class:
         log = []
-        with open(args.raw) as fh:
+        with open(args.raw, encoding="utf-8") as fh:
             for ln in fh:
                 ln = ln.strip()
                 if ln:

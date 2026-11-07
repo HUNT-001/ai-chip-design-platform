@@ -401,7 +401,7 @@ def _load_log(run_dir: Path, outputs: Dict, key: str, default: str) -> List[Dict
     if not p.exists():
         return []
     recs: List[Dict] = []
-    with open(p) as f:
+    with open(p, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line:
@@ -473,7 +473,7 @@ if __name__ == "__main__":          # pragma: no cover
         raise SystemExit(run_from_manifest(args.manifest))
     if args.rtl:
         log = []
-        with open(args.rtl) as fh:
+        with open(args.rtl, encoding="utf-8") as fh:
             for ln in fh:
                 ln = ln.strip()
                 if ln:
