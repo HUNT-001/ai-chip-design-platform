@@ -12,9 +12,6 @@ jobs:
     # they had ("Syntax check & pytest (3.10)" ...), and the Windows leg gets its own.
     name: ${{ matrix.os == 'windows-latest' && format('Windows pytest ({0})', matrix.python-version) || format('Syntax check & pytest ({0})', matrix.python-version) }}
     runs-on: ${{ matrix.os }}
-    # The Windows leg is informational until its failures are fixed (#26): a red
-    # Windows entry must not fail the run or skip the jobs that need this one.
-    continue-on-error: ${{ matrix.os == 'windows-latest' }}
     # The steps below use bash heredocs and `find -print0`, so run them in bash on
     # Windows too (Git for Windows' bash is on the runner).
     defaults:
