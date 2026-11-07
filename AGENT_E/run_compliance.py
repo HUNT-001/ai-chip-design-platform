@@ -2136,7 +2136,13 @@ def run_compliance_manifest(manifest_path: Path) -> int:
     # Signature directory (relative path for portability)
     sig_dir_rel = "compliance/signatures"
 
-    overall_status = "passed" if (s["pass"] == s["total"] and s["total"] > 0) else "failed"
+    if s["total"] == 0:
+        # Nothing ran: the same infrastructure problem compute_exit_code reports.
+        overall_status = "infra_error"
+    elif s["pass"] == s["total"]:
+        overall_status = "passed"
+    else:
+        overall_status = "failed"
 
     patch_manifest(manifest_path, {
         "phases": {
