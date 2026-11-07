@@ -228,14 +228,10 @@ MANIFEST_ASSERTIONS: List[FieldAssertion] = [
                    enum=["in_order","out_of_order","superscalar"],
                    description="Microarchitecture type."),
 
-    # ── Cross-field consistency check: if coverage phase passed, ────────
-    # ── coveragesummary must be set ────────────────────────────────────────
-    FieldAssertion(
-        "phases.coverage.status",
-        custom=lambda v: (
-            None  # checked separately in ManifestContract.validate()
-        ),
-    ),
+    # The cross-field check (coverage passed => coveragesummary set) lives in
+    # ManifestContract.validate().  It must not get a second FieldAssertion for
+    # phases.coverage.status here: WRITE_ASSERTIONS is keyed by field, so a
+    # duplicate replaces the enum check above and the write path stops checking.
 ]
 
 # ── Write-path assertions (subset validated before manifest updates) ──────────
