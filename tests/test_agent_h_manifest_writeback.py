@@ -156,6 +156,17 @@ def _build_run(tmp_path):
     return m, base
 
 
+# The case fires its concurrent writer from inside json.load, on the same
+# thread, while the verifier still holds the manifest open.  Windows cannot
+# replace an open file, so the writer's os.replace can never succeed there.
+# The cross-process lost-update case runs on Windows in test_manifest_concurrency.py.
+windows_cannot_replace_open_file = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="the case fires a writer from inside json.load while the same thread "
+           "holds the manifest open; Windows cannot replace an open file")
+
+
+@windows_cannot_replace_open_file
 @pytest.mark.parametrize("name", WRITERS)
 def test_concurrent_update_survives(name, tmp_path, monkeypatch):
     import compare_commitlogs as cc          # AGENT_D, on pyproject's pythonpath
