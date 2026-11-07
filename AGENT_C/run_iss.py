@@ -59,8 +59,10 @@ import logging
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
+import tempfile
 import time
 import uuid
 from datetime import datetime, timezone
@@ -244,6 +246,18 @@ def build_spike_cmd(
 # Spike execution
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _kill_process_tree(proc: "subprocess.Popen") -> None:
+    """Kill Spike and every process it started, not just Spike."""
+    if sys.platform == "win32":
+        subprocess.run(["taskkill", "/T", "/F", "/PID", str(proc.pid)],
+                       capture_output=True, check=False)
+        return
+    try:
+        os.killpg(proc.pid, signal.SIGKILL)   # start_new_session: pgid == pid
+    except ProcessLookupError:
+        pass
+
+
 def run_spike_process(
     cmd:       List[str],
     log_file:  Path,
@@ -262,36 +276,45 @@ def run_spike_process(
     log.info("Executing: %s", " ".join(cmd))
     log_file.parent.mkdir(parents=True, exist_ok=True)
 
-    lines: List[str] = []
+    # Spike's output goes to a temp file, not a pipe: with a pipe, reading to EOF
+    # blocks for as long as Spike or any child it spawned keeps the pipe open,
+    # so the timeout below would never be reached.
+    popen_kwargs: Dict[str, object] = {}
+    if sys.platform == "win32":
+        popen_kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+    else:
+        popen_kwargs["start_new_session"] = True
 
-    try:
-        with open(log_file, "w", encoding="utf-8") as flog:
-            proc = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,  # merge stderr into stdout pipe
-                text=True,
-                bufsize=1,
-            )
-            assert proc.stdout is not None
-            for line in proc.stdout:
-                flog.write(line)
-                lines.append(line)
-                if len(lines) % 100_000 == 0:
-                    log.debug("... %d lines captured so far", len(lines))
+    with tempfile.TemporaryDirectory() as tmp:
+        out_path = Path(tmp) / "spike.out"
+        try:
+            with open(out_path, "wb") as fout:
+                proc = subprocess.Popen(
+                    cmd,
+                    stdout=fout,
+                    stderr=subprocess.STDOUT,  # merge stderr into stdout
+                    **popen_kwargs,
+                )
+                try:
+                    proc.wait(timeout=timeout_s)
+                    rc = proc.returncode
+                except subprocess.TimeoutExpired:
+                    _kill_process_tree(proc)
+                    proc.wait()
+                    log.error("Spike subprocess timed out after %ds", timeout_s)
+                    rc = -9
+        except FileNotFoundError:
+            log.error("Spike binary not found: %s", cmd[0])
+            rc = -127
 
-            proc.wait(timeout=timeout_s)
-            rc = proc.returncode
+        output = ""
+        if out_path.exists():
+            output = out_path.read_text(encoding="utf-8", errors="replace")
 
-    except subprocess.TimeoutExpired:
-        proc.kill()
-        log.error("Spike subprocess timed out after %ds", timeout_s)
-        rc = -9
-    except FileNotFoundError:
-        log.error("Spike binary not found: %s", cmd[0])
-        rc = -127
+    with open(log_file, "w", encoding="utf-8") as flog:
+        flog.write(output)
 
-    return rc, "".join(lines)
+    return rc, output
 
 
 # ─────────────────────────────────────────────────────────────────────────────
