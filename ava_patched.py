@@ -394,6 +394,19 @@ def verdict_from_reports(
     return STATUS_COMPLETED
 
 
+def with_unobserved(reports: Dict[str, Any], unobserved: List[str]) -> Dict[str, Any]:
+    """Record simulators that produced nothing as "could not verify" (#138).
+
+    A stubbed RTL or ISS run has an empty commit log, so no comparison
+    happened.  That is `incomplete`, never `completed`.
+    """
+    if not unobserved:
+        return reports
+    rec = dict(reports.get(VERDICT_KEY) or {})
+    rec["incomplete"] = sorted(set(rec.get("incomplete", [])) | set(unobserved))
+    return {**reports, VERDICT_KEY: rec}
+
+
 #: What means a stage could not run: the environment (a file, a process, a
 #: timeout, unreadable JSON), not a bug.  Anything else -- TypeError,
 #: AttributeError, NameError -- is a defect in this repo and propagates.
@@ -1228,6 +1241,15 @@ class SpikeISS:
                     # Where the coverage numbers came from, so the grade can ask
                     # whether they were measured at all (#42).
                     "coverage_source": self._last_coverage_source,
+                    # Simulators that produced no commit log: nothing was
+                    # compared, so the run cannot claim to have verified (#138).
+                    "unobserved": (
+                        (["rtl_simulation"]
+                         if rtl_results.get("stub") or not commit_log else [])
+                        + (["iss_simulation"]
+                           if iss_results.get("stub")
+                           or not iss_results.get("commit_log") else [])
+                    ),
                 },
             )
 
@@ -1801,6 +1823,9 @@ class AVA:
                     lambda: self._run_extended_pipeline(run_dir, results, semantic_map),
                 )
 
+            extended_reports = with_unobserved(
+                extended_reports, results.metadata.get("unobserved", []))
+
             # ── Compile final results ─────────────────────────────────────
             exec_time = time.monotonic() - start_time
             final: Dict[str, Any] = {
@@ -2278,7 +2303,7 @@ endclass
         # Verifier exit codes that no report file captures (#40).  rc used to be
         # assigned at 17 sites here and read at none of them.
         _violations: List[str] = []
-        _incomplete: List[str] = []
+        _incomplete: List[str] = list(results.metadata.get("unobserved", []))
 
         def _note_exit_code(label: str, rc: Any) -> None:
             if not isinstance(rc, int) or isinstance(rc, bool) or rc == EXIT_PASS:

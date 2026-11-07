@@ -812,7 +812,9 @@ endmodule
             save_results=False,
         )
         assert isinstance(result, dict)
-        assert result.get("status") == "completed"
+        # No DUT is built here, so nothing is simulated: "incomplete" is the
+        # honest verdict (#138).  This test is about the pipeline running.
+        assert result.get("status") in ("completed", "incomplete")
         assert result["semantic_map"]["dut_module"] == "riscv_core"
 
 

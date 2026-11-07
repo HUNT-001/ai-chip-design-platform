@@ -67,8 +67,16 @@ async def _good_sim(self, tb_suite, semantic_map):
         "cycles": 1000, "instructions": 900,
         "coverage_data": dict(_COVERAGE_OK),
         "performance": {"ipc": 0.9, "branch_predictions": 100, "branch_correct": 95},
-        "commit_log": [], "state_snapshots": [], "seed": 1,
+        "commit_log": [dict(_OBSERVED)], "state_snapshots": [], "seed": 1,
     }
+
+
+# Both simulators must have observed something, or the run is `incomplete` (#138).
+_OBSERVED = {"pc": "0x80000000", "instr": "0x00000013", "regs": {}}
+
+
+async def _good_iss(self, semantic_map, stimulus, tb_suite):
+    return {"instructions": 1, "commit_log": [dict(_OBSERVED)], "seed": 1}
 
 
 def _save_one_record(self, run_dir, results):
@@ -83,6 +91,7 @@ def _save_one_record(self, run_dir, results):
 @pytest.fixture(autouse=True)
 def _stubs(monkeypatch):
     monkeypatch.setattr(SpikeISS, "_simulate_rtl", _good_sim)
+    monkeypatch.setattr(SpikeISS, "_simulate_iss", _good_iss)
     monkeypatch.setattr(AVA, "_save_commit_logs", _save_one_record)
     # The real contracts flag this one-record log, which would make every run
     # "failed" and hide the verdict under test; the stage is stubbed to a clean
