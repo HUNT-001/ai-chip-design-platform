@@ -38,6 +38,10 @@ def _cli(tmp_path, extra=()):
     rtl = tmp_path / "demo_core.sv"
     rtl.write_text(RTL, encoding="utf-8")
     env = {"PATH": "/nonexistent"}
+    # Windows cannot start Python without SYSTEMROOT (hash randomisation needs
+    # it); keep only that, never anything that could resolve a tool.
+    if os.environ.get("SYSTEMROOT"):
+        env["SYSTEMROOT"] = os.environ["SYSTEMROOT"]
     # anti-vacuity: the probe really cannot see the tools it claims are missing
     assert shutil.which("spike", path=env["PATH"]) is None
     assert shutil.which("yosys", path=env["PATH"]) is None

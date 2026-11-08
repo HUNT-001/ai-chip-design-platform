@@ -78,13 +78,11 @@ sys.argv = ["ava_patched.py"] + sys.argv[3:]
 sys.exit(ava_patched.main())
 """
 
-# Rows that miss the contract today, each tied to its open issue.  Only
+# Rows that miss the contract today, each tied to its open issue.  Empty:
+# #137 and #138 are fixed (#141, #140).  Only
 # unexpected rows change the exit code; a known row that starts passing is
 # itself unexpected, so the marker cannot go stale silently.
-KNOWN_FAILING = {
-    "b": "#137 (orchestrator comparator ignores mem_writes)",
-    "c": "#138 (no tools still reports completed/0)",
-}
+KNOWN_FAILING = {}
 
 EXPECT = {  # from the contract
     "a": ("completed", 0),
