@@ -61,11 +61,7 @@ CASES = {
 }
 
 #: case -> (issue, which tool is wrong).  Empty unless a real divergence is found.
-KNOWN_DIVERGENCE = {
-    # AGENT_D never compares store size; the orchestrator does.  AGENT_D is the
-    # one that is wrong, tracked in #142.
-    "store_size_differs": "#142: AGENT_D ignores mem_size",
-}
+KNOWN_DIVERGENCE = {}
 
 
 def _agent_d_fails(tmp_path, name, rtl, iss):
