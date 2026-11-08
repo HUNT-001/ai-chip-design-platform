@@ -1505,6 +1505,18 @@ class _FieldComparator:
                 ))
                 return issues   # addr wrong → val comparison meaningless
 
+        if (rtl.mem_size is not None and iss.mem_size is not None
+                and rtl.mem_size != iss.mem_size):
+            issues.append((
+                MismatchType.MEM_MISMATCH,
+                f"Memory size mismatch at {rtl.fmt_pc()} op={rtl.mem_op} "
+                f"addr={_fmt_hex(rtl.mem_addr)}: "
+                f"rtl={rtl.mem_size}B iss={iss.mem_size}B",
+                "mem_size",
+                str(rtl.mem_size), str(iss.mem_size),
+            ))
+            return issues   # different widths → val comparison meaningless
+
         if rtl.mem_val is not None and iss.mem_val is not None:
             size_mask = self._cfg.value_mask
             for sz in (rtl.mem_size, iss.mem_size):
