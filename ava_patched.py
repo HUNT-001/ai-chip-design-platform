@@ -3808,7 +3808,20 @@ async def _main_async() -> int:
         return 1
 
 
+def _make_output_encoding_safe() -> None:
+    """The exit code is the verdict; a console that cannot encode a character
+    in the summary must not turn that into an exception (#147).  Same helper as
+    AGENT_D/compare_commitlogs.py, duplicated rather than imported so the
+    orchestrator does not depend on another agent's CLI module."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
 def main() -> int:
+    _make_output_encoding_safe()
     return asyncio.run(_main_async())
 
 
