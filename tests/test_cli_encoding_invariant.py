@@ -12,6 +12,7 @@ must be driven (DEEP or --help), listed in UNREACHED (the final print is not
 reached; reason given), or listed in EXCLUDED (never executed; reason given).
 A new CLI that is in none of those fails the test.
 """
+import ast
 import os
 import re
 import shutil
@@ -41,75 +42,75 @@ DEEP = {
 
 #: In-scope scripts driven only to --help: the final print is NOT reached.
 UNREACHED = {
-    'AGENT_A/semantic_analyzer.py': '--help only; its final print needs inputs this test does not build',
-    'AGENT_B/backends/run_rtl.py': 'needs a Verilator build and an ELF to reach the Done prints',
-    'AGENT_B/testbench_generator.py': '--help only; its final print needs inputs this test does not build',
-    'AGENT_C/iss_efficiency.py': '--help only; its final print needs inputs this test does not build',
-    'AGENT_C/run_iss.py': 'needs Spike and an ELF to reach the DONE print',
-    'AGENT_E/run_compliance.py': '--help only; its final print needs inputs this test does not build',
-    'AGENT_E/run_rtl_adapter.py': '--help only; its final print needs inputs this test does not build',
-    'AGENT_F/coverage_database.py': '--help only; its final print needs inputs this test does not build',
-    'AGENT_F/coverage_pipeline.py': 'needs a coverage.dat run to reach the plateau warning',
-    'AGENT_H/advanced_link_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/aes_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/aia_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/atomics_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/bitmanip_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/branch_predictor_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/bug_intelligence.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/bus_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/cache_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/cas_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/cdc_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/coherence_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/coverage_collector.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/crypto_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/csr_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/dashboard.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/debug_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/demo_traces.py': 'writes trace files and treats --help as an output dir; only --help (in a temp cwd) is driven',
-    'AGENT_H/equivalence_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/failure_analytics.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/fault_injector.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/fp_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/hypervisor_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/interconnect_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/interrupt_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/lsq_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/memory_model_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/ooo_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/perf_counter_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/peripheral_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/pipeline_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/power_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/privilege_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/regression_intelligence.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/reset_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/rtl_basics_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/rtl_graph.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/rv64_atomics_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/rv64_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/rvc_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/self_evolving_engine.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/sm4_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/soc_peripheral_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/stimulus_generator.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/sv_mmu_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/tlb_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/vaes_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/vaeskf_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/vector_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/verification_twin.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/vghash_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/vm_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/vsha_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/vsm3_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_H/vsm4_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
-    'AGENT_I/agent_i_litmus.py': '--help only; its final print needs inputs this test does not build',
-    'AGENT_J/agent_j_cdc.py': '--help only; its final print needs inputs this test does not build',
-    'AGENT_K/agent_k_perf.py': '--help only; its final print needs inputs this test does not build',
-    'AGENT_L/agent_l_equiv.py': '--help only; its final print needs inputs this test does not build',
-    'ava_patched.py': '--help only here; the verdict print is driven by tests/test_ava_console_encoding.py',
+    'AGENT_A/semantic_analyzer.py': '--help only; its final print needs inputs this test does not build; plus the static print-path guard',
+    'AGENT_B/backends/run_rtl.py': 'needs a Verilator build and an ELF to reach the Done prints; plus the static print-path guard',
+    'AGENT_B/testbench_generator.py': '--help only; its final print needs inputs this test does not build; plus the static print-path guard',
+    'AGENT_C/iss_efficiency.py': '--help only; its final print needs inputs this test does not build; plus the static print-path guard',
+    'AGENT_C/run_iss.py': 'needs Spike and an ELF to reach the DONE print; plus the static print-path guard',
+    'AGENT_E/run_compliance.py': '--help only; its final print needs inputs this test does not build; plus the static print-path guard',
+    'AGENT_E/run_rtl_adapter.py': '--help only; its final print needs inputs this test does not build; plus the static print-path guard',
+    'AGENT_F/coverage_database.py': '--help only; its final print needs inputs this test does not build; plus the static print-path guard',
+    'AGENT_F/coverage_pipeline.py': 'needs a coverage.dat run to reach the plateau warning; plus the static print-path guard',
+    'AGENT_H/advanced_link_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/aes_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/aia_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/atomics_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/bitmanip_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/branch_predictor_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/bug_intelligence.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/bus_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/cache_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/cas_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/cdc_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/coherence_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/coverage_collector.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/crypto_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/csr_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/dashboard.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/debug_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/demo_traces.py': 'writes trace files and treats --help as an output dir; only --help (in a temp cwd) is driven; plus the static print-path guard',
+    'AGENT_H/equivalence_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/failure_analytics.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/fault_injector.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/fp_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/hypervisor_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/interconnect_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/interrupt_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/lsq_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/memory_model_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/ooo_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/perf_counter_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/peripheral_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/pipeline_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/power_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/privilege_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/regression_intelligence.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/reset_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/rtl_basics_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/rtl_graph.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/rv64_atomics_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/rv64_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/rvc_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/self_evolving_engine.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/sm4_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/soc_peripheral_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/stimulus_generator.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/sv_mmu_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/tlb_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/vaes_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/vaeskf_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/vector_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/verification_twin.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/vghash_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/vm_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/vsha_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/vsm3_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_H/vsm4_verifier.py': 'static guard: no non-ASCII literal in a print/write call, every print is ASCII-escaped json.dumps, and its non-ASCII violation text can reach a console only through logging, which cannot raise',
+    'AGENT_I/agent_i_litmus.py': '--help only; its final print needs inputs this test does not build; plus the static print-path guard',
+    'AGENT_J/agent_j_cdc.py': '--help only; its final print needs inputs this test does not build; plus the static print-path guard',
+    'AGENT_K/agent_k_perf.py': '--help only; its final print needs inputs this test does not build; plus the static print-path guard',
+    'AGENT_L/agent_l_equiv.py': '--help only; its final print needs inputs this test does not build; plus the static print-path guard',
+    'ava_patched.py': '--help only here; the verdict print is driven by tests/test_ava_console_encoding.py; plus the static print-path guard',
 }
 
 #: Never executed (static scan only).  Research track: see #149.
@@ -273,3 +274,150 @@ def test_exit_code_does_not_depend_on_console_encoding(rel, tmp_path):
     assert rc_ascii == rc_utf8, (
         f"{rel}: exit {rc_utf8} under utf-8 but {rc_ascii} under ascii: "
         + out[-400:].decode("utf-8", "replace"))
+
+
+# -- static guard for the scripts that are not driven to their final print --------
+#
+# A script in UNREACHED cannot be run to the print that follows its verdict, so
+# it is held to a static rule instead: unless it carries the helper, no
+# non-ASCII literal may sit in a print/log/write call, and nothing may ask
+# json.dumps for non-ASCII output.  Files that do hold non-ASCII message text
+# (violation messages) must only print ASCII-escaped json.dumps(...), so that
+# text can reach a console only through logging, which swallows encoding
+# errors rather than raising them.
+HELPER = "_make_output_encoding_safe"
+# Logging calls are deliberately not output calls here: logging.Handler.handleError
+# prints "Logging error" to stderr and carries on, so an unencodable character in a
+# log message cannot change the exit code.  print() and .write() do raise.
+OUTPUT_ATTRS = {"write", "writelines"}
+
+
+def _non_ascii(s):
+    return any(ord(c) > 127 for c in s)
+
+
+def _parents(tree):
+    parent = {}
+    for n in ast.walk(tree):
+        for c in ast.iter_child_nodes(n):
+            parent[c] = n
+    return parent
+
+
+def _is_output_call(n):
+    if not isinstance(n, ast.Call):
+        return False
+    f = n.func
+    if isinstance(f, ast.Name):
+        return f.id == "print"
+    return isinstance(f, ast.Attribute) and f.attr in OUTPUT_ATTRS
+
+
+def _is_ascii_json(n):
+    if not (isinstance(n, ast.Call) and ast.unparse(n.func) == "json.dumps"):
+        return False
+    return not any(k.arg == "ensure_ascii" and isinstance(k.value, ast.Constant)
+                   and k.value.value is False for k in n.keywords)
+
+
+def _is_docstring(n, parent):
+    e = parent.get(n)
+    g = parent.get(e)
+    return (isinstance(e, ast.Expr)
+            and isinstance(g, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+            and bool(g.body) and g.body[0] is e)
+
+
+def _non_ascii_literals(tree, parent):
+    return [n for n in ast.walk(tree)
+            if isinstance(n, ast.Constant) and isinstance(n.value, str)
+            and _non_ascii(n.value) and not _is_docstring(n, parent)]
+
+
+def print_path_findings(src):
+    tree = ast.parse(src)
+    parent = _parents(tree)
+
+    def inside_output(n):
+        while n in parent:
+            n = parent[n]
+            if _is_ascii_json(n):
+                return False  # json.dumps escapes non-ASCII, so it cannot raise
+            if _is_output_call(n):
+                return True
+        return False
+
+    found, bound = [], {}
+    for n in _non_ascii_literals(tree, parent):
+        if inside_output(n):
+            found.append(f"line {n.lineno}: non-ASCII literal in an output call")
+        p = parent.get(n)
+        if isinstance(p, ast.Assign):
+            for t in p.targets:
+                if isinstance(t, ast.Name):
+                    bound[t.id] = n.lineno
+    for n in ast.walk(tree):
+        if (isinstance(n, ast.keyword) and n.arg == "ensure_ascii"
+                and isinstance(n.value, ast.Constant) and n.value.value is False):
+            found.append(f"line {n.value.lineno}: ensure_ascii=False")
+        if isinstance(n, ast.Name) and isinstance(n.ctx, ast.Load) and n.id in bound \
+                and inside_output(n):
+            found.append(f"line {n.lineno}: {n.id} (non-ASCII, line {bound[n.id]}) is printed")
+    return found
+
+
+def non_json_prints(src):
+    """print() calls whose arguments are not all json.dumps(...) (ASCII-escaped)."""
+    tree = ast.parse(src)
+    bad = []
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "print":
+            ok = bool(n.args) and all(
+                isinstance(a, ast.Call) and ast.unparse(a.func) == "json.dumps" for a in n.args)
+            if not ok:
+                bad.append(n.lineno)
+    return bad
+
+
+def has_non_ascii_message(src):
+    tree = ast.parse(src)
+    return bool(_non_ascii_literals(tree, _parents(tree)))
+
+
+@pytest.mark.parametrize("rel", sorted(UNREACHED))
+def test_an_unreached_script_cannot_print_non_ascii_without_the_helper(rel):
+    src = (REPO_ROOT / rel).read_text(encoding="utf-8", errors="replace")
+    if HELPER in src:
+        assert src.count(HELPER) >= 2, f"{rel}: the helper is defined but never called"
+        return
+    assert not print_path_findings(src), f"{rel}: " + "; ".join(print_path_findings(src))
+    if rel.startswith("AGENT_H/") and has_non_ascii_message(src):
+        # AGENT_H's non-ASCII literals are violation-message strings (checked by hand);
+        # they reach a console only through ASCII-escaped JSON or logging.
+        assert not non_json_prints(src), (
+            f"{rel} holds non-ASCII message text, so every print() must be json.dumps(...): "
+            f"lines {non_json_prints(src)}")
+
+
+@pytest.mark.parametrize("src", [
+    'print("\u2713 ok")',
+    'import sys\nsys.stdout.write("\u2014")',
+    'MARK = "\u2713"\nprint(MARK)',
+    'import json\nprint(json.dumps(r, ensure_ascii=False))',
+])
+def test_the_static_guard_catches_each_way_to_print_non_ascii(src):
+    """Anti-vacuity: a guard that finds nothing anywhere would pass the real files."""
+    assert print_path_findings(src), src
+
+
+def test_the_static_guard_does_not_count_logging():
+    """Documents the decision: logging swallows encoding errors, print() does not."""
+    assert print_path_findings('logger.info(f"a \u2192 {b}")') == []
+    assert print_path_findings('print(f"a \u2192 {b}")')
+
+
+def test_the_static_guard_lets_ascii_escaped_json_through():
+    src = 'import json\nMSG = "a \u2014 b"\nprint(json.dumps({"m": MSG}))'
+    assert print_path_findings(src) == []
+    assert has_non_ascii_message(src) and non_json_prints(src) == []
+    assert non_json_prints('MSG = "\u2014"\nprint(MSG)') == [2]
