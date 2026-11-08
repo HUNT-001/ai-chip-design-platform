@@ -2790,7 +2790,24 @@ def _emit_outputs(result: CompareResult, args: argparse.Namespace) -> None:
             print(m.to_github_annotation(filename=args.rtl_log or "commitlog"))
 
 
+def _make_output_encoding_safe() -> None:
+    """Let unencodable characters degrade instead of raising (#144).
+
+    The summary prints non-ASCII marks.  On a console that cannot encode them
+    (Windows cp1252, an ASCII locale) `print` raised after the comparison had
+    finished, and the traceback exited 1 -- the mismatch code -- so a clean pair
+    read as a mismatch.  The exit code is the verdict; how it is displayed must
+    not be able to change it.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")
+        except (AttributeError, ValueError, OSError):
+            pass    # not a TextIOWrapper (redirected to a custom object): leave it
+
+
 def main(argv: Optional[List[str]] = None) -> int:
+    _make_output_encoding_safe()
     parser = _build_parser()
     args   = parser.parse_args(argv)
 
