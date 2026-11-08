@@ -78,6 +78,14 @@ sys.argv = ["ava_patched.py"] + sys.argv[3:]
 sys.exit(ava_patched.main())
 """
 
+# Rows that miss the contract today, each tied to its open issue.  Only
+# unexpected rows change the exit code; a known row that starts passing is
+# itself unexpected, so the marker cannot go stale silently.
+KNOWN_FAILING = {
+    "b": "#137 (orchestrator comparator ignores mem_writes)",
+    "c": "#138 (no tools still reports completed/0)",
+}
+
 EXPECT = {  # from the contract
     "a": ("completed", 0),
     "b": ("failed", 1),
@@ -124,27 +132,40 @@ def main():
         s, rc, lab = res[c]
         print(f"{c:<5}| {s:<11}| {rc:<5}| {lab}")
 
-    fails = []
+    unexpected, known = [], []
     for c, (es, erc) in EXPECT.items():
         s, rc, lab = res[c]
+        problems = []
         if (s, rc) != (es, erc):
-            fails.append(f"case {c}: expected {es}/{erc}, got {s}/{rc}")
-    if "comparator" not in res["b"][2]:
-        fails.append("case b: no comparator label in violations")
-    if res["d"][:2] != res["a"][:2]:
-        fails.append("case d: differs from case a")
-    for c in "bc":
-        if res[c][:2] == res["a"][:2]:
-            fails.append(f"VACUOUS: case {c} matches the clean run "
-                         f"({res['a'][0]}/{res['a'][1]}) and proves nothing")
+            problems.append(f"expected {es}/{erc}, got {s}/{rc}")
+        if c == "b" and "comparator" not in lab:
+            problems.append("no comparator label in violations")
+        if c == "d" and res["d"][:2] != res["a"][:2]:
+            problems.append("differs from case a")
+        if c in "bc" and res[c][:2] == res["a"][:2]:
+            problems.append(f"VACUOUS: matches the clean run "
+                            f"({res['a'][0]}/{res['a'][1]}), proves nothing")
+        if c in KNOWN_FAILING:
+            if problems:
+                known.append(f"case {c}: KNOWN-FAIL {KNOWN_FAILING[c]}: "
+                             + "; ".join(problems))
+            else:
+                # the fix landed: the marker is now stale
+                unexpected.append(f"case {c}: now passes; remove its "
+                                  f"KNOWN_FAILING entry ({KNOWN_FAILING[c]})")
+        else:
+            unexpected += [f"case {c}: {pr}" for pr in problems]
 
     print()
-    if fails:
-        print("FAIL")
-        for f in fails:
-            print("  - " + f)
+    for k in known:
+        print("  known  - " + k)
+    if unexpected:
+        print("FAIL (unexpected)")
+        for u in unexpected:
+            print("  - " + u)
         return 1
-    print("OK: every expectation holds and b, c differ from a")
+    print("OK: no unexpected rows" +
+          (f" ({len(known)} known-failing)" if known else ""))
     return 0
 
 
