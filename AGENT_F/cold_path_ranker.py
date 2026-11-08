@@ -355,5 +355,18 @@ Examples:
     return 0
 
 
+def _make_output_encoding_safe() -> None:
+    """The exit code is the verdict; a console that cannot encode a character
+    in the output must not turn that into an exception (#147).  Copy of the
+    helper in AGENT_D/compare_commitlogs.py: it cannot be imported from here
+    without a sys.path change (#7)."""
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(errors="replace")
+        except (AttributeError, ValueError, OSError):
+            pass
+
+
 if __name__ == "__main__":
+    _make_output_encoding_safe()
     sys.exit(_main())
