@@ -672,10 +672,57 @@ class CommitLogComparator:
                     repro=ctx,
                 ))
 
+            # Store check (#137): canonical schema carries stores as
+            # `mem_writes` [{addr, size, data}].  Only compared when both
+            # sides carry the key, so legacy logs without it are unaffected.
+            # A store reported by only one side was not compared: a finding.
+            has_rtl, has_iss = "mem_writes" in rtl_e, "mem_writes" in iss_e
+            one_sided = (has_rtl != has_iss) and bool(
+                (rtl_e if has_rtl else iss_e).get("mem_writes"))
+            if (has_rtl and has_iss) or one_sided:
+                w_rtl = self._norm_writes(rtl_e.get("mem_writes"))
+                w_iss = self._norm_writes(iss_e.get("mem_writes"))
+                if w_rtl != w_iss or one_sided:
+                    ctx = rtl_log[max(0, rtl_idx - context_before): rtl_idx + 1]
+                    why = ("one side did not report stores"
+                           if one_sided else "stores differ")
+                    bugs.append(BugReport(
+                        kind=MismatchKind.MEMORY,
+                        severity="high",
+                        pc=rtl_e.get("pc", "?"),
+                        instr=rtl_e.get("instr", "?"),
+                        rtl_value=str(rtl_e.get("mem_writes")),
+                        iss_value=str(iss_e.get("mem_writes")),
+                        description=(
+                            f"Store mismatch at PC {rtl_e.get('pc')} ({why}): "
+                            f"RTL={rtl_e.get('mem_writes')} "
+                            f"ISS={iss_e.get('mem_writes')}"
+                        ),
+                        repro=ctx,
+                    ))
+
             rtl_idx += 1
             iss_idx += 1
 
         return bugs
+
+    @staticmethod
+    def _norm_writes(writes: Any) -> List[Tuple[Any, Any, Any]]:
+        """(addr, size, data) per store, hex strings compared as integers."""
+        def _n(v: Any) -> Any:
+            if isinstance(v, str):
+                try:
+                    return int(v, 0)
+                except ValueError:
+                    return v.lower()
+            return v
+        # A non-dict entry is malformed evidence: a unique sentinel, so it
+        # never equals anything and is reported rather than skipped.
+        return [
+            (_n(w.get("addr")), _n(w.get("size")), _n(w.get("data")))
+            if isinstance(w, dict) else object()
+            for w in (writes or ())
+        ]
 
     def _resync(
         self,
