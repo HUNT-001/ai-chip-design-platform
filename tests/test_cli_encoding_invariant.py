@@ -34,6 +34,7 @@ DEEP = {
     "AGENT_D/compare_commitlogs.py": ["--self-test"],
     "AGENT_F/manifest_contract.py": ["{tmp}/m.json"],
     "AGENT_F/ava_coverage_patch.py": ["--dry-run", "{tmp}/ava_copy.py"],
+    "AGENT_F/cold_path_ranker.py": ["--db", "{tmp}/cov.db", "--top", "3", "--constraints-only"],
     "AGENT_G/generate_tests.py": ["--directed", "1", "--random", "1", "--no-assemble",
                                   "--outdir", "{tmp}/g"],
 }
@@ -47,7 +48,6 @@ UNREACHED = {
     'AGENT_C/run_iss.py': 'needs Spike and an ELF to reach the DONE print',
     'AGENT_E/run_compliance.py': '--help only; its final print needs inputs this test does not build',
     'AGENT_E/run_rtl_adapter.py': '--help only; its final print needs inputs this test does not build',
-    'AGENT_F/cold_path_ranker.py': '--help only; its final print needs inputs this test does not build',
     'AGENT_F/coverage_database.py': '--help only; its final print needs inputs this test does not build',
     'AGENT_F/coverage_pipeline.py': 'needs a coverage.dat run to reach the plateau warning',
     'AGENT_H/advanced_link_verifier.py': 'verifier/analysis CLI: --help only; its final verdict print needs a run manifest or trace set',
@@ -191,9 +191,24 @@ def _env(encoding):
     return env
 
 
+def _build_coverage_db(path):
+    """One never-hit coverage point, so the ranker has a cold path to print."""
+    if str(REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(REPO_ROOT))
+    from AGENT_F.coverage_database import CoverageDatabase
+    with CoverageDatabase(path) as db:
+        db._conn.execute(
+            "INSERT INTO coverage_points (run_id, module, line, col, hier, kind, description,"
+            " hit_count, total_executions) VALUES (?,?,?,?,?,?,?,?,?)",
+            ("r1", "alu.sv", 10, 0, "top.alu", "branch", "branch@alu.sv:10", 0, 0))
+        db._conn.commit()
+
+
 def _workdir(tmp_path):
     (tmp_path / "m.json").write_text("{}", encoding="utf-8")
     shutil.copy(REPO_ROOT / "ava_patched.py", tmp_path / "ava_copy.py")
+    if not (tmp_path / "cov.db").exists():
+        _build_coverage_db(str(tmp_path / "cov.db"))
     return tmp_path
 
 
