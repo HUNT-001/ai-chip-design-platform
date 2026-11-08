@@ -225,7 +225,7 @@ logging.basicConfig(
     level=logging.INFO,
     format=_LOG_FMT,
     handlers=[
-        logging.FileHandler("ava_verification.log"),
+        logging.FileHandler("ava_verification.log", encoding="utf-8"),
         logging.StreamHandler(sys.stdout),
     ],
 )
