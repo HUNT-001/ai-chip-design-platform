@@ -659,10 +659,47 @@ class CommitLogComparator:
                     repro=ctx,
                 ))
 
+            # Store check (#137): canonical schema carries stores as
+            # `mem_writes` [{addr, size, data}].  Only compared when both
+            # sides carry the key, so legacy logs without it are unaffected.
+            if "mem_writes" in rtl_e and "mem_writes" in iss_e:
+                w_rtl = self._norm_writes(rtl_e["mem_writes"])
+                w_iss = self._norm_writes(iss_e["mem_writes"])
+                if w_rtl != w_iss:
+                    ctx = rtl_log[max(0, rtl_idx - context_before): rtl_idx + 1]
+                    bugs.append(BugReport(
+                        kind=MismatchKind.MEMORY,
+                        severity="high",
+                        pc=rtl_e.get("pc", "?"),
+                        instr=rtl_e.get("instr", "?"),
+                        rtl_value=str(rtl_e["mem_writes"]),
+                        iss_value=str(iss_e["mem_writes"]),
+                        description=(
+                            f"Store mismatch at PC {rtl_e.get('pc')}: "
+                            f"RTL={rtl_e['mem_writes']} ISS={iss_e['mem_writes']}"
+                        ),
+                        repro=ctx,
+                    ))
+
             rtl_idx += 1
             iss_idx += 1
 
         return bugs
+
+    @staticmethod
+    def _norm_writes(writes: Any) -> List[Tuple[Any, Any, Any]]:
+        """(addr, size, data) per store, hex strings compared as integers."""
+        def _n(v: Any) -> Any:
+            if isinstance(v, str):
+                try:
+                    return int(v, 0)
+                except ValueError:
+                    return v.lower()
+            return v
+        return [
+            (_n(w.get("addr")), _n(w.get("size")), _n(w.get("data")))
+            for w in (writes or ()) if isinstance(w, dict)
+        ]
 
     def _resync(
         self,
