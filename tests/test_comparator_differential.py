@@ -8,7 +8,6 @@ each other.  A disagreement that is not a bug fixed here is listed in
 KNOWN_DIVERGENCE with its issue, so it stays visible and cannot widen.
 """
 import json
-import os
 import subprocess
 import sys
 from pathlib import Path
@@ -77,10 +76,7 @@ def _agent_d_fails(tmp_path, name, rtl, iss):
         paths.append(str(p))
     r = subprocess.run(
         [sys.executable, str(REPO_ROOT / "AGENT_D" / "compare_commitlogs.py"), *paths],
-        cwd=REPO_ROOT, capture_output=True, text=True, timeout=120,
-        # This test is about the comparison, not the console.  AGENT_D's summary
-        # crashes (exit 1) on a cp1252 console, which Windows CI has (#144).  Pin UTF-8 so a clean pair exits 0 there too.
-        env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+        cwd=REPO_ROOT, capture_output=True, text=True, timeout=120)
     out = (r.stdout or "") + (r.stderr or "")
     assert r.returncode in (0, 1), f"AGENT_D could not run: rc={r.returncode} {out[-600:]}"
     # rc 1 must be a store finding, not some other reason to exit 1
