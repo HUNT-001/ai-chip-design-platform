@@ -62,6 +62,52 @@ def test_differing_store_address_is_a_finding():
     assert [b.kind for b in bugs] == [ava_patched.MismatchKind.MEMORY], bugs
 
 
+def test_a_store_reported_by_only_one_side_is_a_finding():
+    """RTL reports a store, ISS has no `mem_writes` key: nothing was compared,
+    which must not read as a clean match."""
+    rtl, iss = _logs()
+    del iss[7]["mem_writes"]
+    bugs = CommitLogComparator().compare(rtl, iss)
+    assert [b.kind for b in bugs] == [ava_patched.MismatchKind.MEMORY], bugs
+    assert "one side did not report stores" in bugs[0].description
+
+
+def test_a_store_reported_only_by_the_iss_is_a_finding():
+    rtl, iss = _logs()
+    del rtl[7]["mem_writes"]
+    bugs = CommitLogComparator().compare(rtl, iss)
+    assert [b.kind for b in bugs] == [ava_patched.MismatchKind.MEMORY], bugs
+
+
+def test_both_sides_without_the_key_stay_clean():
+    rtl, iss = _logs()
+    for e in rtl + iss:
+        del e["mem_writes"]
+    assert CommitLogComparator().compare(rtl, iss) == []
+
+
+def test_a_one_sided_empty_list_is_not_a_store():
+    rtl, iss = _logs()
+    del iss[7]["mem_writes"]
+    rtl[7]["mem_writes"] = []
+    assert CommitLogComparator().compare(rtl, iss) == []
+
+
+def test_a_malformed_store_entry_is_a_mismatch_not_a_skip():
+    rtl, iss = _logs()
+    rtl[7]["mem_writes"] = ["not-a-dict"]
+    iss[7]["mem_writes"] = []
+    bugs = CommitLogComparator().compare(rtl, iss)
+    assert [b.kind for b in bugs] == [ava_patched.MismatchKind.MEMORY], bugs
+
+
+def test_a_malformed_entry_against_a_well_formed_one_is_a_mismatch():
+    rtl, iss = _logs()
+    rtl[7]["mem_writes"] = [rtl[7]["mem_writes"][0], 42]
+    bugs = CommitLogComparator().compare(rtl, iss)
+    assert [b.kind for b in bugs] == [ava_patched.MismatchKind.MEMORY], bugs
+
+
 def test_the_orchestrator_agrees_with_agent_d_on_the_same_entries():
     rtl, iss = _logs(corrupt_data="0xbadbad00")
     base = dict(schema_version="2.1.0", hart=0, seq=7, priv="M", trap=None)
