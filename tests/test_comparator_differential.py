@@ -72,12 +72,16 @@ def _agent_d_fails(tmp_path, name, rtl, iss):
     paths = []
     for tag, log in (("rtl", rtl), ("iss", iss)):
         p = tmp_path / f"{name}_{tag}.jsonl"
-        p.write_text("\n".join(json.dumps(e) for e in log) + "\n", encoding="utf-8")
+        p.write_bytes(("\n".join(json.dumps(e) for e in log) + "\n").encode("utf-8"))
         paths.append(str(p))
     r = subprocess.run(
         [sys.executable, str(REPO_ROOT / "AGENT_D" / "compare_commitlogs.py"), *paths],
         cwd=REPO_ROOT, capture_output=True, text=True, timeout=120)
-    assert r.returncode in (0, 1), f"AGENT_D could not run: rc={r.returncode} {r.stderr[-300:]}"
+    out = (r.stdout or "") + (r.stderr or "")
+    assert r.returncode in (0, 1), f"AGENT_D could not run: rc={r.returncode} {out[-600:]}"
+    # rc 1 must be a store finding, not some other reason to exit 1
+    assert (r.returncode == 1) == ("MEMMISMATCH" in out), (
+        f"AGENT_D rc={r.returncode} does not match its own report:\n{out[-1200:]}")
     return r.returncode == 1
 
 
