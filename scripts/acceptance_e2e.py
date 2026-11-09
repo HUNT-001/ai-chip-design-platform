@@ -106,7 +106,10 @@ def run(case, work, rtl):
     if case == "c":
         # scrubbed PATH: no verilator, spike, yosys, gcc
         env = {"PATH": "/nonexistent"}
-        cmd = [sys.executable, str(REPO / "ava_patched.py")] + common
+        # Windows cannot start Python without SYSTEMROOT; keep only that.
+        if os.environ.get("SYSTEMROOT"):
+            env["SYSTEMROOT"] = os.environ["SYSTEMROOT"]
+        cmd =[sys.executable, str(REPO / "ava_patched.py")] + common
     else:
         env = base_env
         mode = "corrupt" if case == "b" else "clean"
