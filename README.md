@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/HUNT-001/ai-chip-design-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/HUNT-001/ai-chip-design-platform/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%20|%203.11%20|%203.12-blue)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-1153%20passing-brightgreen)](#testing)
+[![Tests](https://img.shields.io/badge/tests-2237%20passing-brightgreen)](#testing)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 [![Verilator](https://img.shields.io/badge/verilator-5.x-orange)](https://verilator.org)
 [![SymbiYosys](https://img.shields.io/badge/formal-SymbiYosys%20%2B%20z3-purple)](https://symbiyosys.readthedocs.io)
@@ -16,6 +16,85 @@
 [Quick Start](#quick-start) · [Architecture](#part-i--ava-the-verification-pipeline) · [VOE Research](#part-ii--voe-the-verification-operating-environment) · [Reproducing Results](#reproducibility) · [Contributing](#contributing)
 
 </div>
+
+---
+
+## The verdict
+
+- `completed` / exit 0: verified.
+- `failed` / exit 1: a violation was found.
+- `incomplete` / exit 3: it could not verify (a tool was missing, or a stage could not run).
+
+The exit code is the verdict, and it does not depend on the console encoding. Current release: [v4.0.0](https://github.com/HUNT-001/ai-chip-design-platform/releases/tag/v4.0.0), which makes verdicts stricter than v3.0.0 (see the release notes before upgrading).
+
+```mermaid
+flowchart TD
+    IN["Inputs<br/>RTL file · seed"] --> CLI["ava_patched.py main()"]
+    CLI --> P1
+
+    subgraph P1 ["Phase 1 · semantic analysis"]
+        SA["AVA._semantic_analysis<br/>(in ava_patched.py)"]
+    end
+    P1 --> P2
+
+    subgraph P2 ["Phase 2 · testbench generation"]
+        TB["AVA._generate_tb_suite<br/>RV32IMTestGenerator (in ava_patched.py)"]
+    end
+    P2 --> P3
+
+    subgraph P3 ["Phase 3 · tandem simulation (SpikeISS.run_tandem)"]
+        RTL["RTL sim<br/>Verilator subprocess"]
+        ISS["ISS<br/>Spike subprocess"]
+        COV["AGENT_F coverage_pipeline<br/>coverage backend"]
+        CMP["CommitLogComparator<br/>(in ava_patched.py)"]
+        RTL --> CMP
+        ISS --> CMP
+        RTL --> COV
+    end
+    RTL -->|"no commit log<br/>(tool missing or stubbed)"| UNOBS(["unobserved"])
+    ISS -->|"no commit log<br/>(tool missing or stubbed)"| UNOBS
+    CMP -->|"any mismatch"| BUGS(["results.bugs<br/>comparator:KIND"])
+    P3 --> P4
+
+    subgraph P4 ["Phase 4 · analysis"]
+        AN["AVA._performance_cop<br/>AVA._security_injector"]
+    end
+    P4 --> P5
+
+    subgraph P5 ["Phase 5 · coverage adaptation"]
+        CA["UCB1CoverageDirector.adapt_cold_paths<br/>(in ava_patched.py)"]
+    end
+    P5 --> P6
+
+    subgraph P6 ["Phase 6 · extended verification (optional: only if self.enable_extended)"]
+        EXT["_run_extended_pipeline<br/>AGENT_I memory model · AGENT_J CDC<br/>AGENT_K perf · AGENT_L equivalence<br/>AGENT_H verifiers · AGENT_G causal engine<br/>AGENT_B testbench_generator"]
+    end
+
+    EXT -->|"verifier exits 1"| VIOL(["violations"])
+    EXT -->|"verifier reports pass:false"| VIOL
+    EXT -->|"verifier exits 3, or a stage hits an<br/>OSError / timeout (run_stage)"| INC(["incomplete list"])
+    UNOBS --> INC
+    P5 -.->|"extended off"| V
+
+    BUGS --> V
+    VIOL --> V
+    INC --> V
+    V{{"verdict_from_reports"}}
+
+    V -->|"any finding<br/>(a finding outranks could-not-check)"| F(["failed · exit 1"])
+    V -->|"no finding, something could not verify"| I(["incomplete · exit 3"])
+    V -->|"no finding, nothing missing"| C(["completed · exit 0"])
+
+    style UNOBS fill:#3a2d1d,stroke:#d29922,color:#fff
+    style INC fill:#3a2d1d,stroke:#d29922,color:#fff
+    style I fill:#3a2d1d,stroke:#d29922,color:#fff
+    style BUGS fill:#3a1d1d,stroke:#f85149,color:#fff
+    style VIOL fill:#3a1d1d,stroke:#f85149,color:#fff
+    style F fill:#3a1d1d,stroke:#f85149,color:#fff
+    style C fill:#0d2818,stroke:#3fb950,color:#fff
+```
+
+Boxes are placed by their call site in `ava_patched.py`; [the notes](docs/ava-run-path.md) say what each edge means.
 
 ---
 
@@ -53,10 +132,10 @@ is not the crash. It is the green result that means nothing.
 
 | | |
 |---|---|
-| **Pipeline agents** | 12 (`AGENT_A` … `AGENT_L`) + 14 extended `AGENT_H` modules |
+| **Pipeline agents** | 12 (`AGENT_A` … `AGENT_L`) + 66 `AGENT_H` modules imported by the orchestrator (73 files in `AGENT_H/`) |
 | **Runs without EDA tools** | Yes — core loop and most agents are pure Python |
 | **Real tools when present** | Verilator, Spike ISS, Yosys, SymbiYosys + z3, RISC-V GCC |
-| **Test suite** | 1153 passing, 7 skipped, across 9 files (1160 collected) |
+| **Test suite** | see the [Tests badge](#testing) (`./run_tests.sh`; CI has no toolchain and skips more) |
 | **VOE experiments** | 17 ledger records — 9 promoted, 4 rejected, 2 underpowered, 1 not evaluable, 1 not met |
 | **Verification corpus** | 10 design boards, incl. cv32e40p FIFO, Ibex ALU, and two stochastic benchmarks |
 | **Python** | 3.10, 3.11, 3.12 |
@@ -130,7 +209,7 @@ cd voe_bench && python3 run_default_cached.py --mock
 ```
 
 Expected: the pipeline writes a JSON report under `sim_runs/`, the suite reports
-**1153 passed, 7 skipped**, and the VOE runner prints a pre-registration digest
+a clean pass with zero failures (the count is on the Tests badge), and the VOE runner prints a pre-registration digest
 followed by a verdict against the committed rule.
 
 ---
@@ -172,47 +251,13 @@ controls described in [The controls](#the-controls).
 
 ### Pipeline architecture
 
-```mermaid
-flowchart TD
-    RTL[RTL Spec] --> P1
+The run path is drawn at the top of this README. Phases 1 to 5 run in
+`ava_patched.py` itself (`AVA._semantic_analysis`, `_generate_tb_suite`,
+`SpikeISS.run_tandem`, `_performance_cop` and `_security_injector`,
+`UCB1CoverageDirector`); phase 6 is the extended pipeline and is optional.
 
-    subgraph P1 [Phase 1 · Semantic Analysis]
-        A["AGENT_A<br/>schema validation<br/>DUT + port extraction"]
-    end
-
-    subgraph P2 [Phase 2 · Testbench Generation]
-        B["AGENT_B<br/>ISS/RTL backend wiring<br/>Verilator build"]
-    end
-
-    subgraph P3 [Phase 3 · Tandem Simulation]
-        C["AGENT_C<br/>Spike ISS<br/>commit-log capture"]
-        D["AGENT_D<br/>commit-log comparison<br/>bug hypothesis"]
-        C --> D
-    end
-
-    subgraph P4 [Phase 4 · Bug Analysis]
-        E["AGENT_E<br/>RISC-V compliance"]
-        F["AGENT_F<br/>coverage + cold paths"]
-    end
-
-    subgraph P5 [Phase 5 · Coverage Adaptation]
-        G["AGENT_G<br/>genetic + causal<br/>test generation"]
-    end
-
-    subgraph P6 [Phase 6 · Extended Verification]
-        H["14 AGENT_H modules<br/>intent · contracts · temporal<br/>security · minimizer · twin<br/>explainer · root-cause · KG"]
-    end
-
-    P1 --> P2 --> P3 --> P4 --> P5 --> P6
-    P5 -. new seeds .-> P3
-    P6 --> R[["Verification Report<br/>JSON · CSV · HTML"]]
-
-    style P3 fill:#1d2b3a,stroke:#4a9eff,color:#fff
-    style R fill:#0d2818,stroke:#3fb950,color:#fff
-```
-
-Phases 1–5 are the core loop. Phase 5 feeds back into Phase 3 — coverage gaps
-become new stimulus. Phase 6 runs whenever the extended modules are importable.
+Phases 1–5 are the core loop. Phase 6 runs when `enable_extended` is set and the
+extended modules are importable (`--no-extended` turns it off).
 
 ### The comparator is the arbiter
 
@@ -235,14 +280,16 @@ flowchart LR
     style BUG fill:#3a1d1d,stroke:#f85149,color:#fff
 ```
 
-`interfaces.md` P1 states: *the comparator is the sole arbiter of pass/fail. No
+[`AGENT_A/interfaces.md`](AGENT_A/interfaces.md) P1 states: *the comparator is the sole arbiter of pass/fail. No
 other signal overrides a comparison result.* That makes every field it fails to
 read a silent false PASS — which is exactly what [#1](../../issues/1) turned out
 to be.
 
 ### Agent map
 
-Every module below was verified to exist in this tree.
+Every module below exists in this tree. `ava_patched.py` imports B, F, G, H, I, J, K
+and L. It does not import A, C, D or E: those are standalone CLIs, and the
+orchestrator carries its own `CommitLogComparator`, a copy of AGENT_D's.
 
 | Agent | Module | Task | EDA needed |
 |---|---|---|---|
@@ -259,7 +306,7 @@ Every module below was verified to exist in this tree.
 | L | `AGENT_L/` | RTL→netlist equivalence checking | Yosys + sby |
 
 <details>
-<summary><b>The 14 extended AGENT_H modules</b></summary>
+<summary><b>Selected extended modules</b> (the orchestrator imports 66 from <code>AGENT_H</code>)</summary>
 
 | Module | File | Task |
 |---|---|---|
@@ -504,7 +551,7 @@ them:
 
 | Claim | Command | Expected | Tools |
 |---|---|---|---|
-| 1153 tests pass | `./run_tests.sh` | `1153 passed, 7 skipped` | none |
+| The suite passes | `./run_tests.sh` | zero failures; the count is on the Tests badge | none |
 | `sat_mac` is a valid stochastic benchmark | `cd voe_stoch && python3 characterise.py --seeds 40` | `ELIGIBLE`, 0 < P(detect) < 1, controls pass | Verilator |
 | `pfifo` is a valid stochastic benchmark | `cd voe_stoch2 && python3 characterise.py --seeds 24` | `ELIGIBLE` at 256–4096 cycles, table above | Verilator |
 | The two boards are one regime, not two | `cd voe_bench && python3 run_stoch_transfer.py --real --seeds 24` | `ONE REGIME` — gate does not pass | Verilator |
@@ -552,7 +599,7 @@ becoming a screenshot of a version nobody runs.
 ## Testing
 
 ```bash
-./run_tests.sh          # everything — 1153 passed, 7 skipped
+./run_tests.sh          # everything; zero failures expected
 make test               # same, via make
 make test-full          # includes integration tests
 ```
@@ -565,14 +612,16 @@ success having checked nothing.
 | Suite | Tests | Covers |
 |---|---|---|
 | `tests/test_agents.py` | 501 | Core orchestrator, agent wiring |
-| `tests/test_extended_agents.py` | 206 | The 14 extended modules |
-| `tests/test_failure_memory.py` | 54 | **Permanent adversarial regressions** |
+| `tests/test_extended_agents.py` | 206 | The extended modules |
+| `tests/test_failure_memory.py` | 68 | **Permanent adversarial regressions** |
 | `tests/test_voe_kernel.py` | 79 | Kernel laws, warrants, pre-registration |
 | `tests/test_coverage_pipeline.py` | 6 | Coverage DB, error policy |
 | `AGENT_C/test_spike_parser.py` | 67 | Spike log parsing |
 | `AGENT_C/test_run_iss_integration.py` | 43 | ISS integration |
 | `AGENT_D/test_comparator.py` | 94 | Commit-log comparison |
-| `AGENT_E/test_compliance_runner.py` | 110 | RISC-V compliance |
+| `AGENT_E/test_compliance_runner.py` | 112 | RISC-V compliance |
+
+The nine files above are 1176 of the suite; the rest are the other files under `tests/`.
 
 `test_failure_memory.py` is unusual and worth explaining: it does not test what
 the system is supposed to do. It tests **what previously worked and was wrong** —
@@ -625,7 +674,7 @@ ai-chip-design-platform/
 │   │   ├── run_manifest.schema.json
 │   │   └── interfaces.md     #   the inter-agent contract
 │   ├── AGENT_D/              #   the comparator — sole arbiter of pass/fail
-│   └── AGENT_H/              #   14 extended verification modules
+│   └── AGENT_H/              #   extended verification modules
 │
 ├── voe/                      # VOE kernel and policy layer
 │   ├── eligibility.py        #   the gate before all other gates
