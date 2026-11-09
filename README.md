@@ -8,7 +8,7 @@
 
 [![CI](https://github.com/HUNT-001/ai-chip-design-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/HUNT-001/ai-chip-design-platform/actions/workflows/ci.yml)
 [![Python](https://img.shields.io/badge/python-3.10%20|%203.11%20|%203.12-blue)](https://www.python.org/)
-[![Tests](https://img.shields.io/badge/tests-2233%20passing-brightgreen)](#testing)
+[![Tests](https://img.shields.io/badge/tests-2237%20passing-brightgreen)](#testing)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 [![Verilator](https://img.shields.io/badge/verilator-5.x-orange)](https://verilator.org)
 [![SymbiYosys](https://img.shields.io/badge/formal-SymbiYosys%20%2B%20z3-purple)](https://symbiyosys.readthedocs.io)
@@ -135,7 +135,7 @@ is not the crash. It is the green result that means nothing.
 | **Pipeline agents** | 12 (`AGENT_A` … `AGENT_L`) + 14 extended `AGENT_H` modules |
 | **Runs without EDA tools** | Yes — core loop and most agents are pure Python |
 | **Real tools when present** | Verilator, Spike ISS, Yosys, SymbiYosys + z3, RISC-V GCC |
-| **Test suite** | 2233 passing, 4 skipped (local run at v4.0.0; CI has no toolchain and skips more) |
+| **Test suite** | 2237 passing, 4 skipped (local run at v4.0.0; CI has no toolchain and skips more) |
 | **VOE experiments** | 17 ledger records — 9 promoted, 4 rejected, 2 underpowered, 1 not evaluable, 1 not met |
 | **Verification corpus** | 10 design boards, incl. cv32e40p FIFO, Ibex ALU, and two stochastic benchmarks |
 | **Python** | 3.10, 3.11, 3.12 |
@@ -209,7 +209,7 @@ cd voe_bench && python3 run_default_cached.py --mock
 ```
 
 Expected: the pipeline writes a JSON report under `sim_runs/`, the suite reports
-**2233 passed, 4 skipped**, and the VOE runner prints a pre-registration digest
+**2237 passed, 4 skipped**, and the VOE runner prints a pre-registration digest
 followed by a verdict against the committed rule.
 
 ---
@@ -551,7 +551,7 @@ them:
 
 | Claim | Command | Expected | Tools |
 |---|---|---|---|
-| 2233 tests pass | `./run_tests.sh` | `2233 passed, 4 skipped` | none |
+| 2237 tests pass | `./run_tests.sh` | `2237 passed, 4 skipped` | none |
 | `sat_mac` is a valid stochastic benchmark | `cd voe_stoch && python3 characterise.py --seeds 40` | `ELIGIBLE`, 0 < P(detect) < 1, controls pass | Verilator |
 | `pfifo` is a valid stochastic benchmark | `cd voe_stoch2 && python3 characterise.py --seeds 24` | `ELIGIBLE` at 256–4096 cycles, table above | Verilator |
 | The two boards are one regime, not two | `cd voe_bench && python3 run_stoch_transfer.py --real --seeds 24` | `ONE REGIME` — gate does not pass | Verilator |
@@ -599,7 +599,7 @@ becoming a screenshot of a version nobody runs.
 ## Testing
 
 ```bash
-./run_tests.sh          # everything — 2233 passed, 4 skipped
+./run_tests.sh          # everything — 2237 passed, 4 skipped
 make test               # same, via make
 make test-full          # includes integration tests
 ```
@@ -621,7 +621,7 @@ success having checked nothing.
 | `AGENT_D/test_comparator.py` | 94 | Commit-log comparison |
 | `AGENT_E/test_compliance_runner.py` | 112 | RISC-V compliance |
 
-That is 1176 of the 2233; the rest are the other files under `tests/`.
+That is 1176 of the 2237; the rest are the other files under `tests/`.
 
 `test_failure_memory.py` is unusual and worth explaining: it does not test what
 the system is supposed to do. It tests **what previously worked and was wrong** —
