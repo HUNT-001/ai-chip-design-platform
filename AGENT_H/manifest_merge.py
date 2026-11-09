@@ -45,6 +45,30 @@ def _locked_updater():
     return mod.atomic_update_manifest
 
 
+_MANIFEST_IO_MODULE = "_ava_shared_manifest_io"
+
+
+def file_lock(path: Path):
+    """Exclusive lock on ``<path>.lock``; the lock the manifest writers take.
+
+    ``ava_shared.manifest_io._manifest_lock``, loaded by path for the reason
+    given on :func:`_locked_updater`. The lock is a file lock on a sidecar, so
+    every copy of the module excludes every other.
+    """
+    mod = sys.modules.get(_MANIFEST_IO_MODULE)
+    if mod is None:
+        src = Path(__file__).resolve().parent.parent / "ava_shared" / "manifest_io.py"
+        spec = importlib.util.spec_from_file_location(_MANIFEST_IO_MODULE, src)
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules[_MANIFEST_IO_MODULE] = mod
+        try:
+            spec.loader.exec_module(mod)
+        except BaseException:
+            sys.modules.pop(_MANIFEST_IO_MODULE, None)
+            raise
+    return mod._manifest_lock(Path(path))
+
+
 def snapshot_manifest(manifest: Dict[str, Any]) -> Dict[str, Any]:
     """A deep copy to diff against later; take it right after loading."""
     return copy.deepcopy(manifest)
