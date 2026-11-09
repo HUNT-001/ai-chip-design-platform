@@ -132,10 +132,10 @@ is not the crash. It is the green result that means nothing.
 
 | | |
 |---|---|
-| **Pipeline agents** | 12 (`AGENT_A` … `AGENT_L`) + 14 extended `AGENT_H` modules |
+| **Pipeline agents** | 12 (`AGENT_A` … `AGENT_L`) + 66 `AGENT_H` modules imported by the orchestrator (73 files in `AGENT_H/`) |
 | **Runs without EDA tools** | Yes — core loop and most agents are pure Python |
 | **Real tools when present** | Verilator, Spike ISS, Yosys, SymbiYosys + z3, RISC-V GCC |
-| **Test suite** | 2237 passing, 4 skipped (local run at v4.0.0; CI has no toolchain and skips more) |
+| **Test suite** | see the [Tests badge](#testing) (`./run_tests.sh`; CI has no toolchain and skips more) |
 | **VOE experiments** | 17 ledger records — 9 promoted, 4 rejected, 2 underpowered, 1 not evaluable, 1 not met |
 | **Verification corpus** | 10 design boards, incl. cv32e40p FIFO, Ibex ALU, and two stochastic benchmarks |
 | **Python** | 3.10, 3.11, 3.12 |
@@ -209,7 +209,7 @@ cd voe_bench && python3 run_default_cached.py --mock
 ```
 
 Expected: the pipeline writes a JSON report under `sim_runs/`, the suite reports
-**2237 passed, 4 skipped**, and the VOE runner prints a pre-registration digest
+a clean pass with zero failures (the count is on the Tests badge), and the VOE runner prints a pre-registration digest
 followed by a verdict against the committed rule.
 
 ---
@@ -306,7 +306,7 @@ orchestrator carries its own `CommitLogComparator`, a copy of AGENT_D's.
 | L | `AGENT_L/` | RTL→netlist equivalence checking | Yosys + sby |
 
 <details>
-<summary><b>The 14 extended AGENT_H modules</b></summary>
+<summary><b>Selected extended modules</b> (the orchestrator imports 66 from <code>AGENT_H</code>)</summary>
 
 | Module | File | Task |
 |---|---|---|
@@ -551,7 +551,7 @@ them:
 
 | Claim | Command | Expected | Tools |
 |---|---|---|---|
-| 2237 tests pass | `./run_tests.sh` | `2237 passed, 4 skipped` | none |
+| The suite passes | `./run_tests.sh` | zero failures; the count is on the Tests badge | none |
 | `sat_mac` is a valid stochastic benchmark | `cd voe_stoch && python3 characterise.py --seeds 40` | `ELIGIBLE`, 0 < P(detect) < 1, controls pass | Verilator |
 | `pfifo` is a valid stochastic benchmark | `cd voe_stoch2 && python3 characterise.py --seeds 24` | `ELIGIBLE` at 256–4096 cycles, table above | Verilator |
 | The two boards are one regime, not two | `cd voe_bench && python3 run_stoch_transfer.py --real --seeds 24` | `ONE REGIME` — gate does not pass | Verilator |
@@ -599,7 +599,7 @@ becoming a screenshot of a version nobody runs.
 ## Testing
 
 ```bash
-./run_tests.sh          # everything — 2237 passed, 4 skipped
+./run_tests.sh          # everything; zero failures expected
 make test               # same, via make
 make test-full          # includes integration tests
 ```
@@ -612,7 +612,7 @@ success having checked nothing.
 | Suite | Tests | Covers |
 |---|---|---|
 | `tests/test_agents.py` | 501 | Core orchestrator, agent wiring |
-| `tests/test_extended_agents.py` | 206 | The 14 extended modules |
+| `tests/test_extended_agents.py` | 206 | The extended modules |
 | `tests/test_failure_memory.py` | 68 | **Permanent adversarial regressions** |
 | `tests/test_voe_kernel.py` | 79 | Kernel laws, warrants, pre-registration |
 | `tests/test_coverage_pipeline.py` | 6 | Coverage DB, error policy |
@@ -621,7 +621,7 @@ success having checked nothing.
 | `AGENT_D/test_comparator.py` | 94 | Commit-log comparison |
 | `AGENT_E/test_compliance_runner.py` | 112 | RISC-V compliance |
 
-That is 1176 of the 2237; the rest are the other files under `tests/`.
+The nine files above are 1176 of the suite; the rest are the other files under `tests/`.
 
 `test_failure_memory.py` is unusual and worth explaining: it does not test what
 the system is supposed to do. It tests **what previously worked and was wrong** —
@@ -674,7 +674,7 @@ ai-chip-design-platform/
 │   │   ├── run_manifest.schema.json
 │   │   └── interfaces.md     #   the inter-agent contract
 │   ├── AGENT_D/              #   the comparator — sole arbiter of pass/fail
-│   └── AGENT_H/              #   14 extended verification modules
+│   └── AGENT_H/              #   extended verification modules
 │
 ├── voe/                      # VOE kernel and policy layer
 │   ├── eligibility.py        #   the gate before all other gates
