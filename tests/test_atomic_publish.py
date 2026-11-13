@@ -19,8 +19,9 @@ EXCLUDED_TOP_LEVEL = ("corpus", "_legacy", "tests", ".")
 #: call) rather than line number so unrelated edits above do not break it.
 NON_PUBLISH_RENAMES = {
     ("AGENT_H/economics_engine.py", "ledger_path.rename(backup)"):
-        "moves an unreadable ledger aside to a free '.corrupt' name; the loop "
-        "above it guarantees the destination does not exist",
+        "moves an unreadable ledger aside to a free '.corrupt' name; it runs "
+        "inside the exclusive <ledger>.lock (#32), so the free-name loop "
+        "above it cannot race another writer",
 }
 
 

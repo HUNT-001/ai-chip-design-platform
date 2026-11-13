@@ -36,6 +36,9 @@ from __future__ import annotations
 import json
 import logging
 import math
+import os
+import stat
+import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -44,9 +47,9 @@ from typing import Any, Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 if __package__:
-    from .manifest_merge import commit_manifest, snapshot_manifest
+    from .manifest_merge import commit_manifest, file_lock, snapshot_manifest
 else:
-    from manifest_merge import commit_manifest, snapshot_manifest
+    from manifest_merge import commit_manifest, file_lock, snapshot_manifest
 
 SCHEMA_VERSION = "2.1.0"
 
@@ -205,41 +208,63 @@ class EconomicsEngine:
         return report
 
     def save_ledger(self, report: Dict[str, Any]) -> Path:
-        """Append this campaign to the persistent ledger file."""
+        """Append this campaign to the persistent ledger file.
+
+        Campaigns share one ledger, so the whole load-append-publish runs under
+        an exclusive lock on ``<ledger>.lock`` (#32), and the new ledger is
+        written to a temp file and published with ``os.replace``: a failed or
+        interrupted save leaves the previous ledger intact.
+        """
         ledger_path = self.run_dir.parent / "verification_ledger.json"
-        campaigns: List[Dict] = []
-        unreadable = None
-        try:
-            with open(ledger_path, encoding="utf-8") as f:
-                data = json.load(f)
-            if not isinstance(data, dict) or not isinstance(data.get("campaigns", []), list):
-                raise ValueError("unexpected ledger shape")
-            campaigns = data.get("campaigns", [])
-        except FileNotFoundError:
-            pass                      # first run: nothing to preserve
-        except (OSError, ValueError) as exc:
-            unreadable = exc
-        if unreadable is not None:
-            # The ledger is the cross-run record: move it aside rather than
-            # overwrite it. If the move fails the OSError propagates.
-            backup = ledger_path.with_name(ledger_path.name + ".corrupt")
-            n = 0
-            while backup.exists():
-                n += 1
-                backup = ledger_path.with_name(f"{ledger_path.name}.corrupt.{n}")
-            ledger_path.rename(backup)
-            logger.warning("EconomicsEngine: ledger %s unreadable (%s); moved to %s, "
-                           "starting a fresh ledger", ledger_path, unreadable, backup)
-        campaigns.append(report)
-        with open(ledger_path, "w", encoding="utf-8") as f:
-            json.dump({
-                "schema_version": SCHEMA_VERSION,
-                "campaigns": campaigns,
-                "total_bugs_found":  sum(c.get("bugs_found", 0) for c in campaigns),
-                "total_tests_run":   sum(c.get("tests_run", 0) for c in campaigns),
-                "last_updated":      report["computed_at"],
-            }, f, indent=2)
-            f.write("\n")
+        with file_lock(ledger_path):
+            campaigns: List[Dict] = []
+            unreadable = None
+            try:
+                with open(ledger_path, encoding="utf-8") as f:
+                    data = json.load(f)
+                if not isinstance(data, dict) or not isinstance(data.get("campaigns", []), list):
+                    raise ValueError("unexpected ledger shape")
+                campaigns = data.get("campaigns", [])
+            except FileNotFoundError:
+                pass                      # first run: nothing to preserve
+            except (OSError, ValueError) as exc:
+                unreadable = exc
+            if unreadable is not None:
+                # The ledger is the cross-run record: move it aside rather than
+                # overwrite it. If the move fails the OSError propagates.
+                backup = ledger_path.with_name(ledger_path.name + ".corrupt")
+                n = 0
+                while backup.exists():
+                    n += 1
+                    backup = ledger_path.with_name(f"{ledger_path.name}.corrupt.{n}")
+                ledger_path.rename(backup)
+                logger.warning("EconomicsEngine: ledger %s unreadable (%s); moved to %s, "
+                               "starting a fresh ledger", ledger_path, unreadable, backup)
+            campaigns.append(report)
+            try:
+                mode = stat.S_IMODE(os.stat(ledger_path).st_mode)
+            except OSError:
+                mode = 0o644
+            fd, tmp_name = tempfile.mkstemp(dir=ledger_path.parent,
+                                            prefix=ledger_path.name + ".", suffix=".tmp")
+            try:
+                with os.fdopen(fd, "w", encoding="utf-8") as f:
+                    json.dump({
+                        "schema_version": SCHEMA_VERSION,
+                        "campaigns": campaigns,
+                        "total_bugs_found":  sum(c.get("bugs_found", 0) for c in campaigns),
+                        "total_tests_run":   sum(c.get("tests_run", 0) for c in campaigns),
+                        "last_updated":      report["computed_at"],
+                    }, f, indent=2)
+                    f.write("\n")
+                os.chmod(tmp_name, mode)
+                os.replace(tmp_name, ledger_path)
+            except BaseException:
+                try:
+                    os.unlink(tmp_name)
+                except OSError:
+                    pass
+                raise
         logger.info("EconomicsEngine: ledger updated at %s", ledger_path)
         return ledger_path
 
