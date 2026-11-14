@@ -1295,9 +1295,15 @@ class SpikeISS:
                     "coverage_source": self._last_coverage_source,
                     # Simulators that produced no commit log: nothing was
                     # compared, so the run cannot claim to have verified (#138).
+                    # Likewise an RTL simulation that exited non-zero: the
+                    # exit code alone cannot tell a $fatal or failed assertion
+                    # from a testbench that never ran properly, so what it
+                    # printed first is not evidence of a clean run (#157).
                     "unobserved": (
                         (["rtl_simulation"]
                          if rtl_results.get("stub") or not commit_log else [])
+                        + ([f"rtl_simulation:exit_{rtl_results['returncode']}"]
+                           if rtl_results.get("returncode") not in (0, None) else [])
                         + (["iss_simulation"]
                            if iss_results.get("stub")
                            or not iss_results.get("commit_log") else [])
