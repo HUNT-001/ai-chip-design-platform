@@ -34,6 +34,7 @@ import logging
 import re
 import shutil
 import sqlite3
+import struct
 import subprocess
 import sys
 import threading
@@ -51,6 +52,8 @@ __all__ = [
     "run_verilator_coverage", "extract_coverage_from_run", "save_coverage_report",
     "CoverageError", "ParseError", "BackendError",
     "parse_spike_commit_log", "parse_dut_commit_log", "count_cycles_instrets",
+    "parse_spike_log", "classify_spike_line", "SpikeLog", "elf_entry_pc",
+    "align_to_entry", "SPIKE_BOOT_ROM", "PARSED_NOT_COMPARED",
     "_parse_commit_log", "_count_cycles_instrs",   # backward-compat aliases
     # v3.0: manifest / cross-agent contract utilities
     "atomic_write", "format_ava_schema", "load_manifest", "update_manifest",
@@ -1237,11 +1240,216 @@ class VerilatorCoverageBackend:
 # 11. Commit-log helpers (imported by ava_patched.py)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# Spike `--log-commits -l` output, as recorded from Spike 1.1.1-dev in
+# tests/fixtures/spike/ (see PROVENANCE.md there).  Only the line shapes seen
+# in those recordings are recognised.  Anything else is "unknown" and is
+# reported, never silently dropped (#158).
+#
+#   commit     core   0: 3 0x80000004 (0x07028293) x5  0x80000070
+#              core   0: 3 0x80000034 (0x00652023) mem 0x80000090 0x00005a5a
+#              core   0: 3 0x0000100c (0x0182a283) x5  0x80000000 mem 0x00001018
+#              core   0: 3 0x80000080 (0x30200073) c768_mstatus 0x00000080 c784_mstatush 0x00000000
+#   disasm     core   0: 0x80000004 (0x07028293) addi    t0, t0, 112      (-l)
+#   exception  core   0: exception trap_machine_ecall, epc 0x8000003c     (no commit line)
+#   symbol     core   0: >>>>  trap_handler
+#
+# The digit after "core N:" is the privilege level the instruction retired in.
+# An earlier pattern required the PC straight after "core N:", so it matched
+# only the -l disassembly lines and returned none of the commit-line fields.
 _SPIKE_COMMIT_RE = re.compile(
-    r"core\s+\d+:\s+(?P<pc>0x[0-9a-fA-F]+)\s+\((?P<instr>0x[0-9a-fA-F]+)\)"
-    r"(?:\s+(?P<rd>[xf]\d+|pc)\s+(?P<rd_val>0x[0-9a-fA-F]+))?",
+    r"^core\s+\d+:\s+(?P<priv>[013])\s+(?P<pc>0x[0-9a-f]+)\s+\((?P<instr>0x[0-9a-f]+)\)"
+    r"(?P<rest>(?:\s+\S+)*)\s*$",
     re.ASCII,
 )
+_SPIKE_DISASM_RE = re.compile(
+    r"^core\s+\d+:\s+(?P<pc>0x[0-9a-f]+)\s+\((?P<instr>0x[0-9a-f]+)\)\s+\S", re.ASCII)
+_SPIKE_EXCEPTION_RE = re.compile(
+    r"^core\s+\d+:\s+exception\s+(?P<name>trap_[a-z_]+),\s+epc\s+(?P<epc>0x[0-9a-f]+)\s*$",
+    re.ASCII)
+_SPIKE_SYMBOL_RE = re.compile(r"^core\s+\d+:\s+>>>>\s+\S+\s*$", re.ASCII)
+_SPIKE_HEX_RE = re.compile(r"^0x[0-9a-f]+$", re.ASCII)
+_SPIKE_REG_RE = re.compile(r"^[xf]\d+$", re.ASCII)
+_SPIKE_CSR_RE = re.compile(r"^c\d+_(?P<name>[a-z][a-z0-9_]*)$", re.ASCII)
+
+_SPIKE_PRIV = {"0": "U", "1": "S", "3": "M"}
+
+#: Spike's trap names and their exception codes (mcause, RISC-V privileged spec).
+#: A trap name not listed here makes its line "unknown", not a guessed code.
+_SPIKE_TRAP_CODES = {
+    "trap_instruction_address_misaligned": 0, "trap_instruction_access_fault": 1,
+    "trap_illegal_instruction": 2,            "trap_breakpoint": 3,
+    "trap_load_address_misaligned": 4,        "trap_load_access_fault": 5,
+    "trap_store_address_misaligned": 6,       "trap_store_access_fault": 7,
+    "trap_user_ecall": 8,                     "trap_supervisor_ecall": 9,
+    "trap_virtual_supervisor_ecall": 10,      "trap_machine_ecall": 11,
+    "trap_instruction_page_fault": 12,        "trap_load_page_fault": 13,
+    "trap_store_page_fault": 15,
+}
+
+#: Spike's reset vector: 8 words at DEFAULT_RSTVEC, run before jumping to the
+#: ELF entry.  The recorded logs execute 0x1000-0x1010 and load 0x1018.
+SPIKE_BOOT_ROM = (0x00001000, 0x00001020)
+
+#: Fields parse_spike_commit_log emits that ava_patched.CommitLogComparator
+#: does not compare, and why.  tests/test_spike_commit_parser.py holds this
+#: list equal to what the comparator really ignores, in both directions, so a
+#: field cannot be parsed and silently ignored, and the list cannot go stale.
+PARSED_NOT_COMPARED: Dict[str, str] = {
+    "instr":  "reported in findings, never compared (#159)",
+    "rd":     "register names are not compared, only the first value in regs (#159)",
+    "rd_val": "duplicates regs, which the comparator reads first; kept for legacy readers",
+    "csrs":   "CSR writes are not compared (#159)",
+    "mem":    "Spike stores and loads; the comparator's store check reads mem_writes, "
+              "and the DUT log carries no stores to compare against (#164)",
+    "priv":   "privilege is not compared (#159)",
+    "trap":   "traps are not compared (#159)",
+}
+
+
+def _spike_commit_fields(rest: str):
+    """Split the fields after `(instr)` into regs / csrs / mem, or None if any
+    token is not one of the recorded shapes."""
+    toks = rest.split()
+    regs: Dict[str, str] = {}
+    csrs: Dict[str, str] = {}
+    mem: List[Dict[str, str]] = []
+    i = 0
+    while i < len(toks):
+        tok = toks[i]
+        has_val = i + 1 < len(toks) and _SPIKE_HEX_RE.match(toks[i + 1])
+        csr = _SPIKE_CSR_RE.match(tok)
+        if _SPIKE_REG_RE.match(tok) and has_val:
+            regs[tok] = toks[i + 1]
+            i += 2
+        elif csr and has_val:
+            csrs[csr.group("name")] = toks[i + 1]
+            i += 2
+        elif tok == "mem" and has_val:
+            if i + 2 < len(toks) and _SPIKE_HEX_RE.match(toks[i + 2]):
+                mem.append({"op": "store", "addr": toks[i + 1], "data": toks[i + 2]})
+                i += 3
+            else:
+                mem.append({"op": "load", "addr": toks[i + 1]})
+                i += 2
+        else:
+            return None
+    return regs, csrs, mem
+
+
+def classify_spike_line(line: str) -> str:
+    """One of commit / disasm / exception / symbol / blank, or "unknown"."""
+    if not line.strip():
+        return "blank"
+    m = _SPIKE_COMMIT_RE.match(line)
+    if m:
+        return "commit" if _spike_commit_fields(m.group("rest")) is not None else "unknown"
+    if _SPIKE_DISASM_RE.match(line):
+        return "disasm"
+    m = _SPIKE_EXCEPTION_RE.match(line)
+    if m:
+        return "exception" if m.group("name") in _SPIKE_TRAP_CODES else "unknown"
+    if _SPIKE_SYMBOL_RE.match(line):
+        return "symbol"
+    return "unknown"
+
+
+@dataclass
+class SpikeLog:
+    """A parsed Spike log, with an account of every line."""
+    entries:      List[Dict[str, Any]]
+    counts:       Dict[str, int]
+    unclassified: List[str]
+
+
+def parse_spike_log(text: str) -> SpikeLog:
+    """Parse Spike `--log-commits -l` output.
+
+    One entry per retired instruction (a commit line), plus one per trapped
+    instruction (an exception line: Spike prints no commit line for it).
+    Each entry carries pc, instr, rd/rd_val (the first register write), regs,
+    csrs, mem (stores and loads), priv and trap.  Disassembly and symbol lines
+    are read but emit nothing; any other line is kept in `unclassified`.
+    """
+    entries: List[Dict[str, Any]] = []
+    counts: Dict[str, int] = {}
+    unclassified: List[str] = []
+    last_disasm: Optional[Tuple[str, str]] = None
+    for line in text.splitlines():
+        kind = classify_spike_line(line)
+        counts[kind] = counts.get(kind, 0) + 1
+        if kind == "commit":
+            m = _SPIKE_COMMIT_RE.match(line)
+            regs, csrs, mem = _spike_commit_fields(m.group("rest"))
+            rd, rd_val = next(iter(regs.items()), ("", ""))
+            entries.append({
+                "pc": m.group("pc"), "instr": m.group("instr"),
+                "rd": rd, "rd_val": rd_val, "regs": regs, "csrs": csrs, "mem": mem,
+                "priv": _SPIKE_PRIV[m.group("priv")], "trap": None,
+            })
+        elif kind == "disasm":
+            m = _SPIKE_DISASM_RE.match(line)
+            last_disasm = (m.group("pc"), m.group("instr"))
+        elif kind == "exception":
+            m = _SPIKE_EXCEPTION_RE.match(line)
+            epc, name = m.group("epc"), m.group("name")
+            code = _SPIKE_TRAP_CODES[name]
+            instr = (last_disasm[1]
+                     if last_disasm and int(last_disasm[0], 16) == int(epc, 16) else "")
+            entries.append({
+                "pc": epc, "instr": instr,
+                "rd": "", "rd_val": "", "regs": {}, "csrs": {}, "mem": [],
+                "priv": None,      # not printed on an exception line
+                "trap": {"name": name, "exception_code": code, "cause": f"0x{code:08x}",
+                         "is_interrupt": False, "epc": epc},
+            })
+        elif kind == "unknown":
+            unclassified.append(line)
+    return SpikeLog(entries, counts, unclassified)
+
+
+def parse_spike_commit_log(stdout: str) -> List[Dict[str, Any]]:
+    """The entries of parse_spike_log (unknown lines are dropped here; call
+    parse_spike_log to see them)."""
+    return parse_spike_log(stdout).entries
+
+
+def elf_entry_pc(path: Union[str, Path]) -> Optional[int]:
+    """e_entry from an ELF header, or None if the file is not a readable ELF."""
+    try:
+        with open(path, "rb") as fh:
+            head = fh.read(64)
+    except OSError:
+        return None
+    if len(head) < 52 or head[:4] != b"\x7fELF" or head[4] not in (1, 2) or head[5] not in (1, 2):
+        return None
+    order = "<" if head[5] == 1 else ">"
+    if head[4] == 1:
+        return struct.unpack_from(order + "I", head, 24)[0]
+    if len(head) < 64:
+        return None
+    return struct.unpack_from(order + "Q", head, 24)[0]
+
+
+def align_to_entry(
+    entries: List[Dict[str, Any]], entry_pc: Optional[int],
+) -> Tuple[List[Dict[str, Any]], Optional[str]]:
+    """Start the ISS log at the program: drop Spike's boot-ROM commits before
+    the first commit at `entry_pc`, and nothing else.
+
+    Returns (entries, None), or ([], reason) when there is no entry PC or the
+    log never reaches it.  An empty log is never compared, so the run is
+    incomplete with that reason rather than compared against nothing.
+    """
+    if entry_pc is None:
+        return [], "elf_entry_unreadable"
+    start = next((i for i, e in enumerate(entries) if int(e["pc"], 16) == entry_pc), None)
+    if start is None:
+        return [], f"entry_pc_0x{entry_pc:08x}_not_reached"
+    lo, hi = SPIKE_BOOT_ROM
+    kept = [e for e in entries[:start] if not lo <= int(e["pc"], 16) < hi]
+    return kept + entries[start:], None
+
+
 _DUT_COMMIT_RE = re.compile(
     r"COMMIT\s+pc=(?P<pc>0x[0-9a-fA-F]+)\s+instr=(?P<instr>0x[0-9a-fA-F]+)"
     r"(?:\s+rd=(?P<rd>[xf]\d+)\s+val=(?P<rd_val>0x[0-9a-fA-F]+))?",
@@ -1249,21 +1457,6 @@ _DUT_COMMIT_RE = re.compile(
 )
 _CYCLE_RE   = re.compile(r"(\d+)\s*cycles?",         re.IGNORECASE)
 _INSTRET_RE = re.compile(r"(\d+)\s*inst(?:ret|ructions?)?", re.IGNORECASE)
-
-
-def parse_spike_commit_log(stdout: str) -> List[Dict[str, Any]]:
-    """Parse Spike --log-commits output into list of {pc, instr, rd, rd_val} dicts."""
-    entries: List[Dict[str, Any]] = []
-    for line in stdout.splitlines():
-        m = _SPIKE_COMMIT_RE.search(line)
-        if m:
-            entries.append({
-                "pc":     m.group("pc"),
-                "instr":  m.group("instr"),
-                "rd":     m.group("rd")     or "",
-                "rd_val": m.group("rd_val") or "",
-            })
-    return entries
 
 
 def parse_dut_commit_log(stdout: str) -> List[Dict[str, Any]]:

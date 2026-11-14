@@ -200,6 +200,9 @@ try:
         CoverageDatabase,
         ParseError,
         parse_spike_commit_log,
+        parse_spike_log,
+        align_to_entry,
+        elf_entry_pc,
         parse_dut_commit_log,
         count_cycles_instrets,
     )
@@ -1307,6 +1310,10 @@ class SpikeISS:
                         + (["iss_simulation"]
                            if iss_results.get("stub")
                            or not iss_results.get("commit_log") else [])
+                        # An ISS log that never reached the ELF entry, or
+                        # that Spike filled with lines the parser does not
+                        # know, names why (#158).
+                        + list(iss_results.get("incomplete_reasons", []))
                     ),
                 },
             )
@@ -1512,8 +1519,15 @@ class SpikeISS:
         Spike invocation:
           spike --isa=rv32im --log-commits -l <elf>
 
-        --log-commits emits one line per retired instruction:
-          core   0: 0x80000000 (0x00000013) x0  0x00000000
+        --log-commits emits one line per retired instruction, carrying the
+        privilege level and every register / CSR / memory effect:
+          core   0: 3 0x80000004 (0x07028293) x5  0x80000070
+        and -l adds a disassembly line per instruction.  Recorded examples of
+        every shape: tests/fixtures/spike/ (#158).
+
+        The log is aligned on the ELF entry PC, dropping only Spike's boot ROM
+        ahead of it.  A log that cannot be aligned, or that holds lines the
+        parser does not recognise, is reported in `incomplete_reasons`.
 
         If Spike is not installed, returns a stub with a clear warning.
         """
@@ -1557,20 +1571,31 @@ class SpikeISS:
         # stdout in others — check both.
         stdout = stdout_b.decode(errors="replace")
         stderr = stderr_b.decode(errors="replace")
-        commit_log = (
-            parse_spike_commit_log(stderr + "\n" + stdout)
-            if COVERAGE_PIPELINE_AVAILABLE
-            else self._parse_spike_log_fallback(stderr + "\n" + stdout)
-        )
+        incomplete_reasons: List[str] = []
+        if COVERAGE_PIPELINE_AVAILABLE:
+            spike_log = parse_spike_log(stderr + "\n" + stdout)
+            commit_log, reason = align_to_entry(spike_log.entries, elf_entry_pc(elf_path))
+            if reason:
+                logger.warning("Spike log cannot be compared: %s (%s)", reason, elf_path)
+                incomplete_reasons.append(f"iss_simulation:{reason}")
+            if spike_log.unclassified:
+                logger.warning(
+                    "Spike printed %d line(s) the parser does not recognise; first: %r",
+                    len(spike_log.unclassified), spike_log.unclassified[0])
+                incomplete_reasons.append(
+                    f"iss_log:unclassified_lines_{len(spike_log.unclassified)}")
+        else:
+            commit_log = self._parse_spike_log_fallback(stderr + "\n" + stdout)
 
         if proc.returncode not in (0, None) and proc.returncode != 1:
             logger.warning("Spike exited rc=%d", proc.returncode)
 
         return {
-            "instructions":    len(commit_log),
-            "commit_log":      commit_log,
-            "state_snapshots": commit_log,
-            "exceptions":      [],
+            "instructions":       len(commit_log),
+            "commit_log":         commit_log,
+            "state_snapshots":    commit_log,
+            "exceptions":         [],
+            "incomplete_reasons": incomplete_reasons,
         }
 
     # ── Differential comparison ────────────────────────────────────────────
