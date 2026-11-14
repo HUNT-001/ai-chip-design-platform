@@ -1,0 +1,3 @@
+# Recorded Spike output and the ELFs it ran: keep every byte as recorded.
+*.log -text
+*.elf binary
