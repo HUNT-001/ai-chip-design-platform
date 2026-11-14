@@ -1348,6 +1348,51 @@ class SpikeISS:
             f"RTL simulation failed after {self.RETRY_ATTEMPTS} attempts"
         ) from last_exc
 
+    async def _run_simulator(
+        self,
+        cmd:         List[str],
+        cwd:         Union[str, Path],
+        timeout_msg: str,
+        launch_msg:  str,
+    ) -> Tuple[Any, bytes, bytes]:
+        """Run one simulator to completion within `self.timeout` (#156).
+
+        The bound covers the whole run, not only process creation.  On every
+        way out other than normal completion -- this timeout, or cancellation
+        by the caller's own `wait_for` (`AVA._tandem_simulation`) -- the child
+        is killed and reaped before the exception propagates, so no simulator
+        outlives the run that started it.
+        """
+        try:
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=str(cwd),
+            )
+        except Exception as exc:
+            raise SimulationError(f"{launch_msg}: {exc}") from exc
+        try:
+            stdout_b, stderr_b = await asyncio.wait_for(
+                proc.communicate(), timeout=self.timeout)
+        except asyncio.TimeoutError:
+            await self._kill_and_reap(proc)
+            raise SimulationError(f"{timeout_msg} after {self.timeout}s")
+        except asyncio.CancelledError:
+            await self._kill_and_reap(proc)
+            raise
+        except Exception as exc:
+            await self._kill_and_reap(proc)
+            raise SimulationError(f"{launch_msg}: {exc}") from exc
+        return proc, stdout_b, stderr_b
+
+    @staticmethod
+    async def _kill_and_reap(proc: Any) -> None:
+        if proc.returncode is None:
+            with contextlib.suppress(ProcessLookupError):
+                proc.kill()
+        await proc.wait()
+
     async def _simulate_rtl(
         self,
         tb_suite:    Dict[str, Any],
@@ -1408,23 +1453,8 @@ class SpikeISS:
 
         logger.info("RTL sim: %s", " ".join(cmd))
 
-        try:
-            proc = await asyncio.wait_for(
-                asyncio.create_subprocess_exec(
-                    *cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    cwd=str(run_dir),
-                ),
-                timeout=self.timeout,
-            )
-            stdout_b, stderr_b = await proc.communicate()
-        except asyncio.TimeoutError:
-            with contextlib.suppress(ProcessLookupError):
-                proc.terminate()
-            raise SimulationError(f"RTL simulation timed out after {self.timeout}s")
-        except Exception as exc:
-            raise SimulationError(f"Failed to launch RTL sim: {exc}") from exc
+        proc, stdout_b, stderr_b = await self._run_simulator(
+            cmd, run_dir, "RTL simulation timed out", "Failed to launch RTL sim")
 
         stdout = stdout_b.decode(errors="replace")
         stderr = stderr_b.decode(errors="replace")
@@ -1514,23 +1544,8 @@ class SpikeISS:
 
         logger.info("Spike ISS: %s", " ".join(cmd))
 
-        try:
-            proc = await asyncio.wait_for(
-                asyncio.create_subprocess_exec(
-                    *cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    cwd=str(self._run_dir),
-                ),
-                timeout=self.timeout,
-            )
-            stdout_b, stderr_b = await proc.communicate()
-        except asyncio.TimeoutError:
-            with contextlib.suppress(ProcessLookupError):
-                proc.terminate()
-            raise SimulationError(f"Spike ISS timed out after {self.timeout}s")
-        except Exception as exc:
-            raise SimulationError(f"Failed to launch Spike: {exc}") from exc
+        proc, stdout_b, stderr_b = await self._run_simulator(
+            cmd, self._run_dir, "Spike ISS timed out", "Failed to launch Spike")
 
         # Spike emits commit log on stderr (with -l flag) in some versions,
         # stdout in others — check both.
@@ -3809,8 +3824,12 @@ async def _main_async() -> int:
         )
         return exit_code_for_status(result["status"])
     except AVAError as exc:
-        logger.error("AVA failed: %s", exc)
-        return 1
+        # Every AVAError (semantic analysis, TB generation, simulation --
+        # including a timeout -- or comparison) is a run that stopped before
+        # reaching a verdict.  That is "could not verify", never "violation
+        # found" (#156).
+        logger.error("AVA failed, the run is incomplete: %s", exc)
+        return EXIT_INCOMPLETE
 
 
 def _make_output_encoding_safe() -> None:
