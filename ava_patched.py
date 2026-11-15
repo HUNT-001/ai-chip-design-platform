@@ -755,6 +755,77 @@ class CommitLogComparator:
         return rtl_idx + 1, iss_idx + 1
 
 
+def terminal_self_loop(log: List[Dict[str, Any]]) -> Optional[int]:
+    """Index of the program's end: the first entry whose next entry repeats its
+    PC (a terminal self-loop, `j .`), or None if the log has none (#165)."""
+    for i in range(len(log) - 1):
+        if log[i].get("pc") == log[i + 1].get("pc"):
+            return i
+    return None
+
+
+def drop_self_loop_repeats(
+    log: List[Dict[str, Any]], index: int,
+) -> Tuple[List[Dict[str, Any]], int]:
+    """`log` without the contiguous repeats of `log[index]`'s PC that follow
+    it, and how many there were.  Anything after those repeats is kept, so it
+    is still compared."""
+    pc = log[index].get("pc")
+    end = index + 1
+    while end < len(log) and log[end].get("pc") == pc:
+        end += 1
+    return log[:index + 1] + log[end:], end - (index + 1)
+
+
+def align_program_end(
+    rtl_log: List[Dict[str, Any]], iss_log: List[Dict[str, Any]],
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], Optional[Dict[str, Any]],
+           Optional[BugReport]]:
+    """Cut both logs at the program's terminal self-loop (#165).
+
+    Spike keeps retiring the final `j .` until it next polls `tohost`, so its
+    log ends in thousands of copies of one commit that a correct core never
+    prints.  The program's end is the first ISS entry that repeats its own PC.
+    Both logs are compared up to and including it, and the RTL must hold the
+    same PC at the same index.  The repeats after it are dropped from each
+    side and counted in the returned summary.  They are never dropped
+    silently.  An RTL log that ends earlier, or reaches the loop elsewhere,
+    is a finding: the 5% length tolerance alone would pass a core that stops
+    one instruction short of a short program.
+
+    Returns (rtl, iss, summary, finding).  With no self-loop in the ISS log,
+    both logs come back unchanged with summary None.
+    """
+    index = terminal_self_loop(iss_log)
+    if index is None:
+        return rtl_log, iss_log, None, None
+    pc = iss_log[index].get("pc")
+    iss_cut, iss_repeats = drop_self_loop_repeats(iss_log, index)
+    rtl_pc = rtl_log[index].get("pc") if index < len(rtl_log) else None
+    finding: Optional[BugReport] = None
+    if rtl_pc == pc:
+        rtl_cut, rtl_repeats = drop_self_loop_repeats(rtl_log, index)
+    else:
+        rtl_cut, rtl_repeats = rtl_log, 0
+        where = (f"the RTL log ends after {len(rtl_log)} entries" if rtl_pc is None
+                 else f"the RTL is at {rtl_pc} there")
+        finding = BugReport(
+            kind=MismatchKind.INSTR_CNT,
+            severity="high",
+            pc=pc,
+            instr=iss_log[index].get("instr", ""),
+            rtl_value=str(len(rtl_log)),
+            iss_value=str(index + 1),
+            description=(
+                f"Program end differs: the ISS reaches its terminal self-loop at "
+                f"{pc} as entry {index}; {where}"
+            ),
+        )
+    summary = {"pc": pc, "index": index,
+               "iss_repeats_dropped": iss_repeats, "rtl_repeats_dropped": rtl_repeats}
+    return rtl_cut, iss_cut, summary, finding
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # 4. Security analyzer (real property checks on commit log)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1296,6 +1367,9 @@ class SpikeISS:
                     # Where the coverage numbers came from, so the grade can ask
                     # whether they were measured at all (#42).
                     "coverage_source": self._last_coverage_source,
+                    # Where the program ended and how many repeats of its
+                    # terminal self-loop were dropped before comparing (#165).
+                    "program_end": comparison.get("program_end"),
                     # Simulators that produced no commit log: nothing was
                     # compared, so the run cannot claim to have verified (#138).
                     # Likewise an RTL simulation that exited non-zero: the
@@ -1628,13 +1702,24 @@ class SpikeISS:
                 "Differential comparison skipped."
             )
 
+        program_end: Optional[Dict[str, Any]] = None
         if rtl_log and iss_log:
+            # Compare the program, not Spike's tohost spin after it (#165).
+            rtl_cmp, iss_cmp, program_end, end_finding = align_program_end(rtl_log, iss_log)
+            if program_end:
+                logger.info(
+                    "Program ends at %s (entry %d): dropped %d ISS and %d RTL "
+                    "repeats of the terminal self-loop",
+                    program_end["pc"], program_end["index"],
+                    program_end["iss_repeats_dropped"], program_end["rtl_repeats_dropped"])
             # Run in executor to keep the event loop free
             loop = asyncio.get_event_loop()
             bug_reports = await loop.run_in_executor(
                 None,
-                lambda: self._comparator.compare(rtl_log, iss_log),
+                lambda: self._comparator.compare(rtl_cmp, iss_cmp),
             )
+            if end_finding is not None:
+                bug_reports = [end_finding] + list(bug_reports)
             bugs = [b.to_dict() for b in bug_reports]
 
         # Instruction count check (always run)
@@ -1654,6 +1739,7 @@ class SpikeISS:
             "match_pct":   round(match_pct, 2),
             "rtl_entries": len(rtl_log),
             "iss_entries": len(iss_log),
+            "program_end": program_end,
         }
 
     # ── Coverage calculation ───────────────────────────────────────────────
