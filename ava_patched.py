@@ -266,7 +266,7 @@ class MismatchKind(str, Enum):
 #: The release this file belongs to.  The one place the version is written; the
 #: run metadata, the log, the summary and the generated files all read it.
 #: pyproject.toml carries the same number (tests/test_version_single_source.py).
-VERSION = "4.0.0"
+VERSION = "4.0.1"
 
 STATUS_COMPLETED  = "completed"   # every gating check ran and found nothing
 STATUS_FAILED     = "failed"      # a gating check found a violation
