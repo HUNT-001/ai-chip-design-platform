@@ -25,7 +25,25 @@
 - `failed` / exit 1: a violation was found.
 - `incomplete` / exit 3: it could not verify (a tool was missing, or a stage could not run).
 
-The exit code is the verdict, and it does not depend on the console encoding. Current release: [v4.0.0](https://github.com/HUNT-001/ai-chip-design-platform/releases/tag/v4.0.0), which makes verdicts stricter than v3.0.0 (see the release notes before upgrading).
+The exit code is the verdict, and it does not depend on the console encoding. Current release: [v4.0.1](https://github.com/HUNT-001/ai-chip-design-platform/releases/tag/v4.0.1). It supersedes v4.0.0, whose `completed` compared only instruction PCs on real Spike logs.
+
+### What `completed` means today
+
+`completed` means: every instruction the core retired has the same PC as Spike's, and the first register value each instruction wrote is the same, from the ELF entry through the program's end (its terminal self-loop). The simulators ran to the end and nothing else that gates the verdict objected. It does not mean the core is correct beyond that.
+
+| | Compared by the verdict | Tracked in |
+|---|---|---|
+| PC of every retired instruction | yes | |
+| First register value written by each instruction | yes | |
+| Program end (both logs reach the terminal self-loop at the same index) | yes | |
+| Instruction word, register names, later register writes of the same instruction | no | #159 |
+| CSR writes, privilege level, traps | no | #159 |
+| Stores (a field present on one side only is skipped, not reported) | no | #164 |
+| AGENT_H verifiers (they are never handed the commit logs; a skipped report counts as clean) | do not contribute | #161 |
+| The comparator's differential test (it varies a field no parser emits) | does not cover the above | #160 |
+| ISS log when `AGENT_F/coverage_pipeline.py` is absent (stale fallback parser) | PC only | #167 |
+
+Two limits come from Spike itself and no comparator change removes them: its commit log prints no access size for memory accesses, and it does not log the CSR writes a trap entry performs.
 
 ```mermaid
 flowchart TD
