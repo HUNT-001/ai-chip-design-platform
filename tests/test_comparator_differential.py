@@ -84,7 +84,11 @@ def _agent_d_fails(tmp_path, name, rtl, iss):
 @pytest.mark.parametrize("name", sorted(CASES))
 def test_orchestrator_and_agent_d_agree(tmp_path, name):
     rtl, iss, expect_fail = CASES[name]
-    ava = bool(CommitLogComparator().compare(rtl, iss))
+    # A field one side did not report is "not clean": a finding, or since #164 a
+    # field_not_reported reason that makes the run incomplete. Either way it is
+    # not a pass; only a silent skip would be.
+    bugs, report = CommitLogComparator().compare_with_report(rtl, iss)
+    ava = bool(bugs) or bool(report["not_reported"])
     agent_d = _agent_d_fails(tmp_path, name, rtl, iss)
     if name in KNOWN_DIVERGENCE:
         assert ava != agent_d, (

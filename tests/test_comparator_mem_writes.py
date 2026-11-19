@@ -62,35 +62,41 @@ def test_differing_store_address_is_a_finding():
     assert [b.kind for b in bugs] == [ava_patched.MismatchKind.MEMORY], bugs
 
 
-def test_a_store_reported_by_only_one_side_is_a_finding():
-    """RTL reports a store, ISS has no `mem_writes` key: nothing was compared,
-    which must not read as a clean match."""
+def test_a_store_reported_by_only_one_side_is_not_compared_and_named():
+    """RTL reports a store, ISS has no `mem_writes` key: nothing was compared.
+    That is neither a clean match nor a mismatch: the field is named (#164)."""
     rtl, iss = _logs()
     del iss[7]["mem_writes"]
-    bugs = CommitLogComparator().compare(rtl, iss)
-    assert [b.kind for b in bugs] == [ava_patched.MismatchKind.MEMORY], bugs
-    assert "one side did not report stores" in bugs[0].description
+    bugs, report = CommitLogComparator().compare_with_report(rtl, iss)
+    assert bugs == [], bugs
+    assert report["not_reported"] == ["field_not_reported:stores:iss"], report
 
 
-def test_a_store_reported_only_by_the_iss_is_a_finding():
+def test_a_store_reported_only_by_the_iss_is_not_compared_and_named():
     rtl, iss = _logs()
     del rtl[7]["mem_writes"]
-    bugs = CommitLogComparator().compare(rtl, iss)
-    assert [b.kind for b in bugs] == [ava_patched.MismatchKind.MEMORY], bugs
+    bugs, report = CommitLogComparator().compare_with_report(rtl, iss)
+    assert bugs == [], bugs
+    assert report["not_reported"] == ["field_not_reported:stores:rtl"], report
 
 
-def test_both_sides_without_the_key_stay_clean():
+def test_both_sides_without_the_key_are_counted_as_not_compared():
     rtl, iss = _logs()
     for e in rtl + iss:
         del e["mem_writes"]
-    assert CommitLogComparator().compare(rtl, iss) == []
+    bugs, report = CommitLogComparator().compare_with_report(rtl, iss)
+    assert bugs == []
+    assert report["not_reported"] == []
+    assert report["not_compared"].get("stores") == len(rtl), report
 
 
-def test_a_one_sided_empty_list_is_not_a_store():
+def test_a_one_sided_empty_list_is_a_report_and_the_missing_key_is_not():
+    """[] is "reported, none"; an absent key is "not reported". They differ."""
     rtl, iss = _logs()
     del iss[7]["mem_writes"]
     rtl[7]["mem_writes"] = []
-    assert CommitLogComparator().compare(rtl, iss) == []
+    _, report = CommitLogComparator().compare_with_report(rtl, iss)
+    assert report["not_reported"] == ["field_not_reported:stores:iss"], report
 
 
 def test_a_malformed_store_entry_is_a_mismatch_not_a_skip():
