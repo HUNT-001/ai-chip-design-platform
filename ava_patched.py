@@ -604,8 +604,14 @@ class CommitLogComparator:
         """
         Compare RTL and ISS commit logs.
 
-        Returns list of BugReport (may be empty on clean match).  What could
-        not be compared is reported by compare_with_report.
+        Returns list of BugReport (may be empty on clean match).
+
+        WARNING: this drops the report's `not_reported` list.  An empty result
+        here means "no mismatch found", not "verified": a field that exactly
+        one side reported (#164) is named only by compare_with_report, so a
+        caller that gates a verdict on this method passes it silently.  Use
+        compare_with_report; this wrapper is for tests that read bugs only
+        (tests/test_comparator_entry_point.py keeps other code off it).
         """
         return self.compare_with_report(rtl_log, iss_log, context_before)[0]
 
