@@ -122,6 +122,12 @@ def m_csr_value(rtl, iss, base):
     rtl[i]["csrs"][name] = _flip(rtl[i]["csrs"][name])
 
 
+def m_csr_name(rtl, iss, base):
+    """The RTL writes a different CSR (mstatush for mscratch) with the same value."""
+    i = _first(base, lambda e: "mscratch" in e["csrs"])
+    rtl[i]["csrs"] = {"mstatush": rtl[i]["csrs"]["mscratch"]}
+
+
 def m_csr_missing_rtl(rtl, iss, base):
     rtl[_first(base, lambda e: e["csrs"])]["csrs"] = {}
 
@@ -187,6 +193,7 @@ ROWS = {
     "missing_write_iss":       ("smoke",    m_missing_write_iss),
     "extra_write":             ("smoke",    m_extra_write),
     "csr_value":               ("csr_trap", m_csr_value),
+    "csr_name":                ("csr_trap", m_csr_name),
     "csr_missing_rtl":         ("csr_trap", m_csr_missing_rtl),
     "privilege":               ("smoke",    m_privilege),
     "trap_cause":              ("csr_trap", m_trap_cause),
@@ -213,6 +220,7 @@ KNOWN_GAPS = {
     ("missing_write_iss", "orchestrator"): "#159",
     ("extra_write", "orchestrator"): "#159",
     ("csr_value", "orchestrator"): "#159",
+    ("csr_name", "orchestrator"): "#159",
     ("csr_missing_rtl", "orchestrator"): "#159",
     ("privilege", "orchestrator"): "#159",
     ("trap_cause", "orchestrator"): "#159",
@@ -223,6 +231,8 @@ KNOWN_GAPS = {
     ("missing_write_rtl", "agent_d"): "#159",
     ("missing_write_iss", "agent_d"): "#159",
     ("extra_write", "agent_d"): "#159",
+    # AGENT_D resolves a CSR name it does not know to address 0 (#173)
+    ("csr_name", "agent_d"): "#173",
 }
 
 
@@ -288,7 +298,7 @@ def test_an_unmutated_log_passes_both_comparators(tmp_path, fixture, comparator)
 
 
 def test_the_table_has_a_floor_and_every_gap_names_a_real_row():
-    assert len(ROWS) >= 20, "rows were deleted"
+    assert len(ROWS) >= 21, "rows were deleted"
     assert len(COMPARATORS) == 2
     for (row, comparator), issue in KNOWN_GAPS.items():
         assert row in ROWS and comparator in COMPARATORS, (row, comparator)
