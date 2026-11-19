@@ -111,6 +111,8 @@ __all__ = [
     "EXIT_MISMATCH",
     "EXIT_INFRA",
     "EXIT_CONFIG",
+    "EXIT_INCOMPLETE",
+    "exit_code_for",
 ]
 
 _log = logging.getLogger(__name__)
@@ -120,6 +122,9 @@ EXIT_PASS     = 0   # logs identical within comparison rules
 EXIT_MISMATCH = 1   # at least one logical divergence found
 EXIT_INFRA    = 2   # infrastructure error (I/O, parse, thread)
 EXIT_CONFIG   = 3   # configuration / manifest error (bad paths, missing fields)
+#: Exit 3 is "could not compare": a configuration error, or a field exactly one
+#: side reports (#164).  Neither is a divergence, and neither is a pass.
+EXIT_INCOMPLETE = EXIT_CONFIG
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -290,7 +295,12 @@ class CompareConfig:
     # ── Comparison rules ─────────────────────────────────────────────────────
     skip_fields: FrozenSet[str] = field(default_factory=frozenset)
     """Field names to exclude.  Valid names: pc instr rd rd_val csr_writes
-    mem_addr mem_val mem_op trap trap_cause trap_tval trap_pc privilege."""
+    mem_addr mem_val mem_size mem_op trap trap_cause trap_tval trap_pc privilege.
+
+    A field one side reports and the other does not makes the run incomplete
+    (exit 3) unless it is listed here, so skipping is always an explicit choice.
+    A source that never prints a field (Spike prints no store size) is skipped
+    by name, e.g. ``--skip-fields mem_size``."""
 
     csr_masks: Dict[int, int] = field(default_factory=dict)
     """Per-CSR address bit-masks.  Only masked bits are compared.
@@ -681,6 +691,10 @@ class CommitEntry:
     schema_violation: bool = False  # record failed optional-field type checks
     schema_errors:   List[str] = field(default_factory=list)  # human-readable reasons
 
+    # Compared fields the record did not carry at all (key absent or null), as
+    # opposed to carrying them empty: "regs", "stores".  Set by from_dict (#164).
+    unreported:      FrozenSet[str] = field(default_factory=frozenset)
+
     @staticmethod
     def from_dict(
         d:      Dict[str, Any],
@@ -767,6 +781,12 @@ class CommitEntry:
             disasm      = d.get("disasm"),
             lineno      = lineno,
             raw_pc      = raw_pc,
+            unreported  = frozenset(
+                name for name, keys in (
+                    ("regs",   ("regs", "rd")),
+                    ("stores", ("mem_writes", "mem_reads", "mem_op", "mem_addr")),
+                ) if all(d.get(k) is None for k in keys)
+            ),
         )
         if e.rd == 0 and e.rd_val is not None and e.rd_val != 0:
             e.x0_violation = True
@@ -917,6 +937,18 @@ class CompareResult:
     rtl_bin:    Optional[str]     = None
     iss_bin:    Optional[str]     = None
     config:     Optional[Dict]    = None
+    # Fields exactly one side reported, as `field_not_reported:<field>:<side>`.
+    # Their presence makes the run incomplete, not mismatched (#164).
+    incomplete_reasons: List[str] = field(default_factory=list)
+    # Per field, the entries where neither side reported it: not compared.
+    not_compared: Dict[str, int]  = field(default_factory=dict)
+
+    @property
+    def status(self) -> str:
+        """passed, failed (a mismatch; it outranks a gap), or incomplete."""
+        if self.mismatches:
+            return "failed"
+        return "incomplete" if self.incomplete_reasons else "passed"
 
     @property
     def bugs(self) -> List[str]:
@@ -949,6 +981,9 @@ class CompareResult:
             "schema_version": "3.0",
             "tool":           f"compare_commitlogs.py v{__version__}",
             "passed":         self.passed,
+            "status":         self.status,
+            "incomplete_reasons": list(self.incomplete_reasons),
+            "not_compared":   dict(self.not_compared),
             "stats":          self.stats.to_dict(),
             "rtl_log":        self.rtl_log,
             "iss_log":        self.iss_log,
@@ -1012,10 +1047,19 @@ class CompareResult:
             name="commit_log_comparison",
             tests=str(self.stats.total_steps),
             failures=str(self.stats.total_mismatches),
-            errors="0",
+            errors="1" if self.status == "incomplete" else "0",
             time=f"{self.stats.elapsed_s:.3f}",
         )
-        if self.passed:
+        if self.status == "incomplete":
+            tc = ET.SubElement(suite, "testcase",
+                               name="full_log_comparison",
+                               classname="CommitLogComparator",
+                               time=f"{self.stats.elapsed_s:.3f}")
+            err = ET.SubElement(tc, "error",
+                                message="could not compare: " + ", ".join(self.incomplete_reasons),
+                                attrib={"type": "incomplete"})
+            err.text = "\n".join(self.incomplete_reasons)
+        elif self.passed:
             tc = ET.SubElement(suite, "testcase",
                                name="full_log_comparison",
                                classname="CommitLogComparator",
@@ -1056,10 +1100,13 @@ class CompareResult:
             f"**ISS log:** `{self.iss_log}`  ",
             f"**Seed:** `{self.seed}`  ",
             f"**Steps:** {self.stats.total_steps:,}  ",
-            f"**Status:** {'✅ PASS' if self.passed else '❌ MISMATCH'}",
+            f"**Status:** {'✅ PASS' if self.passed else '❌ MISMATCH'}"
+            if self.status != "incomplete" else
+            "**Status:** ⚠ INCOMPLETE — could not compare: "
+            + ", ".join(f"`{r}`" for r in self.incomplete_reasons),
             "",
         ]
-        if not self.passed:
+        if self.mismatches:
             lines += [
                 "## Mismatches",
                 "",
@@ -1294,6 +1341,42 @@ class _FieldComparator:
         self._cfg  = cfg
         self._skip = cfg.skip_fields
 
+    def coverage(self, rtl: CommitEntry, iss: CommitEntry):
+        """What this matched pair could not compare (#164).
+
+        Returns (one_sided, neither): `one_sided` lists (field, "rtl"|"iss")
+        for each field exactly one side did not report, `neither` the fields
+        neither side reported.  A field named in skip_fields is neither.  A
+        reported empty value (`mem_writes: []`) is a report; only an absent or
+        null one is not.
+        """
+        one_sided: List[Tuple[str, str]] = []
+        neither: List[str] = []
+
+        def note(name: str, rtl_missing: bool, iss_missing: bool, skips) -> None:
+            if any(k in self._skip for k in skips):
+                return
+            if rtl_missing and iss_missing:
+                neither.append(name)
+            elif rtl_missing:
+                one_sided.append((name, "rtl"))
+            elif iss_missing:
+                one_sided.append((name, "iss"))
+
+        note("regs", "regs" in rtl.unreported, "regs" in iss.unreported, ("rd_val", "rd"))
+        note("privilege", rtl.privilege is None, iss.privilege is None, ("privilege",))
+        if not {"mem_addr", "mem_val", "mem_op"}.issubset(self._skip):
+            note("stores", "stores" in rtl.unreported, "stores" in iss.unreported, ())
+        if rtl.mem_op is not None and rtl.mem_op == iss.mem_op:
+            note("store_addr", rtl.mem_addr is None, iss.mem_addr is None, ("mem_addr",))
+            note("store_data", rtl.mem_val is None, iss.mem_val is None, ("mem_val",))
+            note("store_size", rtl.mem_size is None, iss.mem_size is None, ("mem_size",))
+        if rtl.trap and iss.trap and "trap" not in self._skip:
+            note("trap_cause", rtl.trap_cause is None, iss.trap_cause is None, ("trap_cause",))
+            note("trap_tval", rtl.trap_tval is None, iss.trap_tval is None, ("trap_tval",))
+            note("trap_pc", rtl.trap_pc is None, iss.trap_pc is None, ("trap_pc",))
+        return one_sided, neither
+
     def compare(self, rtl: CommitEntry, iss: CommitEntry) -> List[_Issue]:
         """Compare one matched commit pair.  Returns all issues found.
 
@@ -1485,6 +1568,9 @@ class _FieldComparator:
         if rtl.mem_op is None and iss.mem_op is None:
             return issues
 
+        if ("stores" in rtl.unreported) != ("stores" in iss.unreported):
+            return issues   # one side reported no memory access at all: see coverage()
+
         if rtl.mem_op != iss.mem_op:
             issues.append((
                 MismatchType.MEM_MISMATCH,
@@ -1505,7 +1591,8 @@ class _FieldComparator:
                 ))
                 return issues   # addr wrong → val comparison meaningless
 
-        if (rtl.mem_size is not None and iss.mem_size is not None
+        if ("mem_size" not in self._skip
+                and rtl.mem_size is not None and iss.mem_size is not None
                 and rtl.mem_size != iss.mem_size):
             issues.append((
                 MismatchType.MEM_MISMATCH,
@@ -1660,6 +1747,9 @@ def compare(
     iss_sha = _sha256(iss_path)
 
     max_m = cfg.max_mismatches if not cfg.stop_on_first else 1
+
+    not_reported: set = set()
+    not_compared: Dict[str, int] = {}
 
     def _add(m: Mismatch) -> None:
         m.repro_cmd      = repro_cmd
@@ -1819,6 +1909,14 @@ def compare(
             # ── push to delta window BEFORE field comparison ──────────────────
             dwindow.push(r)   # type: ignore[arg-type]
 
+            # ── fields one side did not report (#164) ─────────────────────────
+            if r.pc == i.pc and r.instr == i.instr:  # type: ignore[union-attr]
+                one_sided, neither = comparator.coverage(r, i)  # type: ignore[arg-type]
+                for fname_, side_ in one_sided:
+                    not_reported.add(f"field_not_reported:{fname_}:{side_}")
+                for fname_ in neither:
+                    not_compared[fname_] = not_compared.get(fname_, 0) + 1
+
             # ── field comparison ──────────────────────────────────────────────
             for (mtype, desc, fname, rval, ival) in comparator.compare(r, i):  # type: ignore[arg-type]
                 _add(Mismatch(
@@ -1853,7 +1951,7 @@ def compare(
     )
 
     return CompareResult(
-        passed     = len(results) == 0,
+        passed     = len(results) == 0 and not not_reported,
         stats      = stats,
         mismatches = results,
         rtl_log    = rtl_path,
@@ -1864,7 +1962,16 @@ def compare(
         rtl_bin    = rtl_bin,
         iss_bin    = iss_bin,
         config     = _serialise_cfg(cfg),
+        incomplete_reasons = sorted(not_reported),
+        not_compared       = dict(not_compared),
     )
+
+
+def exit_code_for(result: "CompareResult") -> int:
+    """0 passed, 1 a mismatch (it outranks a gap), 3 could not compare."""
+    if result.passed:
+        return EXIT_PASS
+    return EXIT_MISMATCH if result.mismatches else EXIT_INCOMPLETE
 
 
 def _serialise_cfg(cfg: CompareConfig) -> Dict:
@@ -2136,21 +2243,30 @@ def main_manifest(manifest_path: Path, base_cfg: Optional[CompareConfig] = None)
     first_type = (
         result.mismatches[0].mismatch_type.value if result.mismatches else None
     )
+    # An incomplete run could not verify; AGENT_A/interfaces.md §10.3 records
+    # that as infra_error ("a partial log is not evidence of a RTL bug") and the
+    # schema has no incomplete state (#164), so the reason goes in error.
+    # The status literals stay at the write site: tests/test_producer_status_vocabulary.py
+    # scans these dicts for them.
     try:
         atomic_update_manifest(manifest_path, {
-            "phases.compare.status":         "passed" if result.passed else "failed",
+            "phases.compare.status":         ("passed" if result.passed else
+                                              "failed" if result.mismatches else "infra_error"),
             "phases.compare.total_steps":    result.stats.total_steps,
             "phases.compare.total_mismatches": result.stats.total_mismatches,
             "phases.compare.elapsed_s":      round(result.stats.elapsed_s, 4),
             "phases.compare.first_mismatch": first_type,
             "outputs.bugreport":             str(bugreport_path) if bugreport_path else None,
-            "status":                        "passed" if result.passed else "failed",
+            "status":                        ("passed" if result.passed else
+                                              "failed" if result.mismatches else "infra_error"),
+            **({"phases.compare.error": ", ".join(result.incomplete_reasons)}
+               if result.status == "incomplete" else {}),
         })
     except ConfigError as exc:
         _log.error("Cannot update manifest: %s", exc)
         return EXIT_INFRA
 
-    return EXIT_PASS if result.passed else EXIT_MISMATCH
+    return exit_code_for(result)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2196,6 +2312,14 @@ def print_summary(
                 f"ISS={st.iss_parse_warnings}",
                 _YEL, use_color,
             ))
+        return
+
+    if not result.mismatches:
+        _p(_c(
+            f"\n⚠  INCOMPLETE  — {st.total_steps:,} steps compared; could not compare: "
+            + ", ".join(result.incomplete_reasons) + "\n",
+            _YEL + _BOLD, use_color,
+        ))
         return
 
     _p()
@@ -2892,7 +3016,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         print_summary(result, use_color=use_color, verbose=args.verbose)
 
     _emit_outputs(result, args)
-    return EXIT_PASS if result.passed else EXIT_MISMATCH
+    return exit_code_for(result)
 
 
 def _run_batch(args: argparse.Namespace) -> int:
@@ -2912,7 +3036,8 @@ def _run_batch(args: argparse.Namespace) -> int:
     print(f"\nBatch: {n_pass}/{len(results)} PASS, {n_fail} FAIL\n")
     for entry, result in zip(entries, results):
         label  = entry.label or "run"
-        status = "PASS" if result.passed else "FAIL"
+        status = {"passed": "PASS", "failed": "FAIL",
+                  "incomplete": "INCOMPLETE"}[result.status]
         print(f"  [{status}] {label}")
         if not result.passed and not args.quiet:
             print_summary(result, use_color=use_color)
@@ -2920,7 +3045,10 @@ def _run_batch(args: argparse.Namespace) -> int:
             _write(str(out_dir / f"{label}_bug_report.json"),
                    json.dumps(result.to_bug_report(), indent=2, default=str))
 
-    return EXIT_PASS if n_fail == 0 else EXIT_MISMATCH
+    codes = [exit_code_for(r) for r in results]
+    if EXIT_MISMATCH in codes:
+        return EXIT_MISMATCH
+    return EXIT_INCOMPLETE if EXIT_INCOMPLETE in codes else EXIT_PASS
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

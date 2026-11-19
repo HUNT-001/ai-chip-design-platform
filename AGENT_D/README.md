@@ -87,7 +87,7 @@ Agent C (Spike/ISS Backend)       ──► isscommitlog.jsonl
 Agent D is the **single source of truth** for pass/fail. Its output feeds:
 - Agent E (compliance): uses `ava_bugs` list to triage compliance failures
 - Agent H (red team): consumes `first_mismatch` type to generate targeted adversarial sequences
-- CI/CD: reads the exit code (0/1/2/3) to gate merges
+- CI/CD: reads the exit code (0/1/2/3) to gate merges; 3 means it could not compare
 - Engineers: read `bugreport.json` + hypotheses to debug failures
 
 ---
@@ -263,9 +263,20 @@ Following the AVA standard, exit codes are not just pass/fail:
 | `0` | `EXIT_PASS` | Logs are identical within comparison rules |
 | `1` | `EXIT_MISMATCH` | At least one logical divergence found |
 | `2` | `EXIT_INFRA` | Infrastructure error: file not found, I/O failure, thread error, parse limit exceeded |
-| `3` | `EXIT_CONFIG` | Configuration/manifest error: missing `rundir`, bad field types, missing required manifest keys |
+| `3` | `EXIT_CONFIG` / `EXIT_INCOMPLETE` | **Could not compare.** Either a configuration/manifest error (missing `rundir`, bad field types, missing required manifest keys), or a field that exactly one side reports (see below) |
 
-This lets the orchestrator distinguish "the DUT has a bug" (exit 1) from "the simulation infrastructure failed" (exit 2) from "the manifest is wrong" (exit 3) — three situations requiring completely different responses.
+This lets the orchestrator distinguish "the DUT has a bug" (exit 1) from "the simulation infrastructure failed" (exit 2) from "the comparison could not be made" (exit 3) — situations requiring different responses. Exit 3 is never a pass: nothing was verified.
+
+**A field only one side reports.** Per compared field (register write, privilege, store address / data / size, trap cause / tval / epc, or a store list at all):
+
+- present on both sides: compared. A difference is a mismatch (exit 1);
+- reported empty (`"mem_writes": []`) is a report, and is not the same as the key being absent;
+- exactly one side did not report it: exit 3. The result JSON has `"status": "incomplete"` and `"incomplete_reasons": ["field_not_reported:<field>:<side>"]` (`side` is the one that did not report), and `mismatches` is empty. A mismatch found in the same run still wins (exit 1);
+- neither side reported it: counted per field in `not_compared`, not treated as equal.
+
+A source that never prints a field is skipped by name, so the gap is a recorded choice: Spike prints no store size, so compare against it with `--skip-fields mem_size`.
+
+In manifest mode an incomplete run records `phases.compare.status` and `status` as `infra_error` (the schema has no `incomplete` state) with the reasons in `phases.compare.error`.
 
 ---
 
@@ -718,7 +729,7 @@ if [ $EXIT -eq 1 ]; then
 elif [ $EXIT -eq 2 ]; then
     echo "Infrastructure error — check simulator logs"
 elif [ $EXIT -eq 3 ]; then
-    echo "Configuration error — check manifest"
+    echo "Could not compare — a configuration error, or a field only one side reports (see incomplete_reasons in the report)"
 fi
 exit $EXIT
 ```
@@ -737,7 +748,8 @@ python compare_commitlogs.py --manifest rundir/manifest.json
                 │              bugreport.json written
                 │              phases.compare.first_mismatch = "REGMISMATCH"
                 ├── exit 2 ──► manifest.phases.compare.error = "..."
-                └── exit 3 ──► manifest.phases.compare.error = "Missing logs"
+                └── exit 3 ──► manifest.phases.compare.error = "Missing logs", or
+                               "field_not_reported:<field>:<side>" (status = "infra_error")
 ```
 
 ---
