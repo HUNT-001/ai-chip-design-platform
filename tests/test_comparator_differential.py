@@ -74,7 +74,12 @@ def _agent_d_fails(tmp_path, name, rtl, iss):
         [sys.executable, str(REPO_ROOT / "AGENT_D" / "compare_commitlogs.py"), *paths],
         cwd=REPO_ROOT, capture_output=True, text=True, timeout=120)
     out = (r.stdout or "") + (r.stderr or "")
-    assert r.returncode in (0, 1), f"AGENT_D could not run: rc={r.returncode} {out[-600:]}"
+    assert r.returncode in (0, 1, 3), f"AGENT_D could not run: rc={r.returncode} {out[-600:]}"
+    if r.returncode == 3:
+        # exit 3 is "could not compare" (#164): a field only one side reports.
+        # It must say so; a configuration error would not be a store case.
+        assert "could not compare: field_not_reported" in out, out[-800:]
+        return True
     # rc 1 must be a store finding, not some other reason to exit 1
     assert (r.returncode == 1) == ("MEMMISMATCH" in out), (
         f"AGENT_D rc={r.returncode} does not match its own report:\n{out[-1200:]}")
