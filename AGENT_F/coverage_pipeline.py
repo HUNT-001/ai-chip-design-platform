@@ -1299,8 +1299,8 @@ PARSED_NOT_COMPARED: Dict[str, str] = {
     "rd":     "register names are not compared, only the first value in regs (#159)",
     "rd_val": "duplicates regs, which the comparator reads first; kept for legacy readers",
     "csrs":   "CSR writes are not compared (#159)",
-    "mem":    "Spike stores and loads; the comparator's store check reads mem_writes, "
-              "and the DUT log carries no stores to compare against (#164)",
+    "mem":    "Spike loads are not compared. Its stores are, on address and data "
+              "(Spike prints no size), against the DUT's mem_writes (#164)",
     "priv":   "privilege is not compared (#159)",
     "trap":   "traps are not compared (#159)",
 }

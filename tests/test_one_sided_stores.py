@@ -169,3 +169,21 @@ def test_a_field_neither_side_reports_is_recorded_as_not_compared(tmp_path):
     assert comparison["bugs"] == []
     assert comparison.get("unobserved") == []
     assert (comparison.get("fields_not_compared") or {}).get("stores") == 2, comparison
+
+
+def test_a_changed_spike_store_is_read_by_the_comparator_though_the_ratchet_probe_hits_a_load():
+    """PARSED_NOT_COMPARED keeps `mem` because Spike loads are still ignored; the
+    ratchet's probe lands on a load, so this pins that the stores in `mem` are read."""
+    import copy
+    from ava_patched import CommitLogComparator
+    iss = _aligned(SMOKE_TEXT)
+    i = next(i for i, e in enumerate(iss) if _stores(e))
+    rtl = copy.deepcopy(iss)
+    store = next(m for m in rtl[i]["mem"] if m["op"] == "store")
+    store["data"] = "0x0badf00d"
+    bugs = CommitLogComparator().compare(rtl, iss)
+    assert [b.kind for b in bugs] == [ava_patched.MismatchKind.MEMORY], bugs
+    loaded = next(j for j, e in enumerate(iss) if e["mem"] and not _stores(e))
+    rtl = copy.deepcopy(iss)
+    rtl[loaded]["mem"][0]["addr"] = "0x0badf00d"
+    assert CommitLogComparator().compare(rtl, iss) == [], "loads are documented as not compared"

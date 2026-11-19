@@ -182,16 +182,16 @@ def test_a_severity_the_verdict_does_not_recognise_still_fails(
     results.bugs, the policy gets decided at ADVISORY_BUG_SEVERITIES and both
     ends get a test then.
     """
-    real_compare = ava_patched.CommitLogComparator.compare
+    real_compare = ava_patched.CommitLogComparator.compare_with_report
 
     def _odd_severity(self, rtl_log, iss_log, context_before=5):
-        bugs = real_compare(self, rtl_log, iss_log, context_before)
+        bugs, report = real_compare(self, rtl_log, iss_log, context_before)
         for b in bugs:
             b.severity = severity          # not in any enumerated set
-        return bugs
+        return bugs, report
 
     _stub_sims(monkeypatch, _diverging_pc_log())
-    monkeypatch.setattr(ava_patched.CommitLogComparator, "compare", _odd_severity)
+    monkeypatch.setattr(ava_patched.CommitLogComparator, "compare_with_report", _odd_severity)
 
     result = _run(tmp_path, f"odd_severity_{severity or 'empty'}")
     bugs = _bugs(result)

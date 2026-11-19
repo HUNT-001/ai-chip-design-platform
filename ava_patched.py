@@ -604,9 +604,29 @@ class CommitLogComparator:
         """
         Compare RTL and ISS commit logs.
 
-        Returns list of BugReport (may be empty on clean match).
+        Returns list of BugReport (may be empty on clean match).  What could
+        not be compared is reported by compare_with_report.
+        """
+        return self.compare_with_report(rtl_log, iss_log, context_before)[0]
+
+    def compare_with_report(
+        self,
+        rtl_log:  List[Dict[str, Any]],
+        iss_log:  List[Dict[str, Any]],
+        context_before: int = 5,
+    ) -> Tuple[List[BugReport], Dict[str, Any]]:
+        """
+        Compare RTL and ISS commit logs and say what could not be compared.
+
+        Returns (bugs, report).  report["not_reported"] holds one
+        `field_not_reported:<field>:<side>` label per field that exactly one
+        side reported (the run cannot verify it, which is not a mismatch), and
+        report["not_compared"] counts, per field, the entries where neither
+        side reported it (#164).
         """
         bugs: List[BugReport] = []
+        not_reported: set = set()
+        not_compared: Dict[str, int] = {}
         rtl_idx = iss_idx = 0
         n_rtl, n_iss = len(rtl_log), len(iss_log)
 
@@ -680,31 +700,36 @@ class CommitLogComparator:
                     repro=ctx,
                 ))
 
-            # Store check (#137): canonical schema carries stores as
-            # `mem_writes` [{addr, size, data}].  Only compared when both
-            # sides carry the key, so legacy logs without it are unaffected.
-            # A store reported by only one side was not compared: a finding.
-            has_rtl, has_iss = "mem_writes" in rtl_e, "mem_writes" in iss_e
-            one_sided = (has_rtl != has_iss) and bool(
-                (rtl_e if has_rtl else iss_e).get("mem_writes"))
-            if (has_rtl and has_iss) or one_sided:
-                w_rtl = self._norm_writes(rtl_e.get("mem_writes"))
-                w_iss = self._norm_writes(iss_e.get("mem_writes"))
-                if w_rtl != w_iss or one_sided:
+            # Store check (#137, #164).  A side reports its stores as
+            # `mem_writes` [{addr, size, data}] (the canonical schema) or as
+            # Spike's `mem` entries (op "store", no size).  A list, even an
+            # empty one, is a report; the key's absence is not.  Both lists:
+            # compare.  Exactly one: nothing can be said about this field, so
+            # it is named in not_reported and the run is incomplete, not
+            # mismatched.  Neither: counted as not compared.
+            w_rtl, w_iss = self._stores(rtl_e), self._stores(iss_e)
+            if w_rtl is None and w_iss is None:
+                not_compared["stores"] = not_compared.get("stores", 0) + 1
+            elif w_rtl is None or w_iss is None:
+                not_reported.add(
+                    "field_not_reported:stores:" + ("rtl" if w_rtl is None else "iss"))
+            else:
+                if any(w[1] is None for w in w_rtl + w_iss if isinstance(w, tuple)):
+                    # Spike prints no access size, so a store from it is
+                    # compared on address and data only.
+                    not_compared["store_size"] = not_compared.get("store_size", 0) + 1
+                if not self._same_stores(w_rtl, w_iss):
                     ctx = rtl_log[max(0, rtl_idx - context_before): rtl_idx + 1]
-                    why = ("one side did not report stores"
-                           if one_sided else "stores differ")
                     bugs.append(BugReport(
                         kind=MismatchKind.MEMORY,
                         severity="high",
                         pc=rtl_e.get("pc", "?"),
                         instr=rtl_e.get("instr", "?"),
-                        rtl_value=str(rtl_e.get("mem_writes")),
-                        iss_value=str(iss_e.get("mem_writes")),
+                        rtl_value=str(w_rtl),
+                        iss_value=str(w_iss),
                         description=(
-                            f"Store mismatch at PC {rtl_e.get('pc')} ({why}): "
-                            f"RTL={rtl_e.get('mem_writes')} "
-                            f"ISS={iss_e.get('mem_writes')}"
+                            f"Store mismatch at PC {rtl_e.get('pc')} (stores differ): "
+                            f"RTL={w_rtl} ISS={w_iss}"
                         ),
                         repro=ctx,
                     ))
@@ -712,7 +737,38 @@ class CommitLogComparator:
             rtl_idx += 1
             iss_idx += 1
 
-        return bugs
+        return bugs, {"not_reported": sorted(not_reported), "not_compared": not_compared}
+
+    @classmethod
+    def _stores(cls, entry: Dict[str, Any]) -> Optional[List[Any]]:
+        """The entry's stores as (addr, size, data), or None if it reports none.
+
+        `mem_writes` wins; otherwise Spike's `mem` list, whose stores carry no
+        size (None) and whose loads are not stores.  [] means "reported, none".
+        """
+        if isinstance(entry.get("mem_writes"), list):
+            return cls._norm_writes(entry["mem_writes"])
+        if isinstance(entry.get("mem"), list):
+            return cls._norm_writes(
+                [{"addr": m.get("addr"), "size": None, "data": m.get("data")}
+                 if isinstance(m, dict) else m
+                 for m in entry["mem"]
+                 if not isinstance(m, dict) or m.get("op") == "store"])
+        return None
+
+    @staticmethod
+    def _same_stores(a: List[Any], b: List[Any]) -> bool:
+        """Equal in count, address and data; size too when both sides have one."""
+        if len(a) != len(b):
+            return False
+        for x, y in zip(a, b):
+            if not (isinstance(x, tuple) and isinstance(y, tuple)):
+                return False        # malformed evidence never equals anything
+            if x[0] != y[0] or x[2] != y[2]:
+                return False
+            if x[1] is not None and y[1] is not None and x[1] != y[1]:
+                return False
+        return True
 
     @staticmethod
     def _norm_writes(writes: Any) -> List[Tuple[Any, Any, Any]]:
@@ -1370,6 +1426,9 @@ class SpikeISS:
                     # Where the program ended and how many repeats of its
                     # terminal self-loop were dropped before comparing (#165).
                     "program_end": comparison.get("program_end"),
+                    # Fields neither side reported, per field: recorded as
+                    # not compared rather than counted as equal (#164).
+                    "fields_not_compared": comparison.get("fields_not_compared", {}),
                     # Simulators that produced no commit log: nothing was
                     # compared, so the run cannot claim to have verified (#138).
                     # Likewise an RTL simulation that exited non-zero: the
@@ -1388,6 +1447,8 @@ class SpikeISS:
                         # that Spike filled with lines the parser does not
                         # know, names why (#158).
                         + list(iss_results.get("incomplete_reasons", []))
+                        # A field one side reported and the other did not (#164).
+                        + list(comparison.get("unobserved", []))
                     ),
                 },
             )
@@ -1703,6 +1764,8 @@ class SpikeISS:
             )
 
         program_end: Optional[Dict[str, Any]] = None
+        unobserved: List[str] = []
+        fields_not_compared: Dict[str, int] = {}
         if rtl_log and iss_log:
             # Compare the program, not Spike's tohost spin after it (#165).
             rtl_cmp, iss_cmp, program_end, end_finding = align_program_end(rtl_log, iss_log)
@@ -1714,10 +1777,12 @@ class SpikeISS:
                     program_end["iss_repeats_dropped"], program_end["rtl_repeats_dropped"])
             # Run in executor to keep the event loop free
             loop = asyncio.get_event_loop()
-            bug_reports = await loop.run_in_executor(
+            bug_reports, field_report = await loop.run_in_executor(
                 None,
-                lambda: self._comparator.compare(rtl_cmp, iss_cmp),
+                lambda: self._comparator.compare_with_report(rtl_cmp, iss_cmp),
             )
+            unobserved = list(field_report["not_reported"])
+            fields_not_compared = dict(field_report["not_compared"])
             if end_finding is not None:
                 bug_reports = [end_finding] + list(bug_reports)
             bugs = [b.to_dict() for b in bug_reports]
@@ -1740,6 +1805,10 @@ class SpikeISS:
             "rtl_entries": len(rtl_log),
             "iss_entries": len(iss_log),
             "program_end": program_end,
+            # Fields exactly one side reported: not compared, so the run is
+            # incomplete (#164).  And the fields neither side reported.
+            "unobserved":  unobserved,
+            "fields_not_compared": fields_not_compared,
         }
 
     # ── Coverage calculation ───────────────────────────────────────────────
