@@ -22,9 +22,13 @@ issue. Fixing the issue fails the build until the entry is removed.
 Two views of each pair are used. "raw" is what a real run hands over. "at
 halt" cuts both logs at the store that stops the program: Ibex's SimCtrl
 ends the simulation on it, so its trace stops there, while Spike runs on
-until it polls tohost. The difference between the two views is #178, and
-test_the_raw_divergence_is_only_the_program_end pins it to exactly that, so
-the raw xfails cannot hide anything else.
+until it polls tohost. The difference between the two views is the program
+end. Fixed in #178 for the orchestrator: the Ibex harness declares that its
+log stopped on the halt write, and the comparator checks that against the log
+(tests/test_program_end_declared_halt.py). The raw orchestrator runs here carry
+that declaration; test_the_raw_divergence_is_only_the_program_end pins what
+the undeclared run still reports, so the raw xfails cannot hide anything else.
+AGENT_D has no program-end rule at all and stays a strict xfail (#180).
 """
 import copy
 import functools
@@ -80,16 +84,19 @@ def pair(prog, view):
     return copy.deepcopy(cut[0]), copy.deepcopy(cut[1])
 
 
-def run(comparator, rtl, iss, agent_d_extra=()):
+def run(comparator, rtl, iss, agent_d_extra=(), rtl_ended=None):
     with tempfile.TemporaryDirectory() as td:
         if comparator == "orchestrator":
-            return cmp_.orchestrator(rtl, iss, Path(td) / "orch")
+            return cmp_.orchestrator(rtl, iss, Path(td) / "orch", rtl_ended)
         return cmp_.agent_d(rtl, iss, Path(td), agent_d_extra)
 
 
 @functools.lru_cache(maxsize=None)
 def _result(prog, view, comparator):
-    return run(comparator, *pair(prog, view))
+    # The harness declares why the Ibex log stopped; only the raw view needs it
+    # (the halt view has no Spike self-loop left to align on).
+    declared = cmp_.IBEX_RTL_ENDED if (view, comparator) == ("raw", "orchestrator") else None
+    return run(comparator, *pair(prog, view), rtl_ended=declared)
 
 
 def result(prog, view, comparator):
@@ -145,9 +152,9 @@ def _a_params(view):
     for prog in PROGRAMS:
         for c in COMPARATORS:
             marks = []
-            if view == "raw":
-                marks.append(xfail("#178", "Ibex stops on the halt store and never retires "
-                                           "the `j .` Spike's end check waits for"))
+            if view == "raw" and c == "agent_d":
+                marks.append(xfail("#180", "AGENT_D has no program-end rule: Spike's tohost spin "
+                                           "after the halt store is a LENGTHMISMATCH"))
             elif (prog, c) == ("csr", "agent_d"):
                 marks.append(xfail("#176", "AGENT_D reads the absent csrs as 'no writes' and "
                                            "reports a CSR mismatch"))
@@ -170,13 +177,15 @@ def test_a_a_raw_run_gives_no_mismatch(prog, comparator):
 @pytest.mark.parametrize("prog", PROGRAMS)
 def test_the_raw_divergence_is_only_the_program_end(prog):
     """(d): triaged, not tolerated. The only raw finding allowed is the
-    end-of-test difference (#178), plus the csr program's CSR false positive
-    (#176). Any other finding fails here."""
-    o = result(prog, "raw", "orchestrator")
-    assert o["findings"], "the raw run no longer diverges: remove the #178 xfails"
+    end-of-test difference (#178 for the orchestrator without a declaration,
+    #180 for AGENT_D), plus the csr program's CSR false positive (#176). Any
+    other finding fails here."""
+    o = run("orchestrator", *pair(prog, "raw"))      # no declaration
+    assert o["findings"], "the undeclared raw run no longer diverges"
     for f in o["findings"]:
         assert f.startswith("instruction_count_mismatch: ") and (
             "Program end differs" in f or "Instruction count diverges" in f), f
+    assert not result(prog, "raw", "orchestrator")["findings"], "the declared raw run diverges"
     a = result(prog, "raw", "agent_d")
     kinds = {m.split()[0] for m in a["mismatches"]}
     allowed = {"LENGTHMISMATCH"} | ({"CSRMISMATCH"} if prog == "csr" else set())

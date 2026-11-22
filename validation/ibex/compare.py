@@ -13,6 +13,7 @@ import argparse
 import asyncio
 import copy
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -26,22 +27,50 @@ if str(REPO_ROOT) not in sys.path:
 from ava_patched import SpikeISS, align_program_end  # noqa: E402
 
 CLI = REPO_ROOT / "AGENT_D" / "compare_commitlogs.py"
+LINK_SCRIPT = Path(__file__).resolve().parent / "programs" / "link.ld"
+
+
+def sim_ctrl_halt_address(link_script: Path = LINK_SCRIPT) -> str:
+    """The address whose write halts Ibex's simulation, as the programs are built.
+
+    link.ld places `tohost` on Ibex simple_system's SimCtrl halt word
+    (SIM_CTRL_BASE 0x20000 + SIM_CTRL_CTRL 0x8 in Ibex's simple_system_regs.h;
+    tests/test_program_end_declared_halt.py checks the two agree against the
+    cloned tree).  It is read here, not written into the comparator (#178).
+    """
+    m = re.search(r"^\s*tohost\s*=\s*(0x[0-9a-fA-F]+)\s*;", link_script.read_text(encoding="utf-8"), re.M)
+    if m is None:
+        raise RuntimeError(f"{link_script}: no `tohost = 0x...;` to take the halt address from")
+    return f"0x{int(m.group(1), 16):08x}"
+
+
+#: What the Ibex testbench attests about its own log: it stopped because the
+#: program wrote to SimCtrl's halt word.  The comparator checks this against the
+#: log (ava_patched.declared_stop_problems); an Ibex log that does not end on
+#: that store fails with a finding.
+IBEX_RTL_ENDED = {"reason": "halt_write", "addr": sim_ctrl_halt_address()}
 
 
 def load(path: Path) -> List[Dict[str, Any]]:
     return [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
 
 
-def cut(rtl, iss):
-    """Both logs up to and including the program's terminal self-loop (#165)."""
-    r, i, summary, finding = align_program_end(copy.deepcopy(rtl), copy.deepcopy(iss))
+def cut(rtl, iss, rtl_ended=None):
+    """Both logs up to the program's end (#165); `rtl_ended` as in #178."""
+    r, i, summary, finding = align_program_end(
+        copy.deepcopy(rtl), copy.deepcopy(iss), rtl_ended)
     return r, i, summary, finding
 
 
-def orchestrator(rtl, iss, run_dir: Path) -> Dict[str, Any]:
+def orchestrator(rtl, iss, run_dir: Path, rtl_ended=None) -> Dict[str, Any]:
+    """`rtl_ended` is the DUT's declaration of why its log stopped, carried with
+    the log the way a real run would carry it; None declares nothing."""
     sim = SpikeISS(timeout=30, run_dir=run_dir)
+    rtl_results = {"commit_log": copy.deepcopy(rtl), "instructions": len(rtl)}
+    if rtl_ended is not None:
+        rtl_results["rtl_ended"] = copy.deepcopy(rtl_ended)
     c = asyncio.run(sim._compare_results(
-        {"commit_log": copy.deepcopy(rtl), "instructions": len(rtl)},
+        rtl_results,
         {"commit_log": copy.deepcopy(iss), "instructions": len(iss)}))
     verdict = "mismatch" if c["bugs"] else ("incomplete" if c.get("unobserved") else "pass")
     return {"verdict": verdict,
@@ -80,7 +109,7 @@ def agent_d(rtl, iss, workdir: Path, extra: Sequence[str] = ()) -> Dict[str, Any
     return out
 
 
-HALT_ADDR = "0x00020008"   # SimCtrl halt on Ibex, tohost on Spike (programs/link.ld)
+HALT_ADDR = IBEX_RTL_ENDED["addr"]   # SimCtrl halt on Ibex, tohost on Spike
 
 
 def is_halt_store(e: Dict[str, Any]) -> bool:
@@ -106,10 +135,10 @@ def cut_at_halt(rtl, iss):
 def compare_pair(rtl, iss, agent_d_extra: Sequence[str] = ()) -> Dict[str, Any]:
     with tempfile.TemporaryDirectory() as td:
         td = Path(td)
-        rc, ic, summary, finding = cut(rtl, iss)
+        rc, ic, summary, finding = cut(rtl, iss, IBEX_RTL_ENDED)
         res = {
             "rtl_entries": len(rtl), "iss_entries": len(iss),
-            "orchestrator": orchestrator(rtl, iss, td / "orch"),
+            "orchestrator": orchestrator(rtl, iss, td / "orch", IBEX_RTL_ENDED),
             "agent_d_raw": agent_d(rtl, iss, td, agent_d_extra),
             "cut": {"summary": summary, "finding": finding.description if finding else None,
                     "rtl_entries": len(rc), "iss_entries": len(ic)},

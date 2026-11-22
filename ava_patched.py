@@ -839,8 +839,58 @@ def drop_self_loop_repeats(
     return log[:index + 1] + log[end:], end - (index + 1)
 
 
+#: The only stop reason a DUT may declare for a log that ends before the
+#: terminal self-loop: its testbench halted on a store to `addr` (#178).
+HALT_WRITE = "halt_write"
+RTL_STOPPED_BEFORE_LOOP = "rtl_stopped_before_terminal_loop"
+
+
+def declared_stop_problems(
+    rtl_log: List[Dict[str, Any]], iss_log: List[Dict[str, Any]],
+    index: Optional[int], rtl_ended: Any,
+) -> List[str]:
+    """Why the DUT's declared stop is not borne out by the logs; [] if it is.
+
+    `rtl_ended` is `{"reason": "halt_write", "addr": "0x..."}`.  It is an
+    attestation by the DUT side, checked here and never trusted: the last RTL
+    entry must be a store to `addr`, and when the ISS reaches a terminal
+    self-loop (`index`), the RTL log must end exactly before it, with only the
+    loop and its repeats left on the ISS side.
+    """
+    if not isinstance(rtl_ended, dict):
+        return [f"expected a mapping, got {type(rtl_ended).__name__}"]
+    if rtl_ended.get("reason") != HALT_WRITE:
+        return [f"reason {rtl_ended.get('reason')!r} is not {HALT_WRITE!r}"]
+    try:
+        addr = int(str(rtl_ended.get("addr")), 0)
+    except ValueError:
+        return [f"addr {rtl_ended.get('addr')!r} is not an address"]
+    if not rtl_log:
+        return ["the RTL log is empty"]
+    problems: List[str] = []
+    last = rtl_log[-1]
+    stores = CommitLogComparator._stores(last) or []
+    if not any(isinstance(s, tuple) and s[0] == addr for s in stores):
+        problems.append(f"the last RTL entry (pc {last.get('pc')}) is not a store to {addr:#x}")
+    if index is not None:
+        n = len(rtl_log)
+        loop_pc = iss_log[index].get("pc")
+        if n != index:
+            problems.append(
+                f"the RTL log has {n} entries and the ISS reaches its terminal "
+                f"self-loop at entry {index}, so the loop is not all the ISS has after the "
+                f"RTL's last entry")
+        elif last.get("pc") != iss_log[index - 1].get("pc"):
+            problems.append(f"the last RTL entry is at {last.get('pc')}, the ISS has "
+                            f"{iss_log[index - 1].get('pc')} there")
+        elif any(e.get("pc") != loop_pc for e in iss_log[index:]):
+            problems.append("the ISS has other instructions after its terminal self-loop")
+    return problems
+
+
 def align_program_end(
     rtl_log: List[Dict[str, Any]], iss_log: List[Dict[str, Any]],
+    rtl_ended: Any = None,
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], Optional[Dict[str, Any]],
            Optional[BugReport]]:
     """Cut both logs at the program's terminal self-loop (#165).
@@ -855,13 +905,34 @@ def align_program_end(
     is a finding: the 5% length tolerance alone would pass a core that stops
     one instruction short of a short program.
 
+    One exception (#178).  A testbench that halts on a store never retires the
+    `j .` after it.  Its DUT side may say so with `rtl_ended`
+    (`{"reason": "halt_write", "addr": "0x..."}`).  The early end is then
+    accepted only if `declared_stop_problems` finds none: the last RTL entry
+    is that store, and the ISS has nothing after the RTL's last entry but the
+    loop and its repeats.  The summary records the declaration.  A declaration
+    that fails a check is a finding of its own, and the early end then fails
+    as it does with no declaration.
+
     Returns (rtl, iss, summary, finding).  With no self-loop in the ISS log,
     both logs come back unchanged with summary None.
     """
     index = terminal_self_loop(iss_log)
+    problems = (declared_stop_problems(rtl_log, iss_log, index, rtl_ended)
+                if rtl_ended is not None else [])
+    rejected: Optional[str] = None
+    if problems:
+        shown = (f"{rtl_ended.get('reason')} at {rtl_ended.get('addr')}"
+                 if isinstance(rtl_ended, dict) else repr(rtl_ended))
+        rejected = f"Declared RTL stop ({shown}) rejected: " + "; ".join(problems)
     if index is None:
-        return rtl_log, iss_log, None, None
+        return rtl_log, iss_log, None, _declaration_finding(rtl_log, rejected)
     pc = iss_log[index].get("pc")
+    if rtl_ended is not None and not problems and len(rtl_log) == index:
+        summary = {"pc": pc, "index": index, "iss_repeats_dropped": len(iss_log) - index,
+                   "rtl_repeats_dropped": 0, "end": RTL_STOPPED_BEFORE_LOOP,
+                   "rtl_ended": {"reason": rtl_ended["reason"], "addr": rtl_ended["addr"]}}
+        return rtl_log, iss_log[:index], summary, None
     iss_cut, iss_repeats = drop_self_loop_repeats(iss_log, index)
     rtl_pc = rtl_log[index].get("pc") if index < len(rtl_log) else None
     finding: Optional[BugReport] = None
@@ -883,9 +954,31 @@ def align_program_end(
                 f"{pc} as entry {index}; {where}"
             ),
         )
+    if rejected is not None:
+        if finding is None:
+            finding = _declaration_finding(rtl_log, rejected)
+        else:
+            finding.description += "; " + rejected
     summary = {"pc": pc, "index": index,
                "iss_repeats_dropped": iss_repeats, "rtl_repeats_dropped": rtl_repeats}
     return rtl_cut, iss_cut, summary, finding
+
+
+def _declaration_finding(
+    rtl_log: List[Dict[str, Any]], rejected: Optional[str],
+) -> Optional[BugReport]:
+    """The finding for a declared stop the log does not bear out (#178)."""
+    if rejected is None:
+        return None
+    last = rtl_log[-1] if rtl_log else {}
+    return BugReport(
+        kind=MismatchKind.INSTR_CNT,
+        severity="high",
+        pc=str(last.get("pc", "")),
+        instr=str(last.get("instr", "")),
+        rtl_value=str(len(rtl_log)),
+        description=rejected,
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1774,7 +1867,10 @@ class SpikeISS:
         fields_not_compared: Dict[str, int] = {}
         if rtl_log and iss_log:
             # Compare the program, not Spike's tohost spin after it (#165).
-            rtl_cmp, iss_cmp, program_end, end_finding = align_program_end(rtl_log, iss_log)
+            # A DUT whose testbench halts on a store says so beside its log;
+            # the comparator checks that against the log (#178).
+            rtl_cmp, iss_cmp, program_end, end_finding = align_program_end(
+                rtl_log, iss_log, rtl_results.get("rtl_ended"))
             if program_end:
                 logger.info(
                     "Program ends at %s (entry %d): dropped %d ISS and %d RTL "
