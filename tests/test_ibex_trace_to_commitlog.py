@@ -153,6 +153,22 @@ def test_a_zero_write_to_x0_is_dropped(conv):
     assert by_pc(records(conv), "0x0010009c")["regs"] == {}
 
 
+def test_the_capability_form_of_a_write_reports_its_integer_part(conv):
+    """decode_cheriot_auipcc_insn sets CD whether or not CHERIoT is enabled, so
+    `auipc` is printed as " %s=0x%08x+0x%09x" even on a plain RV32 core.  With
+    CHERIoT off the capability half is zero, and the write is the first half."""
+    au = line(0x100080, 0x00010417, "auipc\tx8,0x10", " " + reg(8) + "=0x00110080+0x000000000")
+    (r,) = conv.convert_lines([au])
+    assert r["regs"] == {"x8": "0x00110080"}
+
+
+def test_a_non_zero_capability_half_is_refused(conv):
+    """Non-zero capability metadata is a CHERIoT result this schema cannot hold."""
+    au = line(0x100080, 0x00010417, "auipc\tx8,0x10", " " + reg(8) + "=0x00110080+0x000000001")
+    with pytest.raises(ValueError, match="capability"):
+        conv.convert_lines([au])
+
+
 def test_a_non_zero_write_to_x0_is_refused_not_dropped(conv):
     """Dropping it would hide exactly the bug the x0 rule exists to catch."""
     bad = line(0x100080, 0x00100013, "addi\tx0,x0,1", rs(0, 0) + rd(0, 1))
