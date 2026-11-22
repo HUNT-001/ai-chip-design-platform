@@ -20,10 +20,15 @@ empty value or a guess, so a comparator can tell the two apart.
 
 Loads are not logged (`mem_reads` is off by default in the schema).
 
+The tracer prints `auipc` in its CHERIoT capability form,
+"x8=0x00110080+0x000000000", even with CHERIoT off.  The integer half is the
+write.  A non-zero capability half is refused.
+
 The converter refuses -- raises ValueError naming the PC -- rather than
 skipping anything it cannot represent honestly: a trap or interrupt line, a
-non-zero write to x0, a store opcode without store data, store data narrower
-than its funct3 width, or a line that does not parse.
+non-zero write to x0, non-zero capability metadata, a store opcode without
+store data, store data narrower than its funct3 width, or a line that does
+not parse.
 
 Usage: trace_to_commitlog.py TRACE [-o OUT.jsonl]
 """
@@ -36,7 +41,9 @@ from typing import Any, Dict, Iterable, List
 SCHEMA_VERSION = "2.1.0"
 HEADER = "Time\tCycle\tPC\tInsn\tDecoded instruction\tRegister and memory contents"
 
-_RD = re.compile(r"(?<![\w:])x(\d{1,2})=0x([0-9a-fA-F]{8})\b")
+# " x5=0x00000001", or the CHERIoT form " x8=0x00110080+0x000000000" that the
+# tracer uses for auipc even with CHERIoT off (decode_cheriot_auipcc_insn).
+_RD = re.compile(r"(?<![\w:])x(\d{1,2})=0x([0-9a-fA-F]{8})(?:\+0x([0-9a-fA-F]{9}))?(?![\w+])")
 _PA = re.compile(r"\bPA:0x([0-9a-fA-F]{8})\b")
 _STORE = re.compile(r"\bstore:0x([0-9a-fA-F?]{8})\b")
 
@@ -87,8 +94,11 @@ def convert_line(text: str, seq: int) -> Dict[str, Any]:
                          f"epc; this channel cannot report it")
 
     regs: Dict[str, str] = {}
-    for n_s, val_s in _RD.findall(contents):
+    for n_s, val_s, cap_s in _RD.findall(contents):
         n, val = int(n_s), int(val_s, 16)
+        if cap_s and int(cap_s, 16) != 0:
+            raise ValueError(f"{pc}: x{n} written with non-zero capability metadata "
+                             f"0x{cap_s}; this schema has no field for it")
         if n == 0:
             if val != 0:
                 raise ValueError(f"{pc}: the trace shows x0 written with 0x{val:08x}")
