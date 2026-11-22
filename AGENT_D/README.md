@@ -267,14 +267,14 @@ Following the AVA standard, exit codes are not just pass/fail:
 
 This lets the orchestrator distinguish "the DUT has a bug" (exit 1) from "the simulation infrastructure failed" (exit 2) from "the comparison could not be made" (exit 3) — situations requiring different responses. Exit 3 is never a pass: nothing was verified.
 
-**A field only one side reports.** Per compared field (register write, privilege, store address / data / size, trap cause / tval / epc, or a store list at all):
+**A field only one side reports.** Per compared field (register write, CSR writes (`csrs`, or the legacy `csr_writes`), privilege, store address / data / size, trap cause / tval / epc, or a store list at all):
 
 - present on both sides: compared. A difference is a mismatch (exit 1);
-- reported empty (`"mem_writes": []`) is a report, and is not the same as the key being absent;
+- reported empty (`"mem_writes": []`, `"csrs": {}`) is a report, and is not the same as the key being absent. A log that never reports `csrs` is not a log with no CSR writes: against a side that wrote a CSR it is `field_not_reported:csrs:<side>`, not a CSR mismatch, and against a side that wrote none it is not a pass;
 - exactly one side did not report it: exit 3. The result JSON has `"status": "incomplete"` and `"incomplete_reasons": ["field_not_reported:<field>:<side>"]` (`side` is the one that did not report), and `mismatches` is empty. A mismatch found in the same run still wins (exit 1);
 - neither side reported it: counted per field in `not_compared`, not treated as equal.
 
-A source that never prints a field is skipped by name, so the gap is a recorded choice: Spike prints no store size, so compare against it with `--skip-fields mem_size`.
+A source that never prints a field is skipped by name, so the gap is a recorded choice: Spike prints no store size, so compare against it with `--skip-fields mem_size`; Ibex's text trace carries no CSR values, so compare it with `--skip-fields csr_writes` (the field is named `csr_writes` to `--skip-fields` and `csrs` in the reason). A skipped field appears in neither `incomplete_reasons` nor `not_compared`; the result's `config.skip_fields` is where it is recorded.
 
 In manifest mode an incomplete run records `phases.compare.status` and `status` as `infra_error` (the schema has no `incomplete` state) with the reasons in `phases.compare.error`.
 

@@ -692,7 +692,7 @@ class CommitEntry:
     schema_errors:   List[str] = field(default_factory=list)  # human-readable reasons
 
     # Compared fields the record did not carry at all (key absent or null), as
-    # opposed to carrying them empty: "regs", "stores".  Set by from_dict (#164).
+    # opposed to carrying them empty: "regs", "stores", "csrs".  Set by from_dict (#164, #176).
     unreported:      FrozenSet[str] = field(default_factory=frozenset)
 
     @staticmethod
@@ -785,6 +785,7 @@ class CommitEntry:
                 name for name, keys in (
                     ("regs",   ("regs", "rd")),
                     ("stores", ("mem_writes", "mem_reads", "mem_op", "mem_addr")),
+                    ("csrs",   ("csrs", "csr_writes")),
                 ) if all(d.get(k) is None for k in keys)
             ),
         )
@@ -1364,6 +1365,7 @@ class _FieldComparator:
                 one_sided.append((name, "iss"))
 
         note("regs", "regs" in rtl.unreported, "regs" in iss.unreported, ("rd_val", "rd"))
+        note("csrs", "csrs" in rtl.unreported, "csrs" in iss.unreported, ("csr_writes",))
         note("privilege", rtl.privilege is None, iss.privilege is None, ("privilege",))
         if not {"mem_addr", "mem_val", "mem_op"}.issubset(self._skip):
             note("stores", "stores" in rtl.unreported, "stores" in iss.unreported, ())
@@ -1527,6 +1529,9 @@ class _FieldComparator:
             if not cfg.csr_write_order_sensitive:
                 out = sorted(out, key=lambda w: w.csr)
             return out
+
+        if ("csrs" in rtl.unreported) != ("csrs" in iss.unreported):
+            return issues   # one side never reported CSRs at all: see coverage()
 
         rl = _norm(rtl.csr_writes)
         il = _norm(iss.csr_writes)
