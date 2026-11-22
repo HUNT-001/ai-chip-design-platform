@@ -1,0 +1,3 @@
+# The repo ignores *.log, *.elf and *.jsonl; these are recorded fixtures, kept on purpose.
+!*.log
+!*.elf

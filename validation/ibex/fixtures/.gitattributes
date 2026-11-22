@@ -1,0 +1,3 @@
+# Recorded Ibex traces, Spike output and the ELFs they ran: keep every byte as recorded.
+*.log -text
+*.elf binary
