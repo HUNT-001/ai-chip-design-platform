@@ -1,0 +1,17 @@
+Time	Cycle	PC	Insn	Decoded instruction	Register and memory contents
+             18	         5	00100080	5a5a1537	lui	x10,0x5a5a1	 x10=0x5a5a1000
+             20	         6	00100084	23450513	addi	x10,x10,564	 x10:0x5a5a1000 x10=0x5a5a1234
+             22	         7	00100088	000105b7	lui	x11,0x10	 x11=0x00010000
+             24	         8	0010008c	f0058593	addi	x11,x11,-256	 x11:0x00010000 x11=0x0000ff00
+             26	         9	00100090	34051073	csrrw	x0,mscratch,x10	 x10:0x5a5a1234  x0=0x00000000
+             28	        10	00100094	34002473	csrrs	x8,mscratch,x0	  x0:0x00000000  x8=0x5a5a1234
+             30	        11	00100098	3405a4f3	csrrs	x9,mscratch,x11	 x11:0x0000ff00  x9=0x5a5a1234
+             32	        12	0010009c	34053973	csrrc	x18,mscratch,x10	 x10:0x5a5a1234 x18=0x5a5aff34
+             34	        13	001000a0	340ad9f3	csrrwi	x19,mscratch,21	 x19=0x0000ed00
+             36	        14	001000a4	34056a73	csrrsi	x20,mscratch,10	 x20=0x00000015
+             38	        15	001000a8	3400faf3	csrrci	x21,mscratch,1	 x21=0x0000001f
+             40	        16	001000ac	34002b73	csrrs	x22,mscratch,x0	  x0:0x00000000 x22=0x0000001e
+             42	        17	001000b0	000202b7	lui	x5,0x20	  x5=0x00020000
+             44	        18	001000b4	00828293	addi	x5,x5,8	  x5:0x00020000  x5=0x00020008
+             46	        19	001000b8	00100313	addi	x6,x0,1	  x0:0x00000000  x6=0x00000001
+             50	        21	001000bc	0062a023	sw	x6,0(x5)	  x5:0x00020008  x6:0x00000001 PA:0x00020008 store:0x00000001

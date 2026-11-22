@@ -1,0 +1,26 @@
+Time	Cycle	PC	Insn	Decoded instruction	Register and memory contents
+             18	         5	00100080	80000537	lui	x10,0x80000	 x10=0x80000000
+             20	         6	00100084	fff50513	addi	x10,x10,-1	 x10:0x80000000 x10=0x7fffffff
+             22	         7	00100088	ffd00593	addi	x11,x0,-3	  x0:0x00000000 x11=0xfffffffd
+             24	         8	0010008c	80000637	lui	x12,0x80000	 x12=0x80000000
+             26	         9	00100090	fff00693	addi	x13,x0,-1	  x0:0x00000000 x13=0xffffffff
+             32	        12	00100094	02b50433	mul	x8,x10,x11	 x10:0x7fffffff x11:0xfffffffd  x8=0x80000003
+             40	        16	00100098	02b514b3	mulh	x9,x10,x11	 x10:0x7fffffff x11:0xfffffffd  x9=0xfffffffe
+             48	        20	0010009c	02a5a933	mulhsu	x18,x11,x10	 x11:0xfffffffd x10:0x7fffffff x18=0xfffffffe
+             56	        24	001000a0	02b539b3	mulhu	x19,x10,x11	 x10:0x7fffffff x11:0xfffffffd x19=0x7ffffffd
+            130	        61	001000a4	02b54a33	div	x20,x10,x11	 x10:0x7fffffff x11:0xfffffffd x20=0xd5555556
+            204	        98	001000a8	02b55ab3	divu	x21,x10,x11	 x10:0x7fffffff x11:0xfffffffd x21=0x00000000
+            278	       135	001000ac	02b56b33	rem	x22,x10,x11	 x10:0x7fffffff x11:0xfffffffd x22=0x00000001
+            352	       172	001000b0	02b57bb3	remu	x23,x10,x11	 x10:0x7fffffff x11:0xfffffffd x23=0x7fffffff
+            356	       174	001000b4	02054c33	div	x24,x10,x0	 x10:0x7fffffff  x0:0x00000000 x24=0xffffffff
+            360	       176	001000b8	02055cb3	divu	x25,x10,x0	 x10:0x7fffffff  x0:0x00000000 x25=0xffffffff
+            364	       178	001000bc	02056d33	rem	x26,x10,x0	 x10:0x7fffffff  x0:0x00000000 x26=0x7fffffff
+            368	       180	001000c0	02057db3	remu	x27,x10,x0	 x10:0x7fffffff  x0:0x00000000 x27=0x7fffffff
+            442	       217	001000c4	02d64e33	div	x28,x12,x13	 x12:0x80000000 x13:0xffffffff x28=0x80000000
+            516	       254	001000c8	02d66eb3	rem	x29,x12,x13	 x12:0x80000000 x13:0xffffffff x29=0x00000000
+            522	       257	001000cc	02d60f33	mul	x30,x12,x13	 x12:0x80000000 x13:0xffffffff x30=0x80000000
+            530	       261	001000d0	02c61fb3	mulh	x31,x12,x12	 x12:0x80000000 x12:0x80000000 x31=0x40000000
+            532	       262	001000d4	000202b7	lui	x5,0x20	  x5=0x00020000
+            534	       263	001000d8	00828293	addi	x5,x5,8	  x5:0x00020000  x5=0x00020008
+            536	       264	001000dc	00100313	addi	x6,x0,1	  x0:0x00000000  x6=0x00000001
+            540	       266	001000e0	0062a023	sw	x6,0(x5)	  x5:0x00020008  x6:0x00000001 PA:0x00020008 store:0x00000001
