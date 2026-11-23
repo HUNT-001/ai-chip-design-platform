@@ -3,9 +3,10 @@
 
 The orchestrator's comparator (`SpikeISS._compare_results`) gets the logs raw,
 as a real run hands them over; it cuts Spike's tohost spin itself (#165).
-AGENT_D's CLI gets them twice: raw, and cut by the same rule
-(`ava_patched.align_program_end`), because AGENT_D has no cut of its own and
-Spike retires `j .` thousands of times after the program ends.
+AGENT_D's CLI gets them twice: raw with the same declaration (`--rtl-ended`,
+#180), and cut by the orchestrator's rule (`ava_patched.align_program_end`).
+Spike retires `j .` thousands of times after the program ends, and the Ibex
+testbench halts on a store before it retires the first one.
 
 Usage: compare.py RTL.jsonl ISS.jsonl [--json]
 """
@@ -45,9 +46,9 @@ def sim_ctrl_halt_address(link_script: Path = LINK_SCRIPT) -> str:
 
 
 #: What the Ibex testbench attests about its own log: it stopped because the
-#: program wrote to SimCtrl's halt word.  The comparator checks this against the
-#: log (ava_patched.declared_stop_problems); an Ibex log that does not end on
-#: that store fails with a finding.
+#: program wrote to SimCtrl's halt word.  Each comparator checks this against the
+#: log (ava_patched.declared_stop_problems, AGENT_D's `--rtl-ended`); an Ibex log
+#: that does not end on that store fails with a finding.
 IBEX_RTL_ENDED = {"reason": "halt_write", "addr": sim_ctrl_halt_address()}
 
 
@@ -81,7 +82,10 @@ def orchestrator(rtl, iss, run_dir: Path, rtl_ended=None) -> Dict[str, Any]:
             "warnings": list(c.get("warnings", []))}
 
 
-def agent_d(rtl, iss, workdir: Path, extra: Sequence[str] = ()) -> Dict[str, Any]:
+def agent_d(rtl, iss, workdir: Path, extra: Sequence[str] = (), rtl_ended=None) -> Dict[str, Any]:
+    """AGENT_D's CLI on a pair of logs; `rtl_ended` is passed as `--rtl-ended`."""
+    if rtl_ended is not None:
+        extra = (*extra, "--rtl-ended", json.dumps(rtl_ended))
     r, i, rep = workdir / "rtl.jsonl", workdir / "iss.jsonl", workdir / "report.json"
     for path, log in ((r, rtl), (i, iss)):
         path.write_text("".join(json.dumps(e) + "\n" for e in log), encoding="utf-8")
@@ -139,7 +143,7 @@ def compare_pair(rtl, iss, agent_d_extra: Sequence[str] = ()) -> Dict[str, Any]:
         res = {
             "rtl_entries": len(rtl), "iss_entries": len(iss),
             "orchestrator": orchestrator(rtl, iss, td / "orch", IBEX_RTL_ENDED),
-            "agent_d_raw": agent_d(rtl, iss, td, agent_d_extra),
+            "agent_d_raw": agent_d(rtl, iss, td, agent_d_extra, IBEX_RTL_ENDED),
             "cut": {"summary": summary, "finding": finding.description if finding else None,
                     "rtl_entries": len(rc), "iss_entries": len(ic)},
             "agent_d_cut": agent_d(rc, ic, td, agent_d_extra),

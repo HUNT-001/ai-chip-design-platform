@@ -6,7 +6,17 @@ ava_patched.CommitLogComparator and through AGENT_D's compare_commitlogs CLI
 schema (a store differs, or it does not), then both tools are held to it and to
 each other.  A disagreement that is not a bug fixed here is listed in
 KNOWN_DIVERGENCE with its issue, so it stays visible and cannot widen.
+
+The second half does the same for the program end (#178, #180): real Ibex runs
+whose log stops at a halt store before Spike's terminal self-loop, with and
+without the DUT's declaration of that halt, and with declarations the logs do
+not bear out.  The orchestrator is run the way a real run runs it
+(`SpikeISS._compare_results`, which applies `align_program_end`); AGENT_D gets
+the same declaration as `--rtl-ended`.
 """
+import asyncio
+import copy
+import importlib.util
 import json
 import subprocess
 import sys
@@ -18,7 +28,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from ava_patched import CommitLogComparator
+from ava_patched import CommitLogComparator, SpikeISS
 
 N = 6
 BASE = dict(schema_version="2.1.0", hart=0, priv="M", trap=None,
@@ -110,3 +120,146 @@ def test_the_pairs_are_not_vacuous():
     """At least one pair must fail and one must pass, or agreement means nothing."""
     outcomes = {f for *_, f in CASES.values()}
     assert outcomes == {True, False}
+
+
+# ── program end: a declared halt write (#178, #180) ──────────────────────────
+
+VAL = REPO_ROOT / "validation" / "ibex"
+#: What validation/ibex/compare.py skips: the fields an Ibex trace cannot report.
+IBEX_SKIPS = ("--skip-fields", "privilege", "csr_writes")
+
+
+def _load(name, path):
+    spec = importlib.util.spec_from_file_location(name, path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _ibex_pair(prog):
+    ibex = _load("differential_trace_to_commitlog", VAL / "trace_to_commitlog.py")
+    spike = _load("differential_spike_to_commitlog", VAL / "spike_to_commitlog.py")
+    fix = VAL / "fixtures"
+    return (ibex.convert_file(str(fix / f"{prog}.ibex.log")),
+            spike.convert((fix / f"{prog}.spike.log").read_text(encoding="utf-8"),
+                          fix / f"{prog}.elf"))
+
+
+def _renumbered(log):
+    for n, e in enumerate(log):
+        e["seq"] = n
+    return log
+
+
+def _halt_cases():
+    """name -> (rtl, iss, declaration, expected_to_fail); expectations from #178."""
+    rtl, iss = _ibex_pair("loadstore")
+    n = len(rtl)
+    addr = rtl[-1]["mem_writes"][-1]["addr"]
+    ok = {"reason": "halt_write", "addr": addr}
+
+    def logs():
+        return copy.deepcopy(rtl), copy.deepcopy(iss)
+
+    def with_regs_flipped():
+        r, i = logs()
+        k = next(m for m, e in enumerate(r) if e["regs"])
+        name = next(iter(r[k]["regs"]))
+        r[k]["regs"][name] = f"0x{int(r[k]['regs'][name], 16) ^ 0x10:08x}"
+        return r, i
+
+    def extra_instruction():
+        r, i = logs()
+        extra = {"seq": n, "pc": "0x00100ff0", "instr": "0x00000013", "regs": {}}
+        return r, _renumbered(i[:n] + [extra] + i[n:])
+
+    def instruction_after_loop():
+        r, i = logs()
+        loop = copy.deepcopy(i[n])
+        after = {"seq": n + 1, "pc": f"0x{int(loop['pc'], 16) + 4:08x}",
+                 "instr": "0x00000013", "regs": {}}
+        return _renumbered(r + [loop, after]), i
+
+    def ran_into_the_loop():
+        r, i = logs()
+        return _renumbered(r + [copy.deepcopy(i[n + k]) for k in range(3)]), i
+
+    def no_terminal_loop():
+        r, i = logs()
+        tail = [{"seq": n + k, "pc": f"0x{0x00100f00 + 4 * k:08x}", "instr": "0x00000013",
+                 "regs": {}} for k in range(2 * n)]
+        return r, _renumbered(i[:n] + tail)
+
+    cases = {
+        "declared_halt": (*logs(), ok, False),
+        "no_declaration": (*logs(), None, True),
+        "wrong_address": (*logs(), {"reason": "halt_write", "addr": f"0x{int(addr, 16) + 8:08x}"}, True),
+        "wrong_reason": (*logs(), {"reason": "timeout", "addr": addr}, True),
+        "not_a_mapping": (*logs(), "halt_write", True),
+        "no_address": (*logs(), {"reason": "halt_write"}, True),
+        "stops_one_short": (rtl[:-1], iss, ok, True),
+        "stops_mid_program": (rtl[:n // 2], iss, ok, True),
+        "both_cut_at_halt": (rtl, iss[:n], ok, False),
+        "both_cut_one_short": (rtl[:-1], iss[:n - 1], ok, True),
+        "extra_instruction_before_loop": (*extra_instruction(), ok, True),
+        "instruction_after_loop": (*instruction_after_loop(), ok, True),
+        "ran_into_the_loop": (*ran_into_the_loop(), ok, True),
+        "remainder_is_not_a_loop": (*no_terminal_loop(), ok, True),
+        "divergence_before_the_halt": (*with_regs_flipped(), ok, True),
+    }
+    return {k: (copy.deepcopy(r), copy.deepcopy(i), d, f) for k, (r, i, d, f) in cases.items()}
+
+
+HALT_CASES = _halt_cases()
+
+#: case -> (issue, which tool is wrong).  Empty unless a real divergence is found.
+KNOWN_HALT_DIVERGENCE = {}
+
+
+def _orchestrator_fails_on_a_halt(tmp_path, rtl, iss, declaration):
+    rtl_results = {"commit_log": copy.deepcopy(rtl), "instructions": len(rtl)}
+    if declaration is not None:
+        rtl_results["rtl_ended"] = copy.deepcopy(declaration)
+    sim = SpikeISS(timeout=30, run_dir=tmp_path / "orch")
+    comparison = asyncio.run(sim._compare_results(
+        rtl_results, {"commit_log": copy.deepcopy(iss), "instructions": len(iss)}))
+    return bool(comparison["bugs"])
+
+
+def _agent_d_fails_on_a_halt(tmp_path, rtl, iss, declaration):
+    paths = []
+    for tag, log in (("rtl", rtl), ("iss", iss)):
+        p = tmp_path / f"{tag}.jsonl"
+        p.write_bytes(("\n".join(json.dumps(e) for e in log) + "\n").encode("utf-8"))
+        paths.append(str(p))
+    cmd = [sys.executable, str(REPO_ROOT / "AGENT_D" / "compare_commitlogs.py"), *paths,
+           "--quiet", *IBEX_SKIPS]
+    if declaration is not None:
+        cmd += ["--rtl-ended", json.dumps(declaration)]
+    r = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True, timeout=120)
+    assert r.returncode in (0, 1), (
+        f"AGENT_D rc={r.returncode} (3 would be 'could not compare'): {(r.stdout + r.stderr)[-600:]}")
+    return r.returncode == 1
+
+
+@pytest.mark.parametrize("name", sorted(HALT_CASES))
+def test_orchestrator_and_agent_d_agree_on_a_declared_halt(tmp_path, name):
+    rtl, iss, declaration, expect_fail = HALT_CASES[name]
+    ava = _orchestrator_fails_on_a_halt(tmp_path, rtl, iss, declaration)
+    agent_d = _agent_d_fails_on_a_halt(tmp_path, rtl, iss, declaration)
+    if name in KNOWN_HALT_DIVERGENCE:
+        assert ava != agent_d, (
+            f"{name} no longer diverges; remove it from KNOWN_HALT_DIVERGENCE "
+            f"({KNOWN_HALT_DIVERGENCE[name]})")
+        return
+    assert ava == expect_fail, f"{name}: the orchestrator expected fail={expect_fail}, got {ava}"
+    assert agent_d == expect_fail, f"{name}: AGENT_D expected fail={expect_fail}, got {agent_d}"
+
+
+def test_the_halt_cases_are_not_vacuous():
+    """Both outcomes occur, and the accepted early end is the case that matters."""
+    outcomes = {f for *_, f in HALT_CASES.values()}
+    assert outcomes == {True, False}
+    assert len(HALT_CASES) >= 15, "cases were deleted"
+    rtl, iss, declaration, expect_fail = HALT_CASES["declared_halt"]
+    assert len(rtl) < len(iss) and declaration is not None and not expect_fail

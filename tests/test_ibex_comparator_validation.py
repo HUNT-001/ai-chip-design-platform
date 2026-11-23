@@ -23,12 +23,12 @@ Two views of each pair are used. "raw" is what a real run hands over. "at
 halt" cuts both logs at the store that stops the program: Ibex's SimCtrl
 ends the simulation on it, so its trace stops there, while Spike runs on
 until it polls tohost. The difference between the two views is the program
-end. Fixed in #178 for the orchestrator: the Ibex harness declares that its
-log stopped on the halt write, and the comparator checks that against the log
-(tests/test_program_end_declared_halt.py). The raw orchestrator runs here carry
-that declaration; test_the_raw_divergence_is_only_the_program_end pins what
-the undeclared run still reports, so the raw xfails cannot hide anything else.
-AGENT_D has no program-end rule at all and stays a strict xfail (#180).
+end. Fixed in #178 for the orchestrator and in #180 for AGENT_D: the Ibex
+harness declares that its log stopped on the halt write, and each comparator
+checks that against the log (tests/test_program_end_declared_halt.py,
+tests/test_agent_d_declared_halt.py). The raw runs here carry that declaration;
+test_the_raw_divergence_is_only_the_program_end pins what the undeclared run
+still reports, so the raw rows cannot hide anything else.
 """
 import copy
 import functools
@@ -89,14 +89,14 @@ def run(comparator, rtl, iss, agent_d_extra=(), rtl_ended=None):
     with tempfile.TemporaryDirectory() as td:
         if comparator == "orchestrator":
             return cmp_.orchestrator(rtl, iss, Path(td) / "orch", rtl_ended)
-        return cmp_.agent_d(rtl, iss, Path(td), agent_d_extra)
+        return cmp_.agent_d(rtl, iss, Path(td), agent_d_extra, rtl_ended)
 
 
 @functools.lru_cache(maxsize=None)
 def _result(prog, view, comparator):
     # The harness declares why the Ibex log stopped; only the raw view needs it
     # (the halt view has no Spike self-loop left to align on).
-    declared = cmp_.IBEX_RTL_ENDED if (view, comparator) == ("raw", "orchestrator") else None
+    declared = cmp_.IBEX_RTL_ENDED if view == "raw" else None
     return run(comparator, *pair(prog, view), rtl_ended=declared)
 
 
@@ -152,11 +152,7 @@ def _a_params(view):
     out = []
     for prog in PROGRAMS:
         for c in COMPARATORS:
-            marks = []
-            if view == "raw" and c == "agent_d":
-                marks.append(xfail("#180", "AGENT_D has no program-end rule: Spike's tohost spin "
-                                           "after the halt store is a LENGTHMISMATCH"))
-            out.append(pytest.param(prog, c, marks=marks, id=f"{prog}-{c}"))
+            out.append(pytest.param(prog, c, id=f"{prog}-{c}"))
     return out
 
 
@@ -175,18 +171,20 @@ def test_a_a_raw_run_gives_no_mismatch(prog, comparator):
 @pytest.mark.parametrize("prog", PROGRAMS)
 def test_the_raw_divergence_is_only_the_program_end(prog):
     """(d): triaged, not tolerated. The only raw finding allowed is the
-    end-of-test difference (#178 for the orchestrator without a declaration,
-    #180 for AGENT_D). The csr program's CSR false positive (#176) is fixed,
-    so a CSR mismatch is no longer allowed. Any other finding fails here."""
+    end-of-test difference, which neither comparator accepts without the
+    declaration (#178, #180). The csr program's CSR false positive (#176) is
+    fixed, so a CSR mismatch is no longer allowed. Any other finding fails
+    here."""
     o = run("orchestrator", *pair(prog, "raw"))      # no declaration
     assert o["findings"], "the undeclared raw run no longer diverges"
     for f in o["findings"]:
         assert f.startswith("instruction_count_mismatch: ") and (
             "Program end differs" in f or "Instruction count diverges" in f), f
     assert not result(prog, "raw", "orchestrator")["findings"], "the declared raw run diverges"
-    a = result(prog, "raw", "agent_d")
+    a = run("agent_d", *pair(prog, "raw"))           # no declaration
     kinds = {m.split()[0] for m in a["mismatches"]}
     assert kinds == {"LENGTHMISMATCH"}, a["mismatches"]
+    assert not result(prog, "raw", "agent_d")["mismatches"], "the declared raw run diverges"
 
 
 # ── (b) what the trace cannot report ─────────────────────────────────────────
