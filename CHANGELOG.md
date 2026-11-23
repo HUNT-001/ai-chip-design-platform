@@ -4,6 +4,18 @@ All notable changes to AVA — Autonomic Verification Agent are documented here.
 
 ---
 
+## [Unreleased]
+
+### Changed
+- **Commit-log schema 2.2.0 (#177, PR 1 of 4).** A log may declare the fields its
+  producer reports in a first-line header record, `{"_header": {"schema_version":
+  "2.2.0", "fields_reported": [...]}}`. Only the identity fields stay required on
+  every record. Headerless logs are legacy and still valid. New validator
+  `AGENT_A/commitlog_validator.py`; format described in `docs/dut_commit_log.md`.
+  No comparator or producer reads or writes the header yet.
+
+---
+
 ## [2.60.0] — 2026-07-19
 
 ### Added — batch 4, part 4: verification / AI digital twin
