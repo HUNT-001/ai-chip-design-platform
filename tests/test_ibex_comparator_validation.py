@@ -176,8 +176,8 @@ def test_a_a_raw_run_gives_no_mismatch(prog, comparator):
 def test_the_raw_divergence_is_only_the_program_end(prog):
     """(d): triaged, not tolerated. The only raw finding allowed is the
     end-of-test difference (#178 for the orchestrator without a declaration,
-    #180 for AGENT_D), plus the csr program's CSR false positive (#176). Any
-    other finding fails here."""
+    #180 for AGENT_D). The csr program's CSR false positive (#176) is fixed,
+    so a CSR mismatch is no longer allowed. Any other finding fails here."""
     o = run("orchestrator", *pair(prog, "raw"))      # no declaration
     assert o["findings"], "the undeclared raw run no longer diverges"
     for f in o["findings"]:
@@ -186,8 +186,7 @@ def test_the_raw_divergence_is_only_the_program_end(prog):
     assert not result(prog, "raw", "orchestrator")["findings"], "the declared raw run diverges"
     a = result(prog, "raw", "agent_d")
     kinds = {m.split()[0] for m in a["mismatches"]}
-    allowed = {"LENGTHMISMATCH"} | ({"CSRMISMATCH"} if prog == "csr" else set())
-    assert kinds and kinds <= allowed, a["mismatches"]
+    assert kinds == {"LENGTHMISMATCH"}, a["mismatches"]
 
 
 # ── (b) what the trace cannot report ─────────────────────────────────────────
