@@ -1026,3 +1026,17 @@ Agent L synthesises the RTL design to a gate-level netlist using Yosys and verif
 ## 23. Canonical schema files
 
 `AGENT_A/commitlog.schema.json` and `AGENT_A/run_manifest.schema.json` are the canonical schemas. The copies under `AGENT_B/schemas/`, `AGENT_C/` and `AGENT_F/` are not authoritative and have diverged from these; they are being reconciled under #20. Until then, treat AGENT_A's files as the source of truth when the copies disagree. `tests/test_schema_uniqueness.py` pins the number of distinct copies per filename so the divergence cannot grow unnoticed.
+
+---
+
+## 24. Commit-log schema 2.2.0: `fields_reported` (#177)
+
+**Schema bump:** commit log `2.1.0` -> `2.2.0`. The run manifest stays at `2.1.0`.
+
+- A commit log may open with one header record, `{"_header": {"schema_version": "2.2.0", "fields_reported": [...]}}`, as its first JSONL line (`$defs.log_header`). The declaration is part of the log, never a sidecar.
+- Under a header, `fields_reported` is authoritative. A listed field missing from a record, or a record carrying a field the list does not name, makes the log malformed. Null is a value; absence is not.
+- Only the identity fields (`schema_version`, `hart`, `seq`, `pc`, `instr`, `instr_width`, `_src`) stay required on every record. `regs`, `csrs` and `priv` are optional and declared.
+- A headerless log is legacy: valid, records at `2.1.0` or `2.2.0`, per-field inference as before, reported as `fields_reported: "undeclared"`.
+- `AGENT_A/commitlog_validator.py` validates a whole log. Comparator and producer support is planned in later PRs of #177.
+
+Full description: `docs/dut_commit_log.md`.

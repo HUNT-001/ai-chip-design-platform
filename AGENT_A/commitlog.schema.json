@@ -1,13 +1,16 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://ava-rv/schemas/commitlog/v2.1.0",
+  "$id": "https://ava-rv/schemas/commitlog/v2.2.0",
   "title": "AVA Commit Log Entry",
-  "description": "One JSONL record per retired instruction, emitted in strict program order by both RTL harness (Agent B) and ISS golden backend (Agent C). Consumer: Agent D (comparator), Agent F (coverage director), red-team agents. Schema version 2.1.0. New in v2.1: mem_seq/mem_order_tag (Agent I), perf_counters (Agent K), clk_domain/reset_event/power_state (Agent J).",
+  "description": "One JSONL record per retired instruction, emitted in strict program order by both RTL harness (Agent B) and ISS golden backend (Agent C). Consumer: Agent D (comparator), Agent F (coverage director), red-team agents. Schema version 2.2.0. New in v2.2: a log may open with one header record ($defs.log_header) that declares fields_reported, the fields its producer reports; only the identity fields stay required on every record. A log without a header is a legacy log. See docs/dut_commit_log.md. New in v2.1: mem_seq/mem_order_tag (Agent I), perf_counters (Agent K), clk_domain/reset_event/power_state (Agent J).",
   "$defs": {
     "schema_version": {
       "type": "string",
-      "const": "2.1.0",
-      "description": "Commit-log schema version. Must match the $id minor.patch. Producers MUST emit this; consumers MUST reject records whose version does not match the version they were compiled against."
+      "enum": [
+        "2.2.0",
+        "2.1.0"
+      ],
+      "description": "Commit-log schema version. A log with a header ($defs.log_header) MUST carry 2.2.0 on the header and on every record. 2.1.0 is accepted only in a headerless (legacy) log, which is what every producer in the tree writes until it emits a header (#177). Consumers MUST reject any other version."
     },
     "hex8": {
       "type": "string",
@@ -315,6 +318,82 @@
         "minimum": 0,
         "description": "Extension counter. Name must be snake_case [a-z0-9_]{1,32}."
       }
+    },
+    "log_header": {
+      "type": "object",
+      "description": "Optional first record of a commit log (#177). It is a line of the JSONL itself, never a sidecar, so the declaration cannot be separated from the log. At most one, and only as the first non-blank line. With a header, fields_reported is authoritative: (1) a listed field missing from a record makes the log malformed, and a field not listed is not reported; (4) a record that carries a field the list does not name makes the log malformed, even when its value is null. Null is a reported value (e.g. trap: null is 'no trap taken here'); absence is not. A log with no header is legacy: comparators infer per field, as in 2.1.0, and record fields_reported as 'undeclared'.",
+      "required": [
+        "_header"
+      ],
+      "properties": {
+        "_header": {
+          "type": "object",
+          "required": [
+            "schema_version",
+            "fields_reported"
+          ],
+          "properties": {
+            "schema_version": {
+              "type": "string",
+              "const": "2.2.0"
+            },
+            "fields_reported": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "enum": [
+                  "cycle",
+                  "disasm",
+                  "priv",
+                  "trap",
+                  "regs",
+                  "csrs",
+                  "mem_writes",
+                  "mem_reads",
+                  "fp_regs",
+                  "mem_seq",
+                  "mem_order_tag",
+                  "perf_counters",
+                  "clk_domain",
+                  "reset_event",
+                  "power_state",
+                  "_run_id"
+                ]
+              },
+              "description": "Every record property a producer may leave out, i.e. all but the required identity fields. Names are record property names, not comparator labels (mem_writes, not stores; priv, not privilege)."
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false,
+      "examples": [
+        {
+          "_header": {
+            "schema_version": "2.2.0",
+            "fields_reported": [
+              "cycle",
+              "priv",
+              "trap",
+              "regs",
+              "csrs",
+              "mem_writes"
+            ]
+          }
+        },
+        {
+          "_header": {
+            "schema_version": "2.2.0",
+            "fields_reported": [
+              "cycle",
+              "disasm",
+              "regs",
+              "mem_writes"
+            ]
+          }
+        }
+      ]
     }
   },
   "type": "object",
@@ -325,9 +404,6 @@
     "pc",
     "instr",
     "instr_width",
-    "priv",
-    "regs",
-    "csrs",
     "_src"
   ],
   "properties": {
@@ -387,7 +463,7 @@
         "U",
         "D"
       ],
-      "description": "Privilege mode at commit. 'M'=Machine, 'S'=Supervisor, 'U'=User, 'D'=Debug. RV32IM M-mode only for schema v2; emit 'M' always. Enum kept open for forward compatibility."
+      "description": "Privilege mode at commit. 'M'=Machine, 'S'=Supervisor, 'U'=User, 'D'=Debug. RV32IM M-mode only for schema v2; emit 'M' always. Enum kept open for forward compatibility. Not required since 2.2.0: a producer that cannot see the privilege mode (e.g. the Ibex text trace) omits it and does not list it in fields_reported."
     },
     "trap": {
       "oneOf": [
@@ -398,11 +474,11 @@
           "type": "null"
         }
       ],
-      "description": "Non-null when a trap is taken at this retirement boundary. Null (or omitted) otherwise. NOTE: If trap is non-null, the instruction's architectural side-effects may still be committed (e.g. `ecall` retires before trap). Producers must document their behaviour; see interfaces.md \u00a76."
+      "description": "Non-null when a trap is taken at this retirement boundary; null when none is. Under a header that lists trap the key MUST be present on every record (null = no trap), and a header that does not list trap means traps are not reported. In a headerless (legacy) log null or omitted both mean no trap, as in 2.1.0, so a legacy log cannot say traps were not reported (#177). NOTE: If trap is non-null, the instruction's architectural side-effects may still be committed (e.g. `ecall` retires before trap). Producers must document their behaviour; see interfaces.md \u00a76."
     },
     "regs": {
       "type": "object",
-      "description": "Register file delta: only registers whose value changed as a direct result of this instruction's execution. x0 is FORBIDDEN \u2014 its value is architecturally fixed at 0x00000000. An empty object {} is valid and expected for stores, branches (not taken), fences, NOPs, and ecalls.",
+      "description": "Register file delta: only registers whose value changed as a direct result of this instruction's execution. x0 is FORBIDDEN \u2014 its value is architecturally fixed at 0x00000000. An empty object {} is valid and expected for stores, branches (not taken), fences, NOPs, and ecalls. Absent (or null) means not reported, which is not the same as {} (#164); not required since 2.2.0.",
       "propertyNames": {
         "$ref": "#/$defs/reg_name"
       },
@@ -414,7 +490,7 @@
     },
     "csrs": {
       "type": "object",
-      "description": "CSR delta: only CSRs whose value changed at this commit. Empty object {} is valid. Keys must be canonical lowercase names from the approved enum. Values are 32-bit hex.",
+      "description": "CSR delta: only CSRs whose value changed at this commit. Empty object {} is valid. Keys must be canonical lowercase names from the approved enum. Values are 32-bit hex. Absent (or null) means not reported, which is not the same as {} (#176); not required since 2.2.0.",
       "propertyNames": {
         "$ref": "#/$defs/csr_name"
       },
@@ -570,7 +646,7 @@
   },
   "examples": [
     {
-      "schema_version": "2.1.0",
+      "schema_version": "2.2.0",
       "hart": 0,
       "seq": 8,
       "cycle": 142,
@@ -591,7 +667,7 @@
       "_run_id": "20240315T142300_42_ab3f9c01"
     },
     {
-      "schema_version": "2.1.0",
+      "schema_version": "2.2.0",
       "hart": 0,
       "seq": 9,
       "cycle": 146,
@@ -616,7 +692,7 @@
       "_run_id": "20240315T142300_42_ab3f9c01"
     },
     {
-      "schema_version": "2.1.0",
+      "schema_version": "2.2.0",
       "hart": 0,
       "seq": 10,
       "cycle": 162,
@@ -637,7 +713,7 @@
       "_run_id": "20240315T142300_42_ab3f9c01"
     },
     {
-      "schema_version": "2.1.0",
+      "schema_version": "2.2.0",
       "hart": 0,
       "seq": 55,
       "cycle": 820,
@@ -668,7 +744,7 @@
       "_run_id": "20240315T142300_42_ab3f9c01"
     },
     {
-      "schema_version": "2.1.0",
+      "schema_version": "2.2.0",
       "hart": 0,
       "seq": 56,
       "cycle": 824,

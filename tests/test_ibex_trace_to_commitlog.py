@@ -14,7 +14,8 @@ Written from two sources, not from the converter:
     insn     "%8h", or "    %4h" for a compressed parcel
     decoded  "<mnemonic>\\t<operands>", prefixed "-->" on a trap, "==>" on an interrupt
 
-* AGENT_A/commitlog.schema.json 2.1.0.
+* AGENT_A/commitlog.schema.json (2.2.0; the converter writes 2.1.0 records with no
+  header, a legacy log, until #177 PR 4).
 
 The trace has no CSR values, no privilege mode, no trap cause and no perf
 counters.  Those fields must be absent from every record -- not empty, not
@@ -251,14 +252,16 @@ def test_a_malformed_line_is_refused_not_skipped(conv):
 
 # ── against the schema ───────────────────────────────────────────────────────
 
-def test_records_meet_the_schema_but_for_the_fields_the_trace_lacks(conv):
+def test_records_meet_the_schema_with_the_fields_the_trace_lacks_absent(conv):
+    """Schema 2.2.0 requires only the identity fields; csrs and priv, which the
+    trace cannot report, are absent and that is not a violation (#177)."""
     import jsonschema
     schema = json.loads(SCHEMA.read_text(encoding="utf-8"))
     v = jsonschema.Draft202012Validator(schema)
+    assert "csrs" not in schema["required"] and "priv" not in schema["required"]
     for r in records(conv):
         errors = sorted(e.message for e in v.iter_errors(r))
-        assert errors == ["'csrs' is a required property", "'priv' is a required property"], (
-            r["pc"], errors)
+        assert errors == [], (r["pc"], errors)
 
 
 def test_the_cli_writes_one_json_line_per_record(conv, tmp_path):
