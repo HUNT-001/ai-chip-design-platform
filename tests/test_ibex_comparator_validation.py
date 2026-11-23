@@ -34,6 +34,7 @@ import copy
 import functools
 import hashlib
 import importlib.util
+import json
 import re
 import sys
 import tempfile
@@ -155,9 +156,6 @@ def _a_params(view):
             if view == "raw" and c == "agent_d":
                 marks.append(xfail("#180", "AGENT_D has no program-end rule: Spike's tohost spin "
                                            "after the halt store is a LENGTHMISMATCH"))
-            elif (prog, c) == ("csr", "agent_d"):
-                marks.append(xfail("#176", "AGENT_D reads the absent csrs as 'no writes' and "
-                                           "reports a CSR mismatch"))
             out.append(pytest.param(prog, c, marks=marks, id=f"{prog}-{c}"))
     return out
 
@@ -178,8 +176,8 @@ def test_a_a_raw_run_gives_no_mismatch(prog, comparator):
 def test_the_raw_divergence_is_only_the_program_end(prog):
     """(d): triaged, not tolerated. The only raw finding allowed is the
     end-of-test difference (#178 for the orchestrator without a declaration,
-    #180 for AGENT_D), plus the csr program's CSR false positive (#176). Any
-    other finding fails here."""
+    #180 for AGENT_D). The csr program's CSR false positive (#176) is fixed,
+    so a CSR mismatch is no longer allowed. Any other finding fails here."""
     o = run("orchestrator", *pair(prog, "raw"))      # no declaration
     assert o["findings"], "the undeclared raw run no longer diverges"
     for f in o["findings"]:
@@ -188,8 +186,7 @@ def test_the_raw_divergence_is_only_the_program_end(prog):
     assert not result(prog, "raw", "orchestrator")["findings"], "the declared raw run diverges"
     a = result(prog, "raw", "agent_d")
     kinds = {m.split()[0] for m in a["mismatches"]}
-    allowed = {"LENGTHMISMATCH"} | ({"CSRMISMATCH"} if prog == "csr" else set())
-    assert kinds and kinds <= allowed, a["mismatches"]
+    assert kinds == {"LENGTHMISMATCH"}, a["mismatches"]
 
 
 # ── (b) what the trace cannot report ─────────────────────────────────────────
@@ -214,8 +211,6 @@ def _b_params():
                 if c == "orchestrator":
                     marks = [xfail("#159", "the orchestrator compares no CSRs, privilege, "
                                            "traps or perf, and says so nowhere")]
-                elif field == "csrs":
-                    marks = [xfail("#176", "an absent csrs is read as 'no CSR writes'")]
                 elif field == "trap":
                     marks = [xfail("#177", "the schema reads an absent trap as 'no trap'")]
                 elif field == "perf_counters":
@@ -238,11 +233,13 @@ def test_b_a_field_the_trace_cannot_report_is_named(prog, comparator, field, tok
 # ── (c) the mutation table on the real Ibex log ──────────────────────────────
 
 #: The table's base for these rows is loadstore: it has register writes and
-#: sb/sh/sw stores.  AGENT_D runs with privilege skipped -- a field this
-#: channel cannot report, named under (b) -- or its unmutated baseline is
-#: already "incomplete" and every row would count as detected.
+#: sb/sh/sw stores.  AGENT_D runs with privilege and csr_writes skipped -- the
+#: two fields this channel cannot report, named under (b) -- or its unmutated
+#: baseline is already "incomplete" (#164, #176) and every row would count as
+#: detected.  The skip is explicit and checked: see
+#: test_c_the_declared_skips_are_exactly_what_the_channel_cannot_report.
 BASE_PROG = "loadstore"
-AGENT_D_EXTRA = ("--skip-fields", "privilege")
+AGENT_D_EXTRA = ("--skip-fields", "privilege", "csr_writes")
 
 #: Rows whose mutant changes a field the Ibex trace never carries.  The RTL
 #: side cannot exhibit them in this channel; (b) covers those fields.
@@ -331,6 +328,36 @@ def test_c_detection_matches_the_spike_table(row, comparator):
 def test_c_the_unmutated_ibex_base_passes(comparator):
     assert not detects(comparator, *pair(BASE_PROG, "halt")), (
         f"{comparator} flags the unmutated Ibex base, so every 'detected' row means nothing")
+
+
+#: skip_fields name -> the field name AGENT_D reports it under when it is not skipped
+SKIP_REPORTED_AS = {"privilege": "privilege", "csr_writes": "csrs"}
+
+
+def test_c_the_declared_skips_are_exactly_what_the_channel_cannot_report(tmp_path):
+    """A skipped field is neither "not compared" nor incomplete, so the skip
+    has to be checked where it can be seen.  Unskipped, the baseline is exit 3
+    and names exactly the fields AGENT_D_EXTRA skips; skipped, it passes and the
+    result carries the skip in its config.  A skip added to hide something else,
+    or dropped, fails here."""
+    rtl, iss = pair(BASE_PROG, "halt")
+    skipped = set(AGENT_D_EXTRA[1:])
+    assert AGENT_D_EXTRA[0] == "--skip-fields" and skipped <= set(SKIP_REPORTED_AS), skipped
+
+    bare = run("agent_d", rtl, iss)
+    assert bare["exit"] == 3, bare
+    named = {reason.split(":")[1] for reason in bare["incomplete_reasons"]}
+    assert named == {SKIP_REPORTED_AS[f] for f in skipped}, (named, skipped)
+
+    sys.path.insert(0, str(REPO_ROOT / "AGENT_D"))
+    import compare_commitlogs as cc
+    r, i = tmp_path / "rtl.jsonl", tmp_path / "iss.jsonl"
+    for path, log in ((r, rtl), (i, iss)):
+        path.write_text("".join(json.dumps(e) + "\n" for e in log), encoding="utf-8")
+    result = cc.compare_logs(str(r), str(i), cfg=cc.CompareConfig(skip_fields=frozenset(skipped)),
+                             stop_on_first=False)
+    assert result.passed and result.incomplete_reasons == [], result.incomplete_reasons
+    assert set(result.config["skip_fields"]) == skipped, result.config["skip_fields"]
 
 
 def test_c_every_table_row_is_run_or_shown_inexpressible():
