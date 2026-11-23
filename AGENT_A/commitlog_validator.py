@@ -183,6 +183,12 @@ def validate_file(path) -> Dict[str, Any]:
         return validate_lines(fh)
 
 
+def _say(text: str, file=None) -> None:
+    """Print ASCII only: a log's own text (a disassembly, a path) can carry
+    non-ASCII, and an ASCII console must not turn the verdict into a crash (#147)."""
+    print(text.encode("ascii", "backslashreplace").decode("ascii"), file=file)
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     ap.add_argument("log")
@@ -192,10 +198,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         rep = validate_file(args.log)
     except ImportError as exc:
-        print(f"cannot validate: {exc} (jsonschema is required)", file=sys.stderr)
+        _say(f"cannot validate: {exc} (jsonschema is required)", file=sys.stderr)
         return EXIT_INCOMPLETE
     except (OSError, UnicodeDecodeError) as exc:
-        print(f"cannot read {args.log}: {exc}", file=sys.stderr)
+        _say(f"cannot read {args.log}: {exc}", file=sys.stderr)
         return EXIT_INCOMPLETE
     if args.json:
         print(json.dumps(rep, indent=2))
@@ -203,13 +209,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         fr = rep["fields_reported"]
         fr_text = (f"{UNDECLARED} (legacy: no header)" if fr == UNDECLARED
                    else "invalid header" if fr is None else ", ".join(fr) or "(none)")
-        print(f"{args.log}: {'VALID' if rep['valid'] else 'MALFORMED'}, "
+        _say(f"{args.log}: {'VALID' if rep['valid'] else 'MALFORMED'}, "
               f"{rep['records']} records, fields_reported: {fr_text}")
         shown = rep["errors"] if args.max_errors == 0 else rep["errors"][:args.max_errors]
         for e in shown:
-            print(f"  {e}")
+            _say(f"  {e}")
         if len(shown) < len(rep["errors"]):
-            print(f"  ... {len(rep['errors']) - len(shown)} more")
+            _say(f"  ... {len(rep['errors']) - len(shown)} more")
     return EXIT_VALID if rep["valid"] else EXIT_MALFORMED
 
 
