@@ -236,7 +236,7 @@ These are the **canonical wire-format strings** that appear in `bug_report.json`
 | `CSRMISMATCH` | WARNING | A CSR write produced a different value. Covers mstatus, mepc, mcause, and all others. |
 | `MEMMISMATCH` | WARNING | A memory access has a different address, value, or operation type. |
 | `TRAPMISMATCH` | ERROR | One side took a trap/exception and the other didn't. |
-| `LENGTHMISMATCH` | CRITICAL | One log ended before the other — one side executed fewer instructions. |
+| `LENGTHMISMATCH` | CRITICAL | One log ended before the other — one side executed fewer instructions. An RTL log that ends before the ISS's terminal self-loop is accepted only on a declared halt write (see "Program end" in section 6); a declaration the logs do not bear out is reported as a `LENGTHMISMATCH` of its own. |
 | `SEQGAP` | CRITICAL | Step numbers are not monotone: a gap, duplicate, or reorder was detected. |
 | `X0WRITTEN` | ERROR | The x0 register (hardwired to zero in RISC-V) was written with a non-zero value. Always a hardware bug. |
 | `ALIGNMENTERROR` | ERROR | A memory access was not naturally aligned to its access size (e.g., a 4-byte load at address 0x2002). |
@@ -275,6 +275,16 @@ This lets the orchestrator distinguish "the DUT has a bug" (exit 1) from "the si
 - neither side reported it: counted per field in `not_compared`, not treated as equal.
 
 A source that never prints a field is skipped by name, so the gap is a recorded choice: Spike prints no store size, so compare against it with `--skip-fields mem_size`; Ibex's text trace carries no CSR values, so compare it with `--skip-fields csr_writes` (the field is named `csr_writes` to `--skip-fields` and `csrs` in the reason). A skipped field appears in neither `incomplete_reasons` nor `not_compared`; the result's `config.skip_fields` is where it is recorded.
+
+**Program end.** Spike keeps retiring the program's terminal self-loop (`j .`) until it next polls `tohost`, so its log ends in thousands of copies of one commit. A testbench that halts on a store, as Ibex's SimCtrl does, stops before it retires that loop at all. An RTL log that ends before the ISS log is a `LENGTHMISMATCH` (exit 1), unless the RTL side declares why it stopped:
+
+```bash
+python compare_commitlogs.py rtl.jsonl iss.jsonl --rtl-ended '{"reason": "halt_write", "addr": "0x00020008"}'
+```
+
+The declaration is the same one the orchestrator takes as `rtl_results["rtl_ended"]` (#178). It travels beside the logs, since the commit-log schema has no log-level slot, and it is checked against them, never trusted. The early end is accepted only if the last RTL entry is a store to `addr`, and the ISS's terminal self-loop (its first entry whose next entry repeats its PC) starts exactly where the RTL log ends, with only that loop and its repeats left. Nothing about an address is built into the comparator; it comes from the declaration. A declaration that fails any of this (another address, a log that stops short of the store or mid-program, another instruction between the store and the loop, a log that ran into the loop, a reason other than `halt_write`, a value that is not a mapping) is reported as a `LENGTHMISMATCH` that names what failed, whether or not the lengths differ. The declaration never excuses anything else: a divergence before the halt still fails.
+
+An accepted early end is recorded, not silent: the result JSON's `program_end` holds `{"pc", "index", "iss_repeats_dropped", "rtl_repeats_dropped": 0, "end": "rtl_stopped_before_terminal_loop", "rtl_ended": {"reason", "addr"}}`, and `config.rtl_ended` holds the declaration as given. Without a declaration nothing changes: the same logs still give `LENGTHMISMATCH`. A declaration does not license an ISS remainder that is not a terminal self-loop. If the run stops at its first mismatch (`--max-mismatches`, the default), a declaration is only checked if no earlier mismatch ended the run, since that run has already failed.
 
 In manifest mode an incomplete run records `phases.compare.status` and `status` as `infra_error` (the schema has no `incomplete` state) with the reasons in `phases.compare.error`.
 
@@ -569,6 +579,7 @@ The primary structured output. Schema version 3.0. Contains:
 | `stats` | Steps, mismatches, elapsed time, per-type counts |
 | `rtl_sha256` / `iss_sha256` | Checksums for audit trail |
 | `config` | The exact `CompareConfig` used, for reproducibility |
+| `program_end` | `null`, or what was cut when the RTL log ended on a declared halt write (see section 6) |
 
 ### JUnit XML (`--junit ci.xml`)
 
@@ -608,6 +619,7 @@ All comparison behaviour is controlled through `CompareConfig`. Every knob has a
 | `--no-align-check` | `check_alignment` | `True` | Disable ALIGNMENTERROR |
 | `--csr-order-sensitive` | `csr_write_order_sensitive` | `False` | Require CSR writes in same order |
 | `--strict` | `strict_steps` | `False` | Abort on any step discontinuity |
+| `--rtl-ended JSON` | `rtl_ended` | `None` | The RTL side's declaration of why its log stopped, `{"reason": "halt_write", "addr": "0x..."}`; see "Program end" in section 6 |
 
 ### Tolerance
 

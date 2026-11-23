@@ -339,6 +339,17 @@ class CompareConfig:
     expected_iss_sha256: Optional[str] = None
     """Same as expected_rtl_sha256 but for the ISS log."""
 
+    # ── Program end ──────────────────────────────────────────────────────────
+    rtl_ended: Any = None
+    """The DUT side's own account of why its log stopped (#180):
+    ``{"reason": "halt_write", "addr": "0x..."}``, for a testbench that halts on
+    a store and so never retires the terminal self-loop Spike keeps retiring.
+    None declares nothing, and an RTL log that ends before the ISS log is then a
+    LENGTHMISMATCH.  The declaration is an attestation, checked against the logs
+    and never trusted (see `_DeclaredStop`); one that fails a check is a finding
+    of its own.  It is carried beside the logs, not in them: the commit-log
+    schema has no log-level slot."""
+
     # ── Context ───────────────────────────────────────────────────────────────
     window: int = 32
     """Prior commits to attach as context in each mismatch record."""
@@ -624,6 +635,29 @@ def _mem_from_canonical(d: Dict[str, Any], mask: int):
     return None, None, None, None, errs
 
 
+def _store_addrs(d: Dict[str, Any], mask: int, mem_op: Optional[str],
+                 mem_addr: Optional[int]) -> Tuple[int, ...]:
+    """Addresses of all the stores a record reports.
+
+    `mem_writes` wins when it is a list, as in the orchestrator's `_stores`;
+    otherwise the legacy flat fields.  An address that does not parse is left
+    out, so it can never match a declared halt address.
+    """
+    writes = d.get("mem_writes")
+    if isinstance(writes, list):
+        out: List[int] = []
+        for w in writes:
+            if isinstance(w, dict) and w.get("addr") is not None:
+                try:
+                    out.append(_parse_hex(w["addr"], "mem_writes.addr") & mask)
+                except ValueError:
+                    pass
+        return tuple(out)
+    if mem_op == "store" and mem_addr is not None:
+        return (mem_addr,)
+    return ()
+
+
 def _trap_from_canonical(d: Dict[str, Any], mask: int):
     """Extract (cause, tval, epc) from a canonical nested trap object.
 
@@ -694,6 +728,11 @@ class CommitEntry:
     # Compared fields the record did not carry at all (key absent or null), as
     # opposed to carrying them empty: "regs", "stores", "csrs".  Set by from_dict (#164, #176).
     unreported:      FrozenSet[str] = field(default_factory=frozenset)
+
+    # Address of every store the record reports (mem_writes may hold two for an
+    # access that crosses a word); the comparison itself reads only the first.
+    # Used to check a declared halt write (#180).  Never compared.
+    store_addrs:     Tuple[int, ...] = ()
 
     @staticmethod
     def from_dict(
@@ -788,6 +827,8 @@ class CommitEntry:
                     ("csrs",   ("csrs", "csr_writes")),
                 ) if all(d.get(k) is None for k in keys)
             ),
+            store_addrs = _store_addrs(d, mask, c_op or d.get("mem_op"),
+                                       c_addr if c_op else _h("mem_addr")),
         )
         if e.rd == 0 and e.rd_val is not None and e.rd_val != 0:
             e.x0_violation = True
@@ -943,6 +984,9 @@ class CompareResult:
     incomplete_reasons: List[str] = field(default_factory=list)
     # Per field, the entries where neither side reported it: not compared.
     not_compared: Dict[str, int]  = field(default_factory=dict)
+    # Set when the RTL log legitimately ended before the ISS's terminal
+    # self-loop on a declared halt write: what was declared and what was cut (#180).
+    program_end: Optional[Dict[str, Any]] = None
 
     @property
     def status(self) -> str:
@@ -985,6 +1029,7 @@ class CompareResult:
             "status":         self.status,
             "incomplete_reasons": list(self.incomplete_reasons),
             "not_compared":   dict(self.not_compared),
+            "program_end":    self.program_end,
             "stats":          self.stats.to_dict(),
             "rtl_log":        self.rtl_log,
             "iss_log":        self.iss_log,
@@ -1686,6 +1731,107 @@ def _reader_thread(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# Program end: a declared halt write (#180)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+#: The only stop reason a DUT may declare for a log that ends before the ISS's
+#: terminal self-loop: its testbench halted on a store to `addr` (#178).
+HALT_WRITE = "halt_write"
+RTL_STOPPED_BEFORE_LOOP = "rtl_stopped_before_terminal_loop"
+
+
+class _DeclaredStop:
+    """Checks a DUT's declared stop against the two logs as they stream past.
+
+    The same rule as the orchestrator's `ava_patched.declared_stop_problems`,
+    over streams instead of lists; tests/test_comparator_differential.py holds
+    the two to the same verdict.  The declaration is an attestation by the DUT
+    side and is never trusted: the last RTL entry must be a store to `addr`, and
+    when the ISS reaches a terminal self-loop (its first entry whose next entry
+    repeats its PC), the RTL log must end exactly before it with only the loop
+    and its repeats left on the ISS side.
+    """
+
+    def __init__(self, declared: Any) -> None:
+        self.declared = declared
+        self.n_rtl = 0
+        self.last_rtl: Optional[CommitEntry] = None
+        self.n_iss = 0
+        self.loop_index: Optional[int] = None    # the ISS's terminal self-loop
+        self.loop_pc: Optional[int] = None
+        self._pc_before_loop: Optional[int] = None
+        self._only_the_loop_after = True
+        self._prev: Optional[int] = None         # pc of the last two ISS entries
+        self._prev2: Optional[int] = None
+
+    def see_rtl(self, e: "CommitEntry") -> None:
+        self.n_rtl += 1
+        self.last_rtl = e
+
+    def see_iss(self, e: "CommitEntry") -> None:
+        idx, self.n_iss = self.n_iss, self.n_iss + 1
+        if self.loop_index is None:
+            if self._prev is not None and e.pc == self._prev:
+                self.loop_index, self.loop_pc = idx - 1, e.pc
+                self._pc_before_loop = self._prev2
+        elif e.pc != self.loop_pc:
+            self._only_the_loop_after = False
+        self._prev2, self._prev = self._prev, e.pc
+
+    def shown(self) -> str:
+        d = self.declared
+        return (f"{d.get('reason')} at {d.get('addr')}" if isinstance(d, dict) else repr(d))
+
+    def problems(self) -> List[str]:
+        """Why the declared stop is not borne out by the logs; [] if it is."""
+        d = self.declared
+        if not isinstance(d, dict):
+            return [f"expected a mapping, got {type(d).__name__}"]
+        if d.get("reason") != HALT_WRITE:
+            return [f"reason {d.get('reason')!r} is not {HALT_WRITE!r}"]
+        try:
+            addr = int(str(d.get("addr")), 0)
+        except ValueError:
+            return [f"addr {d.get('addr')!r} is not an address"]
+        last = self.last_rtl
+        if last is None:
+            return ["the RTL log is empty"]
+        out: List[str] = []
+        if addr not in last.store_addrs:
+            out.append(f"the last RTL entry (pc {last.fmt_pc()}) is not a store to {addr:#x}")
+        if self.loop_index is not None:
+            if self.n_rtl != self.loop_index:
+                out.append(
+                    f"the RTL log has {self.n_rtl} entries and the ISS reaches its terminal "
+                    f"self-loop at entry {self.loop_index}, so the loop is not all the ISS has "
+                    f"after the last RTL entry")
+            elif last.pc != self._pc_before_loop:
+                out.append(f"the last RTL entry is at {last.fmt_pc()}, the ISS has "
+                           f"{_fmt_hex(self._pc_before_loop)} there")
+            elif not self._only_the_loop_after:
+                out.append("the ISS has other instructions after its terminal self-loop")
+        return out
+
+    def rejection(self) -> Optional[str]:
+        probs = self.problems()
+        if not probs:
+            return None
+        return f"Declared RTL stop ({self.shown()}) rejected: " + "; ".join(probs)
+
+    def accepted_early_end(self) -> Optional[Dict[str, Any]]:
+        """The program_end summary if the RTL log legitimately ended before the
+        ISS's terminal self-loop, else None.  A bare early end with no terminal
+        loop on the ISS side is not one: the declaration says why the RTL
+        stopped, not that the ISS has nothing more to run."""
+        if self.problems() or self.loop_index is None or self.n_rtl != self.loop_index:
+            return None
+        return {"pc": _fmt_hex(self.loop_pc), "index": self.loop_index,
+                "iss_repeats_dropped": self.n_iss - self.loop_index,
+                "rtl_repeats_dropped": 0, "end": RTL_STOPPED_BEFORE_LOOP,
+                "rtl_ended": {"reason": self.declared["reason"], "addr": self.declared["addr"]}}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # Core streaming comparator
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1743,6 +1889,8 @@ def compare(
     if iss_bin:
         parts += ["--iss-bin", shlex.quote(iss_bin)]
     parts += ["--xlen", str(cfg.xlen), "--window", str(cfg.window)]
+    if cfg.rtl_ended is not None:
+        parts += ["--rtl-ended", shlex.quote(json.dumps(cfg.rtl_ended, default=str))]
     if repro_extra_args:
         parts.append(repro_extra_args)
     repro_cmd = " ".join(parts)
@@ -1755,6 +1903,11 @@ def compare(
 
     not_reported: set = set()
     not_compared: Dict[str, int] = {}
+
+    # The DUT's declared stop, if it made one: checked against what streams past.
+    stop = _DeclaredStop(cfg.rtl_ended) if cfg.rtl_ended is not None else None
+    stop_checked = False
+    program_end: Optional[Dict[str, Any]] = None
 
     def _add(m: Mismatch) -> None:
         m.repro_cmd      = repro_cmd
@@ -1830,6 +1983,7 @@ def compare(
 
     try:
         rtl_done = iss_done = False
+        both_ended = False
 
         while not _limit():
             # ── dequeue one entry from each side ─────────────────────────────
@@ -1842,6 +1996,8 @@ def compare(
                     rtl_done = True
                 else:
                     r = item
+                    if stop is not None:
+                        stop.see_rtl(r)
 
             if not iss_done:
                 item = iss_q.get()
@@ -1849,6 +2005,8 @@ def compare(
                     iss_done = True
                 else:
                     i = item
+                    if stop is not None:
+                        stop.see_iss(i)
 
             if rtl_done and iss_done:
                 # Final thread-error check before exit
@@ -1857,6 +2015,7 @@ def compare(
                         raise LogFormatError(
                             f"{side_label} reader thread failed: {err_box[0]}"
                         ) from err_box[0]
+                both_ended = True
                 break
 
             stats.total_steps += 1
@@ -1873,12 +2032,34 @@ def compare(
                 which   = "RTL" if rtl_done else "ISS"
                 present = i if rtl_done else r
                 snum    = present.step if present else stats.total_steps
+                rejected: Optional[str] = None
+                if stop is not None:
+                    # One log has more: read all of it, then see whether the
+                    # DUT's declaration is borne out by the two (#180).
+                    stop_checked = True
+                    longer_q, see, err_box, longer = (
+                        (iss_q, stop.see_iss, iss_err, "ISS") if rtl_done
+                        else (rtl_q, stop.see_rtl, rtl_err, "RTL"))
+                    while True:
+                        item = longer_q.get()
+                        if item is _QUEUE_SENTINEL:
+                            break
+                        see(item)
+                    if err_box[0] is not None:
+                        raise LogFormatError(
+                            f"{longer} reader thread failed: {err_box[0]}") from err_box[0]
+                    if rtl_done:
+                        program_end = stop.accepted_early_end()
+                        if program_end is not None:
+                            break
+                    rejected = stop.rejection()
                 _add(Mismatch(
                     mismatch_type   = MismatchType.LENGTH_MISMATCH,
                     severity        = Severity.CRITICAL,
                     description     = (
                         f"{which} log ended at step {snum}; "
                         "the other log has more commits."
+                        + (f" {rejected}" if rejected else "")
                     ),
                     step            = snum,
                     rtl_entry       = r.to_dict() if r else None,
@@ -1938,6 +2119,25 @@ def compare(
                 if _limit():
                     break
 
+        # Both logs ended together: a declaration is still checked against them,
+        # or one that did not hold (the last RTL entry is not the halt store)
+        # would pass because no length check could see it (#180).
+        if stop is not None and both_ended and not stop_checked and not _limit():
+            stop_checked = True
+            rejected = stop.rejection()
+            if rejected is not None:
+                _add(Mismatch(
+                    mismatch_type   = MismatchType.LENGTH_MISMATCH,
+                    severity        = Severity.CRITICAL,
+                    description     = rejected,
+                    step            = stats.total_steps,
+                    rtl_entry       = stop.last_rtl.to_dict() if stop.last_rtl else None,
+                    iss_entry       = None,
+                    differing_field = "rtl_ended",
+                    rtl_value       = stop.shown(),
+                    iss_value       = None,
+                ))
+
     finally:
         # Drain queues so producer threads can unblock and exit cleanly
         for q_obj in (rtl_q, iss_q):
@@ -1969,6 +2169,7 @@ def compare(
         config     = _serialise_cfg(cfg),
         incomplete_reasons = sorted(not_reported),
         not_compared       = dict(not_compared),
+        program_end        = program_end,
     )
 
 
@@ -2311,6 +2512,12 @@ def print_summary(
             f"{st.elapsed_s:.3f}s — no mismatches\n",
             _GREEN + _BOLD, use_color,
         ))
+        pe = result.program_end
+        if pe:
+            d = pe["rtl_ended"]
+            _p(f"  RTL log ended before the terminal self-loop at {pe['pc']}, on its "
+               f"declared {d['reason']} at {d['addr']}; {pe['iss_repeats_dropped']} "
+               f"ISS entries from the loop on were not compared")
         if st.rtl_parse_warnings or st.iss_parse_warnings:
             _p(_c(
                 f"  ⚠ Parse warnings: RTL={st.rtl_parse_warnings} "
@@ -2833,6 +3040,13 @@ def _build_parser() -> argparse.ArgumentParser:
     cmp.add_argument("--no-align-check", action="store_true",
                      help="Disable ALIGNMENTERROR checks for unaligned memory accesses")
     cmp.add_argument("--csr-order-sensitive", action="store_true")
+    cmp.add_argument("--rtl-ended", default=None, metavar="JSON",
+                     help="the RTL side's declaration of why its log stopped, as JSON: "
+                          "'{\"reason\": \"halt_write\", \"addr\": \"0x...\"}'. An RTL log "
+                          "may end before the ISS's terminal self-loop only if the last "
+                          "RTL entry is a store to that address and the ISS has only "
+                          "the loop after it; a declaration the logs do not bear out is "
+                          "a mismatch of its own")
     cmp.add_argument("--strict", action="store_true",
                      help="Abort on step-number discontinuities")
 
@@ -2878,6 +3092,18 @@ def _build_parser() -> argparse.ArgumentParser:
     return p
 
 
+def _parse_rtl_ended(text: Optional[str]) -> Any:
+    """The `--rtl-ended` JSON, or None when none was given.  Text that is not
+    JSON is kept as the string it is, so the check reports it as a declaration
+    that is not a mapping instead of dropping it (#180)."""
+    if text is None:
+        return None
+    try:
+        return json.loads(text)
+    except ValueError:
+        return text
+
+
 def _build_cfg(args: argparse.Namespace) -> CompareConfig:
     ignored: FrozenSet[int] = frozenset(
         int(a, 16) if a.lower().startswith("0x") else int(a)
@@ -2899,6 +3125,7 @@ def _build_cfg(args: argparse.Namespace) -> CompareConfig:
         max_mismatches            = max_m,
         stop_on_first             = not args.all,
         window                    = args.window,
+        rtl_ended                 = _parse_rtl_ended(args.rtl_ended),
     )
 
 
@@ -2972,7 +3199,8 @@ def main(argv: Optional[List[str]] = None) -> int:
         cfg = None
         # Pass through any explicitly-set comparison flags to manifest mode
         if any([args.skip_fields, args.ignore_csrs, args.no_x0_check,
-                args.no_align_check, args.csr_order_sensitive, args.strict]):
+                args.no_align_check, args.csr_order_sensitive, args.strict,
+                args.rtl_ended is not None]):
             try:
                 cfg = _build_cfg(args)
             except (ValueError, TypeError) as exc:
