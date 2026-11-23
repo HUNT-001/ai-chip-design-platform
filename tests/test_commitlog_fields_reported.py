@@ -382,3 +382,19 @@ def test_the_cli_exits_1_on_a_malformed_log(tmp_path):
 def test_the_cli_exits_3_when_it_cannot_read_the_log(tmp_path):
     proc = _cli(tmp_path / "missing.jsonl")
     assert proc.returncode == 3, proc.stdout + proc.stderr
+
+
+def test_the_cli_verdict_does_not_depend_on_the_console_encoding(tmp_path):
+    """#147: a log's own non-ASCII text must not turn exit 1 (malformed) into a
+    crash under an ASCII console, which would also exit 1 for the wrong reason."""
+    rec = dict(small("ibex/csr")[0], _src="rétl", disasm="addi é")
+    p = _write(tmp_path / "na.jsonl", [rec])
+    import os
+    for enc in ("utf-8", "ascii"):
+        env = dict(os.environ, PYTHONIOENCODING=enc)
+        proc = subprocess.run([sys.executable, str(VALIDATOR), str(p)], cwd=REPO_ROOT, env=env,
+                              capture_output=True, timeout=120)
+        out = proc.stdout + proc.stderr
+        assert b"UnicodeEncodeError" not in out and b"Traceback" not in out, (enc, out[-400:])
+        assert proc.returncode == 1, (enc, out[-400:])
+        assert b"MALFORMED" in proc.stdout and b"_src" in proc.stdout, (enc, out[-400:])

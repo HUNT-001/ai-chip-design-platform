@@ -42,6 +42,7 @@ DEEP = {
 
 #: In-scope scripts driven only to --help: the final print is NOT reached.
 UNREACHED = {
+    'AGENT_A/commitlog_validator.py': '--help only here; every print is ASCII-escaped (backslashreplace, or json.dumps), so it never prints non-ASCII and cannot be DEEP; a non-ASCII log under an ASCII console is driven in tests/test_commitlog_fields_reported.py; plus the static print-path guard',
     'AGENT_A/semantic_analyzer.py': '--help only; its final print needs inputs this test does not build; plus the static print-path guard',
     'AGENT_B/backends/run_rtl.py': 'needs a Verilator build and an ELF to reach the Done prints; plus the static print-path guard',
     'AGENT_B/testbench_generator.py': '--help only; its final print needs inputs this test does not build; plus the static print-path guard',
