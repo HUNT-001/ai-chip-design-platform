@@ -5,7 +5,7 @@ ISS. It also covers what each producer in the tree can and cannot report, and
 how to check a log before you compare it.
 
 The schema is `AGENT_A/commitlog.schema.json` (2.2.0). The validator is
-`AGENT_A/commitlog_validator.py`. Anything marked **planned (PR 2/3/4 of
+`AGENT_A/commitlog_validator.py`. Anything marked **planned (PR 3/4 of
 #177)** is not implemented yet. Do not rely on it.
 
 ## 1. Two formats
@@ -94,7 +94,8 @@ An empty value is a report. An absent key is not.
 omitted)" means no trap, and AGENT_D reads an absent `trap` as `False`
 (`AGENT_D/compare_commitlogs.py`, `CommitEntry.from_dict`). So a producer that
 cannot see traps looks like a core that never traps. A headerless log has no way
-to say otherwise. A header can (section 4).
+to say otherwise. A header can (section 4), and AGENT_D honours it: under a
+header that does not list `trap`, the trap channel is not reported.
 
 ## 4. `fields_reported`: the log header (schema 2.2.0)
 
@@ -123,15 +124,19 @@ The four rules:
    no `trap` key is an error, not "no trap".
 2. **A field one side lists and the other does not** gives exit 3 with
    `field_not_reported:<field>:<side>`. This is the existing behaviour, and the
-   header makes it cover `trap` too. **Planned (PR 2/3 of #177).**
+   header makes it cover `trap` too. AGENT_D does this (PR 2 of #177); the
+   orchestrator is **planned (PR 3 of #177)**.
 3. **A field neither side lists** is recorded in the verdict as
-   `fields_not_compared`. **Planned (PR 2/3 of #177).**
+   `fields_not_compared`. AGENT_D does this (PR 2 of #177); the orchestrator
+   is **planned (PR 3 of #177)**.
 4. **A record that carries a field the list does not name** makes the log
    malformed, even when its value is null. A producer may not claim less than
    it emits.
 
 The validator (section 8) enforces the header's shape and rules 1 and 4. Rules
-2 and 3 are comparator behaviour. Today neither comparator reads the header.
+2 and 3 are comparator behaviour. AGENT_D reads the header and enforces all
+four: a log that breaks its header is malformed and exits 2, as unreadable
+input (`AGENT_D/README.md`, section 6). The orchestrator does not read it yet.
 
 Under a header, a producer that cannot see traps leaves `trap` out of the list
 and off every record. The trap channel is then named as not reported instead of
@@ -245,21 +250,21 @@ taught about it yet. Measured on the four Ibex/Spike pairs in
 
 - the orchestrator counts the header as an instruction. With a header on one
   side only, it reports a PC and program-end mismatch.
-- AGENT_D skips it with a parse warning, and raises on it under
-  `--max-parse-errors 0`.
+- AGENT_D reads it (PR 2 of #177): see section 4.
 - `AGENT_C/run_iss.validate_commitlog` and
   `AGENT_A.semantic_analyzer.validate_record` flag it as a bad record.
 
-Until those readers handle it (**planned, PR 2/3 of #177**), validate a headed
-log with this validator, but do not hand it to a comparator.
+Until the other readers handle it (**planned, PR 3 of #177**), validate a
+headed log with this validator, and hand it only to AGENT_D.
 
 ## 9. Legacy logs and deprecation
 
 A log with no header is a legacy log. It is valid in 2.2.0, with records at
 2.1.0 or 2.2.0. It is checked against the record schema only, and the report
 says `fields_reported: "undeclared"`. Comparators keep today's per-field
-inference for it (section 3). Recording `fields_reported: undeclared (legacy)` in
-the verdict is **planned (PR 2/3 of #177)**.
+inference for it (section 3). AGENT_D records `"fields_reported": {"rtl": …,
+"iss": …}` in its result, with `"undeclared (legacy)"` for a headerless side;
+the orchestrator is **planned (PR 3 of #177)**.
 
 Every producer in the tree writes headerless 2.1.0 logs today:
 `AGENT_C/spike_parser.py` and both `validation/ibex` converters. Moving them to
