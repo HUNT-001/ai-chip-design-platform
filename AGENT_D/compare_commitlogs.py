@@ -104,6 +104,7 @@ __all__ = [
     "Severity",
     "ComparatorError",
     "LogFormatError",
+    "MalformedLogError",
     "ParseError",
     "ConfigError",
     # AVA exit-code constants
@@ -125,6 +126,33 @@ EXIT_CONFIG   = 3   # configuration / manifest error (bad paths, missing fields)
 #: Exit 3 is "could not compare": a configuration error, or a field exactly one
 #: side reports (#164).  Neither is a divergence, and neither is a pass.
 EXIT_INCOMPLETE = EXIT_CONFIG
+
+# ── The log header: fields_reported (#177, schema 2.2.0) ──────────────────────
+#: A log may open with {"_header": {"schema_version": "2.2.0", "fields_reported": [...]}}.
+HEADER_KEY = "_header"
+HEADER_SCHEMA_VERSION = "2.2.0"
+#: What the result records for a side whose log has no header.
+LEGACY_FIELDS_REPORTED = "undeclared (legacy)"
+#: The names a header may list: every record property but the identity fields
+#: (AGENT_A/commitlog.schema.json, $defs.log_header).  Copied rather than read
+#: from AGENT_A so AGENT_D runs from any directory;
+#: tests/test_agent_d_fields_reported.py holds the copy to the schema.
+DECLARABLE_FIELDS = frozenset({
+    "cycle", "disasm", "priv", "trap", "regs", "csrs", "mem_writes", "mem_reads",
+    "fp_regs", "mem_seq", "mem_order_tag", "perf_counters", "clk_domain",
+    "reset_event", "power_state", "_run_id",
+})
+#: The schema's identity fields, which every record carries and no header lists.
+IDENTITY_FIELDS = frozenset({"schema_version", "hart", "seq", "pc", "instr", "instr_width", "_src"})
+#: The declarable fields this comparator compares, by record property name.
+COMPARED_FIELDS = ("csrs", "mem_writes", "priv", "regs", "trap")
+#: AGENT_D's pre-schema spellings of declarable fields.  A declared log uses the
+#: schema's names only, or `rd` would report registers its header says it does not.
+_LEGACY_KEYS = {
+    "rd": "regs", "rd_val": "regs", "csr_writes": "csrs", "privilege": "priv",
+    "mem_addr": "mem_writes", "mem_val": "mem_writes", "mem_op": "mem_writes",
+    "mem_size": "mem_writes", "trap_cause": "trap", "trap_tval": "trap", "trap_pc": "trap",
+}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -255,6 +283,14 @@ class ParseError(ComparatorError):
         self.line   = line
         self.cause  = cause
         super().__init__(f"{path}:{lineno}: {cause}  — {line[:80]!r}")
+
+
+class MalformedLogError(LogFormatError):
+    """A declared (headered) log that breaks its own header (#177).
+
+    It is unreadable input, like a log that cannot be opened: the CLI exits
+    EXIT_INFRA (2), never 0 or 1, because nothing was compared.  The message
+    names the side, the line and the field."""
 
 
 class StepError(ComparatorError):
@@ -987,6 +1023,10 @@ class CompareResult:
     # Set when the RTL log legitimately ended before the ISS's terminal
     # self-loop on a declared halt write: what was declared and what was cut (#180).
     program_end: Optional[Dict[str, Any]] = None
+    # Each side's header list, or LEGACY_FIELDS_REPORTED for a headerless log (#177).
+    fields_reported: Dict[str, Any] = field(default_factory=dict)
+    # Compared fields neither side's header lists: not compared, never equal.
+    fields_not_compared: List[str] = field(default_factory=list)
 
     @property
     def status(self) -> str:
@@ -1029,6 +1069,8 @@ class CompareResult:
             "status":         self.status,
             "incomplete_reasons": list(self.incomplete_reasons),
             "not_compared":   dict(self.not_compared),
+            "fields_reported": dict(self.fields_reported),
+            "fields_not_compared": list(self.fields_not_compared),
             "program_end":    self.program_end,
             "stats":          self.stats.to_dict(),
             "rtl_log":        self.rtl_log,
@@ -1232,6 +1274,63 @@ def _sha256(path: str) -> Optional[str]:
         return None
 
 
+def _parse_header(obj: Dict[str, Any], where: str) -> List[str]:
+    """The sorted fields_reported of a header record, or MalformedLogError.
+
+    The header's shape is the schema's `$defs.log_header`: exactly
+    `{"_header": {"schema_version": "2.2.0", "fields_reported": [...]}}`, the
+    list holding distinct declarable names (docs/dut_commit_log.md section 4)."""
+    def bad(why: str) -> MalformedLogError:
+        return MalformedLogError(f"{where}: malformed log: header {why}")
+
+    extra = sorted(k for k in obj if k != HEADER_KEY)
+    if extra:
+        raise bad(f"record carries {extra} besides {HEADER_KEY!r}")
+    h = obj[HEADER_KEY]
+    if not isinstance(h, dict):
+        raise bad(f"{HEADER_KEY!r} is a {type(h).__name__}, not an object")
+    for k in sorted(set(h) - {"schema_version", "fields_reported"}):
+        raise bad(f"key {k!r} is not defined by the format")
+    for k in ("schema_version", "fields_reported"):
+        if k not in h:
+            raise bad(f"has no {k!r}")
+    if h["schema_version"] != HEADER_SCHEMA_VERSION:
+        raise bad(f"schema_version is {h['schema_version']!r}, not {HEADER_SCHEMA_VERSION!r}")
+    fr = h["fields_reported"]
+    if not isinstance(fr, list):
+        raise bad(f"fields_reported is a {type(fr).__name__}, not a list")
+    for name in fr:
+        if not isinstance(name, str) or name not in DECLARABLE_FIELDS:
+            why = ("an identity field, carried by every record" if name in IDENTITY_FIELDS
+                   else "not a field a producer may leave out")
+            raise bad(f"lists {name!r}, which is {why}")
+        if fr.count(name) > 1:
+            raise bad(f"lists {name!r} more than once")
+    return sorted(fr)
+
+
+def _check_declared(d: Any, declared: FrozenSet[str], where: str) -> None:
+    """Hold one record to its log's header, rules 1 and 4 (#177): every listed
+    field present (null is a value), nothing unlisted, even null."""
+    if not isinstance(d, dict):
+        return      # not a record at all: from_dict reports it as today
+    for f in sorted(declared):
+        if f not in d:
+            raise MalformedLogError(
+                f"{where}: malformed log: {f!r} is listed in fields_reported but missing "
+                f"from this record (under a header, null is 'none here'; absence is not)")
+    for f in sorted(DECLARABLE_FIELDS - declared):
+        if f in d:
+            raise MalformedLogError(
+                f"{where}: malformed log: this record carries {f!r}, which "
+                f"fields_reported does not list")
+    for k in sorted(_LEGACY_KEYS):
+        if k in d:
+            raise MalformedLogError(
+                f"{where}: malformed log: this record carries {k!r}, the legacy "
+                f"spelling of {_LEGACY_KEYS[k]!r}; a declared log uses the schema's names")
+
+
 def _iter_commits(
     fh:               io.TextIOBase,
     *,
@@ -1240,24 +1339,38 @@ def _iter_commits(
     max_parse_errors: int          = 10,
     stats:            Optional[CompareStats] = None,
     side:             str          = "?",
+    header_box:       Optional[Dict[str, Any]] = None,
 ) -> Iterator[CommitEntry]:
     """Yield CommitEntry objects from an open JSONL handle.
 
     Handles:
     * Blank lines and lines starting with # or //
+    * A header record on the first line (#177): never yielded.  Its
+      fields_reported goes into ``header_box["fields"]`` before any entry is
+      yielded; a headerless log puts LEGACY_FIELDS_REPORTED there.  Under a
+      header every record is held to it, and a record or header that breaks
+      it raises MalformedLogError whatever max_parse_errors says
     * Malformed JSON: warn-and-skip up to max_parse_errors, then stop
     * CommitEntry validation failures: same tolerance
     * x0 invariant violations: sets entry.x0_violation, increments stats
     """
     parse_errors = 0
+    first = True
+    declared: Optional[FrozenSet[str]] = None
+    n_records = 0
+    box = header_box if header_box is not None else {}
     for lineno, raw in enumerate(fh, 1):
         stripped = raw.strip()
         if not stripped or stripped[0] in ("#", "/"):
             continue
 
+        where = f"[{side}] {path}:{lineno}"
         try:
             d = json.loads(stripped)
         except json.JSONDecodeError as exc:
+            if first:
+                first = False
+                box["fields"] = LEGACY_FIELDS_REPORTED
             parse_errors += 1
             _log.warning("[%s] %s:%d: JSON error: %s", side, path, lineno, exc)
             if stats is not None:
@@ -1272,6 +1385,21 @@ def _iter_commits(
                            side, path, max_parse_errors)
                 return
             continue
+
+        if isinstance(d, dict) and HEADER_KEY in d:
+            if not first:
+                raise MalformedLogError(
+                    f"{where}: malformed log: a header record must be the first line, and "
+                    f"only one is allowed" + (" (this is a second header)" if declared is not None else ""))
+            first = False
+            declared = frozenset(_parse_header(d, where))
+            box["fields"] = sorted(declared)
+            continue
+        if first:
+            first = False
+            box["fields"] = LEGACY_FIELDS_REPORTED
+        if declared is not None:
+            _check_declared(d, declared, where)
 
         try:
             entry = CommitEntry.from_dict(d, xlen=xlen, lineno=lineno, source=path)
@@ -1303,7 +1431,19 @@ def _iter_commits(
             _log.warning("[%s] schema violation: line=%d step=%d: %s",
                          side, lineno, entry.step, "; ".join(entry.schema_errors))
 
+        # A header that does not list trap: this producer cannot see traps, so
+        # the absent key is "not reported", not "no trap" (#177).  A headerless
+        # log keeps reading it as "no trap", as before.
+        if declared is not None and "trap" not in declared:
+            entry.unreported = entry.unreported | {"trap"}
+
+        n_records += 1
         yield entry
+
+    if first:
+        box["fields"] = LEGACY_FIELDS_REPORTED      # an empty log declares nothing
+    elif declared is not None and n_records == 0:
+        raise MalformedLogError(f"[{side}] {path}: malformed log: a header and no records")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1414,6 +1554,9 @@ class _FieldComparator:
         note("privilege", rtl.privilege is None, iss.privilege is None, ("privilege",))
         if not {"mem_addr", "mem_val", "mem_op"}.issubset(self._skip):
             note("stores", "stores" in rtl.unreported, "stores" in iss.unreported, ())
+        # Only a header can make trap unreported; a headerless log reads an
+        # absent trap as "no trap", so this never fires for one (#177).
+        note("trap", "trap" in rtl.unreported, "trap" in iss.unreported, ("trap",))
         if rtl.mem_op is not None and rtl.mem_op == iss.mem_op:
             note("store_addr", rtl.mem_addr is None, iss.mem_addr is None, ("mem_addr",))
             note("store_data", rtl.mem_val is None, iss.mem_val is None, ("mem_val",))
@@ -1485,7 +1628,10 @@ class _FieldComparator:
             return issues   # fetch divergence → rest not comparable
 
         # ── 5. Trap signalling ────────────────────────────────────────────────
-        if "trap" not in self._skip:
+        # A side whose header does not list trap has no trap to compare: its
+        # False is "not reported", and coverage() names the gap (#177).
+        if ("trap" not in self._skip
+                and "trap" not in rtl.unreported and "trap" not in iss.unreported):
             if rtl.trap != iss.trap:
                 issues.append((
                     MismatchType.TRAP_MISMATCH,
@@ -1711,6 +1857,7 @@ def _reader_thread(
     side:             str,
     q:                "queue.Queue[Any]",
     error_box:        List[Optional[Exception]],
+    header_box:       Optional[Dict[str, Any]] = None,
 ) -> None:
     """Producer: open log → parse → enqueue CommitEntry objects."""
     try:
@@ -1719,7 +1866,7 @@ def _reader_thread(
             for entry in _iter_commits(
                 fh, path=path, xlen=xlen,
                 max_parse_errors=max_parse_errors,
-                stats=stats, side=side,
+                stats=stats, side=side, header_box=header_box,
             ):
                 q.put(entry)
         finally:
@@ -1963,15 +2110,18 @@ def compare(
     iss_q:     "queue.Queue[Any]" = queue.Queue(maxsize=_QUEUE_DEPTH)
     rtl_err:   List[Optional[Exception]] = [None]
     iss_err:   List[Optional[Exception]] = [None]
+    # Each side's fields_reported, set by its reader before its first entry (#177).
+    rtl_hdr:   Dict[str, Any] = {}
+    iss_hdr:   Dict[str, Any] = {}
 
     rtl_thread = threading.Thread(
         target=_reader_thread,
-        args=(rtl_path, cfg.xlen, cfg.max_parse_errors, stats, "RTL", rtl_q, rtl_err),
+        args=(rtl_path, cfg.xlen, cfg.max_parse_errors, stats, "RTL", rtl_q, rtl_err, rtl_hdr),
         daemon=True, name="rtl-reader",
     )
     iss_thread = threading.Thread(
         target=_reader_thread,
-        args=(iss_path, cfg.xlen, cfg.max_parse_errors, stats, "ISS", iss_q, iss_err),
+        args=(iss_path, cfg.xlen, cfg.max_parse_errors, stats, "ISS", iss_q, iss_err, iss_hdr),
         daemon=True, name="iss-reader",
     )
     rtl_thread.start()
@@ -2045,6 +2195,10 @@ def compare(
                         if item is _QUEUE_SENTINEL:
                             break
                         see(item)
+                    if rtl_done:
+                        iss_done = True
+                    else:
+                        rtl_done = True
                     if err_box[0] is not None:
                         raise LogFormatError(
                             f"{longer} reader thread failed: {err_box[0]}") from err_box[0]
@@ -2119,6 +2273,23 @@ def compare(
                 if _limit():
                     break
 
+        # A declared log is read to its end even when the comparison stopped
+        # early (first mismatch, a short peer): a record that breaks its header
+        # makes the whole log unreadable, so it must not leave behind a verdict
+        # on the part that was read (#177).  A headerless log is not read
+        # further, as before.
+        for q_obj, ended, err_box, hdr, label in (
+                (rtl_q, rtl_done, rtl_err, rtl_hdr, "RTL"),
+                (iss_q, iss_done, iss_err, iss_hdr, "ISS")):
+            if not isinstance(hdr.get("fields"), list):
+                continue
+            if not ended:
+                while q_obj.get() is not _QUEUE_SENTINEL:
+                    pass
+            if err_box[0] is not None:
+                raise LogFormatError(
+                    f"{label} reader thread failed: {err_box[0]}") from err_box[0]
+
         # Both logs ended together: a declaration is still checked against them,
         # or one that did not hold (the last RTL entry is not the halt store)
         # would pass because no length check could see it (#180).
@@ -2155,6 +2326,16 @@ def compare(
         stats.total_steps, stats.total_mismatches, stats.elapsed_s,
     )
 
+    fields_reported = {"rtl": rtl_hdr.get("fields", LEGACY_FIELDS_REPORTED),
+                       "iss": iss_hdr.get("fields", LEGACY_FIELDS_REPORTED)}
+    # Neither side lists it: known only when both sides have a list.  A legacy
+    # side declares nothing; its fields are inferred per record and show up,
+    # as before, in not_compared.
+    fields_not_compared: List[str] = []
+    if all(isinstance(v, list) for v in fields_reported.values()):
+        fields_not_compared = [f for f in COMPARED_FIELDS
+                               if f not in fields_reported["rtl"] and f not in fields_reported["iss"]]
+
     return CompareResult(
         passed     = len(results) == 0 and not not_reported,
         stats      = stats,
@@ -2170,6 +2351,8 @@ def compare(
         incomplete_reasons = sorted(not_reported),
         not_compared       = dict(not_compared),
         program_end        = program_end,
+        fields_reported    = fields_reported,
+        fields_not_compared = fields_not_compared,
     )
 
 
@@ -2518,6 +2701,9 @@ def print_summary(
             _p(f"  RTL log ended before the terminal self-loop at {pe['pc']}, on its "
                f"declared {d['reason']} at {d['addr']}; {pe['iss_repeats_dropped']} "
                f"ISS entries from the loop on were not compared")
+        if result.fields_not_compared:
+            _p("  Not compared, neither log reports it: "
+               + ", ".join(result.fields_not_compared))
         if st.rtl_parse_warnings or st.iss_parse_warnings:
             _p(_c(
                 f"  ⚠ Parse warnings: RTL={st.rtl_parse_warnings} "
