@@ -222,6 +222,16 @@ except ImportError:
         _COVERAGE_PIPELINE_PATH,
     )
 
+# A commit log's fields_reported header (#177).  Stdlib only and in the tree,
+# so it is imported unconditionally: a reader that cannot read the header must
+# not run.
+from AGENT_A.commitlog_header import (
+    LEGACY_FIELDS_REPORTED,
+    MalformedLogError,
+    split_log,
+    strip_header,
+)
+
 # ── Logging ───────────────────────────────────────────────────────────────────
 _LOG_FMT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 logging.basicConfig(
@@ -620,6 +630,7 @@ class CommitLogComparator:
         rtl_log:  List[Dict[str, Any]],
         iss_log:  List[Dict[str, Any]],
         context_before: int = 5,
+        fields_reported: Optional[Dict[str, Any]] = None,
     ) -> Tuple[List[BugReport], Dict[str, Any]]:
         """
         Compare RTL and ISS commit logs and say what could not be compared.
@@ -629,12 +640,34 @@ class CommitLogComparator:
         side reported (the run cannot verify it, which is not a mismatch), and
         report["not_compared"] counts, per field, the entries where neither
         side reported it (#164).
+
+        `fields_reported` is each side's header list, or LEGACY_FIELDS_REPORTED
+        (#177).  The logs passed here are records only: the caller has already
+        split the header off (`split_log`).  When at least one side has a
+        header, register writes and traps follow the same reported/absent rule
+        as stores, as AGENT_D does.  An unlisted trap is not reported, and a
+        headerless side's absent trap means "no trap".  With no header on
+        either side, the comparison is unchanged: traps are not compared (#159).
         """
         bugs: List[BugReport] = []
         not_reported: set = set()
         not_compared: Dict[str, int] = {}
         rtl_idx = iss_idx = 0
         n_rtl, n_iss = len(rtl_log), len(iss_log)
+        fr = fields_reported or {}
+        declared = any(isinstance(fr.get(s), list) for s in ("rtl", "iss"))
+
+        def note(field: str, rtl_has: bool, iss_has: bool) -> bool:
+            """True when both sides report `field` on this entry."""
+            if not rtl_has and not iss_has:
+                not_compared[field] = not_compared.get(field, 0) + 1
+            elif not rtl_has or not iss_has:
+                not_reported.add(f"field_not_reported:{field}:" + ("rtl" if not rtl_has else "iss"))
+            return rtl_has and iss_has
+
+        def trap_reported(side: str) -> bool:
+            side_fr = fr.get(side)
+            return not isinstance(side_fr, list) or "trap" in side_fr
 
         # Quick length check
         if abs(n_rtl - n_iss) > max(n_rtl, n_iss) * 0.05:
@@ -740,10 +773,69 @@ class CommitLogComparator:
                         repro=ctx,
                     ))
 
+            if declared:
+                # A register write is reported when the record carries one
+                # (`regs`, or the legacy `rd` of a headerless side).  The value
+                # check above is unchanged; this names what it could not see.
+                note("regs",
+                     rtl_e.get("regs") is not None or rtl_e.get("rd") is not None,
+                     iss_e.get("regs") is not None or iss_e.get("rd") is not None)
+                if note("trap", trap_reported("rtl"), trap_reported("iss")):
+                    bugs.extend(self._trap_issues(
+                        rtl_e, iss_e, not_reported,
+                        rtl_log[max(0, rtl_idx - context_before): rtl_idx + 1]))
+
             rtl_idx += 1
             iss_idx += 1
 
         return bugs, {"not_reported": sorted(not_reported), "not_compared": not_compared}
+
+    @staticmethod
+    def _trap_issues(rtl_e: Dict[str, Any], iss_e: Dict[str, Any],
+                     not_reported: set, ctx: List[Dict[str, Any]]) -> List[BugReport]:
+        """Trap findings for a pair where both sides report traps (#177).
+
+        `trap: null` (or no key, on a headerless side) is "no trap taken here".
+        A trap on one side only is a finding.  When both trap, cause, tval
+        and epc are compared where both sides give them.  A value that only
+        one side gives is not reported (`trap_cause`, `trap_tval`, `trap_pc`),
+        the labels AGENT_D uses."""
+        def trapped(e: Dict[str, Any]) -> bool:
+            return isinstance(e.get("trap"), dict) or bool(e.get("trap", False))
+
+        def num(v: Any) -> Any:
+            if isinstance(v, str):
+                try:
+                    return int(v, 0)
+                except ValueError:
+                    return v.lower()
+            return v
+
+        def bug(what: str, rv: Any, iv: Any) -> BugReport:
+            return BugReport(
+                kind=MismatchKind.TRAP, severity="high",
+                pc=rtl_e.get("pc", "?"), instr=rtl_e.get("instr", "?"),
+                rtl_value=str(rv), iss_value=str(iv),
+                description=f"Trap mismatch at PC {rtl_e.get('pc')} ({what}): RTL={rv} ISS={iv}",
+                repro=ctx)
+
+        if trapped(rtl_e) != trapped(iss_e):
+            return [bug("a trap on one side only", rtl_e.get("trap"), iss_e.get("trap"))]
+        if not trapped(rtl_e):
+            return []
+        rt, it = rtl_e["trap"], iss_e["trap"]
+        if not (isinstance(rt, dict) and isinstance(it, dict)):
+            return []
+        issues: List[BugReport] = []
+        for key, label in (("cause", "trap_cause"), ("tval", "trap_tval"), ("epc", "trap_pc")):
+            rv, iv = rt.get(key), it.get(key)
+            if rv is None and iv is None:
+                continue
+            if rv is None or iv is None:
+                not_reported.add(f"field_not_reported:{label}:" + ("rtl" if rv is None else "iss"))
+            elif num(rv) != num(iv):
+                issues.append(bug(f"{key} differs", rv, iv))
+        return issues
 
     @classmethod
     def _stores(cls, entry: Dict[str, Any]) -> Optional[List[Any]]:
@@ -1504,7 +1596,8 @@ class SpikeISS:
             perf = self._calculate_performance(rtl_results)
 
             # Security analysis
-            commit_log = rtl_results.get("commit_log", [])
+            # The records, not the fields_reported header (#177).
+            commit_log = strip_header(rtl_results.get("commit_log", []))
             security_checks, sec_warnings = self._security.analyze(commit_log)
 
             result = VerificationResult(
@@ -1528,6 +1621,9 @@ class SpikeISS:
                     # Fields neither side reported, per field: recorded as
                     # not compared rather than counted as equal (#164).
                     "fields_not_compared": comparison.get("fields_not_compared", {}),
+                    # Each side's fields_reported list, or "undeclared
+                    # (legacy)" for a headerless log (#177).
+                    "fields_reported": comparison.get("fields_reported", {}),
                     # Simulators that produced no commit log: nothing was
                     # compared, so the run cannot claim to have verified (#138).
                     # Likewise an RTL simulation that exited non-zero: the
@@ -1844,19 +1940,42 @@ class SpikeISS:
 
         Falls back to instruction-count comparison when one or both logs
         are stubs (empty).
+
+        A log may open with a fields_reported header (#177).  It is split off
+        here and is never counted, compared or used to find the program's end.
+        A declared log that breaks its header is malformed.  Nothing is then
+        compared, and the side, line and field go into `unobserved`, so the
+        run is incomplete (exit 3): never a pass, and never a finding.
+        `fields_reported` records each side's list, or LEGACY_FIELDS_REPORTED
+        for a headerless log.
         """
-        rtl_log = rtl_results.get("commit_log", [])
-        iss_log = iss_results.get("commit_log", [])
         warnings: List[str] = []
         bugs: List[Dict[str, Any]] = []
+        malformed: List[str] = []
+        fields_reported: Dict[str, Any] = {}
+        logs: Dict[str, List[Dict[str, Any]]] = {}
+        counts: Dict[str, int] = {}
+        for side, res in (("rtl", rtl_results), ("iss", iss_results)):
+            raw = res.get("commit_log", []) or []
+            try:
+                logs[side], fields_reported[side] = split_log(raw, side)
+            except MalformedLogError as exc:
+                logs[side], fields_reported[side] = strip_header(raw), "malformed"
+                malformed.append(exc.reason)
+                warnings.append(f"{exc}; the logs were not compared")
+            n = res.get("instructions", 0)
+            # A count taken from the log as a list counted the header too.
+            counts[side] = len(logs[side]) if (len(logs[side]) != len(raw)
+                                                and n == len(raw)) else n
+        rtl_log, iss_log = logs["rtl"], logs["iss"]
 
         # Stub detection
-        if rtl_results.get("stub") or not rtl_log:
+        if rtl_results.get("stub") or (not rtl_log and fields_reported["rtl"] != "malformed"):
             warnings.append(
                 "RTL commit log is empty (sim binary missing or not built). "
                 "Differential comparison skipped."
             )
-        if iss_results.get("stub") or not iss_log:
+        if iss_results.get("stub") or (not iss_log and fields_reported["iss"] != "malformed"):
             warnings.append(
                 "ISS commit log is empty (Spike missing or ELF not found). "
                 "Differential comparison skipped."
@@ -1865,7 +1984,9 @@ class SpikeISS:
         program_end: Optional[Dict[str, Any]] = None
         unobserved: List[str] = []
         fields_not_compared: Dict[str, int] = {}
-        if rtl_log and iss_log:
+        if malformed:
+            unobserved = sorted(malformed)
+        elif rtl_log and iss_log:
             # Compare the program, not Spike's tohost spin after it (#165).
             # A DUT whose testbench halts on a store says so beside its log;
             # the comparator checks that against the log (#178).
@@ -1881,7 +2002,11 @@ class SpikeISS:
             loop = asyncio.get_event_loop()
             bug_reports, field_report = await loop.run_in_executor(
                 None,
-                lambda: self._comparator.compare_with_report(rtl_cmp, iss_cmp),
+                # Headerless on both sides: the call is exactly what it was.
+                lambda: self._comparator.compare_with_report(
+                    rtl_cmp, iss_cmp,
+                    **({"fields_reported": fields_reported} if any(
+                        isinstance(v, list) for v in fields_reported.values()) else {})),
             )
             unobserved = list(field_report["not_reported"])
             fields_not_compared = dict(field_report["not_compared"])
@@ -1889,9 +2014,8 @@ class SpikeISS:
                 bug_reports = [end_finding] + list(bug_reports)
             bugs = [b.to_dict() for b in bug_reports]
 
-        # Instruction count check (always run)
-        n_rtl = rtl_results.get("instructions", 0)
-        n_iss = iss_results.get("instructions", 0)
+        # Instruction count check (always run).  Records, never the header.
+        n_rtl, n_iss = counts["rtl"], counts["iss"]
         if n_rtl and n_iss and abs(n_rtl - n_iss) > max(n_rtl, n_iss) * 0.02:
             warnings.append(
                 f"Instruction count diverges: RTL={n_rtl} ISS={n_iss}"
@@ -1911,6 +2035,8 @@ class SpikeISS:
             # incomplete (#164).  And the fields neither side reported.
             "unobserved":  unobserved,
             "fields_not_compared": fields_not_compared,
+            # Each side's header list, or "undeclared (legacy)" (#177).
+            "fields_reported": fields_reported,
         }
 
     # ── Coverage calculation ───────────────────────────────────────────────

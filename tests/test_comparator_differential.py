@@ -263,3 +263,87 @@ def test_the_halt_cases_are_not_vacuous():
     assert len(HALT_CASES) >= 15, "cases were deleted"
     rtl, iss, declaration, expect_fail = HALT_CASES["declared_halt"]
     assert len(rtl) < len(iss) and declaration is not None and not expect_fail
+
+
+# ── fields_reported: the log header (#177) ────────────────────────────────────
+#
+# Headered variants of the real Ibex and Spike logs (tests/fields_reported_cases.py),
+# each with an outcome written from docs/dut_commit_log.md section 4.  Both tools
+# must reach that outcome.  The exit codes are the same except for one
+# outcome, which is mapped here and not hidden:
+#
+#   outcome      orchestrator   AGENT_D
+#   pass         0              0
+#   finding      1              1
+#   incomplete   3              3      field_not_reported:<field>:<side>
+#   malformed    3              2      a declared log that breaks its header
+#
+# AGENT_D exits 2 for any input it cannot read.  The orchestrator's convention
+# is that anything it cannot verify is incomplete, 3.  Neither is a pass and
+# neither is a finding.
+
+_fc_spec = importlib.util.spec_from_file_location(
+    "fields_reported_cases", REPO_ROOT / "tests" / "fields_reported_cases.py")
+fc = importlib.util.module_from_spec(_fc_spec)
+sys.modules["fields_reported_cases"] = fc
+_fc_spec.loader.exec_module(fc)
+FIELDS_CASES = fc.build_cases()
+
+#: case -> (issue, which tool is wrong).  Empty unless a real divergence is found.
+KNOWN_FIELDS_DIVERGENCE = {}
+
+
+def _orchestrator_exit(tmp_path, case):
+    from ava_patched import exit_code_for_status, verdict_from_reports, with_unobserved
+    rtl_results = {"commit_log": copy.deepcopy(case.rtl), "instructions": len(case.rtl)}
+    if case.rtl_ended is not None:
+        rtl_results["rtl_ended"] = copy.deepcopy(case.rtl_ended)
+    sim = SpikeISS(timeout=30, run_dir=tmp_path / "orch")
+    c = asyncio.run(sim._compare_results(
+        rtl_results, {"commit_log": copy.deepcopy(case.iss), "instructions": len(case.iss)}))
+    status = verdict_from_reports(with_unobserved({}, list(c.get("unobserved", []))), c["bugs"])
+    return exit_code_for_status(status), c
+
+
+def _agent_d_exit(tmp_path, case):
+    paths = []
+    for tag, log in (("rtl", case.rtl), ("iss", case.iss)):
+        p = tmp_path / f"fr_{tag}.jsonl"
+        p.write_bytes("".join(json.dumps(e) + "\n" for e in log).encode("utf-8"))
+        paths.append(str(p))
+    cmd = [sys.executable, str(REPO_ROOT / "AGENT_D" / "compare_commitlogs.py"), *paths,
+           *case.agent_d_skips]
+    if case.rtl_ended is not None:
+        cmd += ["--rtl-ended", json.dumps(case.rtl_ended)]
+    r = subprocess.run(cmd, cwd=REPO_ROOT, capture_output=True, text=True, timeout=120)
+    return r.returncode, (r.stdout or "") + (r.stderr or "")
+
+
+@pytest.mark.parametrize("name", sorted(FIELDS_CASES))
+def test_orchestrator_and_agent_d_agree_on_fields_reported(tmp_path, name):
+    case = FIELDS_CASES[name]
+    want_orch, want_d = fc.EXPECTED_EXIT[case.expect]
+    orch, c = _orchestrator_exit(tmp_path, case)
+    agent_d, out = _agent_d_exit(tmp_path, case)
+    if name in KNOWN_FIELDS_DIVERGENCE:
+        assert (orch, agent_d) != (want_orch, want_d), (
+            f"{name} no longer diverges; remove it from KNOWN_FIELDS_DIVERGENCE "
+            f"({KNOWN_FIELDS_DIVERGENCE[name]})")
+        return
+    assert agent_d == want_d, f"{name}: AGENT_D expected {want_d}, got {agent_d}:\n{out[-800:]}"
+    assert orch == want_orch, (
+        f"{name}: orchestrator expected {want_orch}, got {orch}; "
+        f"bugs={[b['description'][:120] for b in c['bugs']]} unobserved={c.get('unobserved')}")
+    # Same reason on both sides, not just the same exit code.
+    if case.expect == "incomplete":
+        assert case.reason in out and case.reason in c["unobserved"], (name, c["unobserved"])
+    if case.expect == "malformed":
+        side, field = case.reason.split(":")[1], case.reason.split(":")[3]
+        assert "malformed log" in out and f"[{side.upper()}]" in out, out[-800:]
+        assert field == "header" or f"'{field}'" in out, out[-800:]
+        assert case.reason in c["unobserved"] and c["bugs"] == [], (name, c["unobserved"])
+
+
+def test_the_fields_cases_are_not_vacuous():
+    assert {c.expect for c in FIELDS_CASES.values()} == set(fc.EXPECTED_EXIT)
+    assert len(FIELDS_CASES) >= 21, "cases were deleted"
