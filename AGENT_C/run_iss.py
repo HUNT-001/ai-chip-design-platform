@@ -79,6 +79,9 @@ from iss_efficiency import record_manifest_run  # noqa: E402
 # that already resolves from this directory changes.
 sys.path.append(str(_SELF_DIR.parent))
 from ava_shared.manifest_io import atomic_update_manifest  # noqa: E402,F401
+from AGENT_A.commitlog_header import (  # noqa: E402
+    HEADER_SCHEMA_VERSION, MalformedLogError, check_record, is_header, parse_header,
+)
 
 # ── Logging setup ───────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -362,13 +365,22 @@ def validate_commitlog(path: Path, sample_size: int = 200) -> List[str]:
     Validates against AVA schema v2.0.0:
       schema_version, seq, pc, instr, src, hart, fpregs
 
+    A log may open with a fields_reported header (#177, docs/dut_commit_log.md
+    section 4).  It is not a record: it is skipped, `seq` is counted from the
+    first record, and every record under it must be 2.2.0 and follow the
+    header.  A header that is malformed, repeated or not first, or a record
+    that breaks it, is an error naming the line and the field.
+
     Returns list of error strings (empty means OK).
     """
     errors: List[str] = []
+    declared = None
+    offset = 0                  # 1 under a header: line 0 is not a record
+    n_records = 0
     try:
         with open(path, encoding="utf-8") as f:
             for i, raw in enumerate(f):
-                if i >= sample_size:
+                if i - offset >= sample_size:
                     break
                 try:
                     rec = json.loads(raw)
@@ -376,26 +388,49 @@ def validate_commitlog(path: Path, sample_size: int = 200) -> List[str]:
                     errors.append(f"Line {i}: JSON parse error: {exc}")
                     continue
 
+                if is_header(rec):
+                    try:
+                        if i != 0:
+                            raise MalformedLogError(
+                                "log", i + 1, "header", "a header record must be the first "
+                                "line, and only one is allowed")
+                        declared = frozenset(parse_header(rec, "log", i + 1))
+                        offset = 1
+                    except MalformedLogError as exc:
+                        errors.append(f"Line {i}: {exc}")
+                    continue
+                if declared is not None:
+                    try:
+                        check_record(rec, declared, "log", i + 1)
+                    except MalformedLogError as exc:
+                        errors.append(f"Line {i}: {exc}")
+                seq_expected = i - offset
+                n_records += 1
+
                 # Mandatory v2.1.0 fields
                 for fld in ("schema_version", "seq", "pc", "instr", "src", "hart"):
                     if fld not in rec:
                         errors.append(f"Line {i}: missing '{fld}'")
 
-                if "schema_version" in rec and rec["schema_version"] != SCHEMA_VERSION:
+                want_version = HEADER_SCHEMA_VERSION if declared is not None else SCHEMA_VERSION
+                if "schema_version" in rec and rec["schema_version"] != want_version:
                     errors.append(f"Line {i}: schema_version='{rec['schema_version']}' "
-                                  f"expected '{SCHEMA_VERSION}'")
+                                  f"expected '{want_version}'")
                 if "pc" in rec and not _PC_RE.match(str(rec["pc"])):
                     errors.append(f"Line {i}: invalid pc='{rec['pc']}'")
                 if "instr" in rec and not _INSTR_RE.match(str(rec["instr"])):
                     errors.append(f"Line {i}: invalid instr='{rec['instr']}'")
-                if "seq" in rec and rec["seq"] != i:
-                    errors.append(f"Line {i}: seq={rec['seq']} expected {i}")
+                if "seq" in rec and rec["seq"] != seq_expected:
+                    errors.append(f"Line {i}: seq={rec['seq']} expected {seq_expected}")
                 if "src" in rec and rec["src"] not in ("rtl", "iss", "formal"):
                     errors.append(f"Line {i}: invalid src='{rec['src']}'")
                 if "hart" in rec and not isinstance(rec["hart"], int):
                     errors.append(f"Line {i}: hart must be int, got {type(rec['hart']).__name__}")
     except OSError as exc:
         errors.append(f"Cannot open {path}: {exc}")
+        return errors
+    if declared is not None and n_records == 0:
+        errors.append(str(MalformedLogError("log", None, "header", "a header and no records")))
     return errors
 
 

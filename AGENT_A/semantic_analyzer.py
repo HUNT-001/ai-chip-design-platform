@@ -26,6 +26,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
+try:
+    from .commitlog_header import MalformedLogError, is_header, parse_header, split_log
+except ImportError:     # run as a script from AGENT_A/
+    from commitlog_header import MalformedLogError, is_header, parse_header, split_log
+
 log = logging.getLogger("AGENT_A.semantic")
 
 SCHEMA_VERSION = "2.1.0"
@@ -93,11 +98,28 @@ def _is_hex(v: Any) -> bool:
     return isinstance(v, str) and bool(_HEX.match(v))
 
 
-def validate_record(rec: Any, idx: int = 0) -> List[str]:
-    """Return a list of human-readable errors for one commit-log record."""
+def validate_record(rec: Any, idx: int = 0, declared: bool = False) -> List[str]:
+    """Return a list of human-readable errors for one commit-log record.
+
+    A fields_reported header (#177) is a valid first record (`idx` 0) when its
+    shape is right, and an error anywhere else.  Whether the records follow
+    it is a property of the whole log: see `SemanticAnalyzer.analyze`.
+
+    `declared` is True for a record under a header.  There a listed field is
+    on every record and null is its "none here", so a null `mem_reads` or
+    `mem_writes` is accepted, as the schema allows."""
     errs: List[str] = []
     if not isinstance(rec, dict):
         return [f"record[{idx}]: not an object"]
+    if is_header(rec):
+        if idx != 0:
+            return [f"record[{idx}]: malformed log: a header record must be the first "
+                    f"line, and only one is allowed"]
+        try:
+            parse_header(rec, "log", 1)
+        except MalformedLogError as exc:
+            return [f"record[{idx}]: {exc}"]
+        return []
     for f in ("schema_version", "seq", "pc", "disasm"):
         if f not in rec:
             errs.append(f"record[{idx}]: missing required field '{f}'")
@@ -111,7 +133,7 @@ def validate_record(rec: Any, idx: int = 0) -> List[str]:
         if f in rec and not isinstance(rec[f], dict):
             errs.append(f"record[{idx}]: '{f}' must be an object")
     for f in ("mem_reads", "mem_writes"):
-        if f in rec:
+        if f in rec and not (declared and rec[f] is None):
             if not isinstance(rec[f], list):
                 errs.append(f"record[{idx}]: '{f}' must be an array")
             else:
@@ -203,11 +225,17 @@ class SemanticAnalyzer:
     def analyze(self) -> Dict[str, Any]:
         started = _now()
         rec_errors: List[str] = []
+        try:
+            split_log(self.commit_log, "log")   # a declared log held to its header (#177)
+        except MalformedLogError as exc:
+            rec_errors.append(str(exc))
+        declared = bool(self.commit_log) and is_header(self.commit_log[0])
         for i, rec in enumerate(self.commit_log):
-            rec_errors.extend(validate_record(rec, i))
+            rec_errors.extend(validate_record(rec, i, declared))
             if len(rec_errors) >= self.max_record_errors:
                 rec_errors.append("… (truncated)")
                 break
+        n_records = len(self.commit_log) - (1 if declared else 0)
         man_errors = validate_manifest(self.manifest) if self.manifest is not None else []
         dut = extract_dut(self.rtl_text) if self.rtl_text else None
 
@@ -218,7 +246,7 @@ class SemanticAnalyzer:
             "agent": AGENT_NAME,
             "started_at": started,
             "finished_at": _now(),
-            "records_checked": len(self.commit_log),
+            "records_checked": n_records,
             "schema_valid": valid,
             "pass": valid,
             "total_errors": total,

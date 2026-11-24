@@ -5,7 +5,7 @@ ISS. It also covers what each producer in the tree can and cannot report, and
 how to check a log before you compare it.
 
 The schema is `AGENT_A/commitlog.schema.json` (2.2.0). The validator is
-`AGENT_A/commitlog_validator.py`. Anything marked **planned (PR 3/4 of
+`AGENT_A/commitlog_validator.py`. Anything marked **planned (PR 4 of
 #177)** is not implemented yet. Do not rely on it.
 
 ## 1. Two formats
@@ -66,8 +66,9 @@ other record property, and the only names a header may list:
 | `mem_reads` | loads, off by default | no |
 | `cycle`, `perf_counters`, `clk_domain`, `reset_event`, `power_state`, `mem_seq`, `mem_order_tag`, `fp_regs`, `disasm`, `_run_id` | annotations for other agents | no, ignored by design |
 
-The orchestrator does not compare `instr`, `csrs`, `priv` or `trap` at all
-(#159).
+The orchestrator does not compare `instr`, `csrs` or `priv` at all (#159). It
+compares `trap` only when at least one side's log has a header (section 4).
+Between two headerless logs it still does not compare traps.
 
 Before 2.2.0 the schema also required `regs`, `csrs` and `priv`. Both
 comparators already treated an absent `regs`/`csrs` as not reported (#164,
@@ -124,11 +125,13 @@ The four rules:
    no `trap` key is an error, not "no trap".
 2. **A field one side lists and the other does not** gives exit 3 with
    `field_not_reported:<field>:<side>`. This is the existing behaviour, and the
-   header makes it cover `trap` too. AGENT_D does this (PR 2 of #177); the
-   orchestrator is **planned (PR 3 of #177)**.
+   header makes it cover `trap` too. AGENT_D does this (PR 2 of #177). The
+   orchestrator does it for `regs`, stores and `trap`, the fields it compares
+   (PR 3 of #177), and puts the reason in `unobserved`.
 3. **A field neither side lists** is recorded in the verdict as
-   `fields_not_compared`. AGENT_D does this (PR 2 of #177); the orchestrator
-   is **planned (PR 3 of #177)**.
+   `fields_not_compared`. AGENT_D does this (PR 2 of #177), and so does the
+   orchestrator (PR 3 of #177). The orchestrator's `fields_not_compared`
+   counts the entries for each field.
 4. **A record that carries a field the list does not name** makes the log
    malformed, even when its value is null. A producer may not claim less than
    it emits.
@@ -136,7 +139,15 @@ The four rules:
 The validator (section 8) enforces the header's shape and rules 1 and 4. Rules
 2 and 3 are comparator behaviour. AGENT_D reads the header and enforces all
 four: a log that breaks its header is malformed and exits 2, as unreadable
-input (`AGENT_D/README.md`, section 6). The orchestrator does not read it yet.
+input (`AGENT_D/README.md`, section 6). The orchestrator reads it in
+`SpikeISS._compare_results` (`AGENT_A/commitlog_header.py`) and enforces the same
+four rules. The exit code for a malformed log is the one difference: the
+orchestrator exits **3**, incomplete, because its convention is that anything it
+cannot verify is incomplete. The reason in `unobserved` names the side, the line
+and the field, for example `malformed_log:rtl:line7:regs`. It is never a pass and
+never a finding. Nothing is compared, so a mismatch earlier in the log is not
+reported either. `tests/test_comparator_differential.py` holds the two tools to
+the same outcome on every case and maps AGENT_D's 2 to the orchestrator's 3.
 
 Under a header, a producer that cannot see traps leaves `trap` out of the list
 and off every record. The trap channel is then named as not reported instead of
@@ -244,18 +255,26 @@ A line that is not JSON is an error, and so is a log with no records. Blank
 lines are skipped. The validator does not check `seq` continuity or compare
 anything. That is the comparators' job.
 
-A header changes how the current readers see a log, and they have not been
-taught about it yet. Measured on the four Ibex/Spike pairs in
-`validation/ibex/fixtures`:
+These readers read the header (PR 2 and 3 of #177). They skip it, never count
+it as an instruction or a record, and hold the records to it:
 
-- the orchestrator counts the header as an instruction. With a header on one
-  side only, it reports a PC and program-end mismatch.
-- AGENT_D reads it (PR 2 of #177): see section 4.
-- `AGENT_C/run_iss.validate_commitlog` and
-  `AGENT_A.semantic_analyzer.validate_record` flag it as a bad record.
+- AGENT_D (`AGENT_D/compare_commitlogs.py`): see section 4.
+- the orchestrator (`ava_patched.SpikeISS._compare_results`): see section 4.
+  The "RTL=n ISS=m" counts and the program-end alignment (section 5) see
+  records only.
+- `AGENT_C/run_iss.validate_commitlog`: `seq` is counted from the first
+  record, and records under a header must be 2.2.0.
+- `AGENT_A.semantic_analyzer`: `validate_record` accepts a well-formed header
+  as the first record, and `SemanticAnalyzer.analyze` holds the log to it.
 
-Until the other readers handle it (**planned, PR 3 of #177**), validate a
-headed log with this validator, and hand it only to AGENT_D.
+All four share `AGENT_A/commitlog_header.py`, except AGENT_D, which keeps its
+own copy of the field lists so that it runs from any directory.
+`tests/test_orchestrator_fields_reported.py` holds the copy to the schema.
+
+The AGENT_H, AGENT_I and AGENT_K verifiers read `rtl_commit.jsonl` and
+`iss_commit.jsonl` from a run directory. They do not read the header yet. A
+pipeline run never hands them a commit log at all (#161). Run on their own
+against a headered log, they would read the header as a record.
 
 ## 9. Legacy logs and deprecation
 
@@ -263,8 +282,9 @@ A log with no header is a legacy log. It is valid in 2.2.0, with records at
 2.1.0 or 2.2.0. It is checked against the record schema only, and the report
 says `fields_reported: "undeclared"`. Comparators keep today's per-field
 inference for it (section 3). AGENT_D records `"fields_reported": {"rtl": …,
-"iss": …}` in its result, with `"undeclared (legacy)"` for a headerless side;
-the orchestrator is **planned (PR 3 of #177)**.
+"iss": …}` in its result, with `"undeclared (legacy)"` for a headerless side.
+The orchestrator records the same in its comparison and in the run's metadata.
+Neither reader runs the strict validator on a legacy log (#184).
 
 Every producer in the tree writes headerless 2.1.0 logs today:
 `AGENT_C/spike_parser.py` and both `validation/ibex` converters. Moving them to
