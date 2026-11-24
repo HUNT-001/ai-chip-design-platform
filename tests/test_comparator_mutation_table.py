@@ -38,7 +38,8 @@ CLI = REPO_ROOT / "AGENT_D" / "compare_commitlogs.py"
 
 
 def _canonical(name, upto):
-    log = cp.parse_spike_commit_log((FIX / f"{name}.log").read_text(encoding="utf-8"))
+    log = cp.with_trap_vectors(
+        cp.parse_spike_commit_log((FIX / f"{name}.log").read_text(encoding="utf-8")))
     aligned, reason = cp.align_to_entry(log, cp.elf_entry_pc(FIX / f"{name}.elf"))
     assert reason is None
     out = []
@@ -48,6 +49,8 @@ def _canonical(name, upto):
         trap = None
         if e["trap"]:
             trap = {"cause": e["trap"]["cause"], "tval": "0x00000000", "epc": e["trap"]["epc"]}
+            if "tvec" in e["trap"]:
+                trap["tvec"] = e["trap"]["tvec"]
         out.append({"schema_version": "2.1.0", "seq": i, "hart": 0, "pc": e["pc"],
                     "instr": e["instr"], "priv": e["priv"] or "M", "trap": trap,
                     "regs": dict(e["regs"]), "csrs": dict(e["csrs"]), "mem_writes": stores})

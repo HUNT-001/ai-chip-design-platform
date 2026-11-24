@@ -197,12 +197,15 @@ reads it (recorded examples: `tests/fixtures/spike/`):
   derives the size from funct3.
 - **`tval`.** It is not printed on an exception line. The converters write
   `0x00000000`.
-- **`tvec`.** `mtvec` is not printed at a trap, and the schema's `trap_object`
-  requires it. The converted trap records therefore fail the schema today
+- **`tvec` at the trap.** `mtvec` is not printed at a trap, but every write to
+  it is logged. The converters take the last `mtvec` logged before the
+  exception line, mode bits cleared (`AGENT_F/coverage_pipeline.with_trap_vectors`).
+  With no `mtvec` write before the trap, `mtvec` is its reset value, which the
+  log does not show: the trap gets no `tvec` and the record fails the schema
   (#184).
 - **The privilege of a trapping instruction.** Spike prints an exception line
   instead of a commit line, and that line has no privilege digit.
-  `validation/ibex/spike_to_commitlog.py` writes `priv: null` there (#184).
+  `validation/ibex/spike_to_commitlog.py` leaves `priv` off that record (#184).
 - **`cycle` and perf counters.** An ISS has neither. It emits null, or omits
   them.
 - Spike also retires the terminal self-loop until it polls `tohost` (section 5).
