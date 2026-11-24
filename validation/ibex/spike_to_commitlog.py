@@ -8,8 +8,11 @@ shaped by the schema, the same way validation/ibex/trace_to_commitlog.py
 shapes the Ibex side:
 
 * `regs` is the register write, `csrs` the CSR writes, and `priv` Spike's
-  privilege.
-* `trap` is an object on an exception line and null otherwise.
+  privilege.  A trapping record has no `priv`: Spike prints none on an
+  exception line.
+* `trap` is an object on an exception line and null otherwise.  Its `tvec` is
+  the last mtvec Spike logged before the trap, mode bits cleared, and absent
+  when the log holds no mtvec write before it (#184).
 * `mem_writes` appears only on a store, with its size taken from funct3.
   Spike prints no size.
 * Spike prints no `tval`, so a trap carries `0x00000000`, as the mutation
@@ -33,7 +36,7 @@ _STORE_OPCODE = 0b0100011
 
 
 def convert(log_text: str, elf: Path) -> List[Dict[str, Any]]:
-    entries = cp.parse_spike_commit_log(log_text)
+    entries = cp.with_trap_vectors(cp.parse_spike_commit_log(log_text))
     aligned, reason = cp.align_to_entry(entries, cp.elf_entry_pc(elf))
     if reason is not None:
         raise ValueError(f"{elf}: cannot align the Spike log: {reason}")
@@ -46,9 +49,13 @@ def convert(log_text: str, elf: Path) -> List[Dict[str, Any]]:
             "priv": e["priv"], "trap": None,
             "regs": dict(e["regs"]), "csrs": dict(e["csrs"]), "_src": "iss",
         }
+        if e["priv"] is None:   # an exception line prints no privilege
+            del rec["priv"]
         if e["trap"]:
             rec["trap"] = {"cause": e["trap"]["cause"], "tval": "0x00000000",
                            "epc": e["trap"]["epc"]}
+            if "tvec" in e["trap"]:
+                rec["trap"]["tvec"] = e["trap"]["tvec"]
         if (word & 0x7f) == _STORE_OPCODE and not e["trap"]:
             size = 1 << ((word >> 12) & 3)
             rec["mem_writes"] = [{"addr": f"0x{int(m['addr'], 16):08x}", "size": size,

@@ -1450,6 +1450,26 @@ def align_to_entry(
     return kept + entries[start:], None
 
 
+def with_trap_vectors(entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """The entries, each trap given `tvec`: the schema's "mtvec at the moment the
+    trap is taken (BASE field, mode stripped)" (#184).
+
+    Spike prints no mtvec at a trap, but it logs every mtvec write, so the mtvec
+    in force is the last write logged before the exception line.  With none, it
+    is the reset value, which the log does not show, and the trap gets no tvec.
+    Run it on the whole log, before align_to_entry drops anything.
+    """
+    out: List[Dict[str, Any]] = []
+    mtvec: Optional[int] = None
+    for e in entries:
+        if e["trap"] and mtvec is not None:
+            e = {**e, "trap": {**e["trap"], "tvec": f"0x{mtvec & ~3:08x}"}}
+        if "mtvec" in e["csrs"]:
+            mtvec = int(e["csrs"]["mtvec"], 16)
+        out.append(e)
+    return out
+
+
 _DUT_COMMIT_RE = re.compile(
     r"COMMIT\s+pc=(?P<pc>0x[0-9a-fA-F]+)\s+instr=(?P<instr>0x[0-9a-fA-F]+)"
     r"(?:\s+rd=(?P<rd>[xf]\d+)\s+val=(?P<rd_val>0x[0-9a-fA-F]+))?",

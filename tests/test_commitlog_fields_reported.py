@@ -79,15 +79,8 @@ REAL_LOGS = {
        for p in sorted(IBEX_FIX.glob("*.ibex.log"))},
 }
 
-#: #184: the Spike converter writes a trap with no tvec and a null priv
-SPIKE_TRAP_XFAIL = pytest.mark.xfail(
-    strict=True, reason="#184: converted Spike trap record has no tvec and priv null")
-
-
 def _real_log_params():
-    return [pytest.param(name, id=name,
-                         marks=[SPIKE_TRAP_XFAIL] if name == "spike/csr_trap" else [])
-            for name in REAL_LOGS]
+    return [pytest.param(name, id=name) for name in REAL_LOGS]
 
 
 _CACHE = {}
