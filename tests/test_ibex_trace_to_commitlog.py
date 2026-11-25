@@ -14,8 +14,9 @@ Written from two sources, not from the converter:
     insn     "%8h", or "    %4h" for a compressed parcel
     decoded  "<mnemonic>\\t<operands>", prefixed "-->" on a trap, "==>" on an interrupt
 
-* AGENT_A/commitlog.schema.json (2.2.0; the converter writes 2.1.0 records with no
-  header, a legacy log, until #177 PR 4).
+* AGENT_A/commitlog.schema.json (2.2.0).  Since #177 PR 4 the converter writes
+  2.2.0 records under a fields_reported header; under it every listed field is
+  on every record and null is a value, so a non-store has `mem_writes: null`.
 
 The trace has no CSR values, no privilege mode, no trap cause and no perf
 counters.  Those fields must be absent from every record -- not empty, not
@@ -110,7 +111,7 @@ def test_records_are_in_trace_order_with_a_gapless_seq(conv):
 
 def test_fixed_fields_follow_the_schema(conv):
     r = by_pc(records(conv), "0x00100084")
-    assert r["schema_version"] == "2.1.0"
+    assert r["schema_version"] == "2.2.0"
     assert r["hart"] == 0
     assert r["_src"] == "rtl"
     assert r["instr"] == "0x00b50633"
@@ -211,10 +212,12 @@ def test_a_store_opcode_without_store_data_is_refused(conv):
 
 
 def test_only_stores_carry_mem_writes(conv):
-    """Schema: mem_writes is null or absent for every non-store instruction."""
+    """Schema: mem_writes is null or absent for every non-store instruction.
+    Under the header it is listed, so it is present and null."""
     for r in records(conv):
         is_store = r["pc"] in ("0x0010008c", "0x00100090", "0x00100094")
-        assert ("mem_writes" in r) == is_store, r
+        assert "mem_writes" in r, r
+        assert (r["mem_writes"] is not None) == is_store, r
 
 
 def test_loads_are_not_logged_by_default(conv):
@@ -271,4 +274,7 @@ def test_the_cli_writes_one_json_line_per_record(conv, tmp_path):
                           capture_output=True, text=True, timeout=60)
     assert proc.returncode == 0, proc.stderr
     lines = out.read_text(encoding="utf-8").splitlines()
-    assert [json.loads(x) for x in lines] == records(conv)
+    header, *recs = [json.loads(x) for x in lines]
+    assert header == {"_header": {"schema_version": "2.2.0", "fields_reported":
+                                  ["cycle", "disasm", "mem_writes", "regs"]}}
+    assert recs == records(conv)
