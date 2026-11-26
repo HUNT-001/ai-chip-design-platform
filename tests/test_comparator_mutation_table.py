@@ -255,13 +255,9 @@ FINDING_ROWS = frozenset({"spurious_store_declared", "store_dropped_declared"})
 #: Strict xfail: when one is fixed the build fails until the entry is removed.
 KNOWN_GAPS = {
     # orchestrator: no comparison of the instruction word, CSRs, privilege or traps;
-    # only the first register's value; the walk stops at the shorter log (#159)
+    # the walk stops at the shorter log (#159).  Register writes are compared
+    # as a whole, register names included, since #159's register-writes group.
     ("instr_word", "orchestrator"): "#159",
-    ("register_name", "orchestrator"): "#159",
-    ("later_register_write", "orchestrator"): "#159",
-    ("missing_write_rtl", "orchestrator"): "#159",
-    ("missing_write_iss", "orchestrator"): "#159",
-    ("extra_write", "orchestrator"): "#159",
     ("csr_value", "orchestrator"): "#159",
     ("csr_name", "orchestrator"): "#159",
     ("csr_missing_rtl", "orchestrator"): "#159",
@@ -269,11 +265,6 @@ KNOWN_GAPS = {
     ("trap_cause", "orchestrator"): "#159",
     ("trap_missing_rtl", "orchestrator"): "#159",
     ("long_log_1", "orchestrator"): "#159",
-    # AGENT_D: only the first register write is read, and a missing or extra write passes (#159)
-    ("later_register_write", "agent_d"): "#159",
-    ("missing_write_rtl", "agent_d"): "#159",
-    ("missing_write_iss", "agent_d"): "#159",
-    ("extra_write", "agent_d"): "#159",
     # AGENT_D resolves a CSR name it does not know to address 0 (#173)
     ("csr_name", "agent_d"): "#173",
 }

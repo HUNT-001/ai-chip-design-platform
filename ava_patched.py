@@ -707,38 +707,32 @@ class CommitLogComparator:
                 )
                 continue
 
-            # Register write check -- canonical schema uses "regs" dict;
-            # legacy format uses "rd" (name) + "rd_val" (hex str).
-            def _first_reg(entry):
-                regs = entry.get("regs")
-                if isinstance(regs, dict) and regs:
-                    name, val = next(iter(regs.items()))
-                    return name, val
-                return entry.get("rd", ""), entry.get("rd_val", "")
-
-            rd,    rd_rtl = _first_reg(rtl_e)
-            _rd_n, rd_iss = _first_reg(iss_e)
-
-            if rd and rd != "x0" and rd_rtl and rd_iss and rd_rtl != rd_iss:
-                ctx = rtl_log[max(0, rtl_idx - context_before): rtl_idx + 1]
-                severity = (
-                    "critical" if rd in ("sp", "ra", "gp")
-                    else "high"
-                )
-                bugs.append(BugReport(
-                    kind=MismatchKind.REGISTER,
-                    severity=severity,
-                    pc=rtl_e.get("pc", "?"),
-                    instr=rtl_e.get("instr", "?"),
-                    register=rd,
-                    rtl_value=rd_rtl,
-                    iss_value=rd_iss,
-                    description=(
-                        f"Register {rd} mismatch at PC {rtl_e.get('pc')}: "
-                        f"RTL={rd_rtl} ISS={rd_iss}"
-                    ),
-                    repro=ctx,
-                ))
+            # Register writes (#159): when both sides report them, the
+            # record's writes are compared as a whole -- the same registers
+            # with the same values.  A write on one side only is a finding.
+            regs_rtl, regs_iss = self._reg_writes(rtl_e), self._reg_writes(iss_e)
+            if regs_rtl is not None and regs_iss is not None:
+                for reg in sorted(set(regs_rtl) | set(regs_iss), key=str):
+                    r, i = regs_rtl.get(reg), regs_iss.get(reg)
+                    if r is not None and i is not None and r[0] == i[0]:
+                        continue
+                    name = (r or i)[1]
+                    rd_rtl = r[2] if r else "no write"
+                    rd_iss = i[2] if i else "no write"
+                    bugs.append(BugReport(
+                        kind=MismatchKind.REGISTER,
+                        severity="critical" if name in ("sp", "ra", "gp") else "high",
+                        pc=rtl_e.get("pc", "?"),
+                        instr=rtl_e.get("instr", "?"),
+                        register=name,
+                        rtl_value=rd_rtl,
+                        iss_value=rd_iss,
+                        description=(
+                            f"Register {name} mismatch at PC {rtl_e.get('pc')}: "
+                            f"RTL={rd_rtl} ISS={rd_iss}"
+                        ),
+                        repro=rtl_log[max(0, rtl_idx - context_before): rtl_idx + 1],
+                    ))
 
             # Store check (#137, #164).  A side reports its stores as
             # `mem_writes` [{addr, size, data}] (the canonical schema) or as
@@ -845,6 +839,53 @@ class CommitLogComparator:
             elif num(rv) != num(iv):
                 issues.append(bug(f"{key} differs", rv, iv))
         return issues
+
+    #: ABI register names, so `a0` and `x10` are one register.  AGENT_D keeps
+    #: the same table (`_REG_NAME_TO_IDX`); tests/test_register_writes_compared.py
+    #: holds the two comparators to the same outcome.
+    _REG_ABI = {
+        "zero": 0, "ra": 1, "sp": 2, "gp": 3, "tp": 4, "t0": 5, "t1": 6, "t2": 7,
+        "s0": 8, "fp": 8, "s1": 9, "a0": 10, "a1": 11, "a2": 12, "a3": 13,
+        "a4": 14, "a5": 15, "a6": 16, "a7": 17, "s2": 18, "s3": 19, "s4": 20,
+        "s5": 21, "s6": 22, "s7": 23, "s8": 24, "s9": 25, "s10": 26, "s11": 27,
+        "t3": 28, "t4": 29, "t5": 30, "t6": 31,
+    }
+
+    @classmethod
+    def _reg_writes(cls, entry: Dict[str, Any]) -> Optional[Dict[Any, Tuple[Any, str, Any]]]:
+        """The entry's register writes, or None if it does not report them.
+
+        `regs` (the schema) wins; otherwise a legacy `rd`/`rd_val`, where
+        rd "" is "no register written".  Keyed by register index (a name it
+        does not know is kept lowercased), each as (value, name, raw value):
+        the value is a number, so `0xa` equals `0x0000000a`.  A write to x0
+        is dropped on every side: x0 is architecturally zero and the schema
+        forbids it in `regs` (#159).
+        """
+        regs = entry.get("regs")
+        if regs is None:
+            rd = entry.get("rd")
+            if rd is None:
+                return None
+            regs = {rd: entry.get("rd_val", "")} if rd != "" else {}
+        if not isinstance(regs, dict):
+            # malformed evidence never equals anything
+            return {"<malformed regs>": (object(), "regs", repr(regs))}
+        out: Dict[Any, Tuple[Any, str, Any]] = {}
+        for name, val in regs.items():
+            n = str(name).strip().lower()
+            m = re.fullmatch(r"x(\d+)", n)
+            key = cls._REG_ABI.get(n, int(m.group(1)) if m and int(m.group(1)) < 32 else n)
+            if key == 0:
+                continue
+            num = val
+            if isinstance(val, str):
+                try:
+                    num = int(val, 0)
+                except ValueError:
+                    num = val.lower()
+            out[key] = (num, str(name), val)
+        return out
 
     @classmethod
     def _stores(cls, entry: Dict[str, Any]) -> Optional[List[Any]]:
