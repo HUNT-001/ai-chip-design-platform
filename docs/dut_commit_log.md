@@ -78,8 +78,12 @@ optional, and a header (section 4) says whether a producer reports them.
 
 An empty value is a report. An absent key is not.
 
-- `"mem_writes": []` and `"csrs": {}` mean "reported, none here". A missing
-  key (or null, for `regs`/`csrs`) means "this producer did not say".
+- `"mem_writes": []` and `"csrs": {}` mean "reported, none here". In a
+  headerless log, a missing key (or null, for `regs`/`csrs`/`mem_writes`)
+  means "this producer did not say".
+- Under a header (section 4), null on a listed field is a report, never "did
+  not say" (#192). `"mem_writes": null` is "no store", and `"trap": null` is
+  "no trap".
 - **Exactly one side reports a field:** AGENT_D exits 3 with
   `incomplete_reasons: ["field_not_reported:<field>:<side>"]`. This covers
   register write, `csrs`, privilege, store address/data/size and trap
@@ -119,9 +123,16 @@ The four rules:
 
 1. **The list is authoritative.** A listed field missing from any record makes
    the log malformed. A field the list leaves out is not reported. Under a
-   header, null is a value and absence is not. A producer that lists `trap`
+   header, null is a value and absence is not: null on a listed field means
+   "reported, none", never "not reported" (#192). A producer that lists `trap`
    writes `"trap": null` on every record where no trap is taken. A record with
-   no `trap` key is an error, not "no trap".
+   no `trap` key is an error, not "no trap". A producer that lists
+   `mem_writes` writes `"mem_writes": null` on every non-store, since the
+   schema allows no empty list. A store on the other side against that null
+   is a store mismatch, a finding, and null against null is compared and
+   equal. A field whose schema has no null (`regs`, `csrs`, `priv`, `disasm`,
+   `_run_id`) cannot say "none" that way: under a header, null there makes the
+   log malformed. `regs` and `csrs` say it as `{}`.
 2. **A field one side lists and the other does not** gives exit 3 with
    `field_not_reported:<field>:<side>`. This is the existing behaviour, and the
    header makes it cover `trap` too. AGENT_D does this (PR 2 of #177). The
@@ -166,9 +177,12 @@ because the schema allows no empty list. A Spike record with no trap has
 `"trap": null`. In Python, `convert`/`convert_file` return the records, and
 `declared_log` puts the header in front of them.
 
-Both comparators still read `mem_writes: null` as "not reported", even under a
-header, so the non-store records of two declared logs show up as `stores` in
-`not_compared`. That is a reader issue (#192).
+Both comparators read a declared `mem_writes: null` as "no store" (#192), so
+the non-store records of two declared logs are compared and `stores` is not in
+`not_compared`. When only one side has a header, its null is "no store" but
+the headerless side's null is still "not reported". That pair gives
+`field_not_reported:stores:<headerless side>` (exit 3). A store on the
+headerless side against the declared null is a finding.
 
 `AGENT_C/spike_parser.py` does not write a header yet. That is a separate issue.
 

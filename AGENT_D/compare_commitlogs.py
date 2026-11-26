@@ -144,6 +144,11 @@ DECLARABLE_FIELDS = frozenset({
 })
 #: The schema's identity fields, which every record carries and no header lists.
 IDENTITY_FIELDS = frozenset({"schema_version", "hart", "seq", "pc", "instr", "instr_width", "_src"})
+#: Declarable fields the schema gives no null.  Under a header null on a listed
+#: field is "reported, none" (#192); on one of these it is a malformed log.
+#: Copied like DECLARABLE_FIELDS; tests/test_orchestrator_fields_reported.py
+#: holds the copy to the schema.
+NON_NULLABLE_FIELDS = frozenset({"_run_id", "csrs", "disasm", "priv", "regs"})
 #: The declarable fields this comparator compares, by record property name.
 COMPARED_FIELDS = ("csrs", "mem_writes", "priv", "regs", "trap")
 #: AGENT_D's pre-schema spellings of declarable fields.  A declared log uses the
@@ -1311,7 +1316,8 @@ def _parse_header(obj: Dict[str, Any], where: str) -> List[str]:
 
 def _check_declared(d: Any, declared: FrozenSet[str], where: str) -> None:
     """Hold one record to its log's header, rules 1 and 4 (#177): every listed
-    field present (null is a value), nothing unlisted, even null."""
+    field present (null is a value), nothing unlisted, even null.  Null is
+    "reported, none" only where the schema has a null (#192)."""
     if not isinstance(d, dict):
         return      # not a record at all: from_dict reports it as today
     for f in sorted(declared):
@@ -1319,6 +1325,10 @@ def _check_declared(d: Any, declared: FrozenSet[str], where: str) -> None:
             raise MalformedLogError(
                 f"{where}: malformed log: {f!r} is listed in fields_reported but missing "
                 f"from this record (under a header, null is 'none here'; absence is not)")
+        if d[f] is None and f in NON_NULLABLE_FIELDS:
+            raise MalformedLogError(
+                f"{where}: malformed log: {f!r} is null, which the schema does not allow "
+                f"(under a header null is 'reported, none', and {f!r} has no null)")
     for f in sorted(DECLARABLE_FIELDS - declared):
         if f in d:
             raise MalformedLogError(
@@ -1436,6 +1446,11 @@ def _iter_commits(
         # log keeps reading it as "no trap", as before.
         if declared is not None and "trap" not in declared:
             entry.unreported = entry.unreported | {"trap"}
+        # A header that lists mem_writes: the key is on every record, and its
+        # null is "no store here", the only way the schema can say it -- not
+        # "not reported" (#192).  A headerless null keeps meaning not reported.
+        if declared is not None and "mem_writes" in declared:
+            entry.unreported = entry.unreported - {"stores"}
 
         n_records += 1
         yield entry

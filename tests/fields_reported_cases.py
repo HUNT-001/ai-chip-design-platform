@@ -182,7 +182,10 @@ def build_cases() -> Dict[str, Case]:
     cases["regs_listed_by_rtl_only"] = ibex(
         declare(rtl_t, both), declare(iss_c, ["cycle", "mem_writes", "trap"]), "incomplete",
         "field_not_reported:regs:iss")
-    cases["rtl_legacy_iss_declared"] = ibex(copy.deepcopy(rtl), declare(iss, iss_fields), "pass")
+    # The headerless RTL's null is "not reported"; the declared ISS's null is
+    # "no store" (#192).  So stores is reported by one side only.
+    cases["rtl_legacy_iss_declared"] = ibex(copy.deepcopy(rtl), declare(iss, iss_fields),
+                                            "incomplete", "field_not_reported:stores:rtl")
     cases["rtl_declared_iss_legacy"] = ibex(
         declare(rtl, rtl_fields), copy.deepcopy(iss), "incomplete", "field_not_reported:trap:rtl")
     cases["register_mismatch_and_unreported_trap"] = ibex(

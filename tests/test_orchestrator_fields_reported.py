@@ -106,7 +106,9 @@ def test_the_cases_are_not_vacuous():
 @pytest.mark.parametrize("sides", ["both", "rtl", "iss"])
 def test_the_header_is_never_counted_or_compared(tmp_path, prog, sides):
     """A headered copy gives the counts, the program end, the warnings and the
-    findings of the same records with no header."""
+    findings of the same records with no header.  With one side headerless,
+    its null mem_writes is "not reported" while the declared side's is "no
+    store" (#192), so the verdict is exit 3 naming exactly that gap."""
     rtl, iss = fc.ibex_pair(prog)
     fields = fc.COMMON + ["trap"]
     # Ibex cannot see traps and Spike has no cycle: supplied as null.
@@ -119,7 +121,12 @@ def test_the_header_is_never_counted_or_compared(tmp_path, prog, sides):
         rtl_d if sides in ("both", "rtl") else _records(rtl_d),
         iss_d if sides in ("both", "iss") else _records(iss_d), ended)
     assert plain_rc == 0, (prog, plain["bugs"], plain["unobserved"])
-    assert hdr_rc == plain_rc, (prog, sides, hdr["bugs"], hdr["unobserved"])
+    if sides == "both":
+        assert hdr_rc == plain_rc, (prog, sides, hdr["bugs"], hdr["unobserved"])
+    else:
+        legacy = "iss" if sides == "rtl" else "rtl"
+        assert hdr_rc == 3 and hdr["unobserved"] == [f"field_not_reported:stores:{legacy}"], (
+            prog, sides, hdr["bugs"], hdr["unobserved"])
     for key in ("rtl_entries", "iss_entries", "program_end", "warnings", "bugs"):
         assert hdr[key] == plain[key], (prog, sides, key, hdr[key], plain[key])
     assert hdr["rtl_entries"] == len(rtl) and hdr["iss_entries"] == len(iss)

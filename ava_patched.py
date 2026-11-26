@@ -228,6 +228,7 @@ except ImportError:
 from AGENT_A.commitlog_header import (
     LEGACY_FIELDS_REPORTED,
     MalformedLogError,
+    null_is_none,
     split_log,
     strip_header,
 )
@@ -747,6 +748,14 @@ class CommitLogComparator:
             # it is named in not_reported and the run is incomplete, not
             # mismatched.  Neither: counted as not compared.
             w_rtl, w_iss = self._stores(rtl_e), self._stores(iss_e)
+            # Under a header that lists mem_writes, null is "no store here",
+            # the only way the schema can say it, not "not reported" (#192).
+            if w_rtl is None and rtl_e.get("mem_writes", 0) is None and null_is_none(
+                    fr.get("rtl"), "mem_writes"):
+                w_rtl = []
+            if w_iss is None and iss_e.get("mem_writes", 0) is None and null_is_none(
+                    fr.get("iss"), "mem_writes"):
+                w_iss = []
             if w_rtl is None and w_iss is None:
                 not_compared["stores"] = not_compared.get("stores", 0) + 1
             elif w_rtl is None or w_iss is None:
