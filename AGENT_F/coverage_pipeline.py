@@ -1458,11 +1458,17 @@ def with_trap_vectors(entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     in force is the last write logged before the exception line.  With none, it
     is the reset value, which the log does not show, and the trap gets no tvec.
     Run it on the whole log, before align_to_entry drops anything.
+
+    Exceptions only.  In vectored mode (MODE = 1) an exception still goes to
+    BASE, but an interrupt goes to BASE + 4 * cause, so BASE would be the wrong
+    vector for it: an interrupt entry gets no tvec, never BASE.  (Spike's
+    interrupt lines are not parsed into entries today; this guards the day
+    they are.)
     """
     out: List[Dict[str, Any]] = []
     mtvec: Optional[int] = None
     for e in entries:
-        if e["trap"] and mtvec is not None:
+        if e["trap"] and mtvec is not None and not e["trap"].get("is_interrupt"):
             e = {**e, "trap": {**e["trap"], "tvec": f"0x{mtvec & ~3:08x}"}}
         if "mtvec" in e["csrs"]:
             mtvec = int(e["csrs"]["mtvec"], 16)

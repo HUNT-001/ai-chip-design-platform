@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Ibex tracer text log -> commit-log JSONL (AGENT_A/commitlog.schema.json 2.1.0).
+"""Ibex tracer text log -> commit-log JSONL (AGENT_A/commitlog.schema.json 2.2.0).
 
 Input is the file `rtl/ibex_tracer.sv` writes (`trace_core_<hartid>.log`).
 Each line after the header is one retired instruction:
@@ -17,6 +17,13 @@ the record: `csrs` (the tracer prints a CSR's name, never its value), `priv`,
 `trap` (a trap is marked with "-->" but carries no cause, tval or epc), and
 `perf_counters`.  Absent means "not reported"; it is never filled with an
 empty value or a guess, so a comparator can tell the two apart.
+
+The log the CLI writes opens with a fields_reported header (#177,
+docs/dut_commit_log.md section 4) listing exactly FIELDS_REPORTED.  Under it
+every record carries every listed field: a non-store has `"mem_writes": null`
+("reported, none here") and an instruction that writes no register has
+`"regs": {}`.  `convert_lines` and `convert_file` return the records;
+`declared_log` puts the header in front of them, and that is the log.
 
 Loads are not logged (`mem_reads` is off by default in the schema).
 
@@ -38,7 +45,9 @@ import re
 import sys
 from typing import Any, Dict, Iterable, List
 
-SCHEMA_VERSION = "2.1.0"
+SCHEMA_VERSION = "2.2.0"
+#: What the tracer prints, and so all a record carries (see the docstring).
+FIELDS_REPORTED = ("cycle", "disasm", "mem_writes", "regs")
 HEADER = "Time\tCycle\tPC\tInsn\tDecoded instruction\tRegister and memory contents"
 
 # " x5=0x00000001", or the CHERIoT form " x8=0x00110080+0x000000000" that the
@@ -123,7 +132,19 @@ def convert_line(text: str, seq: int) -> Dict[str, Any]:
         rec["mem_writes"] = [_store(pc, word, contents)]
     elif _STORE.search(contents):
         raise ValueError(f"{pc}: store data on a non-store instruction: {contents!r}")
+    else:
+        rec["mem_writes"] = None    # listed in the header: null is "no store here"
     return rec
+
+
+def header_record() -> Dict[str, Any]:
+    return {"_header": {"schema_version": SCHEMA_VERSION,
+                        "fields_reported": list(FIELDS_REPORTED)}}
+
+
+def declared_log(records: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """The log as the CLI writes it: the header, then the records."""
+    return [header_record(), *records]
 
 
 def convert_lines(lines: Iterable[str]) -> List[Dict[str, Any]]:
@@ -146,7 +167,7 @@ def main(argv=None) -> int:
     ap.add_argument("trace")
     ap.add_argument("-o", "--output", default="-")
     args = ap.parse_args(argv)
-    recs = convert_file(args.trace)
+    recs = declared_log(convert_file(args.trace))
     text = "".join(json.dumps(r) + "\n" for r in recs)
     if args.output == "-":
         sys.stdout.write(text)

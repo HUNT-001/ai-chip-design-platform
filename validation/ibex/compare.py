@@ -56,23 +56,37 @@ def load(path: Path) -> List[Dict[str, Any]]:
     return [json.loads(x) for x in path.read_text(encoding="utf-8").splitlines() if x.strip()]
 
 
+def split(log):
+    """(header or None, records).  The converters' logs open with a
+    fields_reported header (#177); the header is not an instruction."""
+    if log and isinstance(log[0], dict) and "_header" in log[0]:
+        return log[0], list(log[1:])
+    return None, list(log)
+
+
+def rejoin(header, records):
+    return ([copy.deepcopy(header)] if header is not None else []) + list(records)
+
+
 def cut(rtl, iss, rtl_ended=None):
-    """Both logs up to the program's end (#165); `rtl_ended` as in #178."""
+    """Both logs up to the program's end (#165); `rtl_ended` as in #178.  Each
+    keeps its header, as the orchestrator does before it aligns (#188)."""
+    (rh, rr), (ih, ir) = split(rtl), split(iss)
     r, i, summary, finding = align_program_end(
-        copy.deepcopy(rtl), copy.deepcopy(iss), rtl_ended)
-    return r, i, summary, finding
+        copy.deepcopy(rr), copy.deepcopy(ir), rtl_ended)
+    return rejoin(rh, r), rejoin(ih, i), summary, finding
 
 
 def orchestrator(rtl, iss, run_dir: Path, rtl_ended=None) -> Dict[str, Any]:
     """`rtl_ended` is the DUT's declaration of why its log stopped, carried with
     the log the way a real run would carry it; None declares nothing."""
     sim = SpikeISS(timeout=30, run_dir=run_dir)
-    rtl_results = {"commit_log": copy.deepcopy(rtl), "instructions": len(rtl)}
+    rtl_results = {"commit_log": copy.deepcopy(rtl), "instructions": len(split(rtl)[1])}
     if rtl_ended is not None:
         rtl_results["rtl_ended"] = copy.deepcopy(rtl_ended)
     c = asyncio.run(sim._compare_results(
         rtl_results,
-        {"commit_log": copy.deepcopy(iss), "instructions": len(iss)}))
+        {"commit_log": copy.deepcopy(iss), "instructions": len(split(iss)[1])}))
     verdict = "mismatch" if c["bugs"] else ("incomplete" if c.get("unobserved") else "pass")
     return {"verdict": verdict,
             "findings": [f"{b.get('kind')}: {b.get('description')}" for b in c["bugs"]],
@@ -127,13 +141,15 @@ def cut_at_halt(rtl, iss):
     there.  Spike runs on until it polls tohost.  This is a second view, kept
     apart from the raw one, so the fields can be judged separately from the
     end-of-test difference.  It cuts only at a store to HALT_ADDR at the same
-    index and PC on both sides, and returns None otherwise.
+    record index and PC on both sides, and returns None otherwise.  Headers
+    are kept and never counted.
     """
+    (rh, rtl), (ih, iss) = split(rtl), split(iss)
     k = next((n for n, e in enumerate(rtl) if is_halt_store(e)), None)
     if k is None or k >= len(iss) or iss[k].get("pc") != rtl[k].get("pc") or not is_halt_store(iss[k]):
         return None
-    return rtl[:k + 1], iss[:k + 1], {"halt_index": k, "rtl_dropped": len(rtl) - k - 1,
-                                      "iss_dropped": len(iss) - k - 1}
+    return rejoin(rh, rtl[:k + 1]), rejoin(ih, iss[:k + 1]), {
+        "halt_index": k, "rtl_dropped": len(rtl) - k - 1, "iss_dropped": len(iss) - k - 1}
 
 
 def compare_pair(rtl, iss, agent_d_extra: Sequence[str] = ()) -> Dict[str, Any]:
@@ -141,11 +157,11 @@ def compare_pair(rtl, iss, agent_d_extra: Sequence[str] = ()) -> Dict[str, Any]:
         td = Path(td)
         rc, ic, summary, finding = cut(rtl, iss, IBEX_RTL_ENDED)
         res = {
-            "rtl_entries": len(rtl), "iss_entries": len(iss),
+            "rtl_entries": len(split(rtl)[1]), "iss_entries": len(split(iss)[1]),
             "orchestrator": orchestrator(rtl, iss, td / "orch", IBEX_RTL_ENDED),
             "agent_d_raw": agent_d(rtl, iss, td, agent_d_extra, IBEX_RTL_ENDED),
             "cut": {"summary": summary, "finding": finding.description if finding else None,
-                    "rtl_entries": len(rc), "iss_entries": len(ic)},
+                    "rtl_entries": len(split(rc)[1]), "iss_entries": len(split(ic)[1])},
             "agent_d_cut": agent_d(rc, ic, td, agent_d_extra),
         }
         h = cut_at_halt(rtl, iss)

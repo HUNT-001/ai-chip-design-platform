@@ -29,6 +29,10 @@ checks that against the log (tests/test_program_end_declared_halt.py,
 tests/test_agent_d_declared_halt.py). The raw runs here carry that declaration;
 test_the_raw_divergence_is_only_the_program_end pins what the undeclared run
 still reports, so the raw rows cannot hide anything else.
+
+Since #177 PR 4 both logs are what the converters' CLIs write: each opens with
+a fields_reported header (`declared_log`).  The Ibex header leaves out csrs,
+priv and trap, so those are named as not reported instead of being inferred.
 """
 import copy
 import functools
@@ -71,8 +75,9 @@ table = _load("comparator_mutation_table", REPO_ROOT / "tests" / "test_comparato
 
 @functools.lru_cache(maxsize=None)
 def _pair(prog):
-    rtl = ibex.convert_file(str(FIX / f"{prog}.ibex.log"))
-    iss = spike.convert((FIX / f"{prog}.spike.log").read_text(encoding="utf-8"), FIX / f"{prog}.elf")
+    rtl = ibex.declared_log(ibex.convert_file(str(FIX / f"{prog}.ibex.log")))
+    iss = spike.declared_log(spike.convert(
+        (FIX / f"{prog}.spike.log").read_text(encoding="utf-8"), FIX / f"{prog}.elf"))
     return rtl, iss
 
 
@@ -133,7 +138,7 @@ def test_every_fixture_is_byte_identical_to_the_recording():
 @pytest.mark.parametrize("prog", PROGRAMS)
 def test_the_ibex_trace_holds_every_retired_instruction(prog):
     """Against the core's own counter, so a truncated trace cannot pass."""
-    rtl, _ = _pair(prog)
+    _, rtl = cmp_.split(_pair(prog)[0])
     assert len(rtl) == IBEX_RETIRED[prog]
     assert cmp_.is_halt_store(rtl[-1]), "the trace does not end at the halt store"
 
@@ -206,11 +211,13 @@ def _b_params():
     for prog in PROGRAMS:
         for c in COMPARATORS:
             for field, token in UNREPORTABLE.items():
-                if c == "orchestrator":
-                    marks = [xfail("#159", "the orchestrator compares no CSRs, privilege, "
-                                           "traps or perf, and says so nowhere")]
-                elif field == "trap":
-                    marks = [xfail("#177", "the schema reads an absent trap as 'no trap'")]
+                # trap: fixed by #177 (PR 4), the Ibex header leaves it out, so
+                # both comparators name it; its two strict xfails are removed.
+                if field == "trap":
+                    marks = []
+                elif c == "orchestrator":
+                    marks = [xfail("#159", "the orchestrator compares no CSRs, privilege "
+                                           "or perf, and says so nowhere")]
                 elif field == "perf_counters":
                     marks = [xfail("#177", "ignored by design, but never named as not compared")]
                 else:
@@ -231,13 +238,13 @@ def test_b_a_field_the_trace_cannot_report_is_named(prog, comparator, field, tok
 # ── (c) the mutation table on the real Ibex log ──────────────────────────────
 
 #: The table's base for these rows is loadstore: it has register writes and
-#: sb/sh/sw stores.  AGENT_D runs with privilege and csr_writes skipped -- the
-#: two fields this channel cannot report, named under (b) -- or its unmutated
+#: sb/sh/sw stores.  AGENT_D runs with privilege, csr_writes and trap skipped --
+#: the fields this channel cannot report, named under (b) -- or its unmutated
 #: baseline is already "incomplete" (#164, #176) and every row would count as
 #: detected.  The skip is explicit and checked: see
 #: test_c_the_declared_skips_are_exactly_what_the_channel_cannot_report.
 BASE_PROG = "loadstore"
-AGENT_D_EXTRA = ("--skip-fields", "privilege", "csr_writes")
+AGENT_D_EXTRA = ("--skip-fields", "privilege", "csr_writes", "trap")
 
 #: Rows whose mutant changes a field the Ibex trace never carries.  The RTL
 #: side cannot exhibit them in this channel; (b) covers those fields.
@@ -267,7 +274,7 @@ def _length_rows(base):
                 e["seq"] = len(rtl)
                 e["pc"] = f"0x{int(rtl[-1]['pc'], 16) + 4 * k:08x}"
                 e["regs"] = {}
-                e.pop("mem_writes", None)
+                e["mem_writes"] = None   # listed in the header: present, no store
                 rtl.append(e)
         return m
 
@@ -276,14 +283,14 @@ def _length_rows(base):
 
 
 def mutant(row):
-    rtl, iss = pair(BASE_PROG, "halt")
+    (rh, rtl), (ih, iss) = (cmp_.split(log) for log in pair(BASE_PROG, "halt"))
     base = copy.deepcopy(rtl)
     mutate = _length_rows(base).get(row) or table.ROWS[row][1]
     # The table's mutants pick their entry with e["mem_writes"]; here a
-    # non-store has none (schema), so they choose from a view where it is [].
-    view = [dict(e, mem_writes=e.get("mem_writes", [])) for e in base]
+    # non-store has null (schema), so they choose from a view where it is [].
+    view = [dict(e, mem_writes=e.get("mem_writes") or []) for e in base]
     mutate(rtl, iss, view)
-    return rtl, iss
+    return cmp_.rejoin(rh, rtl), cmp_.rejoin(ih, iss)
 
 
 #: (row, comparator) whose detection here differs from the Spike table.
@@ -305,11 +312,24 @@ def _c_params():
     return out
 
 
+#: The orchestrator has no --skip-fields.  Its counterpart of AGENT_D_EXTRA is
+#: the one gap the declared Ibex log always reports there (the orchestrator
+#: compares trap but not csrs or privilege, #159): a mutant is detected only by
+#: a finding or by a gap beyond it.  Held exact by
+#: test_c_the_orchestrators_declared_gap_is_exactly_trap.
+ORCH_DECLARED_GAPS = frozenset({"field_not_reported:trap:rtl"})
+
+
 def detects(comparator, rtl, iss):
     res = run(comparator, rtl, iss, AGENT_D_EXTRA)
     if comparator == "orchestrator":
-        return bool(res["findings"]) or bool(res["unobserved"])
+        return bool(res["findings"]) or bool(set(res["unobserved"]) - ORCH_DECLARED_GAPS)
     return res["exit"] in (1, 3)
+
+
+def test_c_the_orchestrators_declared_gap_is_exactly_trap():
+    res = run("orchestrator", *pair(BASE_PROG, "halt"))
+    assert not res["findings"] and set(res["unobserved"]) == ORCH_DECLARED_GAPS, res
 
 
 @pytest.mark.parametrize("row,comparator", _c_params())
@@ -329,7 +349,7 @@ def test_c_the_unmutated_ibex_base_passes(comparator):
 
 
 #: skip_fields name -> the field name AGENT_D reports it under when it is not skipped
-SKIP_REPORTED_AS = {"privilege": "privilege", "csr_writes": "csrs"}
+SKIP_REPORTED_AS = {"privilege": "privilege", "csr_writes": "csrs", "trap": "trap"}
 
 
 def test_c_the_declared_skips_are_exactly_what_the_channel_cannot_report(tmp_path):

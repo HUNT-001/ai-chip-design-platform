@@ -5,8 +5,7 @@ ISS. It also covers what each producer in the tree can and cannot report, and
 how to check a log before you compare it.
 
 The schema is `AGENT_A/commitlog.schema.json` (2.2.0). The validator is
-`AGENT_A/commitlog_validator.py`. Anything marked **planned (PR 4 of
-#177)** is not implemented yet. Do not rely on it.
+`AGENT_A/commitlog_validator.py`.
 
 ## 1. Two formats
 
@@ -153,6 +152,26 @@ Under a header, a producer that cannot see traps leaves `trap` out of the list
 and off every record. The trap channel is then named as not reported instead of
 passing as "no traps".
 
+### What each producer declares (PR 4 of #177)
+
+| producer | `fields_reported` |
+|---|---|
+| `validation/ibex/trace_to_commitlog.py` (Ibex text trace) | `cycle`, `disasm`, `mem_writes`, `regs` |
+| `validation/ibex/spike_to_commitlog.py` (Spike `--log-commits`) | `csrs`, `mem_writes`, `priv`, `regs`, `trap` |
+
+Each list is what the source log prints (sections 6 and 7), and the CLI writes
+it as the log's first line. Every listed field is on every record. A record
+with no register write has `"regs": {}`. A non-store has `"mem_writes": null`,
+because the schema allows no empty list. A Spike record with no trap has
+`"trap": null`. In Python, `convert`/`convert_file` return the records, and
+`declared_log` puts the header in front of them.
+
+Both comparators still read `mem_writes: null` as "not reported", even under a
+header, so the non-store records of two declared logs show up as `stores` in
+`not_compared`. That is a reader issue (#192).
+
+`AGENT_C/spike_parser.py` does not write a header yet. That is a separate issue.
+
 ## 5. The declared halt write (#178, #180, #181)
 
 Spike keeps retiring the program's terminal self-loop (`j .`) until it next
@@ -201,11 +220,30 @@ reads it (recorded examples: `tests/fixtures/spike/`):
   it is logged. The converters take the last `mtvec` logged before the
   exception line, mode bits cleared (`AGENT_F/coverage_pipeline.with_trap_vectors`).
   With no `mtvec` write before the trap, `mtvec` is its reset value, which the
-  log does not show: the trap gets no `tvec` and the record fails the schema
-  (#184).
+  log does not show. `validation/ibex/spike_to_commitlog.py` then refuses the
+  log with a `ValueError` naming the epc. It does not invent a `tvec` or drop
+  the trap (#184, #177).
+- **`tvec` for an interrupt.** `with_trap_vectors` handles exceptions only. In
+  vectored mode an interrupt goes to BASE + 4 × cause, not BASE, so an interrupt
+  gets no `tvec`. Spike's interrupt lines do not match the exception pattern,
+  so the converter refuses them as unrecognised lines (below).
 - **The privilege of a trapping instruction.** Spike prints an exception line
-  instead of a commit line, and that line has no privilege digit.
-  `validation/ibex/spike_to_commitlog.py` leaves `priv` off that record (#184).
+  instead of a commit line, and that line has no privilege digit. The digit on
+  a commit line is the mode the instruction ran in, saved before it executes.
+  So `validation/ibex/spike_to_commitlog.py` gives the trapping record the mode
+  of the line before it, which is the mode the trap was taken from. If that
+  line is an mret, sret, dret or mnret (each changes the mode), or is itself a
+  trap, priv cannot be derived and the converter raises `ValueError` naming the
+  epc. It never writes null.
+- **Implicit CSR writes.** Spike's `csrs` are the explicit CSR writes it logs.
+  It does not log the implicit trap-entry writes (`mepc`, `mcause`, `mstatus`,
+  ...), so a trap record's `"csrs": {}` means "none logged", not "none
+  happened". A DUT that reports those writes would mismatch it. The comparators'
+  semantics for this are #190.
+- **Lines it does not recognise.** `validation/ibex/spike_to_commitlog.py` reads
+  the log with `parse_spike_log` and refuses any line that log leaves
+  unclassified, so nothing is dropped without notice. (`parse_spike_commit_log`,
+  on the orchestrator's path, still drops them: #191.)
 - **`cycle` and perf counters.** An ISS has neither. It emits null, or omits
   them.
 - Spike also retires the terminal self-loop until it polls `tohost` (section 5).
@@ -228,7 +266,9 @@ reads them:
 
 It does report the register write, store address and data (sub-word data
 appears masked, as `store:0x??????NN`), loads (not logged by default), cycle and
-disassembly.
+disassembly. Its header lists `cycle`, `disasm`, `mem_writes` and `regs`
+(section 4), so CSRs, privilege and trap are named as not reported in every
+comparison.
 
 ## 8. How to validate a DUT log
 
@@ -289,10 +329,9 @@ inference for it (section 3). AGENT_D records `"fields_reported": {"rtl": …,
 The orchestrator records the same in its comparison and in the run's metadata.
 Neither reader runs the strict validator on a legacy log (#184).
 
-Every producer in the tree writes headerless 2.1.0 logs today:
-`AGENT_C/spike_parser.py` and both `validation/ibex` converters. Moving them to
-a header is **planned (PR 4 of #177)**.
+Both `validation/ibex` converters write declared 2.2.0 logs (section 4).
+`AGENT_C/spike_parser.py` still writes headerless 2.1.0 logs.
 
-**Deprecation.** One release after headers are supported end to end, an
-undeclared log will be treated as incomplete (exit 3) rather than inferred.
-This cutoff is documented here and not implemented.
+**Deprecation (decided).** One release after headers are supported end to end,
+an undeclared log will be treated as incomplete (exit 3) rather than inferred.
+That cutoff is decided but not implemented yet.
