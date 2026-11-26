@@ -106,10 +106,14 @@ def test_the_cases_are_not_vacuous():
 @pytest.mark.parametrize("sides", ["both", "rtl", "iss"])
 def test_the_header_is_never_counted_or_compared(tmp_path, prog, sides):
     """A headered copy gives the counts, the program end, the warnings and the
-    findings of the same records with no header."""
+    findings of the same records with no header.  With one side headerless,
+    its null mem_writes is "not reported" while the declared side's is "no
+    store" (#192), so the verdict is exit 3 naming exactly that gap."""
     rtl, iss = fc.ibex_pair(prog)
     fields = fc.COMMON + ["trap"]
-    rtl_d, iss_d = fc.declare(rtl, fields), fc.declare(iss, fields)
+    # Ibex cannot see traps and Spike has no cycle: supplied as null.
+    rtl_d = fc.declare(fc.with_default(rtl, "trap", None), fields)
+    iss_d = fc.declare(fc.with_default(iss, "cycle", None), fields)
     ended = {"reason": "halt_write", "addr": rtl[-1]["mem_writes"][-1]["addr"]}
     plain_rc, plain = orchestrate(tmp_path, _records(rtl_d), _records(iss_d), ended)
     hdr_rc, hdr = orchestrate(
@@ -117,7 +121,12 @@ def test_the_header_is_never_counted_or_compared(tmp_path, prog, sides):
         rtl_d if sides in ("both", "rtl") else _records(rtl_d),
         iss_d if sides in ("both", "iss") else _records(iss_d), ended)
     assert plain_rc == 0, (prog, plain["bugs"], plain["unobserved"])
-    assert hdr_rc == plain_rc, (prog, sides, hdr["bugs"], hdr["unobserved"])
+    if sides == "both":
+        assert hdr_rc == plain_rc, (prog, sides, hdr["bugs"], hdr["unobserved"])
+    else:
+        legacy = "iss" if sides == "rtl" else "rtl"
+        assert hdr_rc == 3 and hdr["unobserved"] == [f"field_not_reported:stores:{legacy}"], (
+            prog, sides, hdr["bugs"], hdr["unobserved"])
     for key in ("rtl_entries", "iss_entries", "program_end", "warnings", "bugs"):
         assert hdr[key] == plain[key], (prog, sides, key, hdr[key], plain[key])
     assert hdr["rtl_entries"] == len(rtl) and hdr["iss_entries"] == len(iss)
@@ -129,7 +138,8 @@ def test_the_counts_name_records_not_lines(tmp_path):
     rtl, iss = fc.ibex_pair("loadstore")
     fields = fc.COMMON + ["trap"]
     ended = {"reason": "halt_write", "addr": rtl[-1]["mem_writes"][-1]["addr"]}
-    _, c = orchestrate(tmp_path, fc.declare(rtl, fields), fc.declare(iss, fields), ended)
+    _, c = orchestrate(tmp_path, fc.declare(fc.with_default(rtl, "trap", None), fields),
+                       fc.declare(fc.with_default(iss, "cycle", None), fields), ended)
     counts = [w for w in c["warnings"] if "RTL=" in w]
     assert counts == [f"Instruction count diverges: RTL={len(rtl)} ISS={len(iss)}"], counts
 
@@ -229,20 +239,23 @@ def _write(path, log):
 def test_run_iss_validate_commitlog_accepts_a_headered_log(tmp_path):
     run_iss = _run_iss()
     recs = _agent_c_log(run_iss, tmp_path)
-    p = _write(tmp_path / "declared.jsonl", fc.declare(recs, fc.fields_of(recs)))
+    p = _write(tmp_path / "declared.jsonl", fc.declare(recs, fc.fields_on_every_record(recs)))
     assert run_iss.validate_commitlog(p) == []
 
 
 @pytest.mark.parametrize("mutation,needle", [
-    ("drop_listed", "'regs'"), ("add_unlisted", "'cycle'"), ("header_twice", "header"),
+    ("drop_listed", "'priv'"), ("add_unlisted", "'cycle'"), ("header_twice", "header"),
     ("header_only", "no records"), ("alias", "'rd'"),
 ])
 def test_run_iss_validate_commitlog_rejects_a_malformed_one(tmp_path, mutation, needle):
     run_iss = _run_iss()
     recs = _agent_c_log(run_iss, tmp_path)
-    log = fc.declare(recs, fc.fields_of(recs))
+    # Only what AGENT_C writes on every record (priv, disasm): it leaves regs
+    # off a record with no register write, so regs cannot be listed.
+    log = fc.declare(recs, fc.fields_on_every_record(recs))
+    assert "priv" in log[0]["_header"]["fields_reported"]
     if mutation == "drop_listed":
-        del log[4]["regs"]
+        del log[4]["priv"]
     elif mutation == "add_unlisted":
         log[4]["cycle"] = None
     elif mutation == "header_twice":
@@ -297,3 +310,24 @@ def test_the_readers_share_agent_ds_rules():
     assert ch.IDENTITY_FIELDS == d.IDENTITY_FIELDS
     assert ch.LEGACY_KEYS == d._LEGACY_KEYS
     assert ch.LEGACY_FIELDS_REPORTED == d.LEGACY_FIELDS_REPORTED == LEGACY
+
+
+def test_the_fields_with_no_null_are_the_schemas():
+    """#192: under a header, null on a listed field means "reported, none" only
+    where the schema has a null.  Where it has none (regs, csrs, priv, ...), a
+    null is a malformed log.  The set is asked of the schema itself, by
+    validating null against each property, not read from its text, and both
+    readers' copies must equal it."""
+    import jsonschema
+    from AGENT_A import commitlog_header as ch
+    import AGENT_D.compare_commitlogs as d
+    schema = json.loads(fc.SCHEMA.read_text(encoding="utf-8"))
+    no_null = set()
+    for f in fc.DECLARABLE:
+        v = jsonschema.Draft202012Validator(
+            {"$defs": schema["$defs"], "properties": schema["properties"],
+             "$ref": f"#/properties/{f}"})
+        if not v.is_valid(None):
+            no_null.add(f)
+    assert {"regs", "csrs", "priv"} <= no_null and not {"mem_writes", "trap"} & no_null, no_null
+    assert ch.NON_NULLABLE_FIELDS == d.NON_NULLABLE_FIELDS == frozenset(no_null)

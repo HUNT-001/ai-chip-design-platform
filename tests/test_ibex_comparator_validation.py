@@ -336,6 +336,12 @@ def test_c_the_orchestrators_declared_gap_is_exactly_trap():
 def test_c_detection_matches_the_spike_table(row, comparator):
     rtl, iss = mutant(row)
     assert (rtl, iss) != pair(BASE_PROG, "halt"), f"{row}: the mutant changed nothing"
+    if row in table.FINDING_ROWS:
+        # Both headers list mem_writes, so null is "no store" (#192): a store
+        # mismatch, not the "could not compare" detects() would also accept.
+        res = run(comparator, rtl, iss, AGENT_D_EXTRA)
+        assert has_mismatch(comparator, res), (row, comparator, res)
+        return
     spike_detects = (row, comparator) not in table.KNOWN_GAPS
     assert detects(comparator, rtl, iss) == spike_detects, (
         f"{row}/{comparator}: Spike table {'detects' if spike_detects else 'misses'} it, "

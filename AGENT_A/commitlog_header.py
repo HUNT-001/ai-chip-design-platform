@@ -38,6 +38,29 @@ DECLARABLE_FIELDS: FrozenSet[str] = frozenset(
     ["properties"]["fields_reported"]["items"]["enum"])
 #: The fields every record carries, which no header lists.
 IDENTITY_FIELDS: FrozenSet[str] = frozenset(_SCHEMA["required"])
+
+
+def _allows_null(s: Any) -> bool:
+    """Whether a property's schema admits null: a null type, or a oneOf/anyOf
+    branch (local $refs followed) that does."""
+    if not isinstance(s, dict):
+        return False
+    if "$ref" in s:
+        node: Any = _SCHEMA
+        for part in s["$ref"].lstrip("#/").split("/"):
+            node = node[part]
+        return _allows_null(node)
+    t = s.get("type")
+    if t == "null" or (isinstance(t, list) and "null" in t):
+        return True
+    return any(_allows_null(b) for k in ("oneOf", "anyOf") for b in s.get(k, []))
+
+
+#: Declarable fields the schema gives no null (regs, csrs, priv, ...).  Under a
+#: header null on a listed field is "reported, none" (#192): for mem_writes it
+#: is "no store", for trap "no trap".  On one of these it is a malformed log.
+NON_NULLABLE_FIELDS: FrozenSet[str] = frozenset(
+    f for f in DECLARABLE_FIELDS if not _allows_null(_SCHEMA["properties"][f]))
 #: Pre-schema spellings of declarable fields.  A declared log uses the schema's
 #: names only, or `rd` would report registers its header says it does not.
 LEGACY_KEYS: Dict[str, str] = {
@@ -110,7 +133,8 @@ def parse_header(obj: Dict[str, Any], side: str = "log", line: Optional[int] = 1
 def check_record(rec: Any, declared: FrozenSet[str], side: str = "log",
                  line: Optional[int] = None) -> None:
     """Hold one record to its log's header: every listed field present (null is
-    a value), nothing unlisted (even null), no legacy key spellings."""
+    a value, "reported, none", where the schema has a null; #192), nothing
+    unlisted (even null), no legacy key spellings."""
     if not isinstance(rec, dict):
         return      # not a record at all: each reader reports that as it always has
     for f in sorted(declared):
@@ -118,6 +142,10 @@ def check_record(rec: Any, declared: FrozenSet[str], side: str = "log",
             raise MalformedLogError(
                 side, line, f, f"{f!r} is listed in fields_reported but missing from this "
                 f"record (under a header, null is 'none here'; absence is not)")
+        if rec[f] is None and f in NON_NULLABLE_FIELDS:
+            raise MalformedLogError(
+                side, line, f, f"{f!r} is null, which the schema does not allow (under a "
+                f"header null is 'reported, none', and {f!r} has no null)")
     for f in sorted(DECLARABLE_FIELDS - declared):
         if f in rec:
             raise MalformedLogError(
@@ -127,6 +155,14 @@ def check_record(rec: Any, declared: FrozenSet[str], side: str = "log",
             raise MalformedLogError(
                 side, line, k, f"this record carries {k!r}, the legacy spelling of "
                 f"{LEGACY_KEYS[k]!r}; a declared log uses the schema's names")
+
+
+def null_is_none(fields_reported: Any, field: str) -> bool:
+    """True when a side's header lists `field`, so a null there is "reported,
+    none" (#192), not "not reported".  False for a headerless side, whose null
+    keeps meaning not reported."""
+    return (isinstance(fields_reported, list) and field in fields_reported
+            and field not in NON_NULLABLE_FIELDS)
 
 
 def split_log(objs: Sequence[Any], side: str = "log",

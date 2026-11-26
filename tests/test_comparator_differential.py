@@ -346,4 +346,42 @@ def test_orchestrator_and_agent_d_agree_on_fields_reported(tmp_path, name):
 
 def test_the_fields_cases_are_not_vacuous():
     assert {c.expect for c in FIELDS_CASES.values()} == set(fc.EXPECTED_EXIT)
-    assert len(FIELDS_CASES) >= 21, "cases were deleted"
+    assert len(FIELDS_CASES) >= 29, "cases were deleted"
+
+
+def _stores_not_compared(tmp_path, rtl, iss, skips):
+    """(orchestrator, AGENT_D) count of entries whose stores were not compared."""
+    case = fc.Case(rtl, iss, None, "pass", None, skips)
+    _, c = _orchestrator_exit(tmp_path, case)
+    rep = tmp_path / "nc_report.json"
+    paths = []
+    for tag, log in (("rtl", rtl), ("iss", iss)):
+        p = tmp_path / f"nc_{tag}.jsonl"
+        p.write_bytes("".join(json.dumps(e) + "\n" for e in log).encode("utf-8"))
+        paths.append(str(p))
+    r = subprocess.run([sys.executable, str(REPO_ROOT / "AGENT_D" / "compare_commitlogs.py"),
+                        *paths, "--quiet", "--bug-report", str(rep), *skips],
+                       cwd=REPO_ROOT, capture_output=True, text=True, timeout=120)
+    assert rep.exists(), (r.stdout + r.stderr)[-800:]
+    d = json.loads(rep.read_text(encoding="utf-8"))
+    return c["fields_not_compared"].get("stores", 0), d["not_compared"].get("stores", 0)
+
+
+def test_a_null_both_sides_list_is_compared_as_no_store(tmp_path):
+    """#192: under headers that both list mem_writes, null against null is two
+    reports of "no store here", compared and equal, so no entry's stores go
+    uncompared.  Headerless, the same nulls stay "not reported" by both sides,
+    and are counted as not compared, as before."""
+    rtl, iss = fc.ibex_pair("loadstore")
+    iss = iss[:len(rtl)]                # Ibex stops on the halt store; cut Spike there too
+    nulls = sum(1 for a, b in zip(rtl, iss) if a.get("mem_writes") is None
+                and b.get("mem_writes") is None)
+    assert nulls > 10, "the pair has too few non-stores to say anything"
+    both = fc.COMMON + ["trap"]
+    # Ibex cannot see traps and Spike has no cycle: supplied as null, as in fc.
+    declared = _stores_not_compared(
+        tmp_path, fc.declare(fc.with_default(rtl, "trap", None), both),
+        fc.declare(fc.with_default(iss, "cycle", None), both), fc.IBEX_SKIPS)
+    assert declared == (0, 0), declared
+    legacy = _stores_not_compared(tmp_path, rtl, iss, fc.IBEX_SKIPS)
+    assert legacy == (nulls, nulls), legacy

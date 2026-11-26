@@ -314,12 +314,14 @@ BEFORE = {
     "spike-self/rv32im_smoke/agent_d": _d(0),
 }
 
-#: with the header.  `stores` stays not compared on non-store records: both
-#: readers read `mem_writes: null` as not reported even under a header.
+#: with the header.  Both headers list mem_writes, so a non-store's
+#: `mem_writes: null` is "no store", compared and equal, and `stores` leaves
+#: not_compared in every cell (#192).
 AFTER = {
-    **_ibex_rows(_o("incomplete", [TRAP_RTL]), _d(3, sorted(RTL_UNDECLARED + [TRAP_RTL]))),
-    **{f"spike-self/{s}/orchestrator": _o("pass") for s in SPIKE_STEMS},
-    **{f"spike-self/{s}/agent_d": _d(0) for s in SPIKE_STEMS},
+    **_ibex_rows(_o("incomplete", [TRAP_RTL], not_compared=()),
+                 _d(3, sorted(RTL_UNDECLARED + [TRAP_RTL]), not_compared=())),
+    **{f"spike-self/{s}/orchestrator": _o("pass", not_compared=()) for s in SPIKE_STEMS},
+    **{f"spike-self/{s}/agent_d": _d(0, not_compared=()) for s in SPIKE_STEMS},
 }
 
 #: Every row whose verdict changes, and why.
@@ -333,10 +335,17 @@ VERDICT_CHANGES = {
 #: Rows whose verdict holds but whose coverage moves, and why.
 COVERAGE_CHANGES = {
     **{f"{p}/{v}": "exit 3 both times; field_not_reported:trap:rtl is added to csrs and "
-                   "privilege, so the trap gap is named instead of read as 'no trap'"
+                   "privilege, so the trap gap is named instead of read as 'no trap'; "
+                   "stores leaves not_compared (#192)"
        for p in PROGRAMS for v in ("agent_d_raw", "agent_d_cut", "agent_d_at_halt")},
     "spike-self/csr_trap/agent_d": "exit 0 both times; privilege leaves not_compared: the "
-                                   "trap record now carries the derived priv",
+                                   "trap record now carries the derived priv; stores "
+                                   "leaves it too (#192)",
+    "spike-self/rv32im_smoke/agent_d": "exit 0 both times; stores leaves not_compared: a "
+                                       "declared null is 'no store' (#192)",
+    **{f"spike-self/{s}/orchestrator": "pass both times; stores leaves not_compared: a "
+                                       "declared null is 'no store' (#192)"
+       for s in SPIKE_STEMS},
 }
 
 

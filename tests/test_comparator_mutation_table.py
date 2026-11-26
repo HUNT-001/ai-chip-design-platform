@@ -13,6 +13,13 @@ meaning a finding, or "could not compare" (AGENT_D exit 3, the orchestrator's
 detect today is listed in KNOWN_GAPS with its issue and runs as a strict xfail,
 so fixing it fails the build until the entry is removed.
 
+Two rows run on a declared copy of the smoke log (`smoke_declared`: a
+fields_reported header listing what Spike reports, and `"mem_writes": null` on
+every non-store, the only "no store" the schema allows under a header).  For
+those rows the schema says more than DETECTED: null under a header is
+"reported, none" (#192), so a store against it is a store mismatch, and the
+row asks for a finding (FINDING_ROWS), not "could not compare".
+
 Spike prints no store size and no trap value, so those two are filled in
 identically on both sides (size from the instruction's funct3, `tval` as 0);
 AGENT_D is run with `--skip-fields mem_size` only where the table says so.
@@ -57,12 +64,24 @@ def _canonical(name, upto):
     return out
 
 
+#: What Spike reports, as validation/ibex/spike_to_commitlog.py declares it.
+SPIKE_FIELDS = ["csrs", "mem_writes", "priv", "regs", "trap"]
+
+
+def _declared(log):
+    """`log` as a declared 2.2.0 log: a header listing SPIKE_FIELDS, and null
+    for a non-store's mem_writes, as the converters write it (#177, #192)."""
+    recs = [dict(e, schema_version="2.2.0", mem_writes=e["mem_writes"] or None) for e in log]
+    return [{"_header": {"schema_version": "2.2.0", "fields_reported": SPIKE_FIELDS}}] + recs
+
+
 BASE = {
     # Each ends two entries past the program's terminal self-loop (index 67 and
     # 27), as a real log does: Spike keeps retiring `j .` until it polls tohost.
     "smoke": _canonical("rv32im_smoke", 70),
     "csr_trap": _canonical("csr_trap", 30),
 }
+BASE["smoke_declared"] = _declared(BASE["smoke"])
 PROGRAM_END = {"smoke": 67, "csr_trap": 27}
 
 
@@ -166,6 +185,22 @@ def m_store_missing_iss(rtl, iss, base):
     iss[_first(base, lambda e: e["mem_writes"])]["mem_writes"] = []
 
 
+#: A store no record of the fixtures makes.
+SPURIOUS_STORE = {"addr": "0x00001000", "size": 4, "data": "0xdeadbeef"}
+
+
+def m_spurious_store(rtl, iss, base):
+    """The RTL stores on a record where the ISS reports no store (#192)."""
+    i = _first(base, lambda e: "_header" not in e and not e.get("mem_writes")
+               and not e.get("trap"), after=3)
+    rtl[i]["mem_writes"] = [dict(SPURIOUS_STORE)]
+
+
+def m_store_dropped(rtl, iss, base):
+    """The RTL reports no store, as null, where the ISS stores (#192)."""
+    rtl[_first(base, lambda e: e.get("mem_writes"))]["mem_writes"] = None
+
+
 def _ends_before_the_program_ends(back):
     """The RTL log stops `back` entries before the terminal self-loop."""
     def mutant(rtl, iss, base):
@@ -205,11 +240,16 @@ ROWS = {
     "store_data":              ("smoke",    m_store_data),
     "store_missing_rtl":       ("smoke",    m_store_missing_rtl),
     "store_missing_iss":       ("smoke",    m_store_missing_iss),
+    "spurious_store_declared": ("smoke_declared", m_spurious_store),
+    "store_dropped_declared":  ("smoke_declared", m_store_dropped),
     "short_log_1":             ("smoke",    _ends_before_the_program_ends(0)),
     "short_log_20pct":         ("smoke",    _ends_before_the_program_ends(13)),
     "long_log_1":              ("smoke",    _runs_on(1)),
     "long_log_20pct":          ("smoke",    _runs_on(14)),
 }
+
+#: Rows the schema says are a finding (exit 1, a bug), not "could not compare".
+FINDING_ROWS = frozenset({"spurious_store_declared", "store_dropped_declared"})
 
 #: (row, comparator) -> issue.  Rows the comparator does not detect today.
 #: Strict xfail: when one is fixed the build fails until the entry is removed.
@@ -241,25 +281,34 @@ KNOWN_GAPS = {
 
 # ── the two comparators, run the way a real run runs them ────────────────────
 
-def _orchestrator_detects(tmp_path, rtl, iss):
+def _orchestrator_outcome(tmp_path, rtl, iss):
     sim = SpikeISS(timeout=30, run_dir=tmp_path / "cmp")
     comparison = asyncio.run(sim._compare_results(
         {"commit_log": copy.deepcopy(rtl), "instructions": len(rtl)},
         {"commit_log": copy.deepcopy(iss), "instructions": len(iss)}))
-    return bool(comparison["bugs"]) or bool(comparison.get("unobserved"))
+    if comparison["bugs"]:
+        return "finding"
+    return "incomplete" if comparison.get("unobserved") else "pass"
 
 
-def _agent_d_detects(tmp_path, rtl, iss):
+def _agent_d_outcome(tmp_path, rtl, iss):
     r, i = tmp_path / "rtl.jsonl", tmp_path / "iss.jsonl"
     for path, log in ((r, rtl), (i, iss)):
         path.write_text("\n".join(json.dumps(e) for e in log) + "\n", encoding="utf-8")
     proc = subprocess.run([sys.executable, str(CLI), str(r), str(i), "--quiet"],
                           cwd=REPO_ROOT, capture_output=True, text=True, timeout=120)
     assert proc.returncode in (0, 1, 3), f"AGENT_D could not run: {proc.returncode} {proc.stderr[-400:]}"
-    return proc.returncode in (1, 3)
+    return {0: "pass", 1: "finding", 3: "incomplete"}[proc.returncode]
 
 
-COMPARATORS = {"orchestrator": _orchestrator_detects, "agent_d": _agent_d_detects}
+OUTCOMES = {"orchestrator": _orchestrator_outcome, "agent_d": _agent_d_outcome}
+
+
+def _detects(outcome):
+    return lambda tmp_path, rtl, iss: outcome(tmp_path, rtl, iss) != "pass"
+
+
+COMPARATORS = {name: _detects(outcome) for name, outcome in OUTCOMES.items()}
 
 
 def _mutant(row):
@@ -286,6 +335,10 @@ def _params():
 def test_a_single_field_mutant_is_detected(tmp_path, row, comparator):
     rtl, iss = _mutant(row)
     assert rtl != iss, f"{row}: the mutant changed nothing, so the row proves nothing"
+    if row in FINDING_ROWS:
+        got = OUTCOMES[comparator](tmp_path, rtl, iss)
+        assert got == "finding", f"{comparator}: {row} is a finding, got {got}"
+        return
     assert COMPARATORS[comparator](tmp_path, rtl, iss), (
         f"{comparator} did not notice {row}")
 
@@ -301,7 +354,8 @@ def test_an_unmutated_log_passes_both_comparators(tmp_path, fixture, comparator)
 
 
 def test_the_table_has_a_floor_and_every_gap_names_a_real_row():
-    assert len(ROWS) >= 21, "rows were deleted"
+    assert len(ROWS) >= 23, "rows were deleted"
+    assert FINDING_ROWS <= set(ROWS)
     assert len(COMPARATORS) == 2
     for (row, comparator), issue in KNOWN_GAPS.items():
         assert row in ROWS and comparator in COMPARATORS, (row, comparator)
@@ -312,3 +366,6 @@ def test_the_fixtures_hold_what_the_rows_need():
     assert any(e["csrs"] for e in BASE["csr_trap"]) and any(e["trap"] for e in BASE["csr_trap"])
     assert sum(len(e["mem_writes"]) for e in BASE["smoke"]) == 2
     assert not any(e["trap"] or e["csrs"] for e in BASE["smoke"])
+    hdr, *recs = BASE["smoke_declared"]
+    assert hdr["_header"]["fields_reported"] == SPIKE_FIELDS
+    assert sum(1 for e in recs if e["mem_writes"] is None) == len(recs) - 2
