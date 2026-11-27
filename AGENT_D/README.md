@@ -232,7 +232,7 @@ These are the **canonical wire-format strings** that appear in `bug_report.json`
 | Code | Severity | Meaning |
 |------|----------|---------|
 | `PCMISMATCH` | CRITICAL | Program counter diverged. All further comparison is aborted — different PCs mean different instructions are being compared. |
-| `REGMISMATCH` | WARNING | A general-purpose register (x1–x31) has a different write-back value in RTL vs. ISS. The most common functional bug. |
+| `REGMISMATCH` | WARNING | A record's register writes differ: a general-purpose register (x1–x31) has a different write-back value in RTL vs. ISS, or is written on one side only (including `{}` against a write). Every write of the record is compared, not only the first; writes to x0 are ignored here (see `X0WRITTEN`). The most common functional bug. |
 | `CSRMISMATCH` | WARNING | A CSR write produced a different value. Covers mstatus, mepc, mcause, and all others. |
 | `MEMMISMATCH` | WARNING | A memory access has a different address, value, or operation type. |
 | `TRAPMISMATCH` | ERROR | One side took a trap/exception and the other didn't. |

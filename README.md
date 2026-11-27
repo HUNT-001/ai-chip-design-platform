@@ -29,14 +29,14 @@ The exit code is the verdict, and it does not depend on the console encoding. Cu
 
 ### What `completed` means today
 
-`completed` means: every instruction the core retired has the same PC as Spike's, and the first register value each instruction wrote is the same, from the ELF entry through the program's end (its terminal self-loop; a core whose testbench halts on a store never retires it, and may declare that, see the table). The simulators ran to the end and nothing else that gates the verdict objected. It does not mean the core is correct beyond that.
+`completed` means: every instruction the core retired has the same PC as Spike's, and each instruction wrote the same registers with the same values (a write on one side only fails; writes to x0 are ignored on both sides), from the ELF entry through the program's end (its terminal self-loop; a core whose testbench halts on a store never retires it, and may declare that, see the table). The simulators ran to the end and nothing else that gates the verdict objected. It does not mean the core is correct beyond that.
 
 | | Compared by the verdict | Tracked in |
 |---|---|---|
 | PC of every retired instruction | yes | |
-| First register value written by each instruction | yes | |
+| Register writes of each instruction: the same registers, the same values (x0 ignored) | yes | |
 | Program end (both logs reach the terminal self-loop at the same index; or the RTL log declares it stopped on a halt write, ends on a store to that address, and Spike has only the loop left; an early end that is not declared, or that the log does not bear out, fails) | yes | |
-| Instruction word, register names, later register writes of the same instruction | no | #159 |
+| Instruction word | no | #159 |
 | CSR writes, privilege level, traps | no | #159 |
 | Stores (a field present on one side only is skipped, not reported) | no | #164 |
 | AGENT_H verifiers (they are never handed the commit logs; a skipped report counts as clean) | do not contribute | #161 |

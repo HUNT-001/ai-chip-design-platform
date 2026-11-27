@@ -473,6 +473,18 @@ def _regs_dict_to_rd(regs: Dict[str, Any], mask: int):
     return None, None
 
 
+def _regs_dict_to_map(regs: Dict[str, Any], mask: int) -> Dict[Any, int]:
+    """Every register write in a canonical regs object, keyed by register
+    index (a name not in _REG_NAME_TO_IDX is kept lowercased), x0 dropped:
+    x0 is architecturally zero and the schema forbids it in regs (#159)."""
+    out: Dict[Any, int] = {}
+    for reg_name, hex_val in regs.items():
+        key = _REG_NAME_TO_IDX.get(str(reg_name).lower(), str(reg_name).lower())
+        if key != 0:
+            out[key] = _parse_hex(hex_val, "regs." + str(reg_name)) & mask
+    return out
+
+
 def _csrs_dict_to_list(csrs: Dict[str, Any], xlen: int):
     """Convert canonical csrs object to a list of CsrWrite."""
     mask = (1 << xlen) - 1
@@ -761,6 +773,10 @@ class CommitEntry:
     lineno: int           = 0
     raw_pc: str           = ""
 
+    # Every register write of the record, keyed by index, x0 dropped; None
+    # when the record does not report register writes (#159).
+    reg_writes:      Optional[Dict[Any, int]] = None
+
     # Set by reader
     x0_violation:    bool = False  # rd==0 but rd_val != 0
     schema_violation: bool = False  # record failed optional-field type checks
@@ -828,10 +844,12 @@ class CommitEntry:
         # Register writeback: canonical "regs" dict OR legacy "rd"/"rd_val"
         if "regs" in d and isinstance(d["regs"], dict):
             rd, rd_val = _regs_dict_to_rd(d["regs"], mask)
+            reg_writes = _regs_dict_to_map(d["regs"], mask)
         else:
             _rd_raw = d.get("rd")
             rd      = int(_rd_raw) if _rd_raw is not None else None
             rd_val  = _h("rd_val")
+            reg_writes = None if rd is None else ({} if rd == 0 else {rd: rd_val})
 
         e = CommitEntry(
             step        = int(d.get("seq", d.get("step", 0))),
@@ -844,6 +862,7 @@ class CommitEntry:
                            or bool(d.get("trap", False))),
             rd          = int(rd) if rd is not None else None,
             rd_val      = rd_val,
+            reg_writes  = reg_writes,
             rs1         = (lambda v: int(v) if v is not None else None)(d.get("rs1")),
             rs1_val     = _h("rs1_val"),
             rs2         = (lambda v: int(v) if v is not None else None)(d.get("rs2")),
@@ -1673,24 +1692,32 @@ class _FieldComparator:
                         ))
 
         # ── 6. Register write-back ────────────────────────────────────────────
-        if "rd_val" not in self._skip:
-            if rtl.rd is not None and rtl.rd != 0:
-                if iss.rd is not None and rtl.rd != iss.rd:
-                    issues.append((
-                        MismatchType.REG_MISMATCH,
-                        f"Destination register index mismatch at {rtl.fmt_pc()}: "
-                        f"rtl=x{rtl.rd} iss=x{iss.rd}",
-                        "rd", f"x{rtl.rd}", f"x{iss.rd}",
-                    ))
-                elif rtl.rd_val is not None and iss.rd_val is not None:
-                    if rtl.rd_val != iss.rd_val:
+        # When both sides report register writes, the record's writes are
+        # compared as a whole: the same registers with the same values.  A
+        # write on one side only is a mismatch (#159).
+        if ("rd_val" not in self._skip
+                and rtl.reg_writes is not None and iss.reg_writes is not None):
+            for reg in sorted(set(rtl.reg_writes) | set(iss.reg_writes), key=str):
+                name = f"x{reg}" if isinstance(reg, int) else reg
+                rv, iv = rtl.reg_writes.get(reg), iss.reg_writes.get(reg)
+                if reg in rtl.reg_writes and reg in iss.reg_writes:
+                    if rv != iv:
                         issues.append((
                             MismatchType.REG_MISMATCH,
-                            f"x{rtl.rd} write-back mismatch at {rtl.fmt_pc()}: "
-                            f"rtl={_fmt_hex(rtl.rd_val)} iss={_fmt_hex(iss.rd_val)}",
-                            "rd_val",
-                            _fmt_hex(rtl.rd_val), _fmt_hex(iss.rd_val),
+                            f"{name} write-back mismatch at {rtl.fmt_pc()}: "
+                            f"rtl={_fmt_hex(rv)} iss={_fmt_hex(iv)}",
+                            "rd_val", _fmt_hex(rv), _fmt_hex(iv),
                         ))
+                else:
+                    issues.append((
+                        MismatchType.REG_MISMATCH,
+                        f"{name} written on one side only at {rtl.fmt_pc()}: "
+                        f"rtl={_fmt_hex(rv) if reg in rtl.reg_writes else 'no write'} "
+                        f"iss={_fmt_hex(iv) if reg in iss.reg_writes else 'no write'}",
+                        "rd",
+                        _fmt_hex(rv) if reg in rtl.reg_writes else None,
+                        _fmt_hex(iv) if reg in iss.reg_writes else None,
+                    ))
 
         # ── 7. CSR writes ─────────────────────────────────────────────────────
         if "csr_writes" not in self._skip:
